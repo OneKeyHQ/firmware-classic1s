@@ -17,7 +17,7 @@
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <libopencm3/stm32/flash.h>
+#include "../flash.h"
 #include <stdint.h>
 #include <string.h>
 #include "bl_data.h"
@@ -27,6 +27,7 @@
 #include "layout.h"
 #include "memory.h"
 #include "oled.h"
+#include "secbool.h"
 #include "util.h"
 
 char bootloader_version[8] = {0};
@@ -170,8 +171,16 @@ static int known_bootloader(int r, const uint8_t *hash) {
   // BEGIN AUTO-GENERATED BOOTLOADER ENTRIES (bl_check.txt)
   if (0 ==
       memcmp(hash,
-             "\xa8\xbe\x50\xe3\xb5\x25\x28\x08\xf5\x22\x47\x96\x99\x1b\x6e\x10"
-             "\xec\x70\x72\x6d\xc7\x29\x17\x93\x5b\x59\xaa\xf2\x0f\xca\xb2\x95",
+             "\x8b\x41\x32\x6e\x77\x44\xd6\x61\x63\x4c\x52\x12\x11\x10\x1b\xf1"
+             "\x0b\x73\x46\x61\x9d\x06\x0e\x6c\x25\xcf\x68\xf5\x47\xad\x84\x05",
+             32)) {
+    memcpy(bootloader_version, "2.0.0", strlen("2.0.0"));
+    return 1;  // 2.0.0 shipped with fw 3.0.0
+  }
+  if (0 ==
+      memcmp(hash,
+             "\x52\x06\x3b\x10\x3a\xbb\xd1\xcf\xdf\x8e\xac\xec\x39\x8d\x18\xc3"
+             "\x4f\xe5\x53\x89\xd6\x69\xc0\xf4\x48\xcb\x33\x55\x15\x88\xba\xb4",
              32)) {
     memcpy(bootloader_version, "2.0.0", strlen("2.0.0"));
     return 1;  // 2.0.0 shipped with fw 3.0.0
@@ -259,23 +268,19 @@ void check_and_replace_bootloader(bool shutdown_on_replace) {
     delay_ms(1000);
   }
 
-  // unlock sectors
+  // unlock boot1's sectors
   memory_write_unlock();
 
-  for (int tries = 0; tries < 10; tries++) {
+  for (uint8_t tries = 0; tries < 10; tries++) {
     // replace bootloader
-    flash_wait_for_last_operation();
-    flash_clear_status_flags();
-    flash_unlock();
-    for (int i = FLASH_BOOT_SECTOR_FIRST; i <= FLASH_BOOT_SECTOR_LAST; i++) {
-      flash_erase_sector(i, FLASH_CR_PROGRAM_X32);
+    for (uint8_t isecs = FLASH_BOOT_SECTOR_FIRST;
+         isecs <= FLASH_BOOT_SECTOR_LAST; isecs++) {
+      flash_erase(isecs);
     }
-    for (int i = 0; i < FLASH_BOOT_LEN / 4; i++) {
-      const uint32_t *w = (const uint32_t *)(bl_data + i * 4);
-      flash_program_word(FLASH_BOOT_START + i * 4, *w);
+    for (uint32_t items = 0; items < FLASH_BOOT_LEN / 4; items++) {
+      const uint32_t *w = (const uint32_t *)(bl_data + items * 4);
+      flash_write_word_item(FLASH_BOOT_START + items * 4, *w);
     }
-    flash_wait_for_last_operation();
-    flash_lock();
     // check whether the write was OK
     r = memory_bootloader_hash(hash);
     if (r == 32 && 0 == memcmp(hash, bl_hash, 32)) {

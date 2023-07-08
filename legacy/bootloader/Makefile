@@ -30,7 +30,7 @@ OPTFLAGS ?= -Os
 
 include ../Makefile.include
 
-bootloader.bin: $(NAME).bin
+bootloader1.bin: $(NAME).bin
 	./firmware_align.py $< $@
 
-all: bootloader.bin
+all: bootloader1.bin

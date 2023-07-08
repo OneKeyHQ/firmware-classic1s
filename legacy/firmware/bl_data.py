@@ -7,10 +7,10 @@ fn = sys.argv[1]
 print("Embedding bootloader", fn)
 
 data = open(fn, "rb").read()
-if len(data) > 65536:
+if len(data) > 49152:
     raise Exception("bootloader has to be smaller than 32768 bytes")
 
-data += b"\x00" * (32768 - len(data))
+data += b"\x00" * (49152 - len(data))
 
 bh = sha256(sha256(data).digest()).digest()
 
@@ -20,7 +20,7 @@ bl_data = ", ".join("0x%02x" % x for x in bytearray(data))
 with open("bl_data.h", "wt") as f:
     f.write(f"static const uint8_t bl_hash[32] = {{{bl_hash}}};\n")
     f.write(
-        f"static const uint8_t bl_data[65536] __attribute__((aligned(4))) = {{{bl_data}}};\n"
+        f"static const uint8_t bl_data[49152] __attribute__((aligned(4))) = {{{bl_data}}};\n"
     )
 
 if fn != "bootloader_qa.dat":

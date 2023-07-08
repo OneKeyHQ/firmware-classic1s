@@ -28,32 +28,31 @@ void memory_protect(void) {
   /* enable security protection */
   fmc_unlock();
   ob_unlock();
-  // bootloader's sectors are protected
-  ob_write_protection_enable(OB_WP_0 | OB_WP_1 | OB_WP_2 | OB_WP_3);
   ob_security_protection_config(FMC_HSPC);
   ob_start();
   ob_lock();
   fmc_lock();
 }
 
+// boot1's sectors write lock
 void memory_write_lock(void) {
   /* disable security protection */
   fmc_unlock();
   ob_unlock();
-  // bootloader's sectors  unlock
-  ob_write_protection_enable(OB_WP_0 | OB_WP_1 | OB_WP_2 | OB_WP_3);
+  // bootloader's sectors are protected
+  ob_write_protection_enable(OB_WP_1 | OB_WP_2 | OB_WP_3);
   ob_start();
   ob_lock();
   fmc_lock();
 }
 
-// Read protection is unaffected and always stays locked to the desired value.
+// // boot1's sectors write unlock
 void memory_write_unlock(void) {
   /* disable security protection */
   fmc_unlock();
   ob_unlock();
-  // bootloader's sectors  unlock
-  ob_write_protection_disable(OB_WP_0 | OB_WP_1 | OB_WP_2 | OB_WP_3);
+  // bootloader's sectors unlock
+  ob_write_protection_disable(OB_WP_1 | OB_WP_2 | OB_WP_3);
   ob_start();
   ob_lock();
   fmc_lock();
