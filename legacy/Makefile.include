@@ -122,8 +122,8 @@ LIBDEPS  += $(TOP_DIR)vendor/libpresetdata/libpresetdata.a
 
 ZKP_PATH = $(TOP_DIR)vendor/secp256k1-zkp
 
-# hw_model = T1B1 = 0x31423154
-HW_MODEL = 0x31423154
+# hw_model = C2B2 = 0x32423243
+HW_MODEL = 0x32423243
 CPUFLAGS   += -DHW_MODEL=$(HW_MODEL)
 CPUFLAGS   += -DHW_REVISION=0
 CFLAGS   += -DHW_MODEL=$(HW_MODEL)

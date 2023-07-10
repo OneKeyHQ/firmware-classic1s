@@ -613,6 +613,12 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
           return;
         }
         if (memcmp(p, &FIRMWARE_MAGIC_NEW, 4) == 0) {
+          if(memcmp(p + 24, "C2B2", 4) != 0){
+            send_msg_failure(dev, 9);  // Failure_ProcessError
+            flash_state = STATE_END;
+            show_halt("Wrong hardware model", "header.");
+            return;
+          }
           update_mode = UPDATE_ST;
         } else {
           update_mode = UPDATE_BLE;
