@@ -3768,6 +3768,7 @@ class Features(protobuf.MessageType):
         517: protobuf.Field("coin_switch", "uint32", repeated=False, required=False, default=None),
         518: protobuf.Field("build_id", "string", repeated=False, required=False, default=None),
         520: protobuf.Field("battery_level", "uint32", repeated=False, required=False, default=None),
+        521: protobuf.Field("product", "string", repeated=False, required=False, default=None),
     }
 
     def __init__(
@@ -3827,6 +3828,7 @@ class Features(protobuf.MessageType):
         coin_switch: Optional["int"] = None,
         build_id: Optional["str"] = None,
         battery_level: Optional["int"] = None,
+        product: Optional["str"] = None,
     ) -> None:
         self.capabilities: Sequence["Capability"] = capabilities if capabilities is not None else []
         self.major_version = major_version
@@ -3882,6 +3884,7 @@ class Features(protobuf.MessageType):
         self.coin_switch = coin_switch
         self.build_id = build_id
         self.battery_level = battery_level
+        self.product = product
 
 
 class LockDevice(protobuf.MessageType):

@@ -2590,6 +2590,7 @@ if TYPE_CHECKING:
         coin_switch: "int | None"
         build_id: "str | None"
         battery_level: "int | None"
+        product: "str | None"
 
         def __init__(
             self,
@@ -2647,6 +2648,7 @@ if TYPE_CHECKING:
             coin_switch: "int | None" = None,
             build_id: "str | None" = None,
             battery_level: "int | None" = None,
+            product: "str | None" = None,
         ) -> None:
             pass
 

@@ -89,20 +89,26 @@ static void send_msg_features(usbd_device *dev) {
     0xc0, 0x20, battery_cap
   };
 
+  uint8_t product[]={
+    0xca, 0x20, 0x08,'c','l','a','s','s','i','c','2'
+  };
+
   uint8_t header_bytes[] = {
     // header
     '?', '#', '#',
     // msg_id
     0x00, 0x11,
     // msg_size
-    0x00, 0x00, 0x00, sizeof(feature_bytes) + (firmware_present ? sizeof(version_bytes) : 0) + sizeof(battery_level),
+    0x00, 0x00, 0x00, sizeof(feature_bytes) + (firmware_present ? sizeof(version_bytes) : 0) + sizeof(battery_level)
+    + sizeof(product),
   };
   // clang-format on
 
   // Check that the response will fit into an USB packet, and also that the
   // sizeof expression above fits into a single byte
   _Static_assert(sizeof(feature_bytes) + sizeof(version_bytes) +
-                         sizeof(header_bytes) + sizeof(battery_level) <=
+                         sizeof(header_bytes) + sizeof(battery_level) +
+                         sizeof(product) <=
                      64,
                  "Features response too long");
 
@@ -118,6 +124,9 @@ static void send_msg_features(usbd_device *dev) {
   }
 
   memcpy(response + offset, battery_level, sizeof(battery_level));
+  offset += sizeof(battery_level);
+
+  memcpy(response + offset, product, sizeof(product));
 
   send_response(dev, response);
 }

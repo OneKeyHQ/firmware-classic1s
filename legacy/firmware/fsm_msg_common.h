@@ -160,7 +160,8 @@ bool get_features(Features *resp) {
     resp->battery_level = battery_cap;
   }
 #endif
-
+  resp->has_product = true;
+  strlcpy(resp->product, "classic2", sizeof(resp->product));
   return resp;
 }
 
