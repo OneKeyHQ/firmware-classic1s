@@ -17,7 +17,7 @@ jobs:
         id: vars
         run: |
           BOOT_VERSION=$(./tools/version.sh ./legacy/bootloader/version.h)
-          FIRMWARE_VERSION=$(cat ./legacy/firmware/version.h | grep "ONEKEY_VERSION " | awk -F "[\"\"]" '{print $$2}')
+          FIRMWARE_VERSION=$(cat ./legacy/firmware/version.h | grep "ONEKEY_VERSION " | awk -F "[\"\"]" '{print $2}')
           BUILD_DATE=$(date +"%Y%m%d")
           SHORT_HASH=$(git rev-parse --short HEAD)
 
@@ -48,9 +48,9 @@ jobs:
         uses: onekeyhq/actions/notice-slack-app-update@main
         with:
           web-hook-url: ${{ secrets.SLACK_DEV_RELEASE_WEBHOOK }}
-          artifact-type: CLASSIC-FIRMWARE
-          artifact-name: Classic-Hardware-Firmware
-          artifact-bundle-id: 'so.onekey.firmware.classic'
+          artifact-type: CLASSIC-FIRMWARE-2
+          artifact-name: Classic-Hardware-Firmware-2
+          artifact-bundle-id: 'so.onekey.firmware.classic2'
           artifact-version-name: '${{ env.FIRMWARE_VERSION }}'
           artifact-version-code: '${{ env.SHORT_HASH }}-${{ env.BUILD_DATE }}'
           artifact-download-url: '${{ env.ARTIFACTS_URL }}'
