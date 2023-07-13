@@ -32,5 +32,6 @@ include ../Makefile.include
 
 bootloader1.bin: $(NAME).bin
 	./firmware_align.py $< $@
+	mv $@ $<
 
 all: bootloader1.bin
