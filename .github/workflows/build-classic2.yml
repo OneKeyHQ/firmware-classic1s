@@ -42,6 +42,7 @@ jobs:
           path: |
             ./legacy/firmware/classic*Stable*.bin
             ./legacy/bootloader/bootloader*Stable*.bin
+            ./legacy/bootloader0/bootloader0.bin
             ./legacy/intermediate_fw/classic*.bin
 
       - name: "Notify to Slack"
