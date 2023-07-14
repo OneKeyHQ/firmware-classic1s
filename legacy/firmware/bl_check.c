@@ -62,6 +62,14 @@ static int known_bootloader(int r, const uint8_t *hash) {
     memcpy(bootloader_version, "2.0.0", strlen("2.0.0"));
     return 1;  // 2.0.0 shipped with fw 3.0.0
   }
+  if (0 ==
+      memcmp(hash,
+             "\xc5\xe8\xc7\x41\x5d\x71\xd0\xca\x8d\x0a\x09\x6f\x53\xb2\xb2\x33"
+             "\x9d\x02\x40\x80\x0a\x37\x8e\xee\x77\x95\x75\xc1\x05\xa1\xc8\x4d",
+             32)) {
+    memcpy(bootloader_version, "2.0.0", strlen("2.0.0"));
+    return 1;  // 2.0.0 shipped with fw 3.0.0
+  }
   // END AUTO-GENERATED BOOTLOADER ENTRIES (bl_check.txt)
   return 0;
 }
