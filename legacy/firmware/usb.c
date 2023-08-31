@@ -457,14 +457,14 @@ void usbPoll(void) {
     }
   } else if (!usb_connect_status && usb_status_bak) {
     usb_status_bak = false;
-    //FTFixed: 设备重启后，需要usb重新初始化
+    // FTFixed: 设备重启后，需要usb重新初始化
     usbInit();
     if (config_hasPin() && session_isUnlocked()) {
       reset = true;
     }
   }
   if (reset) {
-    //FTFixed: 设备重启后，需要清se权限
+    // FTFixed: 设备重启后，需要清se权限
     config_lockDevice();
     svc_system_privileged();
     vector_table_t *ivt = (vector_table_t *)FLASH_PTR(FLASH_APP_START);

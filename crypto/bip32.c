@@ -91,6 +91,16 @@ const curve_info curve25519_info = {
     .hasher_script = HASHER_SHA2,
 };
 
+const curve_info ed25519_polkadot_info = {
+    .curve_name = ED25519_POLKADOT_NAME,
+    .bip32_name = ED25519_SEED_NAME,
+    .params = NULL,
+    .hasher_base58 = HASHER_SHA2D,
+    .hasher_sign = HASHER_SHA2D,
+    .hasher_pubkey = HASHER_SHA2_RIPEMD,
+    .hasher_script = HASHER_SHA2,
+};
+
 int hdnode_from_xpub(uint32_t depth, uint32_t child_num,
                      const uint8_t *chain_code, const uint8_t *public_key,
                      const char *curve, HDNode *out) {
@@ -416,7 +426,7 @@ int hdnode_fill_public_key(HDNode *node) {
     } else if (node->curve == &ed25519_cardano_info) {
       ed25519_publickey_ext(node->private_key, node->public_key + 1);
 #endif
-    } else if (node->curve == &ed25519_ledger_info) {
+    } else if (node->curve == &ed25519_polkadot_info) {
       ed25519_publickey(node->private_key, node->public_key + 1);
     }
   }
@@ -767,6 +777,12 @@ const curve_info *get_curve_by_name(const char *curve_name) {
   if (strcmp(curve_name, ED25519_CARDANO_NAME) == 0) {
     return &ed25519_cardano_info;
   }
+  if (strcmp(curve_name, ED25519_CARDANO_TREZOR_NAME) == 0) {
+    return &ed25519_cardano_trezor_info;
+  }
+  if (strcmp(curve_name, ED25519_CARDANO_LEDGER_NAME) == 0) {
+    return &ed25519_cardano_ledger_info;
+  }
 #endif
   if (strcmp(curve_name, ED25519_SHA3_NAME) == 0) {
     return &ed25519_sha3_info;
@@ -779,8 +795,8 @@ const curve_info *get_curve_by_name(const char *curve_name) {
   if (strcmp(curve_name, CURVE25519_NAME) == 0) {
     return &curve25519_info;
   }
-  if (strcmp(curve_name, ED25519_LEDGER_NAME) == 0) {
-    return &ed25519_ledger_info;
+  if (strcmp(curve_name, ED25519_POLKADOT_NAME) == 0) {
+    return &ed25519_polkadot_info;
   }
   return 0;
 }
@@ -859,14 +875,9 @@ int hdnode_private_ckd_bip32(HDNode *inout, uint32_t i) {
 }
 
 int hdnode_private_ckd(HDNode *inout, uint32_t i) {
-  // TODO
-  // 目前只u2f在用此函数，其他加密货币在派生时使用的`hdnode_private_ckd_cached`函数
-  // 且u2f的密钥是外部的密钥
-  // 如果决定u2f也用cos内部生成的密钥，则此函数扔需要在模拟器和硬件中分别实现
-  // 分别使用se提供的功能进行实现
 #if USE_CARDANO
   if (inout->curve == &ed25519_cardano_info ||
-      inout->curve == &ed25519_ledger_info) {
+      inout->curve == &ed25519_polkadot_info) {
     return hdnode_private_ckd_cardano(inout, i);
   } else
 #endif

@@ -124,9 +124,6 @@ bool get_features(Features *resp) {
     memcpy(resp->se_ver, sn_version, strlen(sn_version));
   }
 
-  resp->has_backup_only = true;
-  resp->backup_only = config_getMnemonicsImported();
-
   resp->has_onekey_version = true;
 
   strlcpy(resp->onekey_version, ONEKEY_VERSION, sizeof(resp->onekey_version));
@@ -232,7 +229,7 @@ void fsm_msgPing(const Ping *msg) {
 
 void fsm_msgChangePin(const ChangePin *msg) {
   // CHECK_INITIALIZED
-  if (!config_isInitialized() && !config_getMnemonicsImported()) {
+  if (!config_isInitialized()) {
     fsm_sendFailure(FailureType_Failure_NotInitialized, NULL);
     return;
   }
@@ -337,6 +334,7 @@ void fsm_msgWipeDevice(const WipeDevice *msg) {
   (void)msg;
   uint8_t key = KEY_NULL;
 
+#if !DEBUG_LINK
   if (!layoutEraseDevice()) {
     i2c_set_wait(false);
     fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
@@ -349,6 +347,7 @@ void fsm_msgWipeDevice(const WipeDevice *msg) {
     layoutHome();
     return;
   }
+#endif
   layoutDialogAdapterEx(
       _("Erase Device"), &bmp_bottom_left_delete, _("Back"),
       &bmp_bottom_right_confirm, _("Reset "),
@@ -379,7 +378,7 @@ void fsm_msgWipeDevice(const WipeDevice *msg) {
   i2c_set_wait(false);
   fsm_sendSuccess(_("Device wiped"));
   layoutHome();
-#if !EMULATOR
+#if !EMULATOR && !DEBUG_LINK
   // svc_system_reset();
   reset_to_firmware();
 #endif
@@ -408,10 +407,7 @@ void fsm_msgGetEntropy(const GetEntropy *msg) {
 #if EMULATOR
   random_buffer(resp->entropy.bytes, len);
 #else
-  while (len > 0) {
-    se_get_entropy(resp->entropy.bytes + resp->entropy.size - len);
-    len -= 32;
-  }
+  se_random_encrypted(resp->entropy.bytes, len);
 #endif
   msg_write(MessageType_MessageType_Entropy, resp);
   layoutHome();
@@ -870,9 +866,8 @@ void fsm_msgBixinVerifyDeviceRequest(const BixinVerifyDeviceRequest *msg) {
   RESP_INIT(BixinVerifyDeviceAck);
   resp->cert.size = 1024;
   resp->signature.size = 512;
-  if (false == se_verify((uint8_t *)msg->data.bytes, msg->data.size, 1024,
-                         resp->cert.bytes, &resp->cert.size,
-                         resp->signature.bytes, &resp->signature.size)) {
+  if (!se_sign_message((uint8_t *)msg->data.bytes, msg->data.size,
+                       resp->signature.bytes)) {
     fsm_sendFailure(FailureType_Failure_UnexpectedMessage, NULL);
     layoutHome();
     return;
@@ -880,63 +875,4 @@ void fsm_msgBixinVerifyDeviceRequest(const BixinVerifyDeviceRequest *msg) {
   msg_write(MessageType_MessageType_BixinVerifyDeviceAck, resp);
   layoutHome();
   return;
-}
-
-void fsm_msgBixinLoadDevice(const BixinLoadDevice *msg) {
-  //   CHECK_PIN
-
-  CHECK_NOT_INITIALIZED
-
-  layoutDialogSwipe(&bmp_icon_question, _("Cancel"), _("OK"), NULL,
-                    _("If import seed,"), _("device is used for"),
-                    _("backup only"), _("know what you are"), _("doing!"),
-                    NULL);
-  if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
-    fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
-    layoutHome();
-    return;
-  }
-  if (!(msg->has_skip_checksum && msg->skip_checksum)) {
-    if (!mnemonic_check(msg->mnemonics)) {
-      fsm_sendFailure(FailureType_Failure_DataError,
-                      _("Mnemonic with wrong checksum provided"));
-      layoutHome();
-      return;
-    }
-  }
-  if (config_hasPin()) {
-    CHECK_PIN
-  } else if (!protectChangePin(false)) {
-    layoutHome();
-    return;
-  }
-
-  if (!config_loadDevice_ex(msg)) {
-    fsm_sendFailure(FailureType_Failure_DataError,
-                    _("Load device failed setup se related"));
-    layoutHome();
-    return;
-  }
-  fsm_sendSuccess(_("Device loaded"));
-  layoutHome();
-}
-
-// TODO SE can't export `mnemonic`
-void fsm_msgBixinBackupDevice(void) {
-  /*
-  if (!config_getMnemonicsImported()) {
-    fsm_sendFailure(FailureType_Failure_ProcessError,
-                    "device is not supported");
-    layoutHome();
-    return;
-  }
-  CHECK_PIN_UNCACHED
-
-  RESP_INIT(BixinBackupDeviceAck);
-
-  config_getMnemonic(resp->mnemonics, sizeof(resp->mnemonics));
-
-  msg_write(MessageType_MessageType_BixinBackupDeviceAck, resp);
-  layoutHome();
-  return;*/
 }

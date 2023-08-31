@@ -73,6 +73,7 @@ OBJS += recovery.o
 OBJS += reset.o
 OBJS += signing.o
 OBJS += crypto.o
+OBJS += se_chip.o
 
 ifneq ($(BITCOIN_ONLY),1)
 OBJS += u2f.o

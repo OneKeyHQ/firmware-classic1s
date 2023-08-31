@@ -17,8 +17,8 @@
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "../flash.h"
 #include <libopencm3/usb/usbd.h>
+#include "../flash.h"
 
 #include <stdint.h>
 #include <string.h>
@@ -46,21 +46,14 @@
 #include "timer.h"
 #include "usart.h"
 
+#include "compatible.h"
+#include "mi2c.h"
 #include "nordic_dfu.h"
-
+#include "thd89_boot.h"
 #include "usb21_standard.h"
+#include "usb_desc.h"
 #include "webusb.h"
 #include "winusb.h"
-#include "mi2c.h"
-#include "usb_desc.h"
-#include "compatible.h"
-
-#define PTYP_iBERamWord(address)                         \
-  ((((uint16_t)(*((uint8_t *)address) << 8)) & 0xFF00) + \
-   ((uint16_t)(*(uint8_t *)((uint8_t *)(address) + 1)) & 0x00FF))
-#define PTYP_lBERamDWord(address)                                \
-  ((((uint32_t)(PTYP_iBERamWord(address)) << 16) & 0xFFFF0000) + \
-   ((uint32_t)(PTYP_iBERamWord((uint8_t *)(address) + 2)) & 0x0000FFFF))
 
 enum {
   STATE_READY,
@@ -93,169 +86,6 @@ static uint8_t update_mode = 0;
 
 static void flash_enter(void) { return; }
 static void flash_exit(void) { return; }
-
-static inline bool se_get_firVersion(uint8_t *resp) {
-  uint8_t ucVerCmd[5] = {0x00, 0xf7, 0x00, 00, 0x02};
-  uint16_t ver_len = 0xff;
-
-  if (false == bMI2CDRV_SendData(ucVerCmd, sizeof(ucVerCmd))) {
-    return false;
-  }
-
-  delay_ms(5);
-  if (false == bMI2CDRV_ReceiveData(resp, &ver_len)) {
-    return false;
-  }
-
-  return true;
-}
-
-//-------------------------------------------------
-// name:bSE_GetState
-// parameter:
-//		ucState:status
-// return:
-//		TRUE/FALSE
-// description:
-//		get the status of the SE
-//-------------------------------------------------
-static bool bSE_GetState(uint8_t *ucState) {
-  uint8_t aucBuf[5];
-  uint16_t usLen;
-  aucBuf[0] = 0x80;
-  aucBuf[1] = 0xFC;
-  aucBuf[2] = 0x00;
-  aucBuf[3] = 0x00;
-  aucBuf[4] = 0x00;
-  // get se status
-  if (false == bMI2CDRV_SendData(aucBuf, 5)) {
-    return false;
-  }
-  delay_ms(100);
-  usLen = 0xFF;
-  if (false == bMI2CDRV_ReceiveData(aucBuf, &usLen)) {
-    return false;
-  }
-  if ((usLen != 0x01) ||
-      ((aucBuf[0] != 0x00) && (aucBuf[0] != 0x55) && (aucBuf[0] != 0x33))) {
-    return false;
-  }
-  *ucState = aucBuf[0];
-  return true;
-}
-
-//-------------------------------------------------
-// name:bSE_Back2Boot
-// parameter:
-//
-// return:
-//		TRUE/FALSE
-// description:
-//		set SE to boot state
-//-------------------------------------------------
-static bool bSE_Back2Boot(void) {
-  uint8_t aucBuf[5];
-  uint16_t usLen;
-  aucBuf[0] = 0x80;
-  aucBuf[1] = 0xFC;
-  aucBuf[2] = 0x00;
-  aucBuf[3] = 0xFF;
-  aucBuf[4] = 0x00;
-  // se go to second boot status
-  if (false == bMI2CDRV_SendData(aucBuf, 5)) {
-    return false;
-  }
-  delay_ms(10);
-  usLen = 0xFF;
-  if (false == bMI2CDRV_ReceiveData(aucBuf, &usLen)) {
-    return false;
-  }
-  return true;
-}
-
-//-------------------------------------------------
-// name:bSE_AcitveAPP
-// parameter:
-//
-// return:
-//		TRUE/FALSE
-// description:
-//		set SE APP active
-//-------------------------------------------------
-static bool bSE_AcitveAPP(void) {
-  uint8_t aucBuf[5];
-  uint16_t usLen;
-  aucBuf[0] = 0x80;
-  aucBuf[1] = 0xFC;
-  aucBuf[2] = 0x00;
-  aucBuf[3] = 0x04;
-  aucBuf[4] = 0x00;
-  // se active app
-  if (false == bMI2CDRV_SendData(aucBuf, 5)) {
-    return false;
-  }
-  delay_ms(10);
-  usLen = 0xFF;
-  if (false == bMI2CDRV_ReceiveData(aucBuf, &usLen)) {
-    return false;
-  }
-  return true;
-}
-
-//-------------------------------------------------
-// name:bSE_Update
-// parameter:
-//		ucStep:01:first step to verify sig;
-//			   02:update data;
-//			   03:verify hash
-// return:
-//		TRUE/FALSE
-// description:
-//		update firmware
-//-------------------------------------------------
-static bool bSE_Update(uint8_t ucStep) {
-  uint8_t aucBuf[519], *pucTmp;
-  uint16_t usLen;
-  aucBuf[0] = 0x80;
-  aucBuf[1] = 0xFC;
-  aucBuf[2] = 0x00;
-  aucBuf[3] = ucStep;
-  aucBuf[4] = 0x00;
-
-  // send steps
-  if (0x01 == ucStep) {
-    aucBuf[4] = 0x60;
-    memcpy(aucBuf + 5, &(((image_header *)COMBINED_FW_HEADER)->hashes), 32);
-    memcpy(aucBuf + 5 + 32, &(((image_header *)COMBINED_FW_HEADER)->sig1), 64);
-    usLen = 101;
-    if (false == bMI2CDRV_SendData(aucBuf, usLen)) {
-      return false;
-    }
-    delay_ms(50);
-  } else if ((0x02 == ucStep) || (0x05 == ucStep)) {
-    aucBuf[5] = 0x02;
-    aucBuf[6] = 0x00;
-    pucTmp = (uint8_t *)FW_CHUNK + ((flash_combine_pos - 512) % FW_CHUNK_SIZE);
-    memcpy(aucBuf + 7, pucTmp, 512);
-    usLen = 519;
-    if (false == bMI2CDRV_SendData(aucBuf, usLen)) {
-      return false;
-    }
-    delay_ms(5);
-  } else if (0x03 == ucStep) {
-    usLen = 5;
-    if (false == bMI2CDRV_SendData(aucBuf, usLen)) {
-      return false;
-    }
-    delay_ms(50);
-  }
-  // recv data from se
-  usLen = 0xFF;
-  if (false == bMI2CDRV_ReceiveData(aucBuf, &usLen)) {
-    return false;
-  }
-  return true;
-}
 
 #include "usb_erase.h"
 
@@ -355,7 +185,7 @@ static int version_compare(const uint32_t vera, const uint32_t verb) {
 
 static int should_keep_storage(int old_was_signed,
                                uint32_t fix_version_current) {
-	//FTFixed: Storage移动到se中，无须此函数						   
+  // FTFixed: Storage移动到se中，无须此函数
   (void)old_was_signed;
   (void)fix_version_current;
   return SIG_OK;
@@ -381,7 +211,7 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
   static uint16_t msg_id = 0xFFFF;
   static uint32_t w;
   static int wi;
-  static secbool se_isUpdate = sectrue;
+  static secbool se_isUpdate = secfalse;
   static int old_was_signed;
   static uint32_t fix_version_current = 0xffffffff;
   uint8_t *p_buf;
@@ -555,6 +385,9 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
         show_halt("Error installing", "firmware.");
         return;
       }
+
+      se_isUpdate = secfalse;
+
       // read payload length
       const uint8_t *p = p_buf + 10;
       if (flash_pos) {
@@ -613,7 +446,7 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
           return;
         }
         if (memcmp(p, &FIRMWARE_MAGIC_NEW, 4) == 0) {
-          if(memcmp(p + 24, "C2B2", 4) != 0){
+          if (memcmp(p + 24, "C2B2", 4) != 0) {
             send_msg_failure(dev, 9);  // Failure_ProcessError
             flash_state = STATE_END;
             show_halt("Wrong hardware model", "header.");
@@ -718,56 +551,55 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
             flash_exit();
           } else {  // se firmware update
             // first w is FIRMWARE_MAGIC_SE it need strict judge
-            if (w == FIRMWARE_MAGIC_SE) {
-              flash_combine_pos = 0;
+            if (w != FIRMWARE_MAGIC_SE && flash_combine_pos == 0) {
+              show_unplug("Firmware error", NULL);
+              shutdown();
+              return;
             }
             if (flash_combine_pos < FLASH_FWHEADER_LEN) {
               COMBINED_FW_HEADER[flash_combine_pos / 4] = w;
               flash_combine_pos += 4;
               if (flash_combine_pos == FLASH_FWHEADER_LEN) {
-                uint8_t se_version[2];
-                uint16_t ver_current, ver_income;
-                if (!se_get_firVersion(se_version)) {
+                char *current_ver = NULL;
+                uint32_t new_version = 0;
+                uint32_t current_version = 0;
+
+                uint8_t state;
+                if (!se_get_state(&state)) {
                   show_unplug("Update SE", "aborted.");
                   shutdown();
                   return;
                 }
-                ver_current = PTYP_iBERamWord(se_version);
-                ver_income =
-                    (uint16_t)((const image_header *)COMBINED_FW_HEADER)
-                        ->version;
-                se_isUpdate = (ver_current != ver_income) ? sectrue : secfalse;
-                if (sectrue == se_isUpdate) {  // Do update se firmeware
-                  //  更新SE确保SE在Boot状态
-                  if (false == bSE_GetState(apduBuf)) {
-                    show_unplug("Update SE", "aborted.");
+                if (state == THD89_STATE_APP) {
+                  current_ver = se_get_version();
+                  current_version = version_string_to_int(current_ver);
+                  new_version = COMBINED_FW_HEADER[4];
+                  // endian  convert
+                  new_version = ((new_version & 0xFF) << 24) |
+                                ((new_version & 0xFF00) << 8) |
+                                ((new_version & 0xFF0000) >> 8) |
+                                ((new_version & 0xFF000000) >> 24);
+                  if (new_version > current_version) {
+                    se_isUpdate = sectrue;
+                  }
+                } else {
+                  se_isUpdate = sectrue;
+                }
+
+                if (sectrue == se_isUpdate) {
+                  if (!se_back_to_boot_progress()) {
+                    show_unplug("SE back to boot", "error.");
                     shutdown();
                     return;
                   }
-                  if (((apduBuf[0] != 0x00) && (apduBuf[0] != 0x33) &&
-                       (apduBuf[0] != 0x55))) {
-                    flash_state = STATE_END;
-                    show_unplug("Update SE", "aborted.");
-                    shutdown();
-                  }
-                  // SE处于APP状态，报错退出
-                  if (0x55 == apduBuf[0]) {
-                    if (false == bSE_Back2Boot()) {
-                      show_unplug("Update SE", "aborted.");
-                      shutdown();
-                      return;
-                    }
-                    // SE jump into boot mode ,it need delay 1000
-                    delay_ms(1000);
-                  }
-
-                  if (FALSE == bSE_Update(0x01)) {
-                    flash_state = STATE_END;
-                    show_unplug("Update SE", "aborted.");
+                  if (!se_verify_firmware((uint8_t *)COMBINED_FW_HEADER,
+                                          FLASH_FWHEADER_LEN)) {
+                    show_unplug("SE verify header", "error.");
                     shutdown();
                     return;
                   }
                 }
+
                 memzero(FW_CHUNK, FW_CHUNK_SIZE);
               }
             } else {
@@ -777,7 +609,11 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
                   (flash_combine_pos > FLASH_FWHEADER_LEN)) {
                 // se update new firmware loop...
                 if (sectrue == se_isUpdate) {
-                  if (false == bSE_Update(0x02)) {  // 80FC0002000200 固件数据
+                  if (!se_update(
+                          0x02,
+                          (uint8_t *)FW_CHUNK +
+                              ((flash_combine_pos - 512) % FW_CHUNK_SIZE),
+                          512)) {
                     flash_state = STATE_END;
                     show_unplug("Update SE", "aborted.");
                     shutdown();
@@ -816,45 +652,14 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
         }
         // se firmware updating last step
         if (sectrue == se_isUpdate) {
-          if (false == bSE_Update(3)) {  // 80FC000300 SE固件升级最后一步
+          if (!se_check_firmware()) {
             flash_state = STATE_END;
             show_unplug("Update SE", "aborted.");
             send_msg_failure(dev, 4);  // Failure_ActionCancelled
             shutdown();
             return;
           }
-          delay_ms(1000);                        // SE jump into app ,delay 1000
-          if (false == bSE_GetState(apduBuf)) {  // 80FC000000 获取SE状态
-            flash_state = STATE_END;
-            show_unplug("Update SE", "aborted.");
-            send_msg_failure(dev, 4);  // Failure_ActionCancelled
-            shutdown();
-            return;
-          }
-          if (apduBuf[0] != 0x33) {
-            flash_state = STATE_END;
-            show_unplug("Update SE", "aborted.");
-            send_msg_failure(dev, 4);  // Failure_ActionCancelled
-            shutdown();
-            return;
-          }
-          if (false == bSE_AcitveAPP()) {  // enable se app
-            flash_state = STATE_END;
-            show_unplug("Update SE", "aborted.");
-            send_msg_failure(dev, 4);  // Failure_ActionCancelled
-            shutdown();
-            return;
-          }
-          delay_ms(100);  // after active se jump into app
-          if (false == bSE_GetState(apduBuf)) {  // get status after active
-            flash_state = STATE_END;
-            show_unplug("Update SE", "aborted.");
-            send_msg_failure(dev, 4);  // Failure_ActionCancelled
-            shutdown();
-            return;
-          }
-          if ((0x55 != apduBuf[0]) &&
-              (0x00 != apduBuf[0])) {  // 00：APP升级Boot成功；55:APP升级成功
+          if (!se_active_app_progress()) {
             flash_state = STATE_END;
             show_unplug("Update SE", "aborted.");
             send_msg_failure(dev, 4);  // Failure_ActionCancelled

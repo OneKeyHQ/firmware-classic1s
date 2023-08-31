@@ -380,8 +380,7 @@ secbool protectPinUiCallback(uint32_t wait, uint32_t progress,
 
 bool protectPin(bool use_cached) {
   const char *newpin = NULL;
-  //FTFixed: 增加申请延时的需求
-  if (use_cached && session_isUnlocked() && session_isProtectUnlocked()) {
+  if (use_cached && session_isUnlocked()) {
     return true;
   }
 

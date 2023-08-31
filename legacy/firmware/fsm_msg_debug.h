@@ -50,8 +50,7 @@ void fsm_msgDebugLinkGetState(const DebugLinkGetState *msg) {
   resp.recovery_word_pos = recovery_get_word_pos();
 
   resp.has_mnemonic_secret = config_getMnemonicBytes(
-      resp.mnemonic_secret.bytes, sizeof(resp.mnemonic_secret.bytes),
-      &resp.mnemonic_secret.size);
+      resp.mnemonic_secret.bytes, &resp.mnemonic_secret.size);
   resp.mnemonic_type = 0;  // BIP-39
 
   resp.has_node = false;

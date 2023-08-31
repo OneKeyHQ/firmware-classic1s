@@ -210,17 +210,6 @@ static bool recovery_done(void) {
         } else {
         }
         success = true;
-        uint8_t entropy[33] = {0};
-        // entropy from mnemonic
-        int mnemonic_bits_len = mnemonic_to_bits(new_mnemonic, entropy);
-        int words_count = mnemonic_bits_len / 11;
-        // set entropy to SE
-        se_set_entropy(entropy, words_count / 3 * 4);
-        // generate seed
-        if (!generate_seed_steps()) {
-          fsm_sendFailure(FailureType_Failure_ProcessError,
-                          _("Failed to store mnemonic"));
-        }
         layoutSwipe();
       } else {
         fsm_sendFailure(FailureType_Failure_ProcessError,

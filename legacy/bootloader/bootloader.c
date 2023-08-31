@@ -40,6 +40,8 @@
 #include "usb.h"
 #include "util.h"
 
+#include "thd89_boot.h"
+
 void layoutFirmwareFingerprint(const uint8_t *hash) {
   char str[4][17] = {0};
   for (int i = 0; i < 4; i++) {

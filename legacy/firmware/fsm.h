@@ -191,8 +191,6 @@ bool fsm_layoutVerifyHash(const char *chain_name, const char *signer,
 void fsm_msgBixinReboot(const BixinReboot *msg);
 void fsm_msgBixinMessageSE(const BixinMessageSE *msg);
 void fsm_msgBixinVerifyDeviceRequest(const BixinVerifyDeviceRequest *msg);
-void fsm_msgBixinLoadDevice(const BixinLoadDevice *msg);
-void fsm_msgBixinBackupDevice(void);
 
 void fsm_msgGetPublicKeyMultiple(const GetPublicKeyMultiple *msg);
 

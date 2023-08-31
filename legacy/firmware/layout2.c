@@ -668,11 +668,9 @@ static void _layout_home(bool update_menu) {
   bool no_backup = false;
   bool unfinished_backup = false;
   bool needs_backup = false;
-  bool backup_only = false;
   config_getNoBackup(&no_backup);
   config_getUnfinishedBackup(&unfinished_backup);
   config_getNeedsBackup(&needs_backup);
-  backup_only = config_getMnemonicsImported();
   uint8_t homescreen[HOMESCREEN_SIZE] = {0};
   if (config_getHomescreen(homescreen, sizeof(homescreen))) {
     BITMAP b = {0};
@@ -692,45 +690,39 @@ static void _layout_home(bool update_menu) {
     oledDrawStringCenter(OLED_WIDTH / 2, OLED_HEIGHT - 10, ble_get_name(),
                          FONT_STANDARD);
   } else {
-    if (backup_only) {
-      oledDrawStringCenterAdapter(OLED_WIDTH / 2, 20, _("Backup Mode"),
-                                  FONT_STANDARD | FONT_DOUBLE);
-      layoutFillBleName(5);
+    char label[MAX_LABEL_LEN + 1] = "";
+    config_getLabel(label, sizeof(label));
+    oledDrawBitmap(OLED_WIDTH - 16 - 1, OLED_HEIGHT - 11,
+                   &bmp_bottom_right_arrow);
+    if (session_isUnlocked() || !config_hasPin()) {
+      oledDrawBitmap(52, 0, &bmp_onekey_logo);
+      oledDrawStringCenterAdapter(OLED_WIDTH / 2, 29, label, FONT_STANDARD);
+      oledDrawStringCenterAdapter(OLED_WIDTH / 2, OLED_HEIGHT - 10,
+                                  ble_get_name(), FONT_STANDARD);
     } else {
-      char label[MAX_LABEL_LEN + 1] = "";
-      config_getLabel(label, sizeof(label));
-      oledDrawBitmap(OLED_WIDTH - 16 - 1, OLED_HEIGHT - 11,
-                     &bmp_bottom_right_arrow);
-      if (session_isUnlocked() || !config_hasPin()) {
-        oledDrawBitmap(52, 0, &bmp_onekey_logo);
-        oledDrawStringCenterAdapter(OLED_WIDTH / 2, 29, label, FONT_STANDARD);
+      oledDrawBitmap(128 / 2 - 4, 0, &bmp_status_locked);
+      oledDrawStringCenterAdapter(OLED_WIDTH / 2, 19, label, FONT_STANDARD);
+      if (no_backup) {
+        oledBox(0, OLED_HEIGHT - 8, 127, 8, false);
+        oledDrawStringCenterAdapter(OLED_WIDTH / 2, OLED_HEIGHT - 9,
+                                    _("SEEDLESS"), FONT_STANDARD);
+      } else if (unfinished_backup) {
+        oledBox(0, OLED_HEIGHT - 8, 127, 8, false);
+        oledDrawStringCenterAdapter(OLED_WIDTH / 2, OLED_HEIGHT - 9,
+                                    _("BACKUP FAILED!"), FONT_STANDARD);
+      } else if (needs_backup) {
+        oledDrawStringCenterAdapter(OLED_WIDTH / 2, OLED_HEIGHT - 9,
+                                    _("Need Backup"), FONT_STANDARD);
+      } else {
         oledDrawStringCenterAdapter(OLED_WIDTH / 2, OLED_HEIGHT - 10,
                                     ble_get_name(), FONT_STANDARD);
-      } else {
-        oledDrawBitmap(128 / 2 - 4, 0, &bmp_status_locked);
-        oledDrawStringCenterAdapter(OLED_WIDTH / 2, 19, label, FONT_STANDARD);
-        if (no_backup) {
-          oledBox(0, OLED_HEIGHT - 8, 127, 8, false);
-          oledDrawStringCenterAdapter(OLED_WIDTH / 2, OLED_HEIGHT - 9,
-                                      _("SEEDLESS"), FONT_STANDARD);
-        } else if (unfinished_backup) {
-          oledBox(0, OLED_HEIGHT - 8, 127, 8, false);
-          oledDrawStringCenterAdapter(OLED_WIDTH / 2, OLED_HEIGHT - 9,
-                                      _("BACKUP FAILED!"), FONT_STANDARD);
-        } else if (needs_backup) {
-          oledDrawStringCenterAdapter(OLED_WIDTH / 2, OLED_HEIGHT - 9,
-                                      _("Need Backup"), FONT_STANDARD);
-        } else {
-          oledDrawStringCenterAdapter(OLED_WIDTH / 2, OLED_HEIGHT - 10,
-                                      ble_get_name(), FONT_STANDARD);
-        }
       }
     }
   }
 
   oledRefresh();
 
-  bool initialized = config_isInitialized() || config_getMnemonicsImported();
+  bool initialized = config_isInitialized();
 
   if (update_menu && initialized) {
     main_menu_init(initialized);

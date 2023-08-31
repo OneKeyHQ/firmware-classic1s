@@ -17,12 +17,12 @@
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "memory.h"
-#include "flash.h"
 #include <stdint.h>
-#include "sha2.h"
-#include "gd32f4xx.h"
 #include "blake2s.h"
+#include "flash.h"
+#include "gd32f4xx.h"
+#include "memory.h"
+#include "sha2.h"
 
 void memory_protect(void) {
   /* enable security protection */

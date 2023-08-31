@@ -312,8 +312,11 @@ void fsm_msgNEMSignTx(NEMSignTx *msg) {
     }
   }
 
-  resp->data.size =
-      nem_transaction_end(&context, node->private_key, resp->signature.bytes);
+  // resp->data.size =
+  //     nem_transaction_end(&context, node->private_key,
+  //     resp->signature.bytes);
+  se_ed25519_sign_keccak(context.buffer, context.offset, resp->signature.bytes);
+  resp->data.size = context.offset;
 
   resp->signature.size = sizeof(ed25519_signature);
 

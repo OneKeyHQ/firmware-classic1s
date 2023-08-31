@@ -4,13 +4,12 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "common.h"
+#include "compatible.h"
 #include "mi2c.h"
 #include "timer.h"
-#include "compatible.h"
+#include "usart.h"
 
-uint8_t g_ucMI2cRevBuf[MI2C_BUF_MAX_LEN];
-uint8_t g_ucMI2cSendBuf[MI2C_BUF_MAX_LEN];
-uint16_t g_usMI2cRevLen;
 uint16_t g_lasterror;  // TODO:will change in encrypt+MAC
 uint16_t i2c_retry_cnts = 0;
 
@@ -52,14 +51,15 @@ static bool bMI2CDRV_ReadBytes(uint32_t i2c, uint8_t *res,
     // Waiting for address is transferred.
     while (!(I2C_SR1(i2c) & I2C_SR1_ADDR)) {
       usTimeout++;
-      if (usTimeout > MI2C_TIMEOUT) {  // setup timeout is 5ms once
+      if (usTimeout > MI2C_ADDR_ACK_TIMEOUT) {  // setup timeout is 5ms once
         break;
       }
     }
-    if (usTimeout > MI2C_TIMEOUT) {
+    if (usTimeout > MI2C_ADDR_ACK_TIMEOUT) {
       usTimeout = 0;
       i2c_retry_cnts++;
       i2c_send_stop(i2c);  // it will release i2c bus
+      hal_delay(2);
       continue;
     }
     /* Clearing ADDR condition sequence. */
@@ -128,7 +128,9 @@ static bool bMI2CDRV_ReadBytes(uint32_t i2c, uint8_t *res,
   }
   usRealLen -= MI2C_XOR_LEN;
   g_lasterror = (ucSW[0] << 8) + ucSW[1];
+  uart_debug("sw1sw2 ", ucSW, 2);
   if ((0x90 != ucSW[0]) || (0x00 != ucSW[1])) {
+    uart_debug("++++++++++++++++++++++", NULL, 0);
     if (ucSW[0] == 0x6c || ucSW[0] == 0x90) {  // for se generate seed not first
                                                // generate will return 0x90xx
       res[0] = ucSW[1];
@@ -167,11 +169,11 @@ static bool bMI2CDRV_WriteBytes(uint32_t i2c, uint8_t *data,
     // Waiting for address is transferred.
     while (!(I2C_SR1(i2c) & I2C_SR1_ADDR)) {
       usTimeout++;
-      if (usTimeout > MI2C_TIMEOUT) {
+      if (usTimeout > MI2C_ADDR_ACK_TIMEOUT) {
         break;
       }
     }
-    if (usTimeout > MI2C_TIMEOUT) {
+    if (usTimeout > MI2C_ADDR_ACK_TIMEOUT) {
       i2c_retry_cnts++;
       usTimeout = 0;
       continue;

@@ -57,8 +57,6 @@ void session_endCurrentSession(void);
 void config_lockDevice(void);
 
 void config_loadDevice(const LoadDevice *msg);
-bool config_loadDevice_ex(const BixinLoadDevice *msg);
-
 
 bool config_setCoinJoinAuthorization(const AuthorizeCoinJoin *authorization);
 MessageType config_getAuthorizationType(void);
@@ -89,7 +87,6 @@ bool config_changePin(const char *old_pin, const char *new_pin);
 bool config_unlock(const char *pin);
 
 bool session_isUnlocked(void);
-bool session_isProtectUnlocked(void);
 bool config_hasWipeCode(void);
 bool config_changeWipeCode(const char *pin, const char *wipe_code);
 
@@ -100,8 +97,6 @@ bool config_isInitialized(void);
 
 bool config_getImported(bool *imported);
 void config_setImported(bool imported);
-
-bool config_getMnemonicsImported(void);
 
 bool config_getNeedsBackup(bool *needs_backup);
 void config_setNeedsBackup(bool needs_backup);
@@ -125,14 +120,6 @@ SafetyCheckLevel config_getSafetyCheckLevel(void);
 void config_setSafetyCheckLevel(SafetyCheckLevel safety_check_level);
 
 void config_wipe(void);
-void config_setFastPayPinFlag(bool flag);
-bool config_getFastPayPinFlag(void);
-void config_setFastPayConfirmFlag(bool flag);
-bool config_getFastPayConfirmFlag(void);
-void config_setFastPayMoneyLimt(uint64_t MoneyLimt);
-uint64_t config_getFastPayMoneyLimt(void);
-void config_setFastPayTimes(uint32_t times);
-uint32_t config_getFastPayTimes(void);
 
 void config_setBleTrans(bool mode);
 
@@ -160,5 +147,12 @@ bool config_getDeriveCardano(void);
 void config_setDeriveCardano(bool on);
 
 extern char config_uuid_str[2 * UUID_SIZE + 1];
+
+#if DEBUG_LINK
+bool config_setDebugPin(const char *pin);
+bool config_getPin(char *dest, uint16_t dest_size);
+bool config_setDebugMnemonicBytes(const char *mnemonic);
+bool config_getMnemonicBytes(uint8_t *dest, uint16_t *real_size);
+#endif
 
 #endif

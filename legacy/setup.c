@@ -26,14 +26,15 @@
 #include <libopencm3/stm32/spi.h>
 
 #include "layout.h"
+#include "memory.h"
 #include "mi2c.h"
 #include "oled.h"
 #include "rng.h"
 #include "si2c.h"
 #include "sys.h"
+#include "timer.h"
 #include "usart.h"
 #include "util.h"
-#include "memory.h"
 
 #include "compatible.h"
 
@@ -118,6 +119,8 @@ void setup(void) {
   // se power
   gpio_mode_setup(SE_POWER_PORT, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE,
                   SE_POWER_PIN);
+  se_power_off();
+  delay_ms(10);
   se_power_on();
 
   // use libopencm3 init oled

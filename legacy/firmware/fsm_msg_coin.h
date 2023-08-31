@@ -22,9 +22,7 @@ void fsm_msgGetPublicKey(const GetPublicKey *msg) {
 
   CHECK_INITIALIZED
 
-  if (!config_getFastPayPinFlag()) {
-    CHECK_PIN
-  }
+  CHECK_PIN
 
   InputScriptType script_type =
       msg->has_script_type ? msg->script_type : InputScriptType_SPENDADDRESS;
@@ -215,7 +213,6 @@ bool fsm_checkCoinPath(const CoinInfo *coin, InputScriptType script_type,
                       has_multisig, unlock, true)) {
     return true;
   }
-
   if (config_getSafetyCheckLevel() == SafetyCheckLevel_Strict &&
       !coin_path_check(coin, script_type, address_n_count, address_n,
                        has_multisig, unlock, false)) {
@@ -255,9 +252,7 @@ void fsm_msgGetAddress(const GetAddress *msg) {
   RESP_INIT(Address);
 
   CHECK_INITIALIZED
-  if (!config_getFastPayPinFlag()) {
-    CHECK_PIN
-  }
+  CHECK_PIN
 
   const CoinInfo *coin = fsm_getCoin(msg->has_coin_name, msg->coin_name);
   if (!coin) return;

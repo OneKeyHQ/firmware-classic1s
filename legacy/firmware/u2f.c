@@ -35,26 +35,26 @@
 #include "protect.h"
 #include "secbool.h"
 #if !EMULATOR
-#include "mi2c.h"
+#include "thd89.h"
 #endif
+#include "flash.h"
 #include "nist256p1.h"
 #include "oled.h"
 #include "rng.h"
 #include "si2c.h"
-#include "flash.h"
 #include "sys.h"
 #include "trezor.h"
 #include "usb.h"
 #include "util.h"
 
+#include "hard_preset.h"
+#include "memory.h"
+#include "se_chip.h"
 #include "u2f.h"
 #include "u2f/u2f.h"
 #include "u2f/u2f_hid.h"
 #include "u2f/u2f_keys.h"
 #include "u2f_knownapps.h"
-#include "se_chip.h"
-#include "memory.h"
-#include "hard_preset.h"
 
 // About 1/2 Second according to values used in protect.c
 #define U2F_TIMEOUT (800000 / 2)
@@ -518,6 +518,9 @@ void u2fhid_msg(const APDU *a, uint32_t len) {
     return;
   }
 
+  uint8_t buffer[1024 + 64];
+  uint16_t resp_len = sizeof(buffer);
+
   switch (a->ins) {
     case U2F_REGISTER:
       u2f_register(a);
@@ -552,20 +555,13 @@ void u2fhid_msg(const APDU *a, uint32_t len) {
       break;
     default:
 #if !EMULATOR
-      // MI2CDRV_Transmit
-      if (false == bMI2CDRV_SendData((uint8_t *)&(a->cla), len)) {
-        send_u2f_error(U2F_SW_INS_NOT_SUPPORTED);
-        return;
-      }
-      g_usMI2cRevLen = sizeof(g_ucMI2cRevBuf);
-      if (true == bMI2CDRV_ReceiveData(g_ucMI2cRevBuf, &g_usMI2cRevLen)) {
-        g_ucMI2cRevBuf[g_usMI2cRevLen] = U2F_SW_NO_ERROR >> 8 & 0xFF;
-        g_ucMI2cRevBuf[g_usMI2cRevLen + 1] = U2F_SW_NO_ERROR & 0xFF;
-        send_u2f_msg(g_ucMI2cRevBuf, g_usMI2cRevLen + 2);
-      } else {
-        debugLog(0, "", "i2c rev fail");
+
+      if (!thd89_transmit((uint8_t *)&(a->cla), len, buffer, &resp_len)) {
         send_u2f_error(U2F_SW_INS_NOT_SUPPORTED);
       }
+      buffer[resp_len] = U2F_SW_NO_ERROR >> 8 & 0xFF;
+      buffer[resp_len + 1] = U2F_SW_NO_ERROR & 0xFF;
+      send_u2f_msg(buffer, resp_len + 2);
 #endif
       break;
   }

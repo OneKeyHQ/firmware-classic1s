@@ -50,6 +50,7 @@ void fsm_msgCipherKeyValue(const CipherKeyValue *msg) {
   strlcat((char *)data, ask_on_encrypt ? "E1" : "E0", sizeof(data));
   strlcat((char *)data, ask_on_decrypt ? "D1" : "D0", sizeof(data));
 
+#if EMULATOR
   hmac_sha512(node->private_key, 32, data, strlen((char *)data), data);
 
   if (msg->iv.size == 16) {
@@ -69,6 +70,25 @@ void fsm_msgCipherKeyValue(const CipherKeyValue *msg) {
     aes_cbc_decrypt(msg->value.bytes, resp->value.bytes, msg->value.size,
                     data + 32, &ctx);
   }
+#else
+  RESP_INIT(CipheredKeyValue);
+
+  uint8_t *iv = NULL;
+
+  if (msg->iv.size == 16) {
+    iv = (uint8_t *)msg->iv.bytes;
+  }
+  if (encrypt) {
+    se_aes256_encrypt(data, strlen((char *)data), iv,
+                      (uint8_t *)msg->value.bytes, msg->value.size,
+                      resp->value.bytes);
+  } else {
+    se_aes256_decrypt(data, strlen((char *)data), iv,
+                      (uint8_t *)msg->value.bytes, msg->value.size,
+                      resp->value.bytes);
+  }
+
+#endif
   resp->value.size = msg->value.size;
   msg_write(MessageType_MessageType_CipheredKeyValue, resp);
   layoutHome();

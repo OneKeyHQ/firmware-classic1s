@@ -259,8 +259,6 @@ if not utils.BITCOIN_ONLY:
     BixinVerifyDeviceRequest = 909
     BixinVerifyDeviceAck = 910
     BixinLoadDevice = 913
-    BixinBackupDevice = 914
-    BixinBackupDeviceAck = 915
     BixinPinInputOnDevice = 10000
     EthereumSignMessageEIP712 = 10200
     GetPublicKeyMultiple = 10210

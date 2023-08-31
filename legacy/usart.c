@@ -27,21 +27,31 @@
 #include <string.h>
 
 #include "ble.h"
-#include "usart.h"
 #include "compatible.h"
+#include "usart.h"
 
 #if (_SUPPORT_DEBUG_UART_)
-/************************************************************************
-函数名称:vUART_HtoA
-参数:
-        pucSrc:		要格式化的源数据
-        usLen:		要格式化的源数据长度
-        pucDes:		格式化后的数据
-返回:
-        NULL
-功能:
-        该函数用于UART数据格式化数据。
-************************************************************************/
+
+#include <ctype.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+void uart_sendstring(char *pt) {
+  while (*pt) usart_send_blocking(USART3, *pt++);
+}
+
+void uart_printf(char *fmt, ...) {
+  va_list ap;
+  char string[256];
+  va_start(ap, fmt);
+  vsprintf(string, fmt,
+           ap);  // Use It Will Increase the code size, Reduce the efficiency
+  uart_sendstring(string);
+  va_end(ap);
+}
+
 static void vUART_HtoA(uint8_t *pucSrc, uint16_t usLen, uint8_t *pucDes) {
   uint16_t i, j;
   uint8_t mod = 1;  //,sign;
@@ -60,35 +70,15 @@ static void vUART_HtoA(uint8_t *pucSrc, uint16_t usLen, uint8_t *pucDes) {
       pucDes[i + 1] = mod + 55;
   }
 }
-/************************************************************************
-函数名称:vUART_DebugInfo
-参数:
-        pucSendData:		要发送的数据
-        usStrLen:			要发送的数据长度
-返回:
-        NULL
-功能:
-        该函数用于UART数据发送。
-************************************************************************/
+
 static void vUART_SendData(uint8_t *pucSendData, uint16_t usStrLen) {
   uint16_t i;
   for (i = 0; i < usStrLen; i++) {
-    usart_send_blocking(USART1, pucSendData[i]);
+    usart_send_blocking(USART3, pucSendData[i]);
   }
 }
 
-/************************************************************************
-函数名称:vUART_DebugInfo
-参数:
-        pcMsgTag:		提示消息
-        pucSendData:	需要格式化发送的数据
-        usStrLen:		数据长度
-返回:
-        NULL
-功能:
-        该函数用于格式化发送数据。
-************************************************************************/
-void vUART_DebugInfo(char *pcMsg, uint8_t *pucSendData, uint16_t usStrLen) {
+void uart_debug(char *pcMsg, uint8_t *pucSendData, uint16_t usStrLen) {
   uint8_t ucBuff[600];
 
   vUART_SendData((uint8_t *)pcMsg, strlen(pcMsg));
@@ -100,24 +90,21 @@ void vUART_DebugInfo(char *pcMsg, uint8_t *pucSendData, uint16_t usStrLen) {
 }
 
 void usart_setup(void) {
-  rcc_periph_clock_enable(RCC_USART1);
-  // rcc_periph_clock_enable(RCC_GPIOA);
-  // gpio_mode_setup(GPIOA, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO9);
-  // gpio_set_af(GPIOA, GPIO_AF7, GPIO9 | GPIO10);
-  rcc_periph_clock_enable(RCC_GPIOB);
-  gpio_mode_setup(GPIOB, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO6);
-  gpio_set_af(GPIOB, GPIO_AF7, GPIO6 | GPIO7);
+  rcc_periph_clock_enable(RCC_USART3);
+  rcc_periph_clock_enable(RCC_GPIOC);
+  gpio_mode_setup(GPIOC, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO10);
+  gpio_set_af(GPIOC, GPIO_AF7, GPIO10);
 
   /* Setup UART parameters. */
-  usart_set_baudrate(USART1, 115200);
-  usart_set_databits(USART1, 8);
-  usart_set_stopbits(USART1, USART_STOPBITS_1);
-  usart_set_parity(USART1, USART_PARITY_NONE);
-  usart_set_flow_control(USART1, USART_FLOWCONTROL_NONE);
-  usart_set_mode(USART1, USART_MODE_TX);
+  usart_set_baudrate(USART3, 115200);
+  usart_set_databits(USART3, 8);
+  usart_set_stopbits(USART3, USART_STOPBITS_1);
+  usart_set_parity(USART3, USART_PARITY_NONE);
+  usart_set_flow_control(USART3, USART_FLOWCONTROL_NONE);
+  usart_set_mode(USART3, USART_MODE_TX);
 
   /* Finally enable the USART. */
-  usart_enable(USART1);
+  usart_enable(USART3);
 }
 
 #endif

@@ -63,6 +63,8 @@
 
 #include "rtt_log.h"
 
+#include "se_chip.h"
+
 #if !BITCOIN_ONLY
 #include "ada.h"
 #include "algorand.h"
@@ -104,22 +106,12 @@ static uint32_t unlock_path = 0;
   memzero(resp, sizeof(TYPE));
 
 #define CHECK_INITIALIZED                                      \
-  if (config_getMnemonicsImported()) {                         \
-    fsm_sendFailure(FailureType_Failure_ProcessError,          \
-                    "device is already used for backup");      \
-    return;                                                    \
-  }                                                            \
   if (!config_isInitialized()) {                               \
     fsm_sendFailure(FailureType_Failure_NotInitialized, NULL); \
     return;                                                    \
   }
 
 #define CHECK_NOT_INITIALIZED                                             \
-  if (config_getMnemonicsImported()) {                                    \
-    fsm_sendFailure(FailureType_Failure_ProcessError,                     \
-                    "device is already used for backup");                 \
-    return;                                                               \
-  }                                                                       \
   if (config_isInitialized()) {                                           \
     fsm_sendFailure(FailureType_Failure_UnexpectedMessage,                \
                     _("Device is already initialized. Use Wipe first.")); \
@@ -261,9 +253,6 @@ static const CoinInfo *fsm_getCoin(bool has_name, const char *name) {
   return coin;
 }
 
-extern bool se_derive_keys(HDNode *out, const char *curve,
-                           const uint32_t *address_n, size_t address_n_count,
-                           uint32_t *fingerprint);
 HDNode *fsm_getDerivedNode(const char *curve, const uint32_t *address_n,
                            size_t address_n_count, uint32_t *fingerprint) {
   static CONFIDENTIAL HDNode node;
@@ -276,6 +265,8 @@ HDNode *fsm_getDerivedNode(const char *curve, const uint32_t *address_n,
     return 0;
   }
   if (!se_derive_keys(&node, curve, address_n, address_n_count, fingerprint)) {
+    fsm_sendFailure(FailureType_Failure_ProcessError,
+                    _("Failed to derive private key"));
     layoutHome();
     return 0;
   }
@@ -284,22 +275,19 @@ HDNode *fsm_getDerivedNode(const char *curve, const uint32_t *address_n,
 
 static bool fsm_getSlip21Key(const char *path[], size_t path_count,
                              uint8_t key[32]) {
-  // TODO:
-  (void)path;
-  (void)path_count;
-  (void)key;
   // const uint8_t *seed = config_getSeed();
   // if (seed == NULL) {
   //   return false;
   // }
 
-  // static CONFIDENTIAL Slip21Node node;
-  // slip21_from_seed(seed, 64, &node);
-  // for (size_t i = 0; i < path_count; ++i) {
-  //   slip21_derive_path(&node, (uint8_t *)path[i], strlen(path[i]));
-  // }
-  // memcpy(key, slip21_key(&node), 32);
-  // memzero(&node, sizeof(node));
+  static CONFIDENTIAL Slip21Node node;
+  // slip21_from_seed(NULL, 0, &node);
+  se_slip21_node(node.data);
+  for (size_t i = 0; i < path_count; ++i) {
+    slip21_derive_path(&node, (uint8_t *)path[i], strlen(path[i]));
+  }
+  memcpy(key, slip21_key(&node), 32);
+  memzero(&node, sizeof(node));
 
   return true;
 }

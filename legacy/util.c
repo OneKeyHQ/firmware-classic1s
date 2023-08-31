@@ -17,6 +17,8 @@
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <string.h>
+
 #include "util.h"
 
 inline void delay(uint32_t wait) {
@@ -66,4 +68,25 @@ void uint2str(uint32_t num, char *str) {
     str[j] = str[i - 1 - j];
     str[i - 1 - j] = temp;
   }
+}
+
+uint32_t version_string_to_int(const char *version_str) {
+  uint32_t version = 0;
+  int part = 0;
+  int shift = 24;
+
+  for (uint8_t i = 0; i < strlen(version_str); i++) {
+    if (version_str[i] == '.') {
+      version |= (part << shift);
+      part = 0;
+      shift -= 8;
+    } else if (version_str[i] >= '0' && version_str[i] <= '9') {
+      part = part * 10 + (version_str[i] - '0');
+    } else {
+      return 0;
+    }
+  }
+
+  version |= (part << shift);
+  return version;
 }

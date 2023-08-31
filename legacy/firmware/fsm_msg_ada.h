@@ -31,8 +31,8 @@ void fsm_msgCardanoGetPublicKey(CardanoGetPublicKey *msg) {
   }
   HDNode node = {0};
   uint32_t fingerprint;
-  fsm_getCardanoIcaruNode(&node, msg->address_n, msg->address_n_count,
-                          &fingerprint);
+  deriveCardanoIcaruNode(&node, msg->address_n, msg->address_n_count,
+                         &fingerprint);
 
   resp->node.depth = node.depth;
   resp->node.fingerprint = fingerprint;
@@ -100,11 +100,7 @@ void fsm_msgCardanoGetAddress(CardanoGetAddress *msg) {
 
 void fsm_msgCardanoTxWitnessRequest(CardanoTxWitnessRequest *msg) {
   RESP_INIT(CardanoTxWitnessResponse);
-  if (!cardano_txwitness(msg, resp)) {
-    fsm_sendFailure(FailureType_Failure_ProcessError, _("Signing failed"));
-    layoutHome();
-    return;
-  }
+  cardano_txwitness(msg, resp);
   msg_write(MessageType_MessageType_CardanoTxWitnessResponse, resp);
   layoutHome();
 }
@@ -212,13 +208,11 @@ void fsm_msgCardanoSignMessage(CardanoSignMessage *msg) {
   }
   HDNode node = {0};
   uint32_t fingerprint;
-  bool res = fsm_getCardanoIcaruNode(&node, msg->address_n,
-                                     msg->address_n_count, &fingerprint);
+  bool res = deriveCardanoIcaruNode(&node, msg->address_n, msg->address_n_count,
+                                    &fingerprint);
   if (!res) return;
 
   if (!ada_sign_messages(&node, msg, resp)) {
-    fsm_sendFailure(FailureType_Failure_ProcessError, _("Signing failed"));
-    layoutHome();
     return;
   }
 

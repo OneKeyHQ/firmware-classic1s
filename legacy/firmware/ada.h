@@ -134,8 +134,8 @@ struct AdaSigner {
   uint16_t datum_hash_size;
 };
 
-bool fsm_getCardanoIcaruNode(HDNode *node, const uint32_t *address_n,
-                             size_t address_n_count, uint32_t *fingerprint);
+bool deriveCardanoIcaruNode(HDNode *node, const uint32_t *address_n,
+                            size_t address_n_count, uint32_t *fingerprint);
 
 bool ada_get_address(const CardanoGetAddress *msg, char *address);
 bool validate_network_info(int network_id, int protocol_magic);

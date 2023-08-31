@@ -32,8 +32,9 @@
 // se chip define
 #define GPIO_MI2C_SCL GPIO6
 #define GPIO_MI2C_SDA GPIO7
-#define MI2C_RETRYCNTS (1000)  // timeout 5 s
+#define MI2C_RETRYCNTS (5000)  // timeout 10 s
 #define MI2C_TIMEOUT (40000)   // 5ms
+#define MI2C_ADDR_ACK_TIMEOUT (1000)
 // #define MI2C_TIMEOUT (32000)   // 4ms
 
 #endif  // COMPATIBLE_H

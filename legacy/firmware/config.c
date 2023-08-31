@@ -31,6 +31,7 @@
 #include "common.h"
 #include "config.h"
 
+#include "bip39.h"
 #include "firmware/algo/parser_txdef.h"
 #include "font.h"
 #include "fsm.h"
@@ -46,7 +47,6 @@
 #include "secbool.h"
 #include "usb.h"
 #include "util.h"
-#include "bip39.h"
 
 #define CONFIG_FIELD(TYPE, NAME) \
   struct {                       \
@@ -81,7 +81,6 @@ typedef struct {
   CONFIG_BYTES(homescreen, 1024);
   CONFIG_UINT32(auto_lock_delay_ms);
   CONFIG_BYTES(session_key, 16);
-  CONFIG_BOOL(mnemonics_imported);
   CONFIG_UINT32(sleep_delay_ms);
   CONFIG_UINT32(coin_function_switch);
   CONFIG_BOOL(trezorCompMode);
@@ -93,11 +92,7 @@ typedef struct {
   CONFIG_BOOL(unfinished_backup);
   CONFIG_BOOL(no_backup);
   CONFIG_BOOL(imported);
-  CONFIG_BOOL(free_paypin_flag);
-  CONFIG_BOOL(free_pay_confirm_flag);
   CONFIG_UINT32(flags);
-  CONFIG_UINT32(free_pay_times);
-  CONFIG_UINT64(free_pay_limit);
 } PriConfig __attribute__((aligned(1)));
 
 // config object store information in SE
@@ -153,10 +148,8 @@ DEF_PUBLIC_ID(passphrase_protection);
 DEF_PUBLIC_ID(homescreen);
 // device auto lock delay by ms ///// shutdown
 DEF_PUBLIC_ID(auto_lock_delay_ms);
-// does mnemonic has imported
-DEF_PUBLIC_ID(mnemonics_imported);
 // device auto lock screen delay by ms
-// DEF_PUBLIC_ID(sleep_delay_ms);
+DEF_PUBLIC_ID(sleep_delay_ms);
 // switch coin function, ETH SOLANA
 DEF_PUBLIC_ID(coin_function_switch);
 DEF_PUBLIC_ID(trezorCompMode);
@@ -168,10 +161,7 @@ DEF_PRIVATE_ID(need_backup);
 DEF_PRIVATE_ID(unfinished_backup);
 DEF_PRIVATE_ID(no_backup);
 DEF_PRIVATE_ID(imported);
-DEF_PRIVATE_ID(free_paypin_flag);
-DEF_PRIVATE_ID(free_pay_confirm_flag);
 DEF_PRIVATE_ID(flags);
-DEF_PRIVATE_ID(free_pay_times);
 
 #define MAX_SESSIONS_COUNT 10
 
@@ -203,7 +193,11 @@ static secbool sleepDelayMsCached = secfalse;
 static uint32_t autoLockDelayMs = autoLockDelayMsDefault;
 static uint32_t autoSleepDelayMs = sleepDelayMsDefault;
 
+#if DEBUG_LINK
+static SafetyCheckLevel safetyCheckLevel = SafetyCheckLevel_Strict;
+#else
 static SafetyCheckLevel safetyCheckLevel = SafetyCheckLevel_PromptAlways;
+#endif
 
 static const uint32_t CONFIG_VERSION = 11;
 
@@ -220,7 +214,7 @@ static bool derive_cardano = 0;
 inline static secbool config_get(const struct CfgRecord rcd, void *v,
                                  uint16_t l) {
   bool pri = rcd.id & (1 << 31);
-  bool (*reader)(uint16_t, void *, uint16_t) =
+  secbool (*reader)(uint16_t, void *, uint16_t) =
       pri ? se_get_private_region : se_get_public_region;
 
   uint8_t has;
@@ -234,7 +228,7 @@ inline static secbool config_get(const struct CfgRecord rcd, void *v,
 inline static secbool config_set(const struct CfgRecord rcd, const void *v,
                                  uint16_t l) {
   bool pri = rcd.id & (1 << 31);
-  bool (*writer)(uint16_t, const void *, uint16_t) =
+  secbool (*writer)(uint16_t, const void *, uint16_t) =
       pri ? se_set_private_region : se_set_public_region;
 
   CHECK_CONFIG_OP(writer(rcd.meta.offset + 1, v, l));
@@ -258,7 +252,7 @@ inline static secbool config_set_bool(const struct CfgRecord id, bool value) {
 inline static secbool config_get_bytes(const struct CfgRecord id, uint8_t *dest,
                                        uint16_t *real_size) {
   bool pri = id.id & (1 << 31);
-  bool (*reader)(uint16_t, void *, uint16_t) =
+  secbool (*reader)(uint16_t, void *, uint16_t) =
       pri ? se_get_private_region : se_get_public_region;
   uint8_t has;
   // read has_xxx flag
@@ -277,7 +271,7 @@ inline static secbool config_set_bytes(const struct CfgRecord id,
   if (len > id.size) return secfalse;
 
   bool pri = id.id & (1 << 31);
-  bool (*writer)(uint16_t, const void *, uint16_t) =
+  secbool (*writer)(uint16_t, const void *, uint16_t) =
       pri ? se_set_private_region : se_set_public_region;
   // set has_xxx flag
   CHECK_CONFIG_OP(writer(id.meta.offset, &TRUE_BYTE, 1));
@@ -290,7 +284,7 @@ inline static secbool config_set_bytes(const struct CfgRecord id,
 
 inline static secbool config_clear_bytes(const struct CfgRecord id) {
   bool pri = id.id & (1 << 31);
-  bool (*writer)(uint16_t, const void *, uint16_t) =
+  secbool (*writer)(uint16_t, const void *, uint16_t) =
       pri ? se_set_private_region : se_set_public_region;
   // clear has_xxx flag
   CHECK_CONFIG_OP(writer(id.meta.offset, &FALSE_BYTE, 1));
@@ -327,13 +321,15 @@ inline static secbool config_set_uint32(const struct CfgRecord id,
 void config_init(void) {
   char oldTiny = usbTiny(1);
 
+#if !EMULATOR
+  ensure(se_sync_session_key(), "se sync session key failed");
+#endif
+
+  se_set_ui_callback(&layoutProgressAdapter);
+
   memzero(HW_ENTROPY_DATA, sizeof(HW_ENTROPY_DATA));
   config_getHomescreen(g_ucHomeScreen, HOMESCREEN_SIZE);
   config_getLanguage(config_language, sizeof(config_language));
-
-#if !EMULATOR
-  se_sync_session_key();
-#endif
 
   // If UUID is not set, then the config is uninitialized.
   if (sectrue != config_get_bytes(id_uuid, (uint8_t *)config_uuid, NULL)) {
@@ -347,33 +343,6 @@ void config_init(void) {
 }
 
 void config_lockDevice(void) { se_clearSecsta(); }
-
-extern bool generate_seed_steps(void);
-bool config_loadDevice_ex(const BixinLoadDevice *msg) {
-  uint8_t entropy[33] = {0};
-  // entropy from mnemonic
-  int mnemonic_bits_len = mnemonic_to_bits(msg->mnemonics, entropy);
-  int words = mnemonic_bits_len / 11;
-
-  config_set_bool(id_mnemonics_imported, true);
-
-  if (!config_setMnemonic(msg->mnemonics, true)) return false;
-  // add setup se pin
-  if (!protectChangePinOnDevice(true, true, false)) return false;
-  // add loops as follows 1. se set entropy  2. generate seed 3. first verify
-  // pin
-  // set entropy to SE
-  if (!se_set_entropy(entropy, words / 3 * 4)) return false;
-  if (!generate_seed_steps()) return false;
-  layoutSwipe();
-
-  if (msg->has_language) {
-    config_setLanguage(msg->language);
-  }
-
-  config_setLabel(msg->has_label ? msg->label : "");
-  return true;
-}
 
 void config_setLabel(const char *label) {
   if (label == NULL || label[0] == '\0') {
@@ -418,55 +387,20 @@ void config_setHomescreen(const uint8_t *data, uint32_t size) {
   }
 }
 
-inline static bool session_generate_steps(uint8_t *passphrase, uint16_t len) {
-// `seed` 'minisecret' or `icarus main secret`
-#define TOTAL_PROCESSES 1000
-#define SEED_PROCESS ((derive_cardano) ? (200) : (500))
-#define MINI_PROCESS SEED_PROCESS
-#define ICARUS_PROCESS (TOTAL_PROCESSES - SEED_PROCESS - MINI_PROCESS)
-
-  // one thousandth precision
-  int base = 0;
-
-#define SESSION_GENERATE_STEP(type, precent)                           \
-  do {                                                                 \
-    if ((precent) == 0) return true;                                   \
-    se_generate_session_t session = {0};                               \
-    se_generate_state_t state =                                        \
-        se_sessionBeginGenerate(passphrase, len, type, &session);      \
-    int step = 1;                                                      \
-    while (state == STATE_GENERATING) {                                \
-      int permil = base + step * (precent / 100);                      \
-      layoutProgressAdapter(_("Generating session seed ..."), permil); \
-      step++;                                                          \
-      state = se_sessionGenerating(&session);                          \
-    }                                                                  \
-    if (state != STATE_COMPLETE) return false;                         \
-    base += precent;                                                   \
-  } while (0)
-
-  // generate `seed` 'minisecret' or `icarus main secret`
-  SESSION_GENERATE_STEP(TYPE_SEED, SEED_PROCESS);
-  SESSION_GENERATE_STEP(TYPE_MINI_SECRET, MINI_PROCESS);
-  SESSION_GENERATE_STEP(TYPE_ICARUS_MAIN_SECRET, ICARUS_PROCESS);
-
-  return true;
-}
-
 // mode : SE_WRFLG_GENSEED or SE_WRFLG_GENMINISECRET;
 // bool config_genSessionSeed(uint8_t mode) {
 bool config_genSessionSeed(void) {
   char passphrase[MAX_PASSPHRASE_LEN + 1] = {0};
-  se_session_cached_status status = {0};
-  if (!se_getSessionCachedState(&status)) {
+  uint8_t status = 0;
+  if (!se_get_session_seed_state(&status)) {
     fsm_sendFailure(FailureType_Failure_ProcessError, _("Session state error"));
     return false;
   }
 
   if (derive_cardano) {
-    if (status.se_icarus_status) return true;
+    if (status & 0x40) return true;
   } else {
-    if (status.se_seed_status) return true;
+    if (status & 0x80) return true;
   }
 
   if (!protectPassphrase(passphrase)) {
@@ -479,8 +413,7 @@ bool config_genSessionSeed(void) {
   if (passphrase[0] == 0) {
     // se use default seed and minisecret.
     char oldTiny = usbTiny(1);
-    // se gen session seed or minisecret for session
-    if (!session_generate_steps(NULL, 0)) return false;
+    if (!se_gen_session_seed(NULL, derive_cardano)) return false;
     usbTiny(oldTiny);
     return true;
   } else {  // passphrase is used - confirm on the display
@@ -507,8 +440,7 @@ bool config_genSessionSeed(void) {
 
   char oldTiny = usbTiny(1);
   // se gen session seed or minisecret for session
-  if (!session_generate_steps((uint8_t *)passphrase, strlen(passphrase)))
-    return false;
+  if (!se_gen_session_seed(passphrase, derive_cardano)) return false;
 
   memzero(passphrase, sizeof(passphrase));
   usbTiny(oldTiny);
@@ -562,23 +494,38 @@ bool config_setMnemonic(const char *mnemonic, bool import) {
   if (!se_set_mnemonic((void *)mnemonic, strnlen(mnemonic, MAX_MNEMONIC_LEN))) {
     return false;
   }
+#if DEBUG_LINK
+  config_setDebugMnemonicBytes(mnemonic);
+#endif
   return true;
 }
 
-bool config_setPin(const char *pin) { return se_setPin(pin); }
+bool config_setPin(const char *pin) { return sectrue == se_setPin(pin); }
 
 /* Unlock device/verify PIN.  The pin must be
  * a null-terminated string with at most 9 characters.
  */
-bool config_verifyPin(const char *pin) { return se_verifyPin(pin); }
+bool config_verifyPin(const char *pin) { return sectrue == se_verifyPin(pin); }
 
-bool config_hasPin(void) { return se_hasPin(); }
+bool config_hasPin(void) { return sectrue == se_hasPin(); }
 
 bool config_changePin(const char *old_pin, const char *new_pin) {
+  bool ret;
   if (config_hasPin()) {
-    return se_changePin(old_pin, new_pin);
+    ret = se_changePin(old_pin, new_pin);
+  } else {
+    ret = config_setPin(new_pin);
   }
-  return config_setPin(new_pin);
+#if DEBUG_LINK
+  if (ret) {
+    if (new_pin[0] != '\0') {
+      config_setDebugPin(new_pin);
+    } else {
+      config_setDebugPin(NULL);
+    }
+  }
+#endif
+  return ret;
 }
 
 uint8_t *session_startSession(const uint8_t *received_session_id) {
@@ -614,29 +561,7 @@ void session_endCurrentSession(void) {
 }
 
 bool session_isUnlocked(void) {
-  if (se_hasPin()) {
-    return se_getSecsta();
-  }
-  return true;
-}
-
-bool session_isProtectUnlocked(void) {
-  uint8_t recv_buf[3] = {0x00};
-  uint16_t left_seconds = 0;
-
-  if (!config_hasPin()) return true;  // if has not pin secure state is forever
-
-  if (!se_getPinValidtime(recv_buf)) {  // if has pin
-    return false;
-  }
-
-  left_seconds = recv_buf[1] * 256 + recv_buf[2];
-  if (left_seconds <= 60 && left_seconds > 0) {
-    if (!se_applyPinValidtime()) {
-      return false;
-    }
-  }
-  return true;
+  return sectrue == se_getSecsta() ? true : false;
 }
 
 void session_clear(bool lock) {
@@ -657,12 +582,6 @@ void config_setImported(bool imported) {
   config_set_bool(id_imported, imported);
 }
 
-bool config_getMnemonicsImported(void) {
-  bool mnemonic_imported = false;
-  config_get_bool(id_mnemonics_imported, &mnemonic_imported);
-
-  return mnemonic_imported;
-}
 bool config_containsMnemonic(const char *mnemonic) {
   return se_containsMnemonic(mnemonic);
 }
@@ -751,28 +670,19 @@ uint32_t config_getSleepDelayMs(void) {
   if (sectrue == sleepDelayMsCached) {
     return autoSleepDelayMs;
   }
-  // TODO. use se pin valid time logic
-  uint8_t recv_buf[3];
-  if (!se_getPinValidtime(recv_buf)) {
+
+  if (sectrue != config_get_uint32(id_sleep_delay_ms, &autoSleepDelayMs)) {
     autoSleepDelayMs = sleepDelayMsDefault;
   }
-  if (recv_buf[0] == 0xff) recv_buf[0] = 0;
-  autoSleepDelayMs = recv_buf[0] * 60 * 1000;
   sleepDelayMsCached = sectrue;
   return autoSleepDelayMs;
 }
 
 void config_setSleepDelayMs(uint32_t auto_sleep_ms) {
-  uint32_t act_sleep_ms;
   if (auto_sleep_ms != 0)
-    act_sleep_ms = MAX(auto_sleep_ms, MIN_AUTOLOCK_DELAY_MS);
-  // TODO. use se pin valid time logic
-  if (auto_sleep_ms == 0) {
-    act_sleep_ms = 255 * 60 * 100;
-  } else {
-    act_sleep_ms = auto_sleep_ms;
-  }
-  if (se_setPinValidtime(act_sleep_ms / (60 * 1000))) {
+    auto_sleep_ms = MAX(auto_sleep_ms, MIN_AUTOLOCK_DELAY_MS);
+
+  if (sectrue == config_set_uint32(id_sleep_delay_ms, auto_sleep_ms)) {
     autoSleepDelayMs = auto_sleep_ms;
     sleepDelayMsCached = sectrue;
   }
@@ -780,13 +690,16 @@ void config_setSleepDelayMs(uint32_t auto_sleep_ms) {
 
 void config_wipe(void) {
   se_reset_storage();
-  se_clearSecsta();
   char oldTiny = usbTiny(1);
   usbTiny(oldTiny);
   random_buffer((uint8_t *)config_uuid, sizeof(config_uuid));
   data2hex((const uint8_t *)config_uuid, sizeof(config_uuid), config_uuid_str);
   autoLockDelayMsCached = secfalse;
+#if DEBUG_LINK
+  safetyCheckLevel = SafetyCheckLevel_Strict;
+#else
   safetyCheckLevel = SafetyCheckLevel_PromptAlways;
+#endif
   config_set_bytes(id_uuid, (uint8_t *)config_uuid, sizeof(config_uuid));
   config_set_uint32(id_version, CONFIG_VERSION);
   session_clear(false);
@@ -795,39 +708,6 @@ void config_wipe(void) {
   config_getLanguage(config_language, sizeof(config_language));
 
   change_ble_sta(BLE_ADV_ON);
-}
-
-void config_setFastPayPinFlag(bool flag) {
-  config_set_bool(id_free_paypin_flag, flag);
-}
-
-bool config_getFastPayPinFlag(void) {
-  bool flag = false;
-  config_get_bool(id_free_paypin_flag, &flag);
-  return flag;
-}
-
-void config_setFastPayConfirmFlag(bool flag) {
-  config_set_bool(id_free_pay_confirm_flag, flag);
-}
-bool config_getFastPayConfirmFlag(void) {
-  bool flag = false;
-  config_get_bool(id_free_pay_confirm_flag, &flag);
-  return flag;
-}
-
-void config_setFastPayMoneyLimt(uint64_t MoneyLimt) { (void)MoneyLimt; }
-
-uint64_t config_getFastPayMoneyLimt(void) { return 0; }
-
-void config_setFastPayTimes(uint32_t times) {
-  config_set_uint32(id_free_pay_times, times);
-}
-
-uint32_t config_getFastPayTimes(void) {
-  uint32_t times = 0;
-  config_get_uint32(id_free_pay_times, &times);
-  return times;
 }
 
 void config_setBleTrans(bool mode) {
@@ -898,8 +778,8 @@ bool config_getTrezorCompMode(bool *trezor_comp_mode) {
 static AuthorizeCoinJoin auth = {0};
 const AuthorizeCoinJoin *config_getCoinJoinAuthorization(void) {
   uint8_t resp[128] = {0};
-  uint16_t len = 128;
-  bool rv = se_getCoinJoinAuthorization(resp, &len);
+  uint32_t len = 128;
+  bool rv = se_authorization_get_data(resp, &len);
   if (rv && len == sizeof(AuthorizeCoinJoin)) {
     memcpy(&auth, resp, sizeof(AuthorizeCoinJoin));
     return &auth;
@@ -907,22 +787,27 @@ const AuthorizeCoinJoin *config_getCoinJoinAuthorization(void) {
   return NULL;
 }
 bool config_setCoinJoinAuthorization(const AuthorizeCoinJoin *authorization) {
-  return se_setCoinJoinAuthorization((const uint8_t *)authorization,
-                                     sizeof(AuthorizeCoinJoin));
+  if (authorization == NULL) {
+    se_authorization_clear();
+    return true;
+  } else {
+    return se_authorization_set(MessageType_MessageType_AuthorizeCoinJoin,
+                                (const uint8_t *)authorization,
+                                sizeof(AuthorizeCoinJoin));
+  }
 }
 
 MessageType config_getAuthorizationType(void) {
-  return MessageType_MessageType_AuthorizeCoinJoin;
+  uint32_t type = 0;
+  se_authorization_get_type(&type);
+  return type;
 }
 
 bool config_hasWipeCode(void) { return se_hasWipeCode(); }
 
 bool config_changeWipeCode(const char *pin, const char *wipe_code) {
   char oldTiny = usbTiny(1);
-  bool ret = config_unlock(pin);
-  if (ret) {
-    ret = se_changeWipeCode(wipe_code);
-  }
+  bool ret = se_changeWipeCode(pin, wipe_code);
   usbTiny(oldTiny);
   return ret;
 }
@@ -940,11 +825,81 @@ bool config_unlock(const char *pin) {
 }
 
 bool config_getDeriveCardano(void) {
-  se_session_cached_status status = {0};
-  if (se_getSessionCachedState(&status)) {
-    return status.se_icarus_status;
+  uint8_t status = 0;
+  if (se_get_session_seed_state(&status)) {
+    return status & 0x40;
   }
   return false;
 }
 
 void config_setDeriveCardano(bool on) { derive_cardano = on; }
+
+#if DEBUG_LINK
+
+void config_loadDevice(const LoadDevice *msg) {
+  session_clear(false);
+  config_set_bool(id_imported, true);
+  config_setPassphraseProtection(msg->has_passphrase_protection &&
+                                 msg->passphrase_protection);
+
+  if (msg->has_pin) {
+    config_changePin("", msg->pin);
+  }
+
+  if (msg->mnemonics_count) {
+    config_setMnemonic(msg->mnemonics[0], true);
+  }
+
+  if (msg->has_language) {
+    config_setLanguage(msg->language);
+  }
+
+  config_setLabel(msg->has_label ? msg->label : "");
+
+  if (msg->has_u2f_counter) {
+    config_setU2FCounter(msg->u2f_counter);
+  }
+
+  if (msg->has_needs_backup) {
+    config_setNeedsBackup(msg->needs_backup);
+  }
+
+  if (msg->has_no_backup && msg->no_backup) {
+    config_setNoBackup();
+  }
+}
+
+static char debug_link_pin[51] = {0};
+bool config_setDebugPin(const char *pin) {
+  if (pin != NULL) {
+    strcpy(debug_link_pin, pin);
+  } else {
+    memzero(debug_link_pin, sizeof(debug_link_pin));
+  }
+
+  return true;
+}
+bool config_getPin(char *dest, uint16_t dest_size) {
+  (void)dest_size;
+  if (strlen(debug_link_pin) == 0) {
+    return false;
+  }
+  strcpy(dest, debug_link_pin);
+  return true;
+}
+static char debug_link_mnemonic[241] = {0};
+bool config_setDebugMnemonicBytes(const char *mnemonic) {
+  strcpy(debug_link_mnemonic, mnemonic);
+  return true;
+}
+
+bool config_getMnemonicBytes(uint8_t *dest, uint16_t *real_size) {
+  if (strlen(debug_link_mnemonic) == 0) {
+    return false;
+  }
+  strcpy((char *)dest, debug_link_mnemonic);
+  *real_size = strlen(debug_link_mnemonic);
+  return true;
+}
+
+#endif

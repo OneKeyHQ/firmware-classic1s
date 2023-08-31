@@ -51,6 +51,8 @@ typedef struct {
 typedef struct {
   uint32_t depth;
   uint32_t child_num;
+  uint32_t address_count;
+  uint32_t address_n[8];
   uint8_t chain_code[32];
 
   uint8_t private_key[32];
@@ -59,6 +61,12 @@ typedef struct {
   uint8_t public_key[33];
   const curve_info *curve;
 } HDNode;
+
+extern const curve_info ed25519_info;
+extern const curve_info curve25519_info;
+extern const curve_info ed25519_keccak_info;
+extern const curve_info ed25519_sha3_info;
+extern const curve_info ed25519_polkadot_info;
 
 int hdnode_from_xpub(uint32_t depth, uint32_t child_num,
                      const uint8_t *chain_code, const uint8_t *public_key,

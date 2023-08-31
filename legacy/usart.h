@@ -8,10 +8,9 @@
 
 #if (_SUPPORT_DEBUG_UART_)
 extern void usart_setup(void);
-extern void vUART_DebugInfo(char *pcMsg, uint8_t *pucSendData,
-                            uint16_t usStrLen);
+extern void uart_debug(char *pcMsg, uint8_t *pucSendData, uint16_t usStrLen);
+void uart_printf(char *fmt, ...);
 #endif
-
 
 typedef struct _usart_msg {
   uint16_t header;

@@ -36,6 +36,10 @@
 #include "cash_addr.h"
 #endif
 
+#if !EMULATOR
+#include "se_chip.h"
+#endif
+
 uint32_t ser_length(uint32_t len, uint8_t *out) {
   if (len < 253) {
     out[0] = len & 0xFF;
@@ -843,7 +847,12 @@ bool change_output_to_input_script_type(OutputScriptType output_script_type,
 }
 
 void slip21_from_seed(const uint8_t *seed, int seed_len, Slip21Node *out) {
-  hmac_sha512((uint8_t *)"Symmetric key seed", 18, seed, seed_len, out->data);
+  // hmac_sha512((uint8_t *)"Symmetric key seed", 18, seed, seed_len,
+  // out->data);
+
+  (void)seed;
+  (void)seed_len;
+  se_slip21_node(out->data);
 }
 
 void slip21_derive_path(Slip21Node *inout, const uint8_t *label,

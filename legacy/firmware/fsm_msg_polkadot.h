@@ -23,7 +23,7 @@ void fsm_msgPolkadotGetAddress(PolkadotGetAddress *msg) {
   CHECK_PIN
 
   RESP_INIT(PolkadotAddress);
-  HDNode *node = fsm_getDerivedNode(ED25519_LEDGER_NAME, msg->address_n,
+  HDNode *node = fsm_getDerivedNode(ED25519_POLKADOT_NAME, msg->address_n,
                                     msg->address_n_count, NULL);
   hdnode_fill_public_key(node);
 
@@ -56,7 +56,7 @@ void fsm_msgPolkadotSignTx(const PolkadotSignTx *msg) {
 
   RESP_INIT(PolkadotSignedTx);
 
-  HDNode *node = fsm_getDerivedNode(ED25519_LEDGER_NAME, msg->address_n,
+  HDNode *node = fsm_getDerivedNode(ED25519_POLKADOT_NAME, msg->address_n,
                                     msg->address_n_count, NULL);
   hdnode_fill_public_key(node);
 

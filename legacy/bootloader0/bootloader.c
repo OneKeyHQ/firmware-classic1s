@@ -17,12 +17,15 @@
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <string.h>
+
 #include <libopencm3/cm3/scb.h>
 #include <libopencm3/stm32/rcc.h>
 #include "flash.h"
 #include "memory.h"
-#include "util.h"
 #include "oled.h"
+#include "sys.h"
+#include "util.h"
 
 static inline void __attribute__((noreturn))
 jump_to_boot1(const vector_table_t *ivt) {
@@ -41,6 +44,13 @@ jump_to_boot1(const vector_table_t *ivt) {
 int main(void) {
   // zero out SRAM
   memset_reg(_ram_start, _ram_end, 0);
+  register uint32_t r11 __asm__("r11");
+  volatile uint32_t stay_in_bootloader_flag = r11;
+  if ((stay_in_bootloader_flag == STAY_IN_BOOTLOADER_FLAG) ||
+      (memcmp((uint8_t *)(ST_RAM_END - 4), "boot", 4) == 0)) {
+    *STAY_IN_BOOTLOADER_FLAG_ADDR = STAY_IN_BOOTLOADER_FLAG;
+  }
+
   jump_to_boot1((const vector_table_t *)FLASH_PTR(FLASH_BOOT_START));
   return 0;
 }

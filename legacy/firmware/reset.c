@@ -40,6 +40,8 @@
 #include "timer.h"
 #include "util.h"
 
+#include "usart.h"
+
 static uint32_t strength;
 static uint8_t int_entropy[32];
 static bool awaiting_entropy = false;
@@ -159,19 +161,7 @@ void reset_entropy(const uint8_t *ext_entropy, uint32_t len) {
                     _("Failed to store mnemonic"));
     return;
   }
-  // add loops as follows 1. se set entropy  2. generate seed 3. first verify
-  // pin
-  // set entropy to SE
-  if (!se_set_entropy(int_entropy, strength / 8)) {
-    fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Failed to setup entropy"));
-    return;
-  }
-  if (!generate_seed_steps()) {
-    fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Failed to generate security seed"));
-    return;
-  }
+
   memzero(int_entropy, 32);
   mnemonic_clear();
   fsm_sendSuccess(_("Device successfully initialized"));
@@ -527,40 +517,6 @@ write_mnemonic:
   return false;
 }
 
-bool generate_seed_steps(void) {
-  // `seed`, `mini secret`,`icarus main secret`
-#define TOTAL_PROCESSES 1000
-#define SEED_PROCESS 200
-#define MINI_PROCESS SEED_PROCESS
-#define ICARUS_PROCESS (TOTAL_PROCESSES - SEED_PROCESS - MINI_PROCESS)
-
-  int base = 0;
-
-#define SESSION_GENERATE_STEP(type, precent)                           \
-  do {                                                                 \
-    se_generate_session_t session = {0};                               \
-    se_generate_state_t state = se_beginGenerate(type, &session);      \
-    int step = 1;                                                      \
-    while (state == STATE_GENERATING) {                                \
-      int permil = base + step * (precent / 100);                      \
-      layoutProgressAdapter(_("Generating session seed ..."), permil); \
-      step++;                                                          \
-      state = se_generating(&session);                                 \
-    }                                                                  \
-    if (state != STATE_COMPLETE) return false;                         \
-    base += precent;                                                   \
-  } while (0)
-
-  // seed will be last because se switch lify cycle for init complete.
-  // generate `icarus main secret`
-  SESSION_GENERATE_STEP(TYPE_ICARUS_MAIN_SECRET, ICARUS_PROCESS);
-  // generate `mini secret`
-  SESSION_GENERATE_STEP(TYPE_MINI_SECRET, MINI_PROCESS);
-  // generate seed
-  SESSION_GENERATE_STEP(TYPE_SEED, SEED_PROCESS);
-  return true;
-}
-
 bool reset_on_device(void) {
   char desc[128] = "";
   uint8_t key = KEY_NULL;
@@ -618,17 +574,18 @@ select_mnemonic_count:
     goto_check(select_mnemonic_count);
   }
 
-  if (!se_get_entropy(int_entropy)) return false;
+  if (!se_random_encrypted(int_entropy, 32)) return false;
   const char *mnemonic = mnemonic_from_data(int_entropy, strength / 8);
   memzero(int_entropy, 32);
 
   if (!writedown_mnemonic(mnemonic, words_count)) {
     goto_check(select_mnemonic_count);
   }
-  if (!se_set_entropy(int_entropy, strength / 8)) return false;
-  memzero(int_entropy, 32);
+  if (!config_setMnemonic(mnemonic, false)) {
+    fsm_sendFailure(FailureType_Failure_ProcessError,
+                    _("Failed to store mnemonic"));
+  }
   mnemonic_clear();
-  if (!generate_seed_steps()) return false;
   layoutSwipe();
   return true;
 }

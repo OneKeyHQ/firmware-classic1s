@@ -26,6 +26,7 @@
 #include "cardano.h"
 #include "cbor.h"
 #include "config.h"
+#include "curves.h"
 #include "fsm.h"
 #include "gettext.h"
 #include "layout2.h"
@@ -36,40 +37,24 @@
 #include "segwit_addr.h"
 #include "sha3.h"
 #include "util.h"
-#include "curves.h"
 
 struct AdaSigner ada_signer;
 static CardanoTxItemAck ada_msg_item_ack;
 static CardanoSignTxFinished ada_msg_sign_tx_finished;
 extern int convert_bits(uint8_t *out, size_t *outlen, int outbits,
                         const uint8_t *in, size_t inlen, int inbits, int pad);
-static HDNode ada_node;
 
 extern HDNode *fsm_getDerivedNode(const char *curve, const uint32_t *address_n,
                                   size_t address_n_count,
                                   uint32_t *fingerprint);
 
-bool fsm_getCardanoIcaruNode(HDNode *node, const uint32_t *address_n,
-                             size_t address_n_count, uint32_t *fingerprint) {
+bool deriveCardanoIcaruNode(HDNode *node, const uint32_t *address_n,
+                            size_t address_n_count, uint32_t *fingerprint) {
   node = fsm_getDerivedNode(ED25519_CARDANO_NAME, address_n, address_n_count,
                             fingerprint);
   if (!node) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
                     _("Failed to derive private key"));
-  }
-  hdnode_fill_public_key(node);
-
-  return true;
-}
-
-bool deriveCardanoIcaruNode(HDNode *node, const uint32_t *address_n,
-                            size_t address_n_count, uint32_t *fingerprint) {
-  memcpy(node, &ada_node, sizeof(HDNode));
-  if (hdnode_private_ckd_cached(node, address_n, address_n_count,
-                                fingerprint) == 0) {
-    fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Failed to derive private key"));
-    return false;
   }
   hdnode_fill_public_key(node);
 
@@ -338,7 +323,6 @@ bool ada_get_address(const CardanoGetAddress *msg, char *address) {
   }
 
   return true;
-        
 }
 
 #define BUILDER_APPEND_CBOR(type, value) \
@@ -453,7 +437,7 @@ static bool layoutOutput(const CardanoTxOutput *output) {
           ret = true;
           break;
         }
-        if (key == KEY_CANCEL) {
+        if (key == KEY_CANCEL || key == KEY_NULL) {
           return false;
         }
       }
@@ -482,7 +466,7 @@ static bool layoutOutput(const CardanoTxOutput *output) {
         ret = true;
         break;
       }
-      if (key == KEY_CANCEL) {
+      if (key == KEY_CANCEL || key == KEY_NULL) {
         return false;
       }
     }
@@ -556,7 +540,7 @@ static bool layoutOutput(const CardanoTxOutput *output) {
         case KEY_CANCEL:
           return false;
         default:
-          goto refresh_addr;
+          return false;
       }
     } else {
       oledClear();
@@ -572,7 +556,7 @@ static bool layoutOutput(const CardanoTxOutput *output) {
           ret = true;
           break;
         }
-        if (key == KEY_CANCEL) {
+        if (key == KEY_CANCEL || key == KEY_NULL) {
           ret = false;
           break;
         }
@@ -598,7 +582,7 @@ static bool layoutFinal(void) {
       return true;
       break;
     }
-    if (key == KEY_CANCEL) {
+    if (key == KEY_CANCEL || key == KEY_NULL) {
       return false;
     }
   }
@@ -627,7 +611,7 @@ static bool layoutFee(void) {
     if (key == KEY_CONFIRM) {
       break;
     }
-    if (key == KEY_CANCEL) {
+    if (key == KEY_CANCEL || key == KEY_NULL) {
       return false;
     }
   }
@@ -784,6 +768,7 @@ refresh_layout:
       ret = false;
       break;
     default:
+      ret = false;
       break;
   }
   if (!ret) {
@@ -857,7 +842,7 @@ static bool layoutCertificate(const CardanoTxCertificate *cert) {
     if (key == KEY_CONFIRM) {
       break;
     }
-    if (key == KEY_CANCEL) {
+    if (key == KEY_CANCEL || key == KEY_NULL) {
       return false;
     }
   }
@@ -878,7 +863,7 @@ static bool layoutCertificate(const CardanoTxCertificate *cert) {
       if (key == KEY_CONFIRM) {
         break;
       }
-      if (key == KEY_CANCEL) {
+      if (key == KEY_CANCEL || key == KEY_NULL) {
         return false;
       }
     }
@@ -901,7 +886,7 @@ static bool layoutCertificate(const CardanoTxCertificate *cert) {
       if (key == KEY_CONFIRM) {
         break;
       }
-      if (key == KEY_CANCEL) {
+      if (key == KEY_CANCEL || key == KEY_NULL) {
         return false;
       }
     }
@@ -1281,8 +1266,12 @@ bool _processs_tx_init(CardanoSignTxInit *msg) {
     ada_signer.remainingReferenceInputs =
         ada_signer.signertx.reference_inputs_count;
 
+  ada_signer.is_feeed = false;
   ada_signer.is_finished = false;
-  return hash_stage();
+
+  txHashBuilder_enterInputs();
+  msg_write(MessageType_MessageType_CardanoTxItemAck, &ada_msg_item_ack);
+  return true;
 }
 
 void cardano_txack(void) {
@@ -1444,13 +1433,7 @@ bool ada_sign_messages(const HDNode *node, CardanoSignMessage *msg,
          msg->message.size);
   sig_structure_index += msg->message.size;
 
-  // TODO: normal ed25519 sign, how tell SE ??
-  //-ed25519_sign(sig_structure, sig_structure_index, node->private_key, sig);
-  HDNode node_copy = {0};
-  memcpy(&node_copy, node, sizeof(HDNode));
-  node_copy.curve = get_curve_by_name(ED25519_NAME);
-  // or ((HDNode*)node)->curve = get_curve_by_name(ED25519_NAME);
-  if (!hdnode_sign(&node_copy, sig_structure, sig_structure_index, 0, sig, NULL,
+  if (!hdnode_sign(node, sig_structure, sig_structure_index, 0, sig, NULL,
                    NULL)) {
     return false;
   }

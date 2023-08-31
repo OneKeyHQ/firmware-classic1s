@@ -33,7 +33,7 @@ OBJS += segger_rtt/SEGGER_RTT_printf.o
 OBJS += segger_rtt/rtt_log.o
 
 OBJS += mi2c.o
-OBJS += se_chip.o
+OBJS += thd89.o
 endif
 
 OBJS += util.o

@@ -5,7 +5,6 @@
 #include "bitmaps.h"
 #include "ble.h"
 #include "oled.h"
-#include "se_chip.h"
 #include "si2c.h"
 #include "sys.h"
 #include "timer.h"
@@ -38,6 +37,7 @@ void sys_shutdown(void) {
   oledClear();
   oledRefresh();
   ble_power_off();
+  se_power_off();
   stm32_power_off();
   delay_ms(100);
   scb_reset_system();
