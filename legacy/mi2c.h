@@ -7,6 +7,7 @@
 #include "sys.h"
 #include "usart.h"
 
+#define MI2C_DATA_MAX_LEN (1024)
 #define MI2C_BUF_MAX_LEN (1024 + 64)
 #define MI2C_SEND_MAX_LEN (1024 + 64)
 

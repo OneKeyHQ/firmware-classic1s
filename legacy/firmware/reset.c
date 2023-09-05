@@ -85,7 +85,12 @@ void reset_init(bool display_random, uint32_t _strength,
     }
   }
 
-  random_buffer(int_entropy, 32);
+  if (!se_random_encrypted(int_entropy, 32)) {
+    fsm_sendFailure(FailureType_Failure_ProcessError,
+                    _("Failed to generate entropy"));
+    layoutHome();
+    return;
+  }
 
   if (display_random) {
     for (int start = 0; start < 2; start++) {
@@ -150,21 +155,25 @@ void reset_entropy(const uint8_t *ext_entropy, uint32_t len) {
   sha256_Final(&ctx, int_entropy);
 
   const char *mnemonic = mnemonic_from_data(int_entropy, strength / 8);
-  if (!config_setMnemonic(mnemonic, false)) {
-    fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Failed to store mnemonic"));
-    return;
-  }
-  // setup se pin
-  if (!protectChangePinOnDevice(true, true, false)) {
-    fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Failed to store mnemonic"));
-    return;
+  memzero(int_entropy, 32);
+  if (skip_backup || no_backup) {
+    if (no_backup) {
+      config_setNoBackup();
+    } else {
+      config_setNeedsBackup(true);
+    }
+    if (config_setMnemonic(mnemonic, false)) {
+      fsm_sendSuccess(_("Device successfully initialized"));
+    } else {
+      fsm_sendFailure(FailureType_Failure_ProcessError,
+                      _("Failed to store mnemonic"));
+    }
+    layoutHome();
+  } else {
+    reset_backup(false, mnemonic);
   }
 
-  memzero(int_entropy, 32);
   mnemonic_clear();
-  fsm_sendSuccess(_("Device successfully initialized"));
   return;
 }
 

@@ -154,7 +154,7 @@ bool se_active_app_progress(void) {
   if (!se_active_app()) {
     return false;
   }
-  hal_delay(1000);
+  hal_delay(500);
 
   uint8_t state;
   if (!se_get_state(&state)) {

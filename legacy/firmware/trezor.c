@@ -40,6 +40,7 @@
 #include <libopencm3/stm32/desig.h>
 #include "ble.h"
 #include "otp.h"
+#include "se_chip.h"
 #include "sys.h"
 #endif
 #ifdef USE_SECP256K1_ZKP
@@ -153,6 +154,21 @@ static void collect_hw_entropy(bool privileged) {
 #endif
 }
 
+static void set_thd89_session_key(void) {
+#if !EMULATOR
+  // set entropy in the OTP randomness block
+  if (!flash_otp_is_locked(FLASH_OTP_BLOCK_THD89_SESSION_KEY)) {
+    uint8_t entropy[FLASH_OTP_BLOCK_SIZE] = {0};
+    random_buffer(entropy, FLASH_OTP_BLOCK_SIZE);
+    ensure(se_set_session_key(entropy), NULL);
+    flash_otp_write(FLASH_OTP_BLOCK_THD89_SESSION_KEY, 0, entropy,
+                    FLASH_OTP_BLOCK_SIZE);
+    flash_otp_lock(FLASH_OTP_BLOCK_THD89_SESSION_KEY);
+  }
+
+#endif
+}
+
 int main(void) {
 #ifndef APPVER
   setup();
@@ -185,6 +201,8 @@ int main(void) {
     cpu_mode = UNPRIVILEGED;
     collect_hw_entropy(false);
   }
+
+  set_thd89_session_key();
 
 #ifdef USE_SECP256K1_ZKP
   ensure(sectrue * (zkp_context_init() == 0), NULL);

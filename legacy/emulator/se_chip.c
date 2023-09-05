@@ -16,7 +16,7 @@ bool se_get_value(uint16_t key, void *val_dest, uint16_t max_len,
 }
 bool se_delete_key(uint16_t key) { return false; }
 void se_reset_storage(void) { return false; }
-bool se_get_sn(char **serial, uint16_t len) { return false; }
+bool se_get_sn(char **serial) { return false; }
 char *se_get_version(void) { return false; }
 bool se_verify(void *message, uint16_t message_len, uint16_t max_len,
                void *cert_val, uint16_t *cert_len, void *signature_val,

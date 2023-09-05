@@ -28,6 +28,8 @@
 
 #define FLASH_OTP_BLOCK_RANDOMNESS 3
 
+#define FLASH_OTP_BLOCK_THD89_SESSION_KEY 8
+
 bool flash_otp_is_locked(uint8_t block);
 bool flash_otp_lock(uint8_t block);
 bool flash_otp_read(uint8_t block, uint8_t offset, uint8_t *data,

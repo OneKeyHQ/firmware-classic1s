@@ -33,7 +33,8 @@ secbool se_device_init(uint8_t mode, const char *passphrase);
 secbool se_ecdsa_get_pubkey(uint32_t *address, uint8_t count, uint8_t *pubkey);
 
 secbool se_reset_storage(void);
-secbool se_get_sn(char **serial, uint16_t len);
+secbool se_set_sn(const char *serial, uint8_t len);
+secbool se_get_sn(char **serial);
 char *se_get_version(void);
 secbool se_isInitialized(void);
 secbool se_hasPin(void);
@@ -62,13 +63,17 @@ secbool se_set_private_region(uint16_t offset, const void *val_dest,
                               uint16_t len);
 secbool se_get_private_region(uint16_t offset, void *val_dest, uint16_t len);
 
-secbool se_get_pubkey(uint8_t pubkey[64]);
-secbool se_write_certificate(const uint8_t *cert, uint32_t cert_len);
-secbool se_read_certificate(uint8_t *cert, uint32_t *cert_len);
+secbool se_get_pubkey(uint8_t *pubkey);
+secbool se_write_certificate(const uint8_t *cert, uint16_t cert_len);
+secbool se_read_certificate(uint8_t *cert, uint16_t *cert_len);
 secbool se_has_cerrificate(void);
 secbool se_sign_message(uint8_t *msg, uint32_t msg_len, uint8_t *signature);
+secbool se_set_session_key(const uint8_t *session_key);
 
 secbool se_containsMnemonic(const char *mnemonic);
+secbool se_exportMnemonic(char *mnemonic, uint16_t dest_size);
+secbool se_set_needs_backup(bool needs_backup);
+secbool se_get_needs_backup(bool *needs_backup);
 secbool se_hasWipeCode(void);
 secbool se_changeWipeCode(const char *pin, const char *wipe_code);
 

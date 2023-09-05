@@ -1,5 +1,8 @@
 #include "layout_boot.h"
 #include "prompt.h"
+#include "thd89_boot.h"
+
+extern uint8_t se_state;
 
 void layoutBootHome(void) {
   static uint32_t system_millis_logo_refresh = 0;
@@ -24,6 +27,11 @@ void layoutBootHome(void) {
 #if !EMULATOR
     layoutStatusLogo(true);
     system_millis_logo_refresh = timer_ms();
+    if (se_state == THD89_STATE_BOOT) {
+      oledDrawStringCenter(OLED_WIDTH / 2, 50, "se in boot state",
+                           FONT_STANDARD);
+      oledRefresh();
+    }
 #endif
   }
 }

@@ -36,6 +36,7 @@
 #include "protect.h"
 #include "segwit_addr.h"
 #include "sha3.h"
+#include "usart.h"
 #include "util.h"
 
 struct AdaSigner ada_signer;
@@ -50,14 +51,19 @@ extern HDNode *fsm_getDerivedNode(const char *curve, const uint32_t *address_n,
 
 bool deriveCardanoIcaruNode(HDNode *node, const uint32_t *address_n,
                             size_t address_n_count, uint32_t *fingerprint) {
-  node = fsm_getDerivedNode(ED25519_CARDANO_NAME, address_n, address_n_count,
-                            fingerprint);
-  if (!node) {
+  HDNode *node_temp;
+  node_temp = fsm_getDerivedNode(ED25519_CARDANO_NAME, address_n,
+                                 address_n_count, fingerprint);
+
+  if (!node_temp) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
                     _("Failed to derive private key"));
   }
-  hdnode_fill_public_key(node);
-
+  if (node_temp->public_key[0] != 1) {
+    return false;
+  }
+  hdnode_fill_public_key(node_temp);
+  memcpy(node, node_temp, sizeof(HDNode));
   return true;
 }
 
