@@ -24,7 +24,38 @@
 #include "messages-bitcoin.pb.h"
 #include "messages-common.pb.h"
 #include "messages-management.pb.h"
-#include "messages.pb.h"
+
+#define STORAGE_FIELD(TYPE, NAME) \
+  bool has_##NAME;                \
+  TYPE NAME;
+
+#define STORAGE_STRING(NAME, SIZE) \
+  bool has_##NAME;                 \
+  char NAME[SIZE];
+
+#define STORAGE_BYTES(NAME, SIZE) \
+  bool has_##NAME;                \
+  struct {                        \
+    uint32_t size;                \
+    uint8_t bytes[SIZE];          \
+  } NAME;
+
+#define STORAGE_BOOL(NAME) STORAGE_FIELD(bool, NAME)
+#define STORAGE_NODE(NAME) STORAGE_FIELD(StorageHDNode, NAME)
+#define STORAGE_UINT32(NAME) STORAGE_FIELD(uint32_t, NAME)
+
+typedef struct {
+  uint32_t depth;
+  uint32_t fingerprint;
+  uint32_t child_num;
+  struct {
+    uint32_t size;
+    uint8_t bytes[32];
+  } chain_code;
+
+  STORAGE_BYTES(private_key, 32);
+  STORAGE_BYTES(public_key, 33);
+} StorageHDNode;
 
 typedef enum {
   COIN_SWITCH_ETH_EIP712 = 0x01,
@@ -40,8 +71,6 @@ typedef enum {
 #define HOMESCREEN_SIZE 1024
 #define UUID_SIZE 12
 #define SE_SESSION_KEY 16
-#define SE_SESSION_SEED 0x5a
-#define SE_SESSION_MINISECRET 0xfe
 #define BUILD_ID_MAX_LEN 64
 
 #if DEBUG_LINK
@@ -79,6 +108,7 @@ uint8_t *session_startSession(const uint8_t *received_session_id);
 bool config_genSessionSeed(void);
 bool config_setMnemonic(const char *mnemonic, bool import);
 bool config_containsMnemonic(const char *mnemonic);
+bool config_getMnemonic(char *dest, uint16_t dest_size);
 
 bool config_setPin(const char *pin);
 bool config_verifyPin(const char *pin);
@@ -105,7 +135,7 @@ bool config_getUnfinishedBackup(bool *unfinished_backup);
 void config_setUnfinishedBackup(bool unfinished_backup);
 
 bool config_getNoBackup(bool *no_backup);
-// void config_setNoBackup(void);
+void config_setNoBackup(void);
 
 void config_applyFlags(uint32_t flags);
 bool config_getFlags(uint32_t *flags);

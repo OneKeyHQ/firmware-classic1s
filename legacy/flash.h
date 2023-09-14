@@ -24,7 +24,7 @@
 #include <stdlib.h>
 #include "secbool.h"
 
-#define FLASH_SECTOR_COUNT 24
+#define FLASH_SECTOR_COUNT 28
 
 // note: FLASH_SR_RDERR is STM32F42xxx and STM32F43xxx specific (STM32F427)
 // (reference RM0090 section 3.7.5)

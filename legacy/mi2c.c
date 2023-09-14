@@ -7,6 +7,7 @@
 #include "common.h"
 #include "compatible.h"
 #include "mi2c.h"
+#include "secbool.h"
 #include "timer.h"
 #include "usart.h"
 
@@ -24,15 +25,14 @@ static uint8_t ucXorCheck(uint8_t ucInputXor, uint8_t *pucSrc, uint16_t usLen) {
   return ucXor;
 }
 
-static bool bMI2CDRV_ReadBytes(uint32_t i2c, uint8_t *res,
-                               uint16_t *pusOutLen) {
+static int bMI2CDRV_ReadBytes(uint32_t i2c, uint8_t *res, uint16_t *pusOutLen) {
   uint8_t ucLenBuf[2], ucSW[2], ucXor = 0, ucXor1 = 0;
   uint16_t i, usRevLen, usRealLen = 0, usTimeout = 0;
 
   i2c_retry_cnts = 0;
   while (1) {
     if (i2c_retry_cnts > MI2C_RETRYCNTS) {
-      return false;
+      return -1;
     }
 
     // send start
@@ -81,7 +81,7 @@ static bool bMI2CDRV_ReadBytes(uint32_t i2c, uint8_t *res,
 
   if (usRevLen > 0 && (res == NULL)) {
     i2c_send_stop(i2c);
-    return false;
+    return -1;
   }
 
   // rev data
@@ -120,17 +120,15 @@ static bool bMI2CDRV_ReadBytes(uint32_t i2c, uint8_t *res,
 
   i2c_send_stop(i2c);
   if (0x00 == usRealLen) {
-    return false;
+    return -1;
   }
 
   if (ucXor != ucXor1) {
-    return false;
+    return -1;
   }
   usRealLen -= MI2C_XOR_LEN;
   g_lasterror = (ucSW[0] << 8) + ucSW[1];
-  uart_debug("sw1sw2 ", ucSW, 2);
   if ((0x90 != ucSW[0]) || (0x00 != ucSW[1])) {
-    uart_debug("++++++++++++++++++++++", NULL, 0);
     if (ucSW[0] == 0x6c || ucSW[0] == 0x90) {  // for se generate seed not first
                                                // generate will return 0x90xx
       res[0] = ucSW[1];
@@ -138,10 +136,10 @@ static bool bMI2CDRV_ReadBytes(uint32_t i2c, uint8_t *res,
     } else {
       *pusOutLen = usRealLen - 2;
     }
-    return false;
+    return 1;
   }
   *pusOutLen = usRealLen - 2;
-  return true;
+  return 0;
 }
 
 static bool bMI2CDRV_WriteBytes(uint32_t i2c, uint8_t *data,
@@ -249,7 +247,11 @@ void vMI2CDRV_Init(void) {
  *master i2c rev
  */
 bool bMI2CDRV_ReceiveData(uint8_t *pucStr, uint16_t *pusRevLen) {
-  if (false == bMI2CDRV_ReadBytes(MI2CX, pucStr, pusRevLen)) {
+  int ret = 0;
+  ret = bMI2CDRV_ReadBytes(MI2CX, pucStr, pusRevLen);
+  if (ret < 0) {
+    ensure(secfalse, "i2c read error");
+  } else if (ret == 1) {
     return false;
   }
 
@@ -263,7 +265,10 @@ bool bMI2CDRV_SendData(uint8_t *pucStr, uint16_t usStrLen) {
     usStrLen = MI2C_BUF_MAX_LEN - 3;
   }
 
-  return bMI2CDRV_WriteBytes(MI2CX, pucStr, usStrLen);
+  if (!bMI2CDRV_WriteBytes(MI2CX, pucStr, usStrLen)) {
+    ensure(secfalse, "i2c write error");
+  }
+  return true;
 }
 
 uint16_t get_lasterror(void) { return g_lasterror; }

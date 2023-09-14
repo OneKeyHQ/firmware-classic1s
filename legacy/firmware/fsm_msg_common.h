@@ -127,7 +127,7 @@ bool get_features(Features *resp) {
   resp->has_onekey_version = true;
 
   strlcpy(resp->onekey_version, ONEKEY_VERSION, sizeof(resp->onekey_version));
-  if (se_get_sn(&serial, 0x0a)) {
+  if (se_get_sn(&serial)) {
     if (serial[0] == 0xff && serial[1] == 0xff) {
       resp->has_onekey_serial = false;
     } else {
@@ -407,7 +407,12 @@ void fsm_msgGetEntropy(const GetEntropy *msg) {
 #if EMULATOR
   random_buffer(resp->entropy.bytes, len);
 #else
-  se_random_encrypted(resp->entropy.bytes, len);
+  if (!se_random_encrypted(resp->entropy.bytes, len)) {
+    fsm_sendFailure(FailureType_Failure_ProcessError,
+                    _("Failed to generate entropy"));
+    layoutHome();
+    return;
+  }
 #endif
   msg_write(MessageType_MessageType_Entropy, resp);
   layoutHome();
@@ -476,12 +481,19 @@ void fsm_msgBackupDevice(const BackupDevice *msg) {
 
   CHECK_PIN_UNCACHED
 
-  // TODO SE can't export mnemonic, does we need this function??
-  // char mnemonic[MAX_MNEMONIC_LEN + 1];
-  // if (config_getMnemonic(mnemonic, sizeof(mnemonic))) {
-  //   reset_backup(true, mnemonic);
-  // }
-  // memzero(mnemonic, sizeof(mnemonic));
+  bool needs_backup = false;
+  config_getNeedsBackup(&needs_backup);
+  if (!needs_backup) {
+    fsm_sendFailure(FailureType_Failure_UnexpectedMessage,
+                    _("Seed already backed up"));
+    return;
+  }
+
+  char mnemonic[MAX_MNEMONIC_LEN + 1];
+  if (config_getMnemonic(mnemonic, sizeof(mnemonic))) {
+    reset_backup(true, mnemonic);
+  }
+  memzero(mnemonic, sizeof(mnemonic));
 }
 
 void fsm_msgCancel(const Cancel *msg) {
@@ -864,8 +876,10 @@ void fsm_msgBixinVerifyDeviceRequest(const BixinVerifyDeviceRequest *msg) {
   }
 
   RESP_INIT(BixinVerifyDeviceAck);
-  resp->cert.size = 1024;
-  resp->signature.size = 512;
+  resp->cert.size = 512;
+  resp->signature.size = 64;
+  se_read_certificate(resp->cert.bytes,
+                      &resp->cert.size);  // read certificate from SE
   if (!se_sign_message((uint8_t *)msg->data.bytes, msg->data.size,
                        resp->signature.bytes)) {
     fsm_sendFailure(FailureType_Failure_UnexpectedMessage, NULL);

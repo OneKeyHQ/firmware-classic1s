@@ -47,7 +47,6 @@
 #include "usb.h"
 #include "util.h"
 
-#include "hard_preset.h"
 #include "memory.h"
 #include "se_chip.h"
 #include "u2f.h"
@@ -451,49 +450,6 @@ void st_version(void) {
   send_u2f_msg(ucBuf, 4);
 }
 
-void gd_setPresetData(const APDU *papdu) {
-  uint8_t ucBuf[2];
-
-  if (APDU_LEN(*papdu) != 0x10) {
-    debugLog(0, "", "u2f set preset data - badlen");
-    send_u2f_error(U2F_SW_WRONG_LENGTH);
-    return;
-  }
-
-  if (!bPresetDataWrite((uint8_t *)papdu->data)) {
-    ucBuf[0] = U2F_SW_CONDITIONS_NOT_SATISFIED >> 8 & 0xFF;
-    ucBuf[1] = U2F_SW_CONDITIONS_NOT_SATISFIED & 0xFF;
-  } else {
-    ucBuf[0] = U2F_SW_NO_ERROR >> 8 & 0xFF;
-    ucBuf[1] = U2F_SW_NO_ERROR & 0xFF;
-  }
-  send_u2f_msg(ucBuf, 2);
-}
-
-void gd_getPresetData(void) {
-  uint8_t ucBuf[18];
-  memzero(ucBuf, sizeof(ucBuf));
-
-  if (!se_isFactoryMode()) {  // at factory stage
-    send_u2f_error(U2F_SW_CONDITIONS_NOT_SATISFIED);
-    return;
-  }
-  bPresetDataRead(ucBuf);
-  ucBuf[16] = U2F_SW_NO_ERROR >> 8 & 0xFF;
-  ucBuf[17] = U2F_SW_NO_ERROR & 0xFF;
-  send_u2f_msg(ucBuf, sizeof(ucBuf));
-}
-
-void gd_checkPresetData(void) {
-  if (!se_sync_session_key()) {
-    check_preset_data_state = secfalse;
-    send_u2f_error(U2F_SW_CONDITIONS_NOT_SATISFIED);
-    return;
-  }
-  check_preset_data_state = sectrue;
-  send_u2f_error(U2F_SW_NO_ERROR);
-}
-
 void gd32_protect(void) {
   if (sectrue != check_preset_data_state) {
     send_u2f_error(U2F_SW_CONDITIONS_NOT_SATISFIED);
@@ -536,15 +492,6 @@ void u2fhid_msg(const APDU *a, uint32_t len) {
       break;
     case Buttton_Lcd_Test:
       vButton_Lcd_Test();
-      break;
-    case SET_PRESETDATA:  // set presets default data
-      gd_setPresetData(a);
-      break;
-    case GET_PRESETDATA:  // get presets dafault data
-      gd_getPresetData();
-      break;
-    case CHECK_PRESETDATA:  // check presets default data
-      gd_checkPresetData();
       break;
     case MEMORY_LOCK:  // it would disable swd and boot from system bootloader
                        // and sram

@@ -25,6 +25,7 @@ void fsm_msgPolkadotGetAddress(PolkadotGetAddress *msg) {
   RESP_INIT(PolkadotAddress);
   HDNode *node = fsm_getDerivedNode(ED25519_POLKADOT_NAME, msg->address_n,
                                     msg->address_n_count, NULL);
+  if (!node) return;
   hdnode_fill_public_key(node);
 
   data2hexaddr(node->public_key + 1, 32, resp->public_key);
@@ -58,6 +59,7 @@ void fsm_msgPolkadotSignTx(const PolkadotSignTx *msg) {
 
   HDNode *node = fsm_getDerivedNode(ED25519_POLKADOT_NAME, msg->address_n,
                                     msg->address_n_count, NULL);
+  if (!node) return;
   hdnode_fill_public_key(node);
 
   if (!polkadot_sign_tx(msg, node, resp)) {

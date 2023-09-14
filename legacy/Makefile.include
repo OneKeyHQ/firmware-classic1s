@@ -116,10 +116,6 @@ LDFLAGS  += -L$(TOP_DIR) \
 LDFLAGS  += -L$(TOP_DIR)vendor/libsol
 LDLIBS   += -lsol
 
-LDFLAGS  += -L$(TOP_DIR)vendor/libpresetdata
-LDLIBS   += -lpresetdata
-LIBDEPS  += $(TOP_DIR)vendor/libpresetdata/libpresetdata.a
-
 ZKP_PATH = $(TOP_DIR)vendor/secp256k1-zkp
 
 # hw_model = C2B2 = 0x32423243

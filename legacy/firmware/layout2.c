@@ -753,7 +753,7 @@ void layoutBusyscreen(void) {
 void layoutHome(void) {
 #if !EMULATOR
   static bool first_boot = true;
-  if (first_boot && !config_isInitialized() && !se_isFactoryMode()) {
+  if (first_boot && !config_isInitialized()) {
     first_boot = false;
     onboarding(KEY_UP);
   } else
@@ -3656,7 +3656,7 @@ refresh_menu:
       oledDrawStringAdapter(0, y, _("SERIAL NUMBER:"), FONT_STANDARD);
       y += font->pixel + 1;
 
-      se_get_sn(&se_sn, 0x0a);
+      se_get_sn(&se_sn);
       oledDrawStringAdapter(0, y, se_sn, FONT_STANDARD);
 
       y += font->pixel + 4;

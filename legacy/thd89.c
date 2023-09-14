@@ -4,7 +4,6 @@
 
 secbool thd89_transmit(uint8_t *cmd, uint16_t len, uint8_t *resp,
                        uint16_t *resp_len) {
-  uart_debug("thd89 cmd ", cmd, 5);
   if (secfalse == bMI2CDRV_SendData(cmd, len)) {
     return secfalse;
   }

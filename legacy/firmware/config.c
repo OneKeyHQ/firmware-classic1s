@@ -48,122 +48,53 @@
 #include "usb.h"
 #include "util.h"
 
-#define CONFIG_FIELD(TYPE, NAME) \
-  struct {                       \
-    uint8_t has_##NAME;          \
-    TYPE NAME;                   \
-  } NAME
-
-#define CONFIG_BOOL(NAME) CONFIG_FIELD(bool, NAME)
-#define CONFIG_STRING(NAME, SIZE) char NAME[SIZE + 1]
-#define CONFIG_BYTES(NAME, SIZE) \
-  struct {                       \
-    uint8_t has_##NAME;          \
-    uint32_t size;               \
-    uint8_t bytes[SIZE];         \
-  } NAME
-
-#define CONFIG_UINT32(NAME) CONFIG_FIELD(uint32_t, NAME)
-#define CONFIG_UINT64(NAME) CONFIG_FIELD(uint64_t, NAME)
+#ifndef offsetof
+#define offsetof(type, member) ((uint32_t) & ((type *)0)->member)
+#endif
 
 typedef enum {
   LANG_EN_US,
   LANG_ZH_CN,
 } LANG_TYPE;
 
-// a helper type to group all public config
 typedef struct {
-  CONFIG_UINT32(version);
-  CONFIG_BYTES(uuid, 12);
-  CONFIG_UINT32(language);
-  CONFIG_STRING(label, 12);
-  CONFIG_BOOL(passphrase_protection);
-  CONFIG_BYTES(homescreen, 1024);
-  CONFIG_UINT32(auto_lock_delay_ms);
-  CONFIG_BYTES(session_key, 16);
-  CONFIG_UINT32(sleep_delay_ms);
-  CONFIG_UINT32(coin_function_switch);
-  CONFIG_BOOL(trezorCompMode);
+  STORAGE_UINT32(version);
+  STORAGE_BYTES(uuid, UUID_SIZE)
+  STORAGE_BOOL(passphrase_protection)
+  STORAGE_STRING(language, MAX_LANGUAGE_LEN + 1)
+  STORAGE_STRING(label, MAX_LABEL_LEN + 1)
+  STORAGE_BYTES(homescreen, HOMESCREEN_SIZE)
+  STORAGE_UINT32(auto_lock_delay_ms)
+  STORAGE_UINT32(sleep_delay_ms)
+  STORAGE_UINT32(coin_function_switch)
+  STORAGE_BOOL(trezor_comp_mode)
 } PubConfig __attribute__((aligned(1)));
 
-// a helper type to group all private config
 typedef struct {
-  CONFIG_BOOL(need_backup);
-  CONFIG_BOOL(unfinished_backup);
-  CONFIG_BOOL(no_backup);
-  CONFIG_BOOL(imported);
-  CONFIG_UINT32(flags);
+  STORAGE_BOOL(imported)
+  STORAGE_UINT32(flags)
+  STORAGE_BOOL(unfinished_backup)
+  STORAGE_BOOL(no_backup)
 } PriConfig __attribute__((aligned(1)));
 
-// config object store information in SE
-struct CfgRecord {
-  union {
-    uint32_t id;  // use ((access < 16) | offset) as id
-    struct {
-      uint16_t offset;
-      uint16_t access;
-    } meta;
-  };
-  uint32_t size;
-};
+#define KEY_VERSION offsetof(PubConfig, version)
+#define KEY_UUID offsetof(PubConfig, uuid)
+#define KEY_PASSPHRASE_PROTECTION offsetof(PubConfig, passphrase_protection)
+#define KEY_LANGUAGE offsetof(PubConfig, language)
+#define KEY_LABEL offsetof(PubConfig, label)
+#define KEY_HOMESCREEN offsetof(PubConfig, homescreen)
+#define KEY_AUTO_LOCK_DELAY_MS offsetof(PubConfig, auto_lock_delay_ms)
+#define KEY_SLEEP_DELAY_MS offsetof(PubConfig, sleep_delay_ms)
+#define KEY_COIN_FUNCTION_SWITCH offsetof(PubConfig, coin_function_switch)
+#define KEY_TREZOR_COMP_MODE offsetof(PubConfig, trezor_comp_mode)
 
-// Use uint32 as key. lower word for element offset, high word for element flags
-// flags: 31 bit for public or private
-// should we check `KEY` value ?
-#define MARK_PUBLIC_ID(ID) ((uint32_t)0 | ID)
-#define MARK_PRIVATE_ID(ID) ((uint32_t)(1 << 31) | ID)
+#define PRIVATE_KEY 1 << 31
 
-#define field_size(TYPE, field) sizeof(((TYPE *)0)->field)
-
-#define DEF_PUBLIC_ID(field)                                                 \
-  static const struct CfgRecord id_##field = {                               \
-      MARK_PUBLIC_ID(offsetof(PubConfig, field)),                            \
-      field_size(PubConfig, field),                                          \
-  };                                                                         \
-  _Static_assert(offsetof(PubConfig, field) + field_size(PubConfig, field) < \
-                     PUBLIC_REGION_SIZE,                                     \
-                 #field " overflow public region")
-
-#define DEF_PRIVATE_ID(field)                                                \
-  static const struct CfgRecord id_##field = {                               \
-      MARK_PRIVATE_ID(offsetof(PriConfig, field)),                           \
-      field_size(PriConfig, field),                                          \
-  };                                                                         \
-  _Static_assert(offsetof(PriConfig, field) + field_size(PriConfig, field) < \
-                     PRIVATE_REGION_SIZE,                                    \
-                 #field " overflow private region")
-
-/// public config elements
-// config version
-DEF_PUBLIC_ID(version);
-// device/config uuid
-DEF_PUBLIC_ID(uuid);
-// deivce ui language
-DEF_PUBLIC_ID(language);
-// device label
-DEF_PUBLIC_ID(label);
-// protected by passphrase
-DEF_PUBLIC_ID(passphrase_protection);
-// device homescreen
-DEF_PUBLIC_ID(homescreen);
-// device auto lock delay by ms ///// shutdown
-DEF_PUBLIC_ID(auto_lock_delay_ms);
-// device auto lock screen delay by ms
-DEF_PUBLIC_ID(sleep_delay_ms);
-// switch coin function, ETH SOLANA
-DEF_PUBLIC_ID(coin_function_switch);
-DEF_PUBLIC_ID(trezorCompMode);
-
-/// private config elements
-// does device need backup?
-DEF_PRIVATE_ID(need_backup);
-// device has finish backup
-DEF_PRIVATE_ID(unfinished_backup);
-DEF_PRIVATE_ID(no_backup);
-DEF_PRIVATE_ID(imported);
-DEF_PRIVATE_ID(flags);
-
-#define MAX_SESSIONS_COUNT 10
+#define KEY_IMPORTED offsetof(PriConfig, imported) | PRIVATE_KEY
+#define KEY_FLAGS offsetof(PriConfig, flags) | PRIVATE_KEY
+#define KEY_UNFINISHED_BACKUP \
+  offsetof(PriConfig, unfinished_backup) | PRIVATE_KEY
+#define KEY_NO_BACKUP offsetof(PriConfig, no_backup) | PRIVATE_KEY
 
 static uint32_t config_uuid[UUID_SIZE / sizeof(uint32_t)];
 _Static_assert(sizeof(config_uuid) == UUID_SIZE, "config_uuid has wrong size");
@@ -211,33 +142,31 @@ static bool derive_cardano = 0;
     if (!(cond)) return secfalse; \
   } while (0)
 
-inline static secbool config_get(const struct CfgRecord rcd, void *v,
-                                 uint16_t l) {
-  bool pri = rcd.id & (1 << 31);
+static secbool config_get(const uint32_t id, void *v, uint16_t l) {
+  bool pri = id & (1 << 31);
   secbool (*reader)(uint16_t, void *, uint16_t) =
       pri ? se_get_private_region : se_get_public_region;
 
   uint8_t has;
   // read has_xxx flag
-  CHECK_CONFIG_OP(reader(rcd.meta.offset, &has, 1));
+  CHECK_CONFIG_OP(reader(id, &has, 1));
   if (has != TRUE_BYTE) return secfalse;
-  CHECK_CONFIG_OP(reader(rcd.meta.offset + 1, v, l));
+  CHECK_CONFIG_OP(reader(id + 1, v, l));
   return sectrue;
 }
 
-inline static secbool config_set(const struct CfgRecord rcd, const void *v,
-                                 uint16_t l) {
-  bool pri = rcd.id & (1 << 31);
+static secbool config_set(const uint32_t id, const void *v, uint16_t l) {
+  bool pri = id & (1 << 31);
   secbool (*writer)(uint16_t, const void *, uint16_t) =
       pri ? se_set_private_region : se_set_public_region;
 
-  CHECK_CONFIG_OP(writer(rcd.meta.offset + 1, v, l));
+  CHECK_CONFIG_OP(writer(id + 1, v, l));
   // set has_xxx flag
-  CHECK_CONFIG_OP(writer(rcd.meta.offset, &TRUE_BYTE, 1));
+  CHECK_CONFIG_OP(writer(id, &TRUE_BYTE, 1));
   return sectrue;
 }
 
-inline static secbool config_get_bool(const struct CfgRecord id, bool *value) {
+static secbool config_get_bool(const uint32_t id, bool *value) {
   uint8_t v;
   *value = false;
   CHECK_CONFIG_OP(config_get(id, &v, sizeof(bool)));
@@ -245,76 +174,63 @@ inline static secbool config_get_bool(const struct CfgRecord id, bool *value) {
   return sectrue;
 }
 
-inline static secbool config_set_bool(const struct CfgRecord id, bool value) {
+static secbool config_set_bool(const uint32_t id, bool value) {
   return config_set(id, value ? &TRUE_BYTE : &FALSE_BYTE, 1);
 }
 
-inline static secbool config_get_bytes(const struct CfgRecord id, uint8_t *dest,
-                                       uint16_t *real_size) {
-  bool pri = id.id & (1 << 31);
+static secbool config_get_bytes(const uint32_t id, uint8_t *dest,
+                                uint16_t *real_size) {
+  bool pri = id & (1 << 31);
   secbool (*reader)(uint16_t, void *, uint16_t) =
       pri ? se_get_private_region : se_get_public_region;
   uint8_t has;
   // read has_xxx flag
-  CHECK_CONFIG_OP(reader(id.meta.offset, &has, 1));
+  CHECK_CONFIG_OP(reader(id, &has, 1));
   if (has != TRUE_BYTE) return secfalse;
   uint32_t size = 0;
   // size|bytes
-  CHECK_CONFIG_OP(reader(id.meta.offset + 1, &size, sizeof(size)));
-  CHECK_CONFIG_OP(reader(id.meta.offset + 1 + sizeof(uint32_t), dest, size));
+  CHECK_CONFIG_OP(reader(id + 1, &size, sizeof(size)));
+  CHECK_CONFIG_OP(reader(id + 1 + sizeof(uint32_t), dest, size));
   if (real_size) *real_size = size;
   return sectrue;
 }
 
-inline static secbool config_set_bytes(const struct CfgRecord id,
-                                       const uint8_t *bytes, uint16_t len) {
-  if (len > id.size) return secfalse;
+static secbool config_set_bytes(const uint32_t id, const uint8_t *bytes,
+                                uint16_t len) {
+  // if (len > id) return secfalse;
 
-  bool pri = id.id & (1 << 31);
+  bool pri = id & (1 << 31);
   secbool (*writer)(uint16_t, const void *, uint16_t) =
       pri ? se_set_private_region : se_set_public_region;
   // set has_xxx flag
-  CHECK_CONFIG_OP(writer(id.meta.offset, &TRUE_BYTE, 1));
+  CHECK_CONFIG_OP(writer(id, &TRUE_BYTE, 1));
   uint32_t size = len;
   // size|bytes
-  CHECK_CONFIG_OP(writer(id.meta.offset + 1, &size, sizeof(size)));
-  CHECK_CONFIG_OP(writer(id.meta.offset + 1 + sizeof(uint32_t), bytes, len));
+  CHECK_CONFIG_OP(writer(id + 1, &size, sizeof(size)));
+  CHECK_CONFIG_OP(writer(id + 1 + sizeof(uint32_t), bytes, len));
   return sectrue;
 }
 
-inline static secbool config_clear_bytes(const struct CfgRecord id) {
-  bool pri = id.id & (1 << 31);
+static secbool config_delete_key(const uint32_t id) {
+  bool pri = id & (1 << 31);
   secbool (*writer)(uint16_t, const void *, uint16_t) =
       pri ? se_set_private_region : se_set_public_region;
   // clear has_xxx flag
-  CHECK_CONFIG_OP(writer(id.meta.offset, &FALSE_BYTE, 1));
-  uint8_t zero[id.size];
-  memzero(zero, id.size);
-  return writer(id.meta.offset + 1, zero, id.size);
+  CHECK_CONFIG_OP(writer(id, &FALSE_BYTE, 1));
+  return sectrue;
 }
 
-inline static secbool config_get_string(const struct CfgRecord id, char *dest,
-                                        uint16_t *real_size) {
-  if (real_size) *real_size = id.size;
+static secbool config_get_string(const uint32_t id, char *dest,
+                                 uint16_t *real_size) {
   return config_get(id, dest, *real_size);
 }
-inline static secbool config_set_string(const struct CfgRecord id,
-                                        const char *dest) {
-  uint16_t len = strlen(dest);
-  if (len > id.size - 1) return secfalse;
-  return config_set(id, dest, len + 1);  // append '\0'
-}
 
-#define config_clear_string(id) config_clear_bytes(id)
-
-inline static secbool config_get_uint32(const struct CfgRecord id,
-                                        uint32_t *value) {
+static secbool config_get_uint32(const uint32_t id, uint32_t *value) {
   *value = 0;
   CHECK_CONFIG_OP(config_get(id, value, sizeof(uint32_t)));
   return sectrue;
 }
-inline static secbool config_set_uint32(const struct CfgRecord id,
-                                        uint32_t value) {
+static secbool config_set_uint32(const uint32_t id, uint32_t value) {
   return config_set(id, &value, sizeof(value));
 }
 
@@ -332,10 +248,10 @@ void config_init(void) {
   config_getLanguage(config_language, sizeof(config_language));
 
   // If UUID is not set, then the config is uninitialized.
-  if (sectrue != config_get_bytes(id_uuid, (uint8_t *)config_uuid, NULL)) {
+  if (sectrue != config_get_bytes(KEY_UUID, (uint8_t *)config_uuid, NULL)) {
     random_buffer((uint8_t *)config_uuid, sizeof(config_uuid));
-    config_set_bytes(id_uuid, (uint8_t *)config_uuid, sizeof(config_uuid));
-    config_set_uint32(id_version, CONFIG_VERSION);
+    config_set_bytes(KEY_UUID, (uint8_t *)config_uuid, sizeof(config_uuid));
+    config_set_uint32(KEY_VERSION, CONFIG_VERSION);
   }
   data2hex((const uint8_t *)config_uuid, sizeof(config_uuid), config_uuid_str);
 
@@ -346,9 +262,10 @@ void config_lockDevice(void) { se_clearSecsta(); }
 
 void config_setLabel(const char *label) {
   if (label == NULL || label[0] == '\0') {
-    config_clear_string(id_label);
+    config_delete_key(KEY_LABEL);
   } else {
-    config_set_string(id_label, label);
+    config_set(KEY_LABEL, label,
+               strnlen(label, MAX_LABEL_LEN) + 1);  // append '\0'
   }
 }
 
@@ -365,25 +282,26 @@ void config_setLanguage(const char *lang) {
     return;
   }
 
-  config_set_uint32(id_language, ui_language);
+  config_set(KEY_LANGUAGE, lang,
+             strnlen(lang, MAX_LANGUAGE_LEN) + 1);  // append '\0'
   font_set(ui_language ? "dingmao_9x9" : "english");
 }
 
 void config_setPassphraseProtection(bool passphrase_protection) {
-  config_set_bool(id_passphrase_protection, passphrase_protection);
+  config_set_bool(KEY_PASSPHRASE_PROTECTION, passphrase_protection);
 }
 
 bool config_getPassphraseProtection(bool *passphrase_protection) {
-  return config_get_bool(id_passphrase_protection, passphrase_protection);
+  return config_get_bool(KEY_PASSPHRASE_PROTECTION, passphrase_protection);
 }
 
 void config_setHomescreen(const uint8_t *data, uint32_t size) {
   g_bHomeGetFlg = secfalse;
 
   if (data != NULL && size == HOMESCREEN_SIZE) {
-    config_set_bytes(id_homescreen, data, size);
+    config_set_bytes(KEY_HOMESCREEN, data, size);
   } else {
-    config_clear_bytes(id_homescreen);
+    config_delete_key(KEY_HOMESCREEN);
   }
 }
 
@@ -411,11 +329,6 @@ bool config_genSessionSeed(void) {
   }
   // TODO. if passphrase is null it would special choose
   if (passphrase[0] == 0) {
-    // se use default seed and minisecret.
-    char oldTiny = usbTiny(1);
-    if (!se_gen_session_seed(NULL, derive_cardano)) return false;
-    usbTiny(oldTiny);
-    return true;
   } else {  // passphrase is used - confirm on the display
     layoutDialogCenterAdapterV2(
         "Access Hidden Wallet", NULL, &bmp_bottom_left_close,
@@ -439,8 +352,13 @@ bool config_genSessionSeed(void) {
   }
 
   char oldTiny = usbTiny(1);
-  // se gen session seed or minisecret for session
-  if (!se_gen_session_seed(passphrase, derive_cardano)) return false;
+
+  if (!(status & 0x80)) {
+    if (!se_gen_session_seed(passphrase, false)) return false;
+  }
+  if (derive_cardano && !(status & 0x40)) {
+    if (!se_gen_session_seed(passphrase, true)) return false;
+  }
 
   memzero(passphrase, sizeof(passphrase));
   usbTiny(oldTiny);
@@ -448,7 +366,7 @@ bool config_genSessionSeed(void) {
 }
 
 bool config_getLabel(char *dest, uint16_t dest_size) {
-  if (secfalse == config_get_string(id_label, dest, &dest_size)) {
+  if (secfalse == config_get_string(KEY_LABEL, dest, &dest_size)) {
     memcpy(dest, "OneKey Classic", 15 /*strlen("OneKey Classic") + 1*/);
   } else {
     int len = strlen(dest);
@@ -460,14 +378,15 @@ bool config_getLabel(char *dest, uint16_t dest_size) {
 }
 
 bool config_getLanguage(char *dest, uint16_t dest_size) {
-  (void)dest_size;
-  uint32_t lang_id = 0xff;
-  if (sectrue == config_get_uint32(id_language, &lang_id)) {
-    ui_language = lang_id;
+  if (sectrue == config_get_string(KEY_LANGUAGE, dest, &dest_size)) {
+    if (strcmp(dest, "en-US") == 0 || strcmp(dest, "english") == 0) {
+      ui_language = LANG_EN_US;
+    } else if (strcmp(dest, "zh-CN") == 0 || strcmp(dest, "chinese") == 0) {
+      ui_language = LANG_ZH_CN;
+    }
   } else {
     ui_language = LANG_EN_US;
   }
-  strcpy(dest, ui_language == LANG_ZH_CN ? "zh-CN" : "en-US");
   font_set(ui_language ? "dingmao_9x9" : "english");
   return true;
 }
@@ -476,7 +395,7 @@ bool config_getHomescreen(uint8_t *dest, uint16_t dest_size) {
   if (secfalse == g_bHomeGetFlg) {
     memzero(g_ucHomeScreen, sizeof(g_ucHomeScreen));
     uint16_t realSize = 0xff;
-    if (!config_get_bytes(id_homescreen, g_ucHomeScreen, &realSize)) {
+    if (!config_get_bytes(KEY_HOMESCREEN, g_ucHomeScreen, &realSize)) {
       return false;
     }
   }
@@ -498,6 +417,10 @@ bool config_setMnemonic(const char *mnemonic, bool import) {
   config_setDebugMnemonicBytes(mnemonic);
 #endif
   return true;
+}
+
+bool config_getMnemonic(char *dest, uint16_t dest_size) {
+  return sectrue == se_exportMnemonic(dest, dest_size);
 }
 
 bool config_setPin(const char *pin) { return sectrue == se_setPin(pin); }
@@ -575,11 +498,11 @@ void session_clear(bool lock) {
 bool config_isInitialized(void) { return se_isInitialized(); }
 
 bool config_getImported(bool *imported) {
-  return config_get_bool(id_imported, imported);
+  return config_get_bool(KEY_IMPORTED, imported);
 }
 
 void config_setImported(bool imported) {
-  config_set_bool(id_imported, imported);
+  config_set_bool(KEY_IMPORTED, imported);
 }
 
 bool config_containsMnemonic(const char *mnemonic) {
@@ -587,39 +510,39 @@ bool config_containsMnemonic(const char *mnemonic) {
 }
 
 bool config_getNeedsBackup(bool *needs_backup) {
-  return sectrue == config_get_bool(id_need_backup, needs_backup);
+  return sectrue == se_get_needs_backup(needs_backup);
 }
 
 void config_setNeedsBackup(bool needs_backup) {
-  config_set_bool(id_need_backup, needs_backup);
+  se_set_needs_backup(needs_backup);
 }
 
 bool config_getUnfinishedBackup(bool *unfinished_backup) {
-  return sectrue == config_get_bool(id_unfinished_backup, unfinished_backup);
+  return sectrue == config_get_bool(KEY_UNFINISHED_BACKUP, unfinished_backup);
 }
 
 void config_setUnfinishedBackup(bool unfinished_backup) {
-  config_set_bool(id_unfinished_backup, unfinished_backup);
+  config_set_bool(KEY_UNFINISHED_BACKUP, unfinished_backup);
 }
 
 bool config_getNoBackup(bool *no_backup) {
-  return sectrue == config_get_bool(id_no_backup, no_backup);
+  return sectrue == config_get_bool(KEY_NO_BACKUP, no_backup);
 }
 
-void config_setNoBackup(void) { config_set_bool(id_no_backup, true); }
+void config_setNoBackup(void) { config_set_bool(KEY_NO_BACKUP, true); }
 
 void config_applyFlags(uint32_t flags) {
   uint32_t old_flags = 0;
-  config_get_uint32(id_flags, &old_flags);
+  config_get_uint32(KEY_FLAGS, &old_flags);
   flags |= old_flags;
   if (flags == old_flags) {
     return;  // no new flags
   }
-  config_set_uint32(id_flags, flags);
+  config_set_uint32(KEY_FLAGS, flags);
 }
 
 bool config_getFlags(uint32_t *flags) {
-  return sectrue == config_get_uint32(id_flags, flags);
+  return sectrue == config_get_uint32(KEY_FLAGS, flags);
 }
 
 uint32_t config_nextU2FCounter(void) {
@@ -641,7 +564,7 @@ uint32_t config_getAutoLockDelayMs(void) {
     return autoLockDelayMsDefault;
   }
 #endif
-  if (sectrue != config_get_uint32(id_auto_lock_delay_ms, &autoLockDelayMs)) {
+  if (sectrue != config_get_uint32(KEY_AUTO_LOCK_DELAY_MS, &autoLockDelayMs)) {
     autoLockDelayMs = autoLockDelayMsDefault;
   }
   if (autoLockDelayMs) {
@@ -654,7 +577,8 @@ uint32_t config_getAutoLockDelayMs(void) {
 void config_setAutoLockDelayMs(uint32_t auto_lock_delay_ms) {
   if (auto_lock_delay_ms != 0)
     auto_lock_delay_ms = MAX(auto_lock_delay_ms, MIN_AUTOLOCK_DELAY_MS);
-  if (sectrue == config_set_uint32(id_auto_lock_delay_ms, auto_lock_delay_ms)) {
+  if (sectrue ==
+      config_set_uint32(KEY_AUTO_LOCK_DELAY_MS, auto_lock_delay_ms)) {
     autoLockDelayMs = auto_lock_delay_ms;
     autoLockDelayMsCached = sectrue;
   }
@@ -671,7 +595,7 @@ uint32_t config_getSleepDelayMs(void) {
     return autoSleepDelayMs;
   }
 
-  if (sectrue != config_get_uint32(id_sleep_delay_ms, &autoSleepDelayMs)) {
+  if (sectrue != config_get_uint32(KEY_SLEEP_DELAY_MS, &autoSleepDelayMs)) {
     autoSleepDelayMs = sleepDelayMsDefault;
   }
   sleepDelayMsCached = sectrue;
@@ -682,7 +606,7 @@ void config_setSleepDelayMs(uint32_t auto_sleep_ms) {
   if (auto_sleep_ms != 0)
     auto_sleep_ms = MAX(auto_sleep_ms, MIN_AUTOLOCK_DELAY_MS);
 
-  if (sectrue == config_set_uint32(id_sleep_delay_ms, auto_sleep_ms)) {
+  if (sectrue == config_set_uint32(KEY_SLEEP_DELAY_MS, auto_sleep_ms)) {
     autoSleepDelayMs = auto_sleep_ms;
     sleepDelayMsCached = sectrue;
   }
@@ -700,8 +624,8 @@ void config_wipe(void) {
 #else
   safetyCheckLevel = SafetyCheckLevel_PromptAlways;
 #endif
-  config_set_bytes(id_uuid, (uint8_t *)config_uuid, sizeof(config_uuid));
-  config_set_uint32(id_version, CONFIG_VERSION);
+  config_set_bytes(KEY_UUID, (uint8_t *)config_uuid, sizeof(config_uuid));
+  config_set_uint32(KEY_VERSION, CONFIG_VERSION);
   session_clear(false);
   fsm_abortWorkflows();
   fsm_clearCosiNonce();
@@ -743,7 +667,7 @@ uint32_t config_getPinFails(void) { return se_pinFailedCounter(); }
 
 bool config_getCoinSwitch(CoinSwitch loc) {
   uint32_t coin_switch = 0;
-  if (sectrue == config_get_uint32(id_coin_function_switch, &coin_switch)) {
+  if (sectrue == config_get_uint32(KEY_COIN_FUNCTION_SWITCH, &coin_switch)) {
     if (coin_switch & loc) {
       return true;
     }
@@ -753,26 +677,26 @@ bool config_getCoinSwitch(CoinSwitch loc) {
 
 void config_setCoinSwitch(CoinSwitch loc, bool flag) {
   uint32_t coin_switch = 0;
-  config_get_uint32(id_coin_function_switch, &coin_switch);
+  config_get_uint32(KEY_COIN_FUNCTION_SWITCH, &coin_switch);
   if (flag) {
     coin_switch |= loc;
   } else {
     coin_switch &= ~loc;
   }
-  config_set_uint32(id_coin_function_switch, coin_switch);
+  config_set_uint32(KEY_COIN_FUNCTION_SWITCH, coin_switch);
 }
 
 bool config_hasTrezorCompMode(void) {
   bool mode = false;
-  return sectrue == config_get_bool(id_trezorCompMode, &mode);
+  return sectrue == config_get_bool(KEY_TREZOR_COMP_MODE, &mode);
 }
 
 void config_setTrezorCompMode(bool trezor_comp_mode) {
-  config_set_bool(id_trezorCompMode, trezor_comp_mode);
+  config_set_bool(KEY_TREZOR_COMP_MODE, trezor_comp_mode);
 }
 
 bool config_getTrezorCompMode(bool *trezor_comp_mode) {
-  return sectrue == config_get_bool(id_trezorCompMode, trezor_comp_mode);
+  return sectrue == config_get_bool(KEY_TREZOR_COMP_MODE, trezor_comp_mode);
 }
 
 static AuthorizeCoinJoin auth = {0};
@@ -838,7 +762,7 @@ void config_setDeriveCardano(bool on) { derive_cardano = on; }
 
 void config_loadDevice(const LoadDevice *msg) {
   session_clear(false);
-  config_set_bool(id_imported, true);
+  config_set_bool(offsetof(PriConfig, imported), true);
   config_setPassphraseProtection(msg->has_passphrase_protection &&
                                  msg->passphrase_protection);
 

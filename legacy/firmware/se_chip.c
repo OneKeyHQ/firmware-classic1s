@@ -11,9 +11,9 @@
 #include "curves.h"
 #include "flash.h"
 #include "gettext.h"
-#include "hard_preset.h"
 #include "memzero.h"
 #include "nist256p1.h"
+#include "otp.h"
 #include "rand.h"
 #include "se_chip.h"
 #include "secp256k1.h"
@@ -38,6 +38,8 @@
 #define SE_INS_ECDH 0xE9
 #define SE_INS_AES 0xEA
 #define SE_INS_COINJOIN 0xEC
+#define SE_INS_HASHR 0xED
+#define SE_INS_HASHRAM 0xEE
 
 #define SESSION_KEYLEN (16)
 
@@ -75,7 +77,7 @@ void se_set_ui_callback(UI_WAIT_CALLBACK callback) { ui_callback = callback; }
 
 secbool se_get_rand(uint8_t *rand, uint8_t rand_len) {
   uint8_t rand_cmd[7] = {0x00, 0x84, 0x00, 0x00, 0x02};
-  uint16_t resp_len;
+  uint16_t resp_len = rand_len;
 
   if (rand_len > 0x20) {
     return secfalse;
@@ -121,13 +123,17 @@ static void cal_mac(uint8_t *data, uint32_t len, uint8_t *mac) {
 
 secbool se_transmit_mac(uint8_t ins, uint8_t p1, uint8_t p2, uint8_t *data,
                         uint16_t data_len, uint8_t *recv, uint16_t *recv_len) {
-  uint8_t mac[4];
+  uint8_t mac[4], iv_random[16];
   uint16_t pad_len;
   APDU_CLA = 0x84;
   APDU_INS = ins;
   APDU_P1 = p1;
   APDU_P2 = p2;
   APDU_P3 = 0x00;
+
+  if (!se_get_rand(iv_random, 16)) {
+    return secfalse;
+  }
 
   if (data != NULL && data_len != 0) {
     pad_len = AES_BLOCK_SIZE - (data_len % AES_BLOCK_SIZE);
@@ -142,9 +148,10 @@ secbool se_transmit_mac(uint8_t ins, uint8_t p1, uint8_t p2, uint8_t *data,
     memmove(APDU_DATA, data, data_len - pad_len);
 
     aes_encrypt_ctx ctxe;
-
+    uint8_t iv[16];
+    memcpy(iv, iv_random, 16);
     aes_encrypt_key128(se_session_key, &ctxe);
-    aes_ecb_encrypt(APDU_DATA, se_recv_buffer, data_len, &ctxe);
+    aes_cbc_encrypt(APDU_DATA, se_recv_buffer, data_len, iv, &ctxe);
 
     if (data_len > 255) {
       APDU_P3 = 0x00;
@@ -182,10 +189,10 @@ secbool se_transmit_mac(uint8_t ins, uint8_t p1, uint8_t p2, uint8_t *data,
     se_recv_len -= 4;
 
     aes_decrypt_ctx dtxe;
-
+    uint8_t iv[16];
+    memcpy(iv, iv_random, 16);
     aes_decrypt_key128(se_session_key, &dtxe);
-
-    aes_ecb_decrypt(se_recv_buffer, APDU, se_recv_len, &dtxe);
+    aes_cbc_decrypt(se_recv_buffer, APDU, se_recv_len, iv, &dtxe);
     pad_len = 1;
     for (uint8_t i = 0; i < 16; i++) {
       if (APDU[se_recv_len - 1 - i] == 0x80) {
@@ -238,7 +245,9 @@ secbool se_sync_session_key(void) {
   aes_encrypt_ctx en_ctxe;
   aes_decrypt_ctx de_ctxe;
   memzero(data_buf, sizeof(data_buf));
-  // if (!bPresetDataRead(default_key)) return false;
+
+  flash_otp_read(FLASH_OTP_BLOCK_THD89_SESSION_KEY, 0, default_key,
+                 sizeof(default_key));
 
   // get random from se
   se_get_rand(r1, 16);
@@ -315,16 +324,21 @@ secbool se_reset_storage(void) {
   return sectrue;
 }
 
-secbool se_get_sn(char **serial, uint16_t len) {
+secbool se_set_sn(const char *serial, uint8_t len) {
+  uint8_t cmd[40] = {0x00, 0xF6, 0x00, 0x0, 0x00};
+  uint16_t resp_len = 0;
+  if (len > 32) {
+    return secfalse;
+  }
+  cmd[4] = len;
+  memcpy(cmd + 5, serial, len);
+  return thd89_transmit(cmd, len + 5, NULL, &resp_len);
+}
+
+secbool se_get_sn(char **serial) {
   uint8_t get_sn[5] = {0x00, 0xf5, 0x00, 0x00, 0x00};
-  static char sn[32] = "CL23081700001";
+  static char sn[32] = {0};
   uint16_t sn_len = sizeof(sn);
-
-  *serial = sn;
-  return sectrue;
-
-  if (len > 0x10) len = 0x10;
-  get_sn[4] = len;
 
   if (!thd89_transmit(get_sn, sizeof(get_sn), (uint8_t *)sn, &sn_len)) {
     return secfalse;
@@ -348,49 +362,60 @@ char *se_get_version(void) {
   return ver;
 }
 
-secbool se_get_pubkey(uint8_t pubkey[64]) {
-  uint8_t get_pubkey[5] = {0x00, 0x73, 0x00, 00, 0x40};
-  uint16_t pubkey_len = 0;
-  if (!thd89_transmit(get_pubkey, sizeof(get_pubkey), pubkey, &pubkey_len)) {
-    return secfalse;
+secbool se_get_pubkey(uint8_t *public_key) {
+  uint8_t cmd[5] = {0x00, 0xF5, 0x00, 0x01, 0x00};
+  uint16_t resp_len = 64;
+  return thd89_transmit(cmd, sizeof(cmd), public_key, &resp_len);
+}
+
+secbool se_write_certificate(const uint8_t *cert, uint16_t len) {
+  uint8_t cmd[1024] = {0x00, 0xF6, 0x00, 0x01, 0x00};
+  uint16_t cmd_len = 0;
+  uint16_t resp_len = 0;
+  if (len > 255) {
+    cmd[4] = 0x00;
+    cmd[5] = (len >> 8) & 0xff;
+    cmd[6] = len & 0xff;
+    cmd_len = 7;
+  } else {
+    cmd[4] = len;
+    cmd_len = 5;
   }
-  if (pubkey_len != 64) {
-    return secfalse;
-  }
-  return sectrue;
+  memcpy(cmd + cmd_len, cert, len);
+  return thd89_transmit(cmd, cmd_len + len, NULL, &resp_len);
 }
 
-secbool se_write_certificate(const uint8_t *cert, uint32_t cert_len) {
-  (void)cert;
-  (void)cert_len;
-  return sectrue;
-}
-
-secbool se_read_certificate(uint8_t *cert, uint32_t *cert_len) {
-  uint8_t get_cert[5] = {0x00, 0xf8, 0x01, 0x00, 0x00};
-  return thd89_transmit(get_cert, sizeof(get_cert), cert, (uint16_t *)cert_len);
-}
-
-secbool se_get_certificate_len(uint32_t *cert_len) {
-  uint8_t cert[512];
-  return se_read_certificate(cert, cert_len);
+secbool se_read_certificate(uint8_t *cert, uint16_t *len) {
+  uint8_t cmd[5] = {0x00, 0xF5, 0x00, 0x02, 0x00};
+  return thd89_transmit(cmd, 5, cert, (uint16_t *)len);
 }
 
 secbool se_has_cerrificate(void) {
   uint8_t cert[512];
-  uint32_t cert_len = 0;
+  uint16_t cert_len;
   return se_read_certificate(cert, &cert_len);
 }
 
 secbool se_sign_message(uint8_t *msg, uint32_t msg_len, uint8_t *signature) {
-  uint8_t sign[37] = {0x00, 0x72, 0x00, 00, 0x20};
+  uint8_t sign[37] = {0x00, 0xF5, 0x00, 0x03, 0x20};
   uint16_t signature_len = 64;
 
-  if (msg_len != 0x20) {
-    return secfalse;
-  }
-  memcpy(sign + 5, msg, msg_len);
+  SHA256_CTX ctx = {0};
+  uint8_t result[32] = {0};
+
+  sha256_Init(&ctx);
+  sha256_Update(&ctx, msg, msg_len);
+  sha256_Final(&ctx, result);
+
+  memcpy(sign + 5, result, 32);
   return thd89_transmit(sign, sizeof(sign), signature, &signature_len);
+}
+
+secbool se_set_session_key(const uint8_t *session_key) {
+  uint8_t cmd[32] = {0x00, 0xF6, 0x00, 0x02, 0x10};
+  uint16_t resp_len = 0;
+  memcpy(cmd + 5, session_key, SESSION_KEYLEN);
+  return thd89_transmit(cmd, 21, NULL, &resp_len);
 }
 
 secbool se_isInitialized(void) {
@@ -483,12 +508,10 @@ secbool se_getRetryTimes(uint8_t *ptimes) {
 }
 
 secbool se_clearSecsta(void) {
-  uint8_t cmd[5] = {0x80, SE_INS_PIN, 0x00, 0x06, 0x00};
-  uint16_t recv_len;
-  if (!thd89_transmit(cmd, sizeof(cmd), NULL, &recv_len)) {
+  uint16_t recv_len = 0;
+  if (!se_transmit_mac(SE_INS_PIN, 0x00, 0x06, NULL, 0, NULL, &recv_len)) {
     return secfalse;
   }
-
   return sectrue;
 }
 
@@ -628,6 +651,36 @@ secbool se_containsMnemonic(const char *mnemonic) {
   return sectrue * (verify == 0x55);
 }
 
+secbool se_exportMnemonic(char *mnemonic, uint16_t dest_size) {
+  uint16_t len = dest_size;
+
+  if (!se_transmit_mac(0xE2, 0x00, 0x02, NULL, 0, (uint8_t *)mnemonic, &len)) {
+    return secfalse;
+  }
+  mnemonic[len] = 0;
+  return sectrue;
+}
+
+secbool se_set_needs_backup(bool needs_backup) {
+  if (!se_transmit_mac(0xE2, 0x00, 0x03, (uint8_t *)&needs_backup, 1, NULL,
+                       NULL)) {
+    return secfalse;
+  }
+
+  return sectrue;
+}
+
+secbool se_get_needs_backup(bool *needs_backup) {
+  uint16_t len = 1;
+  uint8_t needs_backup_buf = 0xff;
+  if (!se_transmit_mac(0xE2, 0x00, 0x04, NULL, 0, &needs_backup_buf, &len)) {
+    return secfalse;
+  }
+  *needs_backup = needs_backup_buf == 0 ? false : true;
+
+  return sectrue;
+}
+
 secbool se_hasWipeCode(void) {
   uint8_t wipe_code = 0xff;
   uint16_t len = sizeof(wipe_code);
@@ -685,34 +738,107 @@ int se_nist256p1_sign_digest(const uint8_t *digest, uint8_t *sig,
   return se_ecdsa_sign_digest(CURVE_NIST256P1, 0, digest, sig, pby);
 }
 
-int se_ed25519_sign(const uint8_t *msg, uint16_t msg_len, uint8_t *sig) {
-  uint8_t resp[128];
-  uint16_t resp_len = sizeof(resp);
-  if (!se_transmit_mac(SE_INS_SIGN, 0x00, 0x02, (uint8_t *)msg, msg_len, resp,
-                       &resp_len)) {
+#define HASH_FLAG_INIT 0x40
+#define HASH_FLAG_UPDATE 0x00
+#define HASH_FLAG_FINAL 0x80
+
+#define ED25519_HASH_DEFAULT 0
+#define ED25519_HASH_EXT 1
+#define ED25519_HASH_KECCAK 2
+
+static int _se_ed25519_send_msg(uint8_t ins, uint8_t type, const uint8_t *msg,
+                                uint16_t msg_len) {
+  uint8_t flag = HASH_FLAG_INIT;
+  bool first = true;
+
+  while (msg_len) {
+    uint16_t len = msg_len > MI2C_DATA_MAX_LEN ? MI2C_DATA_MAX_LEN : msg_len;
+    if (first) {
+      flag = HASH_FLAG_INIT;
+      first = false;
+    } else {
+      flag = HASH_FLAG_UPDATE;
+    }
+    if (msg_len - len == 0) {
+      flag |= HASH_FLAG_FINAL;
+    }
+    if (!se_transmit_mac(ins, type, flag, (uint8_t *)msg, len, NULL, NULL)) {
+      return -1;
+    }
+    msg += len;
+    msg_len -= len;
+  }
+  return 0;
+}
+
+static int _se_ed25519_sign_digest(uint8_t type, uint8_t *sig) {
+  uint16_t resp_len = 64;
+  if (!se_transmit_mac(SE_INS_SIGN, 0x00, 0x08, &type, 1, sig, &resp_len)) {
     return -1;
+  }
+  return 0;
+}
+
+static int se_ed25519_sign_digest(const uint8_t *msg, uint16_t msg_len,
+                                  uint8_t type, uint8_t *sig) {
+  if (_se_ed25519_send_msg(SE_INS_HASHR, type, msg, msg_len) != 0) {
+    return -1;
+  }
+  if (_se_ed25519_send_msg(SE_INS_HASHRAM, type, msg, msg_len) != 0) {
+    return -1;
+  }
+  if (!_se_ed25519_sign_digest(type, sig)) {
+    return -1;
+  }
+  return 0;
+}
+
+int se_ed25519_sign(const uint8_t *msg, uint16_t msg_len, uint8_t *sig) {
+  uint8_t resp[64];
+  uint16_t resp_len = sizeof(resp);
+  if (msg_len > MI2C_DATA_MAX_LEN) {
+    if (!se_ed25519_sign_digest(msg, msg_len, ED25519_HASH_DEFAULT, resp)) {
+      return -1;
+    }
+  } else {
+    if (!se_transmit_mac(SE_INS_SIGN, 0x00, 0x02, (uint8_t *)msg, msg_len, resp,
+                         &resp_len)) {
+      return -1;
+    }
   }
   memcpy(sig, resp, resp_len);
   return 0;
 }
 
 int se_ed25519_sign_ext(const uint8_t *msg, uint16_t msg_len, uint8_t *sig) {
-  uint8_t resp[128];
+  uint8_t resp[64];
   uint16_t resp_len = sizeof(resp);
-  if (!se_transmit_mac(SE_INS_SIGN, 0x00, 0x03, (uint8_t *)msg, msg_len, resp,
-                       &resp_len)) {
-    return -1;
+  if (msg_len > MI2C_DATA_MAX_LEN) {
+    if (!se_ed25519_sign_digest(msg, msg_len, ED25519_HASH_EXT, resp)) {
+      return -1;
+    }
+  } else {
+    if (!se_transmit_mac(SE_INS_SIGN, 0x00, 0x03, (uint8_t *)msg, msg_len, resp,
+                         &resp_len)) {
+      return -1;
+    }
   }
   memcpy(sig, resp, resp_len);
   return 0;
 }
 
 int se_ed25519_sign_keccak(const uint8_t *msg, uint16_t msg_len, uint8_t *sig) {
-  uint8_t resp[128];
+  uint8_t resp[64];
   uint16_t resp_len = sizeof(resp);
-  if (!se_transmit_mac(SE_INS_SIGN, 0x00, 0x04, (uint8_t *)msg, msg_len, resp,
-                       &resp_len)) {
-    return -1;
+  if (msg_len > MI2C_DATA_MAX_LEN) {
+    if (!se_ed25519_sign_digest(msg, msg_len, ED25519_HASH_KECCAK, resp)) {
+      return -1;
+    }
+  } else {
+    if (!se_transmit_mac(SE_INS_SIGN, 0x00, 0x04, (uint8_t *)msg, msg_len, resp,
+                         &resp_len)) {
+      return -1;
+    }
   }
   memcpy(sig, resp, resp_len);
   return 0;
@@ -1180,6 +1306,15 @@ int hdnode_bip340_get_shared_key(const HDNode *node,
 
 uint16_t se_lasterror(void) { return thd89_last_error(); }
 
-bool se_isFactoryMode(void) { return false; }
+bool se_isFactoryMode(void) {
+  char *serial;
+  if (!se_has_cerrificate()) {
+    return true;
+  }
+  if (!se_get_sn(&serial)) {
+    return true;
+  }
+  return false;
+}
 
 #endif

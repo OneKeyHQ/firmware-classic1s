@@ -20,9 +20,9 @@
 
 #include "common.h"
 #include "flash.h"
+#include "gd32f4xx.h"
 #include "memory.h"
 #include "supervise.h"
-#include "gd32f4xx.h"
 
 static const uint32_t FLASH_SECTOR_TABLE[FLASH_SECTOR_COUNT + 1] = {
     // BANK0 size 1MB
@@ -47,7 +47,15 @@ static const uint32_t FLASH_SECTOR_TABLE[FLASH_SECTOR_COUNT + 1] = {
     [17] = 0x08120000,  // - 0x0803FFFF | 128 KiB
     [18] = 0x08140000,  // - 0x0805FFFF | 128 KiB
     [19] = 0x08160000,  // - 0x0805FFFF | 128 KiB
-    [20] = 0x08300000,  // last element - not a valid sector
+    [20] = 0x08180000,  // - 0x0805FFFF | 128 KiB
+    [21] = 0x081A0000,  // - 0x0805FFFF | 128 KiB
+    [22] = 0x081C0000,  // - 0x0805FFFF | 128 KiB
+    [23] = 0x081E0000,  // - 0x0805FFFF | 128 KiB
+    [24] = 0x08200000,  // - 0x0805FFFF | 256 KiB
+    [25] = 0x08240000,  // - 0x0805FFFF | 256 KiB
+    [26] = 0x08280000,  // - 0x0805FFFF | 256 KiB
+    [27] = 0x082C0000,  // - 0x0805FFFF | 256 KiB
+    [28] = 0x08300000,  // last element - not a valid sector
 };
 
 secbool flash_check_success(uint32_t status) {
