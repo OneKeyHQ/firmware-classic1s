@@ -88,13 +88,15 @@ void layoutEncryptMessage(const uint8_t *msg, uint32_t len, bool signing);
 void layoutDecryptMessage(const uint8_t *msg, uint32_t len,
                           const char *address);
 void layoutResetWord(const char *word, int pass, int word_pos, bool last);
-uint8_t layoutAddress(const char *address, const char *desc, bool qrcode,
-                      bool path, bool ignorecase, const uint32_t *address_n,
-                      size_t address_n_count, bool address_is_account);
+uint8_t layoutAddress(const char *address, const char *address_type,
+                      const char *desc, bool qrcode, bool path, bool ignorecase,
+                      const uint32_t *address_n, size_t address_n_count,
+                      bool address_is_account, bool is_multisig);
 void layoutPublicKey(const uint8_t *pubkey);
 bool layoutXPUB(const char *coin_name, const char *xpub,
                 const uint32_t *address_n, size_t address_n_count);
-void layoutXPUBMultisig(const char *xpub, int index, int page, bool ours);
+uint8_t layoutXPUBMultisig(const char *header, const char *xpub, int index,
+                           int page, bool ours, bool last_page);
 void layoutSignIdentity(const IdentityType *identity, const char *challenge);
 void layoutDecryptIdentity(const IdentityType *identity);
 void layoutU2FDialog(const char *verb, const char *appname);
@@ -228,7 +230,8 @@ void layoutInputPassphrase(const char *text, uint8_t prefix_len,
 bool layoutEraseDevice(void);
 void layoutDeviceParameters(int num);
 void layoutAboutCertifications(int num);
-void layoutEnterSleep(void);
+bool layoutEnterSleep(int mode);
+bool layoutInputDirection(int index);
 
 #define layoutMenuItems(btn_yes, bmp_yes, index, count, title, current,        \
                         previous, next)                                        \
@@ -267,14 +270,24 @@ static inline void layoutSwipe(void) {
 
 const char *address_n_str(const uint32_t *address_n, size_t address_n_count,
                           bool address_is_account);
-bool layoutTransactionSign(const char *chain_name, bool token_transfer,
-                           const char *amount, const char *to_str,
-                           const char *signer, const char *recipient,
-                           const char *token_id, const uint8_t *data,
-                           uint16_t len, const char *key1, const char *value1,
-                           const char *key2, const char *value2,
-                           const char *key3, const char *value3,
-                           const char *key4, const char *value4);
+bool layoutTransactionSign(const char *chain_name, uint64_t chain_id,
+                           bool token_transfer, const char *amount,
+                           const char *to_str, const char *signer,
+                           const char *recipient, const char *token_id,
+                           const uint8_t *data, uint16_t len, const char *key1,
+                           const char *value1, const char *key2,
+                           const char *value2, const char *key3,
+                           const char *value3, const char *key4,
+                           const char *value4);
+bool layoutTransactionSignEVM(const char *chain_name, uint64_t chain_id,
+                              bool token_transfer, const char *amount,
+                              const char *to_str, const char *signer,
+                              const char *recipient, const char *token_id,
+                              const uint8_t *data, uint16_t len,
+                              const char *key1, const char *value1,
+                              const char *key2, const char *value2,
+                              const char *key3, const char *value3,
+                              const char *key4, const char *value4);
 bool layoutBlindSign(const char *chain_name, bool is_contract,
                      const char *contract_addr, const char *from_str,
                      const uint8_t *data, uint16_t len, const char *key1,
@@ -288,6 +301,6 @@ bool layoutSignHash(const char *chain_name, bool verify, const char *signer,
 bool layoutPaginated(const char *title, const uint8_t *data, uint16_t len);
 
 void onboarding(uint8_t key);
-void hide_icons(void);
+void hide_icons(bool hide);
 
 #endif

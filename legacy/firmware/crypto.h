@@ -34,7 +34,7 @@
 
 #define PATH_HARDENED 0x80000000
 #define PATH_UNHARDEN_MASK 0x7fffffff
-#define PATH_MAX_ACCOUNT 100
+#define PATH_MAX_ACCOUNT 0x7fffffff
 #define PATH_MAX_CHANGE 1
 // The maximum allowed change address.  This should be large enough for normal
 // use and still allow to quickly brute-force the correct bip32 path.
@@ -92,6 +92,11 @@ int cryptoMultisigFingerprint(const MultisigRedeemScriptType *multisig,
                               uint8_t *hash);
 
 int cryptoIdentityFingerprint(const IdentityType *identity, uint8_t *hash);
+
+bool cryptoCosiVerify(const ed25519_signature signature, const uint8_t *message,
+                      const size_t message_len, const int threshold,
+                      const ed25519_public_key *pubkeys,
+                      const int pubkeys_count, const uint8_t sigmask);
 
 bool coin_path_check(const CoinInfo *coin, InputScriptType script_type,
                      uint32_t address_n_count, const uint32_t *address_n,

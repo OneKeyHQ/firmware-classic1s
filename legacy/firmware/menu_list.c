@@ -61,7 +61,6 @@ void menu_erase_device(int index) {
   }
 #if !EMULATOR
   svc_system_reset();
-  // reset_to_firmware();
 #endif
 }
 
@@ -107,9 +106,75 @@ void menu_set_passphrase(int index) {
   config_setPassphraseProtection(index ? false : true);
 }
 
+void menu_set_usb_lock(int index) {
+  uint8_t key = KEY_NULL;
+  if (index) {
+    layoutDialogAdapterEx(
+        _("Disable USB Lock"), &bmp_bottom_left_arrow, NULL,
+        &bmp_bottom_right_arrow, NULL,
+        _("Device will remain unlocked\nwhen USB plug or unplug."), NULL, NULL,
+        NULL, NULL);
+    key = protectWaitKey(0, 1);
+    if (key != KEY_CONFIRM) {
+      return;
+    }
+    layoutDialogCenterAdapterV2(NULL, &bmp_icon_warning, &bmp_bottom_left_close,
+                                &bmp_bottom_right_confirm, NULL, NULL, NULL,
+                                NULL, NULL, NULL,
+                                _("Do you want to disable\nUSB Lock?"));
+    key = protectWaitKey(0, 1);
+    if (key != KEY_CONFIRM) {
+      return;
+    }
+  } else {
+    layoutDialogAdapterEx(_("Enable USB Lock"), &bmp_bottom_left_arrow, NULL,
+                          &bmp_bottom_right_arrow, NULL,
+                          _("Device will auto lock when\nUSB plug or unplug."),
+                          NULL, NULL, NULL, NULL);
+    key = protectWaitKey(0, 1);
+    if (key != KEY_CONFIRM) {
+      return;
+    }
+    layoutDialogCenterAdapterV2(NULL, &bmp_icon_warning, &bmp_bottom_left_close,
+                                &bmp_bottom_right_confirm, NULL, NULL, NULL,
+                                NULL, NULL, NULL,
+                                _("Do you want to enable\nUSB Lock?"));
+    key = protectWaitKey(0, 1);
+    if (key != KEY_CONFIRM) {
+      return;
+    }
+  }
+
+  config_setUsblock(index ? false : true);
+}
+
+void menu_set_input_direction(int index) {
+  uint8_t key = KEY_NULL;
+  if (!layoutInputDirection(index)) {
+    return;
+  }
+  if (index) {
+    layoutDialogCenterAdapterV2(
+        NULL, &bmp_icon_warning, &bmp_bottom_left_close,
+        &bmp_bottom_right_confirm, NULL, NULL, NULL, NULL, NULL, NULL,
+        _("Do you want to reverse the\ninput direction?"));
+  } else {
+    layoutDialogCenterAdapterV2(
+        NULL, &bmp_icon_warning, &bmp_bottom_left_close,
+        &bmp_bottom_right_confirm, NULL, NULL, NULL, NULL, NULL, NULL,
+        _("Do you want to restore the\ninput direction to default?"));
+  }
+  key = protectWaitKey(0, 1);
+  if (key != KEY_CONFIRM) {
+    return;
+  }
+
+  config_setInputDirection(index ? true : false);
+}
+
 static struct menu_item ble_set_menu_items[] = {
-    {"Enable", NULL, true, menu_para_set_ble, NULL, true},
-    {"Disable", NULL, true, menu_para_set_ble, NULL, true}};
+    {"Enable", NULL, true, menu_para_set_ble, NULL, true, NULL},
+    {"Disable", NULL, true, menu_para_set_ble, NULL, true, NULL}};
 
 static struct menu ble_set_menu = {
     .start = 0,
@@ -121,8 +186,8 @@ static struct menu ble_set_menu = {
 };
 
 static struct menu_item language_set_menu_items[] = {
-    {"English", NULL, true, menu_para_set_language, NULL, true},
-    {"简体中文", NULL, true, menu_para_set_language, NULL, true}};
+    {"English", NULL, true, menu_para_set_language, NULL, true, NULL},
+    {"简体中文", NULL, true, menu_para_set_language, NULL, true, NULL}};
 
 static struct menu language_set_menu = {
     .start = 0,
@@ -134,19 +199,19 @@ static struct menu language_set_menu = {
 };
 
 static struct menu_item autolock_set_menu_items[] = {
-    {"1", "minute", true, menu_para_set_sleep, NULL, true},
-    {"2", "minutes", true, menu_para_set_sleep, NULL, true},
-    {"5", "minutes", true, menu_para_set_sleep, NULL, true},
-    {"10", "minutes", true, menu_para_set_sleep, NULL, true},
-    {"Never", NULL, true, menu_para_set_sleep, NULL, true}};
+    {"1", "minute", true, menu_para_set_sleep, NULL, true, NULL},
+    {"2", "minutes", true, menu_para_set_sleep, NULL, true, NULL},
+    {"5", "minutes", true, menu_para_set_sleep, NULL, true, NULL},
+    {"10", "minutes", true, menu_para_set_sleep, NULL, true, NULL},
+    {"Never", NULL, true, menu_para_set_sleep, NULL, true, NULL}};
 
 static struct menu_item autolock_set_menu_items_added_custom[] = {
-    {"1", "minute", true, menu_para_set_sleep, NULL, true},
-    {"2", "minutes", true, menu_para_set_sleep, NULL, true},
-    {"5", "minutes", true, menu_para_set_sleep, NULL, true},
-    {"10", "minutes", true, menu_para_set_sleep, NULL, true},
-    {"Never", NULL, true, menu_para_set_sleep, NULL, true},
-    {"Custom", NULL, false, NULL, NULL, true}};
+    {"1", "minute", true, menu_para_set_sleep, NULL, true, NULL},
+    {"2", "minutes", true, menu_para_set_sleep, NULL, true, NULL},
+    {"5", "minutes", true, menu_para_set_sleep, NULL, true, NULL},
+    {"10", "minutes", true, menu_para_set_sleep, NULL, true, NULL},
+    {"Never", NULL, true, menu_para_set_sleep, NULL, true, NULL},
+    {"Custom", NULL, false, NULL, NULL, true, NULL}};
 
 static struct menu autolock_set_menu = {
     .start = 0,
@@ -158,11 +223,11 @@ static struct menu autolock_set_menu = {
 };
 
 static struct menu_item shutdown_set_menu_items[] = {
-    {"1", "minute", true, menu_para_set_shutdown, NULL, true},
-    {"3", "minutes", true, menu_para_set_shutdown, NULL, true},
-    {"5", "minutes", true, menu_para_set_shutdown, NULL, true},
-    {"10", "minutes", true, menu_para_set_shutdown, NULL, true},
-    {"Never", NULL, true, menu_para_set_shutdown, NULL, true}};
+    {"1", "minute", true, menu_para_set_shutdown, NULL, true, NULL},
+    {"3", "minutes", true, menu_para_set_shutdown, NULL, true, NULL},
+    {"5", "minutes", true, menu_para_set_shutdown, NULL, true, NULL},
+    {"10", "minutes", true, menu_para_set_shutdown, NULL, true, NULL},
+    {"Never", NULL, true, menu_para_set_shutdown, NULL, true, NULL}};
 
 static struct menu shutdown_set_menu = {
     .start = 0,
@@ -173,9 +238,35 @@ static struct menu shutdown_set_menu = {
     .previous = &settings_menu,
 };
 
+static struct menu_item usb_lock_set_menu_items[] = {
+    {"Enable", NULL, true, menu_set_usb_lock, NULL, true, NULL},
+    {"Disable", NULL, true, menu_set_usb_lock, NULL, true, NULL}};
+
+static struct menu usb_lock_set_menu = {
+    .start = 0,
+    .current = 0,
+    .counts = COUNT_OF(usb_lock_set_menu_items),
+    .title = "USB Lock",
+    .items = usb_lock_set_menu_items,
+    .previous = &settings_menu,
+};
+
+static struct menu_item input_direction_set_menu_items[] = {
+    {"Default", NULL, true, menu_set_input_direction, NULL, true, NULL},
+    {"Reverse", NULL, true, menu_set_input_direction, NULL, true, NULL}};
+
+static struct menu input_direction_set_menu = {
+    .start = 0,
+    .current = 0,
+    .counts = COUNT_OF(input_direction_set_menu_items),
+    .title = "Input Direction",
+    .items = input_direction_set_menu_items,
+    .previous = &settings_menu,
+};
+
 static struct menu_item passphrase_set_menu_items[] = {
-    {"Enable", NULL, true, menu_set_passphrase, NULL, true},
-    {"Disable", NULL, true, menu_set_passphrase, NULL, true}};
+    {"Enable", NULL, true, menu_set_passphrase, NULL, true, NULL},
+    {"Disable", NULL, true, menu_set_passphrase, NULL, true, NULL}};
 
 static struct menu passphrase_set_menu = {
     .start = 0,
@@ -188,13 +279,17 @@ static struct menu passphrase_set_menu = {
 
 static struct menu_item settings_menu_items[] = {
     {"Bluetooth", NULL, false, .sub_menu = &ble_set_menu, menu_para_ble_state,
-     false},
+     false, menu_para_ble_index},
     {"Language", NULL, false, .sub_menu = &language_set_menu,
-     menu_para_language, false},
+     menu_para_language, false, menu_para_language_index},
     {"Auto-Lock", NULL, false, .sub_menu = &autolock_set_menu,
-     menu_para_autolock, false},
+     menu_para_autolock, false, menu_para_autolock_index},
     {"Shutdown", NULL, false, .sub_menu = &shutdown_set_menu,
-     menu_para_shutdown, false}};
+     menu_para_shutdown, false, menu_para_shutdown_index},
+    {"USB Lock", NULL, false, .sub_menu = &usb_lock_set_menu,
+     menu_para_usb_lock, false, menu_para_usb_lock_index},
+    {"Input Direction", NULL, false, .sub_menu = &input_direction_set_menu,
+     menu_para_input_direction, false, menu_para_input_direction_index}};
 
 static struct menu settings_menu = {
     .start = 0,
@@ -252,13 +347,13 @@ refresh_menu:
   }
 }
 
-
 static struct menu_item security_set_menu_items[] = {
-    {"Change PIN", NULL, true, menu_changePin, NULL, false},
-    {"Check Recovery Phrase", NULL, true, menu_check_all_words, NULL, false},
+    {"Change PIN", NULL, true, menu_changePin, NULL, false, NULL},
+    {"Check Recovery Phrase", NULL, true, menu_check_all_words, NULL, false,
+     NULL},
     {"Passphrase", NULL, false, .sub_menu = &passphrase_set_menu,
-     menu_para_passphrase, true},
-    {"Reset Device", NULL, true, menu_erase_device, NULL, false},
+     menu_para_passphrase, true, menu_para_passphrase_index},
+    {"Reset Device", NULL, true, menu_erase_device, NULL, false, NULL},
 };
 
 static struct menu security_set_menu = {
@@ -276,7 +371,7 @@ void menu_set_trezor_compatibility(int index) {
 
   uint8_t key = KEY_NULL;
 
-  if (index) {
+  if (0 == index) {
     layoutDialogAdapterEx(_("Restore Trezor Compat"), &bmp_bottom_left_close,
                           NULL, &bmp_bottom_right_confirm, NULL, NULL,
                           _("It will take effect after \ndevice restart."),
@@ -339,24 +434,28 @@ void menu_set_trezor_compatibility(int index) {
     }
   }
 
+  bool trezor_comp_mode = false;
+  config_getTrezorCompMode(&trezor_comp_mode);
   config_setTrezorCompMode(index ? false : true);
 #if !EMULATOR
-  reset_to_firmware();
+  if ((index && trezor_comp_mode) || (!index && !trezor_comp_mode)) {
+    svc_system_reset();
+  }
 #endif
 }
 
-// static struct menu_item trezor_compatibility_set_menu_items[] = {
-//     {"Enable", NULL, true, menu_set_trezor_compatibility, NULL, true},
-//     {"Disable", NULL, true, menu_set_trezor_compatibility, NULL, true}};
+static struct menu_item trezor_compatibility_set_menu_items[] = {
+    {"Enable", NULL, true, menu_set_trezor_compatibility, NULL, true, NULL},
+    {"Disable", NULL, true, menu_set_trezor_compatibility, NULL, true, NULL}};
 
-// static struct menu trezor_compatibility_set_menu = {
-//     .start = 0,
-//     .current = 0,
-//     .counts = COUNT_OF(trezor_compatibility_set_menu_items),
-//     .title = "Trezor Compatibility",
-//     .items = trezor_compatibility_set_menu_items,
-//     .previous = &about_menu,
-// };
+static struct menu trezor_compatibility_set_menu = {
+    .start = 0,
+    .current = 0,
+    .counts = COUNT_OF(trezor_compatibility_set_menu_items),
+    .title = "Trezor Compatibility",
+    .items = trezor_compatibility_set_menu_items,
+    .previous = &about_menu,
+};
 
 void menu_set_safety_checks(int index) {
   (void)index;
@@ -368,8 +467,8 @@ void menu_set_safety_checks(int index) {
 }
 
 static struct menu_item safety_checks_set_menu_items[] = {
-    {"Enable", NULL, true, menu_set_safety_checks, NULL, true},
-    {"Disable", NULL, true, menu_set_safety_checks, NULL, true}};
+    {"Enable", NULL, true, menu_set_safety_checks, NULL, true, NULL},
+    {"Disable", NULL, true, menu_set_safety_checks, NULL, true, NULL}};
 
 static struct menu safety_checks_set_menu = {
     .start = 0,
@@ -381,13 +480,12 @@ static struct menu safety_checks_set_menu = {
 };
 
 static struct menu_item about_menu_items[] = {
-    {"Device Info", NULL, true, layoutDeviceParameters, NULL, false},
-    {"Certification", NULL, true, layoutAboutCertifications, NULL, false},
-    // {"Trezor Compat", NULL, false, .sub_menu =
-    // &trezor_compatibility_set_menu,
-    //  menu_para_trezor_comp_mode_state, true},
+    {"Device Info", NULL, true, layoutDeviceParameters, NULL, false, NULL},
+    {"Certification", NULL, true, layoutAboutCertifications, NULL, false, NULL},
+    {"Trezor Compat", NULL, false, .sub_menu = &trezor_compatibility_set_menu,
+     menu_para_trezor_comp_mode_state, true, menu_para_trezor_comp_mode_index},
     {"Safety Checks", NULL, false, .sub_menu = &safety_checks_set_menu,
-     menu_para_safety_checks_state, true},
+     menu_para_safety_checks_state, true, menu_para_safety_checks_index},
 };
 
 static struct menu about_menu = {
@@ -401,7 +499,7 @@ static struct menu about_menu = {
 };
 
 static struct menu_item main_menu_items[] = {
-    {"Settings", NULL, false, .sub_menu = &settings_menu, NULL, false},
+    {"General", NULL, false, .sub_menu = &settings_menu, NULL, false},
     {"Security", NULL, false, .sub_menu = &security_set_menu, NULL, false},
     {"About Device", NULL, false, .sub_menu = &about_menu, NULL, false}};
 

@@ -68,6 +68,8 @@ typedef struct {
   STORAGE_UINT32(sleep_delay_ms)
   STORAGE_UINT32(coin_function_switch)
   STORAGE_BOOL(trezor_comp_mode)
+  STORAGE_BOOL(usb_lock)
+  STORAGE_BOOL(input_direction)
 } PubConfig __attribute__((aligned(1)));
 
 typedef struct {
@@ -87,6 +89,8 @@ typedef struct {
 #define KEY_SLEEP_DELAY_MS offsetof(PubConfig, sleep_delay_ms)
 #define KEY_COIN_FUNCTION_SWITCH offsetof(PubConfig, coin_function_switch)
 #define KEY_TREZOR_COMP_MODE offsetof(PubConfig, trezor_comp_mode)
+#define KEY_USB_LOCK offsetof(PubConfig, usb_lock)
+#define KEY_INPUT_DIRECTION offsetof(PubConfig, input_direction)
 
 #define PRIVATE_KEY 1 << 31
 
@@ -136,6 +140,8 @@ static const uint8_t FALSE_BYTE = '\x00';
 static const uint8_t TRUE_BYTE = '\x01';
 
 static bool derive_cardano = 0;
+
+static secbool usb_lock = secfalse;
 
 #define CHECK_CONFIG_OP(cond)     \
   do {                            \
@@ -757,6 +763,32 @@ bool config_getDeriveCardano(void) {
 }
 
 void config_setDeriveCardano(bool on) { derive_cardano = on; }
+
+bool config_hasUsblock(void) {
+  bool mode = false;
+  return sectrue == config_get_bool(KEY_USB_LOCK, &mode);
+}
+
+void config_setUsblock(bool lock) {
+  config_set_bool(KEY_USB_LOCK, lock);
+  usb_lock = lock;
+}
+
+bool config_getUsblock(bool *lock, bool mode) {
+  if (!mode) {
+    *lock = usb_lock;
+    return true;
+  }
+  return sectrue == config_get_bool(KEY_USB_LOCK, lock);
+}
+
+void config_setInputDirection(bool d) {
+  config_set_bool(KEY_INPUT_DIRECTION, d);
+}
+
+bool config_getInputDirection(bool *d) {
+  return sectrue == config_get_bool(KEY_INPUT_DIRECTION, d);
+}
 
 #if DEBUG_LINK
 

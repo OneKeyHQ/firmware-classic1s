@@ -61,7 +61,11 @@ void solana_sign_tx(const SolanaSignTx *msg, const HDNode *node,
     }
   }
   transaction_summary_reset();
-  if (process_message_body(parser.buffer, parser.buffer_length, &header)) {
+  PrintConfig print_config = {.header = header,
+                              .expert_mode = true,
+                              .signer_pubkey = &header.pubkeys[0]};
+  if (process_message_body(parser.buffer, parser.buffer_length,
+                           &print_config)) {
     if (config_getCoinSwitch(COIN_SWITCH_SOLANA)) {
       SummaryItem *item = transaction_summary_primary_item();
       summary_item_set_string(item, "Unrecognized", "format");
@@ -134,8 +138,8 @@ void solana_sign_tx(const SolanaSignTx *msg, const HDNode *node,
 
         uint8_t key;
       button_scan:
-        key = protectButtonValue(ButtonRequestType_ButtonRequest_ProtectCall,
-                                 false, true, 0);
+        key = protectWaitKeyValue(ButtonRequestType_ButtonRequest_ProtectCall,
+                                  true, 0, 0);
         if (key == KEY_CANCEL) {
           fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
           return;
@@ -150,6 +154,9 @@ void solana_sign_tx(const SolanaSignTx *msg, const HDNode *node,
           if (i == num_summary_steps - 1) {
             goto button_scan;
           }
+        } else if (key == KEY_NULL) {
+          fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
+          return;
         }
       }
     }
