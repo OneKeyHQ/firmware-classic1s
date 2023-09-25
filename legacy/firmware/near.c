@@ -251,6 +251,9 @@ static int parse_transaction(const NearSignTx *msg, uint32_t *processed,
   if (borsh_read_buffer(msg, &len, (const uint8_t **)&var_name, processed)) {
     return -1;
   }
+  if (var_name == NULL || len > 64 || len < 2) {
+    return -1;
+  }
   strcpy_ellipsis(sizeof(singer), singer, len, var_name);
 
   // public key
@@ -263,6 +266,9 @@ static int parse_transaction(const NearSignTx *msg, uint32_t *processed,
   }
   // receiver
   if (borsh_read_buffer(msg, &len, (const uint8_t **)&var_name, processed)) {
+    return -1;
+  }
+  if (var_name == NULL || len > 64 || len < 2) {
     return -1;
   }
   strcpy_ellipsis(sizeof(singer), singer, len, var_name);
