@@ -17,9 +17,9 @@
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "../flash.h"
 #include <stdint.h>
 #include <string.h>
+#include "../flash.h"
 #include "bl_data.h"
 #include "ble.h"
 #include "buttons.h"
@@ -44,6 +44,14 @@ static int known_bootloader(int r, const uint8_t *hash) {
     memcpy(bootloader_version, "2.0.0", strlen("2.0.0"));
     return 1;  // 2.0.0 shipped with fw 3.0.0
   }
+  if (0 ==
+      memcmp(hash,
+             "\x8c\xd9\xdc\x30\x4d\xf0\x13\xe5\x29\xd4\xb3\xd2\x3d\x15\xf9\xd2"
+             "\xc6\x1d\x2e\x46\xef\x9b\x09\x56\xc5\x49\xf9\xea\x0c\xbf\x42\x35",
+             32)) {
+    memcpy(bootloader_version, "2.0.1", strlen("2.0.1"));
+    return 1;  // 2.0.1 shipped with fw 3.0.0
+  }
   // END AUTO-GENERATED QA BOOTLOADER ENTRIES (bl_check_qa.txt)
 
   return 0;
@@ -61,6 +69,14 @@ static int known_bootloader(int r, const uint8_t *hash) {
              32)) {
     memcpy(bootloader_version, "2.0.0", strlen("2.0.0"));
     return 1;  // 2.0.0 shipped with fw 3.0.0
+  }
+  if (0 ==
+      memcmp(hash,
+             "\x9f\x4d\xe8\xa2\x97\x74\xda\xba\xdf\x2e\xe2\x20\x34\x8f\xb7\xbc"
+             "\x08\xc8\xd7\x18\xb2\x6b\x98\x3b\xd2\x12\x6f\xe2\xee\xfe\x96\x9a",
+             32)) {
+    memcpy(bootloader_version, "2.0.1", strlen("2.0.1"));
+    return 1;  // 2.0.1 shipped with fw 3.0.0
   }
   // END AUTO-GENERATED BOOTLOADER ENTRIES (bl_check.txt)
   return 0;

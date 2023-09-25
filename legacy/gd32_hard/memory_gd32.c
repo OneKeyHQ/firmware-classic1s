@@ -36,6 +36,11 @@ void memory_protect(void) {
 
 // boot1's sectors write lock
 void memory_write_lock(void) {
+  uint32_t option_byte0 = FMC_OBCTL0;
+
+  if (((option_byte0 >> 16) & 0x0f) == (OB_WP_1 | OB_WP_2 | OB_WP_3)) {
+    return;
+  }
   /* disable security protection */
   fmc_unlock();
   ob_unlock();

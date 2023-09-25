@@ -48,6 +48,7 @@
 #define SE_BUF_MAX_LEN (MI2C_BUF_MAX_LEN)
 
 static uint8_t se_session_key[SESSION_KEYLEN];
+static bool se_session_init = false;
 
 static uint8_t se_send_buffer[SE_BUF_MAX_LEN];
 static uint8_t se_recv_buffer[SE_BUF_MAX_LEN];
@@ -284,6 +285,8 @@ secbool se_sync_session_key(void) {
     return secfalse;
   }
 
+  se_session_init = true;
+
   return sectrue;
 }
 
@@ -315,10 +318,17 @@ secbool se_derive_keys(HDNode *out, const char *curve,
 }
 
 secbool se_reset_storage(void) {
-  uint8_t reset_device[5] = {0x80, 0xE1, 0x00, 0x00, 0x00};
-  uint16_t recv_len;
+  uint8_t rand[16];
 
-  if (!thd89_transmit(reset_device, sizeof(reset_device), NULL, &recv_len)) {
+  if (!se_get_rand(rand, sizeof(rand))) {
+    return secfalse;
+  }
+
+  if (!se_session_init) {
+    ensure(se_sync_session_key(), "se sync session key failed");
+  }
+
+  if (!se_transmit_mac(0xE1, 0x00, 0x00, rand, sizeof(rand), NULL, NULL)) {
     return secfalse;
   }
   return sectrue;
