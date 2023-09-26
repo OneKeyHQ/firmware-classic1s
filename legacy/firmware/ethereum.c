@@ -24,8 +24,10 @@
 #include <string.h>
 // #include <cstdint>
 #include "address.h"
+#include "crypto.h"
 #include "ecdsa.h"
 #include "ethereum_networks.h"
+#include "ethereum_onekey.h"
 #include "ethereum_tokens.h"
 #include "fsm.h"
 #include "gettext.h"
@@ -34,11 +36,10 @@
 #include "messages.h"
 #include "messages.pb.h"
 #include "protect.h"
+#include "se_chip.h"
 #include "secp256k1.h"
 #include "sha3.h"
 #include "util.h"
-#include "se_chip.h"
-#include "crypto.h"
 
 /* Maximum chain_id which returns the full signature_v (which must fit into an
 uint32). chain_ids larger than this will only return one bit and the caller must
@@ -51,6 +52,7 @@ static uint32_t data_total, data_left;
 static EthereumTxRequest msg_tx_request;
 static CONFIDENTIAL HDNode *_node = NULL;
 static uint64_t chain_id;
+static const char *chain_suffix;
 static bool eip1559;
 struct SHA3_CTX keccak_ctx = {0};
 
@@ -64,6 +66,7 @@ struct signing_params {
   bool pubkeyhash_set;
   uint8_t pubkeyhash[20];
   uint64_t chain_id;
+  const char *chain_suffix;
 
   uint32_t data_length;
   uint32_t data_initial_chunk_size;
@@ -72,7 +75,8 @@ struct signing_params {
   bool has_to;
   const char *to;
 
-  const TokenType *token;
+  const EthereumTokenInfo *token;
+  const EthereumNetworkInfo *network;
 
   uint32_t value_size;
   const uint8_t *value_bytes;
@@ -227,7 +231,7 @@ static uint32_t rlp_calculate_access_list_length(
 static void send_request_chunk(void) {
   int progress = 1000 - (data_total > 1000000 ? data_left / (data_total / 800)
                                               : data_left * 800 / data_total);
-  layoutProgressAdapter(_("Signing"), progress);
+  layoutProgress(_("Signing"), progress);
   msg_tx_request.has_data_length = true;
   msg_tx_request.data_length = data_left <= 1024 ? data_left : 1024;
   msg_write(MessageType_MessageType_EthereumTxRequest, &msg_tx_request);
@@ -241,7 +245,7 @@ int ethereum_is_canonic(uint8_t v, uint8_t signature[64]) {
 static void send_signature(void) {
   uint8_t hash[32] = {0}, sig[64] = {0};
   uint8_t v = 0;
-  layoutProgressAdapter(_("Signing"), 1000);
+  layoutProgress(_("Signing"), 1000);
 
   if (eip1559) {
     hash_rlp_list_length(rlp_calculate_access_list_length(
@@ -310,23 +314,29 @@ static void send_signature(void) {
  * using standard ethereum units.
  * The buffer must be at least 25 bytes.
  */
-static void ethereumFormatAmount(const bignum256 *amnt, const TokenType *token,
-                                 char *buf, int buflen) {
+static void ethereumFormatAmount(const bignum256 *amnt,
+                                 const EthereumTokenInfo *token, char *buf,
+                                 int buflen) {
   bignum256 bn1e9 = {0};
   bn_read_uint32(1000000000, &bn1e9);
-  const char *suffix = NULL;
+  char suffix[50] = {' ', 0};
   int decimals = 18;
-  if (token == UnknownToken) {
-    strlcpy(buf, "Unknown token value", buflen);
-    return;
-  } else if (token != NULL) {
-    suffix = token->ticker;
-    decimals = token->decimals;
+  if (token) {
+    if (is_unknown_token(token)) {
+      strlcpy(buf, "Unknown token value", buflen);
+      return;
+    } else {
+      strlcpy(suffix + 1, token->symbol, sizeof(suffix) - 1);
+      decimals = token->decimals;
+    }
+  } else if (bn_is_zero(amnt)) {
+    strlcpy(suffix + 1, chain_suffix, sizeof(suffix) - 1);
+    decimals = 0;
   } else if (bn_is_less(amnt, &bn1e9)) {
-    suffix = " Wei";
+    strlcpy(suffix + 1, "Wei", sizeof(suffix) - 1);
     decimals = 0;
   } else {
-    ASSIGN_ETHEREUM_SUFFIX(suffix, chain_id);
+    strlcpy(suffix + 1, chain_suffix, sizeof(suffix) - 1);
   }
   bn_format(amnt, NULL, suffix, decimals, 0, false, ',', buf, buflen);
 }
@@ -334,15 +344,26 @@ static void ethereumFormatAmount(const bignum256 *amnt, const TokenType *token,
 static bool layoutEthereumConfirmTx(
     const struct signing_params *params, const char *signer, const uint8_t *to,
     uint32_t to_len, const uint8_t *value, uint32_t value_len,
-    const TokenType *token, const uint8_t *gas_price, uint32_t gas_price_len,
-    const uint8_t *gas_limit, uint32_t gas_limit_len, bool is_eip1559,
-    bool is_nft_transfer, const uint8_t *recipient, char *token_id,
-    char *token_amount, const char *key1, const char *value1, const char *key2,
-    const char *value2, const char *key3, const char *value3) {
+    const EthereumNetworkInfo *network, const EthereumTokenInfo *token,
+    const uint8_t *gas_price, uint32_t gas_price_len, const uint8_t *gas_limit,
+    uint32_t gas_limit_len, bool is_eip1559, bool is_nft_transfer,
+    const uint8_t *recipient, char *token_id, char *token_amount,
+    const char *key1, const char *value1, const char *key2, const char *value2,
+    const char *key3, const char *value3) {
   bignum256 val = {0}, gas = {0}, total = {0};
   uint8_t pad_val[32] = {0};
   char tx_value[32] = {0};
   char gas_value[32] = {0};
+  const char *chain_name = NULL;
+  if (is_unknown_network(network)) {
+    ASSIGN_ETHEREUM_NAME(chain_name, params->chain_id);
+  } else {
+    chain_name = network->name;
+    if (strlen(chain_name) == 0) {
+      ASSIGN_ETHEREUM_NAME(chain_name, params->chain_id);
+    }
+  }
+
   // gas
   memzero(tx_value, sizeof(tx_value));
   memzero(gas_value, sizeof(gas_value));
@@ -394,42 +415,41 @@ static bool layoutEthereumConfirmTx(
     }
     ethereum_address_checksum(recipient, recip, rskip60, chain_id);
     if (!is_eip1559) {
-      return layoutTransactionSign(
-          "NFT", true, token_amount, to_str, signer, recip, token_id, NULL, 0,
-          _("Maximum Fee:"), gas_value, NULL, NULL, NULL, NULL, NULL, NULL);
+      return layoutTransactionSignEVM(
+          chain_name, params->chain_id, true, token_amount, to_str, signer,
+          recip, token_id, NULL, 0, _("Maximum Fee:"), gas_value, NULL, NULL,
+          NULL, NULL, NULL, NULL);
     } else {
-      return layoutTransactionSign("NFT", true, token_amount, to_str, signer,
-                                   recip, token_id, NULL, 0, key1, value1, key2,
-                                   value2, key3, value3, NULL, NULL);
+      return layoutTransactionSignEVM(chain_name, params->chain_id, true,
+                                      token_amount, to_str, signer, recip,
+                                      token_id, NULL, 0, key1, value1, key2,
+                                      value2, key3, value3, NULL, NULL);
     }
   } else if (token == NULL) {
-    if (bn_is_zero(&val)) {
-      strcpy(amount, _("message"));
-      if (!is_eip1559 && data_total > 0) {
-        return layoutBlindSign(
-            "Ethereum", true, to_str, signer, params->data_initial_chunk_bytes,
-            data_total, _("Maximum Fee:"), gas_value, NULL, NULL, NULL, NULL);
-      } else if (is_eip1559 && data_total > 0) {
-        return layoutBlindSign("Ethereum", true, to_str, signer,
-                               params->data_initial_chunk_bytes, data_total,
-                               key1, value1, key2, value2, key3, value3);
-      }
+    if (!is_eip1559 && data_total > 0) {
+      return layoutBlindSign(
+          chain_name, true, to_str, signer, params->data_initial_chunk_bytes,
+          data_total, _("Maximum Fee:"), gas_value, NULL, NULL, NULL, NULL);
+    } else if (is_eip1559 && data_total > 0) {
+      return layoutBlindSign(chain_name, true, to_str, signer,
+                             params->data_initial_chunk_bytes, data_total, key1,
+                             value1, key2, value2, key3, value3);
     } else {
       bn_add(&total, &val);
       bn_add(&total, &gas);
       ethereumFormatAmount(&val, NULL, amount, sizeof(amount));
       ethereumFormatAmount(&total, NULL, total_amount, sizeof(total_amount));
       if (!is_eip1559) {
-        return layoutTransactionSign(
-            "Ethereum", false, amount, to_str, signer, NULL, NULL,
-            params->data_initial_chunk_bytes, data_total, _("Maximum Fee:"),
-            gas_value, _("Total Amount:"), total_amount, NULL, NULL, NULL,
-            NULL);
+        return layoutTransactionSignEVM(
+            chain_name, params->chain_id, false, amount, to_str, signer, NULL,
+            NULL, params->data_initial_chunk_bytes, data_total,
+            _("Maximum Fee:"), gas_value, _("Total Amount:"), total_amount,
+            NULL, NULL, NULL, NULL);
       } else {
-        return layoutTransactionSign(
-            "Ethereum", false, amount, to_str, signer, NULL, NULL,
-            params->data_initial_chunk_bytes, data_total, key1, value1, key2,
-            value2, key3, value3, _("Total Amount:"), total_amount);
+        return layoutTransactionSignEVM(
+            chain_name, params->chain_id, false, amount, to_str, signer, NULL,
+            NULL, params->data_initial_chunk_bytes, data_total, key1, value1,
+            key2, value2, key3, value3, _("Total Amount:"), total_amount);
       }
     }
   } else {
@@ -438,14 +458,15 @@ static bool layoutEthereumConfirmTx(
     strcat(total_amount, "\n");
     strcat(total_amount, gas_value);
     if (!is_eip1559) {
-      return layoutTransactionSign("Ethereum", true, amount, to_str, signer,
-                                   NULL, NULL, NULL, 0, _("Maximum Fee:"),
-                                   gas_value, _("Total Amount:"), total_amount,
-                                   NULL, NULL, NULL, NULL);
+      return layoutTransactionSignEVM(
+          chain_name, params->chain_id, true, amount, to_str, signer, NULL,
+          NULL, NULL, 0, _("Maximum Fee:"), gas_value, _("Total Amount:"),
+          total_amount, NULL, NULL, NULL, NULL);
     } else {
-      return layoutTransactionSign(
-          "Ethereum", true, amount, to_str, signer, NULL, NULL, NULL, 0, key1,
-          value1, key2, value2, key3, value3, _("Total Amount:"), total_amount);
+      return layoutTransactionSignEVM(chain_name, params->chain_id, true,
+                                      amount, to_str, signer, NULL, NULL, NULL,
+                                      0, key1, value1, key2, value2, key3,
+                                      value3, _("Total Amount:"), total_amount);
     }
   }
 
@@ -500,6 +521,7 @@ static bool ethereum_signing_init_common(struct signing_params *params) {
     return false;
   }
   chain_id = params->chain_id;
+  chain_suffix = params->chain_suffix;
 
   if (params->data_length > 0) {
     if (params->data_initial_chunk_size == 0) {
@@ -542,7 +564,8 @@ static bool ethereum_signing_init_common(struct signing_params *params) {
   return true;
 }
 
-static void ethereum_signing_handle_erc20(struct signing_params *params) {
+static void ethereum_signing_handle_erc20(struct signing_params *params,
+                                          const EthereumTokenInfo *token) {
   if (params->has_to && ethereum_parse(params->to, params->pubkeyhash)) {
     params->pubkeyhash_set = true;
   } else {
@@ -556,7 +579,7 @@ static void ethereum_signing_handle_erc20(struct signing_params *params) {
       memcmp(params->data_initial_chunk_bytes,
              "\xa9\x05\x9c\xbb\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
              16) == 0) {
-    params->token = tokenByChainAddress(chain_id, params->pubkeyhash);
+    params->token = token;
   }
 }
 
@@ -626,31 +649,32 @@ static bool ethereum_signing_confirm_common(
   if (params->token != NULL) {
     return layoutEthereumConfirmTx(
         params, signer, params->data_initial_chunk_bytes + 16, 20,
-        params->data_initial_chunk_bytes + 36, 32, params->token, gas_price,
-        gas_price_len, gas_limit, gas_limit_len, is_eip1559, is_nft_transfer,
-        recipient, token_id, token_amount, key1, value1, key2, value2, key3,
-        value3);
+        params->data_initial_chunk_bytes + 36, 32, params->network,
+        params->token, gas_price, gas_price_len, gas_limit, gas_limit_len,
+        is_eip1559, is_nft_transfer, recipient, token_id, token_amount, key1,
+        value1, key2, value2, key3, value3);
   } else if (is_nft_transfer) {
     return layoutEthereumConfirmTx(
         params, signer, params->pubkeyhash, 20, params->value_bytes,
-        params->value_size, NULL, gas_price, gas_price_len, gas_limit,
-        gas_limit_len, is_eip1559, is_nft_transfer, recipient, token_id,
-        token_amount, key1, value1, key2, value2, key3, value3);
+        params->value_size, params->network, NULL, gas_price, gas_price_len,
+        gas_limit, gas_limit_len, is_eip1559, is_nft_transfer, recipient,
+        token_id, token_amount, key1, value1, key2, value2, key3, value3);
   } else {
     return layoutEthereumConfirmTx(
         params, signer, params->pubkeyhash, 20, params->value_bytes,
-        params->value_size, NULL, gas_price, gas_price_len, gas_limit,
-        gas_limit_len, is_eip1559, is_nft_transfer, recipient, token_id,
-        token_amount, key1, value1, key2, value2, key3, value3);
+        params->value_size, params->network, NULL, gas_price, gas_price_len,
+        gas_limit, gas_limit_len, is_eip1559, is_nft_transfer, recipient,
+        token_id, token_amount, key1, value1, key2, value2, key3, value3);
   }
 
   return true;
 }
 
-void ethereum_signing_init(const EthereumSignTx *msg, const HDNode *node) {
+void ethereum_signing_init(const EthereumSignTx *msg, const HDNode *node,
+                           const EthereumDefinitionsDecoded *defs) {
   struct signing_params params = {
       .chain_id = msg->chain_id,
-
+      .chain_suffix = defs->network->symbol,
       .data_length = msg->data_length,
       .data_initial_chunk_size = msg->data_initial_chunk.size,
       .data_initial_chunk_bytes = msg->data_initial_chunk.bytes,
@@ -660,6 +684,8 @@ void ethereum_signing_init(const EthereumSignTx *msg, const HDNode *node) {
 
       .value_size = msg->value.size,
       .value_bytes = msg->value.bytes,
+
+      .network = defs->network,
   };
 
   eip1559 = false;
@@ -690,7 +716,7 @@ void ethereum_signing_init(const EthereumSignTx *msg, const HDNode *node) {
   bool is_nft_transfer = false;
   char token_id[256] = {0}, token_value[32] = {0};
   uint8_t recipient[20];
-  ethereum_signing_handle_erc20(&params);
+  ethereum_signing_handle_erc20(&params, defs->token);
   if (params.token == NULL) {
     is_nft_transfer =
         ethereum_signing_handle_nft(&params, recipient, token_id, token_value);
@@ -735,7 +761,7 @@ void ethereum_signing_init(const EthereumSignTx *msg, const HDNode *node) {
   /* Stage 1: Calculate total RLP length */
   uint32_t rlp_length = 0;
 
-  layoutProgressAdapter(_("Signing"), 0);
+  layoutProgress(_("Signing"), 0);
 
   rlp_length += rlp_calculate_length(msg->nonce.size, msg->nonce.bytes[0]);
   rlp_length +=
@@ -757,7 +783,7 @@ void ethereum_signing_init(const EthereumSignTx *msg, const HDNode *node) {
   /* Stage 2: Store header fields */
   hash_rlp_list_length(rlp_length);
 
-  layoutProgressAdapter(_("Signing"), 100);
+  layoutProgress(_("Signing"), 100);
 
   if (tx_type) {
     hash_rlp_number(tx_type);
@@ -781,9 +807,11 @@ void ethereum_signing_init(const EthereumSignTx *msg, const HDNode *node) {
 }
 
 void ethereum_signing_init_eip1559(const EthereumSignTxEIP1559 *msg,
-                                   const HDNode *node) {
+                                   const HDNode *node,
+                                   const EthereumDefinitionsDecoded *defs) {
   struct signing_params params = {
       .chain_id = msg->chain_id,
+      .chain_suffix = defs->network->symbol,
 
       .data_length = msg->data_length,
       .data_initial_chunk_size = msg->data_initial_chunk.size,
@@ -794,6 +822,8 @@ void ethereum_signing_init_eip1559(const EthereumSignTxEIP1559 *msg,
 
       .value_size = msg->value.size,
       .value_bytes = msg->value.bytes,
+
+      .network = defs->network,
   };
 
   eip1559 = true;
@@ -813,7 +843,7 @@ void ethereum_signing_init_eip1559(const EthereumSignTxEIP1559 *msg,
   bool is_nft_transfer = false;
   char token_id[256] = {0}, token_value[32] = {0};
   uint8_t recipient[20];
-  ethereum_signing_handle_erc20(&params);
+  ethereum_signing_handle_erc20(&params, defs->token);
   if (params.token == NULL) {
     is_nft_transfer =
         ethereum_signing_handle_nft(&params, recipient, token_id, token_value);
@@ -858,9 +888,9 @@ void ethereum_signing_init_eip1559(const EthereumSignTxEIP1559 *msg,
   if (!ethereum_signing_confirm_common(
           &params, signer, msg->max_gas_fee.bytes, msg->max_gas_fee.size,
           msg->gas_limit.bytes, msg->gas_limit.size, true, is_nft_transfer,
-          recipient, token_id, token_value, _("Maximum Fee Per Gas:"),
-          max_fee_per_gas_str, _("Priority fee per gas:"),
-          priority_fee_per_gas_str, _("Maximum Fee:"), max_fee_str)) {
+          recipient, token_id, token_value, _("Maximum Fee:"), max_fee_str,
+          _("Maximum Fee Per Gas:"), max_fee_per_gas_str,
+          _("Priority Fee Per Gas:"), priority_fee_per_gas_str)) {
     fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
     ethereum_signing_abort();
     return;
@@ -869,7 +899,7 @@ void ethereum_signing_init_eip1559(const EthereumSignTxEIP1559 *msg,
   /* Stage 1: Calculate total RLP length */
   uint32_t rlp_length = 0;
 
-  layoutProgressAdapter(_("Signing"), 0);
+  layoutProgress(_("Signing"), 0);
 
   rlp_length += rlp_calculate_number_length(chain_id);
   rlp_length += rlp_calculate_length(msg->nonce.size, msg->nonce.bytes[0]);
@@ -894,7 +924,7 @@ void ethereum_signing_init_eip1559(const EthereumSignTxEIP1559 *msg,
   hash_rlp_number(EIP1559_TX_TYPE);
   hash_rlp_list_length(rlp_length);
 
-  layoutProgressAdapter(_("Signing"), 100);
+  layoutProgress(_("Signing"), 100);
 
   hash_rlp_number(chain_id);
   hash_rlp_field(msg->nonce.bytes, msg->nonce.size);
@@ -959,8 +989,8 @@ void ethereum_signing_abort(void) {
   }
 }
 
-void ethereum_message_hash(const uint8_t *message, size_t message_len,
-                           uint8_t hash[32]) {
+static void ethereum_message_hash(const uint8_t *message, size_t message_len,
+                                  uint8_t hash[32]) {
   struct SHA3_CTX ctx = {0};
   sha3_256_Init(&ctx);
   sha3_Update(&ctx, (const uint8_t *)"\x19" "Ethereum Signed Message:\n", 26);
@@ -1166,9 +1196,23 @@ bool ethereum_parse(const char *address, uint8_t pubkeyhash[20]) {
   return true;
 }
 
+static bool check_ethereum_slip44_unhardened(
+    uint32_t slip44, const EthereumNetworkInfo *network) {
+  if (is_unknown_network(network)) {
+    // Allow Ethereum or testnet paths for unknown networks.
+    return slip44 == 60 || slip44 == 1;
+  } else if (network->slip44 != 60 && network->slip44 != 1) {
+    // Allow cross-signing with Ethereum unless it's testnet.
+    return (slip44 == network->slip44 || slip44 == 60);
+  } else {
+    return (slip44 == network->slip44);
+  }
+}
+
 static bool ethereum_path_check_bip44(uint32_t address_n_count,
                                       const uint32_t *address_n,
-                                      bool pubkey_export, uint64_t chain) {
+                                      bool pubkey_export,
+                                      const EthereumNetworkInfo *network) {
   bool valid = (address_n_count >= 3);
   valid = valid && (address_n[0] == (PATH_HARDENED | 44));
   valid = valid && (address_n[1] & PATH_HARDENED);
@@ -1176,20 +1220,7 @@ static bool ethereum_path_check_bip44(uint32_t address_n_count,
   valid = valid && ((address_n[2] & PATH_UNHARDEN_MASK) <= PATH_MAX_ACCOUNT);
 
   uint32_t path_slip44 = address_n[1] & PATH_UNHARDEN_MASK;
-  if (chain == CHAIN_ID_UNKNOWN) {
-    valid = valid && (is_ethereum_slip44(path_slip44));
-  } else {
-    uint32_t chain_slip44 = ethereum_slip44_by_chain_id(chain);
-    if (chain_slip44 == SLIP44_UNKNOWN) {
-      // Allow Ethereum or testnet paths for unknown networks.
-      valid = valid && (path_slip44 == 60 || path_slip44 == 1);
-    } else if (chain_slip44 != 60 && chain_slip44 != 1) {
-      // Allow cross-signing with Ethereum unless it's testnet.
-      valid = valid && (path_slip44 == chain_slip44 || path_slip44 == 60);
-    } else {
-      valid = valid && (path_slip44 == chain_slip44);
-    }
-  }
+  valid = valid && check_ethereum_slip44_unhardened(path_slip44, network);
 
   if (pubkey_export) {
     // m/44'/coin_type'/account'/*
@@ -1227,7 +1258,7 @@ static bool ethereum_path_check_bip44(uint32_t address_n_count,
 
 static bool ethereum_path_check_casa45(uint32_t address_n_count,
                                        const uint32_t *address_n,
-                                       uint64_t chain) {
+                                       const EthereumNetworkInfo *network) {
   bool valid = (address_n_count == 5);
   valid = valid && (address_n[0] == (PATH_HARDENED | 45));
   valid = valid && (address_n[1] < PATH_HARDENED);
@@ -1236,35 +1267,23 @@ static bool ethereum_path_check_casa45(uint32_t address_n_count,
   valid = valid && (address_n[4] <= PATH_MAX_ADDRESS_INDEX);
 
   uint32_t path_slip44 = address_n[1];
-  if (chain == CHAIN_ID_UNKNOWN) {
-    valid = valid && (is_ethereum_slip44(path_slip44));
-  } else {
-    uint32_t chain_slip44 = ethereum_slip44_by_chain_id(chain);
-    if (chain_slip44 == SLIP44_UNKNOWN) {
-      // Allow Ethereum or testnet paths for unknown networks.
-      valid = valid && (path_slip44 == 60 || path_slip44 == 1);
-    } else if (chain_slip44 != 60 && chain_slip44 != 1) {
-      // Allow cross-signing with Ethereum unless it's testnet.
-      valid = valid && (path_slip44 == chain_slip44 || path_slip44 == 60);
-    } else {
-      valid = valid && (path_slip44 == chain_slip44);
-    }
-  }
+  valid = valid && check_ethereum_slip44_unhardened(path_slip44, network);
 
   return valid;
 }
 
 bool ethereum_path_check(uint32_t address_n_count, const uint32_t *address_n,
-                         bool pubkey_export, uint64_t chain) {
+                         bool pubkey_export,
+                         const EthereumNetworkInfo *network) {
   if (address_n_count == 0) {
     return false;
   }
   if (address_n[0] == (PATH_HARDENED | 44)) {
     return ethereum_path_check_bip44(address_n_count, address_n, pubkey_export,
-                                     chain);
+                                     network);
   }
   if (address_n[0] == (PATH_HARDENED | 45)) {
-    return ethereum_path_check_casa45(address_n_count, address_n, chain);
+    return ethereum_path_check_casa45(address_n_count, address_n, network);
   }
   return false;
 }

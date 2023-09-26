@@ -20,6 +20,7 @@
 #include "signing.h"
 #include <stdbool.h>
 #include <stdint.h>
+#include "buttons.h"
 #include "common.h"
 #include "config.h"
 #include "crypto.h"
@@ -795,7 +796,8 @@ void phase1_request_next_input(void) {
 
       // Confirm original TXID.
       layoutConfirmReplacement(description, orig_hash);
-      if (!protectButton(ButtonRequestType_ButtonRequest_SignTx, false)) {
+      if (protectWaitKeyValue(ButtonRequestType_ButtonRequest_SignTx, true, 0,
+                              1) != KEY_CONFIRM) {
         fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
         signing_abort();
         return;
@@ -2053,8 +2055,8 @@ static bool compile_output(TxOutputType *in, TxOutputBinType *out,
         layoutConfirmOpReturn(in->op_return_data.bytes,
                               in->op_return_data.size);
       }
-      if (!protectButton(ButtonRequestType_ButtonRequest_ConfirmOutput,
-                         false)) {
+      if (protectWaitKeyValue(ButtonRequestType_ButtonRequest_ConfirmOutput,
+                              true, 0, 1) != KEY_CONFIRM) {
         fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
         signing_abort();
         return false;
@@ -2423,8 +2425,8 @@ static bool signing_add_orig_output(TxOutputType *orig_output) {
         for (int page = 0; page < 2; ++page) {
           layoutConfirmModifyOutput(coin, amount_unit, &output, orig_output,
                                     page);
-          if (!protectButton(ButtonRequestType_ButtonRequest_ConfirmOutput,
-                             false)) {
+          if (protectWaitKeyValue(ButtonRequestType_ButtonRequest_ConfirmOutput,
+                                  true, 0, 1) != KEY_CONFIRM) {
             fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
             signing_abort();
             return false;
@@ -2449,7 +2451,8 @@ static bool signing_add_orig_output(TxOutputType *orig_output) {
 static bool payment_confirm_tx(void) {
   if (has_unverified_external_input) {
     layoutConfirmUnverifiedExternalInputs();
-    if (!protectButton(ButtonRequestType_ButtonRequest_SignTx, false)) {
+    if (protectWaitKeyValue(ButtonRequestType_ButtonRequest_SignTx, true, 0,
+                            1) != KEY_CONFIRM) {
       fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
       signing_abort();
       return false;
@@ -2473,8 +2476,8 @@ static bool payment_confirm_tx(void) {
     fee = total_in - total_out;
     if (fee > ((uint64_t)tx_weight * coin->maxfee_kb) / 4000) {
       layoutFeeOverThreshold(coin, amount_unit, fee);
-      if (!protectButton(ButtonRequestType_ButtonRequest_FeeOverThreshold,
-                         false)) {
+      if (protectWaitKeyValue(ButtonRequestType_ButtonRequest_FeeOverThreshold,
+                              true, 0, 1) != KEY_CONFIRM) {
         fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
         signing_abort();
         return false;
@@ -2486,7 +2489,8 @@ static bool payment_confirm_tx(void) {
 
   if (change_count > MAX_SILENT_CHANGE_COUNT) {
     layoutChangeCountOverThreshold(change_count);
-    if (!protectButton(ButtonRequestType_ButtonRequest_SignTx, false)) {
+    if (protectWaitKeyValue(ButtonRequestType_ButtonRequest_SignTx, true, 0,
+                            1) != KEY_CONFIRM) {
       fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
       signing_abort();
       return false;
@@ -2546,7 +2550,8 @@ static bool payment_confirm_tx(void) {
     // Fee modification.
     if (fee != orig_fee) {
       layoutConfirmModifyFee(coin, amount_unit, orig_fee, fee, tx_weight);
-      if (!protectButton(ButtonRequestType_ButtonRequest_SignTx, false)) {
+      if (protectWaitKeyValue(ButtonRequestType_ButtonRequest_SignTx, true, 0,
+                              1) != KEY_CONFIRM) {
         fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
         signing_abort();
         return false;
@@ -2558,7 +2563,8 @@ static bool payment_confirm_tx(void) {
     if (info.lock_time != 0) {
       bool lock_time_disabled = (info.min_sequence == SEQUENCE_FINAL);
       layoutConfirmNondefaultLockTime(info.lock_time, lock_time_disabled);
-      if (!protectButton(ButtonRequestType_ButtonRequest_SignTx, false)) {
+      if (protectWaitKeyValue(ButtonRequestType_ButtonRequest_SignTx, true, 0,
+                              1) != KEY_CONFIRM) {
         fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
         signing_abort();
         return false;

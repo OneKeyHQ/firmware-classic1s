@@ -73,11 +73,15 @@
 #include "conflux.h"
 #include "cosmos.h"
 #include "ethereum.h"
+#include "ethereum_definitions.h"
+#include "ethereum_networks.h"
+#include "ethereum_onekey.h"
 #include "filecoin.h"
 #include "kaspa.h"
 #include "near.h"
 #include "nem.h"
 #include "nem2.h"
+#include "nexa.h"
 #include "polkadot.h"
 #include "ripple.h"
 #include "solana.h"
@@ -292,10 +296,10 @@ static bool fsm_getSlip21Key(const char *path[], size_t path_count,
   return true;
 }
 
-static bool fsm_layoutAddress(const char *address, const char *desc,
-                              bool ignorecase, size_t prefixlen,
-                              const uint32_t *address_n, size_t address_n_count,
-                              bool address_is_account,
+static bool fsm_layoutAddress(const char *address, const char *address_type,
+                              const char *desc, bool ignorecase,
+                              size_t prefixlen, const uint32_t *address_n,
+                              size_t address_n_count, bool address_is_account,
                               const MultisigRedeemScriptType *multisig,
                               int multisig_index, uint32_t multisig_xpub_magic,
                               const CoinInfo *coin) {
@@ -304,29 +308,36 @@ static bool fsm_layoutAddress(const char *address, const char *desc,
   uint8_t key = KEY_NULL;
   int screen = 0, screens = 3;
   if (multisig) {
-    screens += 2 * cryptoMultisigPubkeyCount(multisig);
+    screens += cryptoMultisigPubkeyCount(multisig);
   }
+
   for (;;) {
     key = KEY_NULL;
     switch (screen) {
       case 0: {  // show address
-        key = layoutAddress(address, desc, false, false, ignorecase, address_n,
-                            address_n_count, address_is_account);
+        key = layoutAddress(address, address_type, desc, false, false,
+                            ignorecase, address_n, address_n_count,
+                            address_is_account, multisig != NULL);
+        if (protectAbortedByInitialize) {
+          fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
+          return false;
+        }
         break;
       }
       case 1: {
-        layoutAddress(address, desc, false, true, ignorecase, address_n,
-                      address_n_count, address_is_account);
+        layoutAddress(address, address_type, desc, false, true, ignorecase,
+                      address_n, address_n_count, address_is_account,
+                      multisig != NULL);
         break;
       }
-      case 2: {  // show QR code
-        layoutAddress(address, desc, true, false, ignorecase, address_n,
-                      address_n_count, address_is_account);
+      case 2: {
+        layoutAddress(address, address_type, desc, true, false, ignorecase,
+                      address_n, address_n_count, address_is_account,
+                      multisig != NULL);
         break;
       }
       default: {  // show XPUBs
-        int index = (screen - 2) / 2;
-        int page = (screen - 2) % 2;
+        int index = screen - 3;
         char xpub[XPUB_MAXLEN] = {0};
         const HDNodeType *node_ptr = NULL;
         if (multisig->nodes_count) {  // use multisig->nodes
@@ -349,26 +360,28 @@ static bool fsm_layoutAddress(const char *address, const char *desc,
                                     multisig_xpub_magic, xpub, sizeof(xpub));
           }
         }
-        layoutXPUBMultisig(xpub, index, page, multisig_index == index);
-        break;
+        key = layoutXPUBMultisig(desc, xpub, index, 0, multisig_index == index,
+                                 screen == (screens - 1));
       }
     }
 
-    if (key == KEY_NULL) {
-      while (1) {
-        key = protectButtonValue(ButtonRequestType_ButtonRequest_Address, false,
-                                 button_request, 0);
-        if (key == KEY_CONFIRM || key == KEY_CANCEL) {
-          break;
-        }
+    if ((key == KEY_NULL) && (!protectAbortedBySleep)) {
+      key = protectWaitKeyValue(ButtonRequestType_ButtonRequest_Address,
+                                button_request, 0, 1);
+      if (protectAbortedByInitialize) {
+        fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
+        return false;
       }
+      button_request = false;
     }
 
     if (key == KEY_CONFIRM) {
       if (multisig) {
-        // todo
-        screen = (screen + 1) % screens;
-
+        if ((screen == (screens - 1)) || (screen == 2)) {
+          return true;
+        }
+        screen++;
+        if (screen == 2) screen++;
       } else {
         if (screen == 1 || screen == 2) {
           return true;
@@ -376,12 +389,25 @@ static bool fsm_layoutAddress(const char *address, const char *desc,
         screen++;
       }
     } else {
-      if (screen == 0)
-        screen = 2;
-      else if (screen == 1)
-        screen = 2;
-      else if (screen == 2)
-        screen = 0;
+      if (!multisig) {
+        if (screen == 0)
+          screen = 2;
+        else if (screen == 1)
+          screen = 2;
+        else if (screen == 2)
+          screen = 0;
+      } else {
+        if (screen == 0)
+          screen = 2;
+        else if (screen == 1)
+          screen = 2;
+        else if (screen == 2)
+          screen = 0;
+        else {
+          screen--;
+          if (screen == 2) screen--;
+        }
+      }
     }
 
     if (g_bIsBixinAPP) button_request = false;
@@ -392,6 +418,16 @@ static bool fsm_layoutAddress(const char *address, const char *desc,
     } else if (protectAbortedByTimeout) {
       layoutHome();
       return false;
+    } else if (protectAbortedBySleep) {
+      protectAbortedBySleep = false;
+      fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
+      layoutHome();
+      return false;
+#if !EMULATOR
+    } else if ((host_channel == CHANNEL_USB) && ((sys_usbState() == false))) {
+      layoutHome();
+      return false;
+#endif
     }
   }
 }
@@ -513,8 +549,8 @@ bool fsm_layoutPathWarning(uint32_t address_n_count,
                         &bmp_bottom_right_confirm, NULL, desc, NULL, NULL, NULL,
                         NULL);
 
-  if (!protectButton(ButtonRequestType_ButtonRequest_UnknownDerivationPath,
-                     false)) {
+  if (protectWaitKeyValue(ButtonRequestType_ButtonRequest_UnknownDerivationPath,
+                          true, 0, 1) != KEY_CONFIRM) {
     fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
     return false;
   }
@@ -534,10 +570,12 @@ bool fsm_layoutPathWarning(uint32_t address_n_count,
 #include "fsm_msg_conflux.h"
 #include "fsm_msg_cosmos.h"
 #include "fsm_msg_ethereum.h"
+#include "fsm_msg_ethereum_onekey.h"
 #include "fsm_msg_filecoin.h"
 #include "fsm_msg_kaspa.h"
 #include "fsm_msg_near.h"
 #include "fsm_msg_nem.h"
+#include "fsm_msg_nexa.h"
 #include "fsm_msg_polkadot.h"
 #include "fsm_msg_ripple.h"
 #include "fsm_msg_solana.h"
@@ -545,4 +583,5 @@ bool fsm_layoutPathWarning(uint32_t address_n_count,
 #include "fsm_msg_stellar.h"
 #include "fsm_msg_sui.h"
 #include "fsm_msg_tron.h"
+
 #endif

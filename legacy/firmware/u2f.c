@@ -100,6 +100,7 @@ static bool input_pin = false;
 static bool first_package = true;
 static uint32_t package_len = 0, rec_len = 0;
 bool u2f_init_command = false;
+static bool next_page = false;
 
 typedef struct {
   uint8_t reserved;
@@ -286,10 +287,33 @@ void u2fhid_read_start(const U2FHID_FRAME *f) {
       usbPoll();  // may trigger new request
       buttonUpdate();
       if (button.YesUp && (last_req_state == AUTH || last_req_state == REG)) {
-        last_req_state++;
-        // standard requires to remember button press for 10 seconds.
-        dialog_timeout = 10 * U2F_TIMEOUT;
+        if (next_page == true) {
+          // standard requires to remember button press for 10 seconds.
+          // dialog_timeout = 10 * U2F_TIMEOUT;
+          if (last_req_state == REG) {
+            layoutDialogCenterAdapterV2(
+                _("U2F Register"), NULL, NULL, &bmp_bottom_right_confirm, NULL,
+                NULL, NULL, NULL, NULL, NULL, _("Register U2F Security\nKey?"));
+          } else {
+            layoutDialogCenterAdapterV2(_("U2F Authenticate"), NULL, NULL,
+                                        &bmp_bottom_right_confirm, NULL, NULL,
+                                        NULL, NULL, NULL, NULL,
+                                        _("Authenticate U2F Security\nKey?"));
+          }
+          delay_ms(100);
+          next_page = false;
+        } else {
+          last_req_state++;
+        }
       }
+      // if (button.NoUp && (last_req_state == AUTH || last_req_state == REG) &&
+      //     false == next_page) {
+      //   send_u2fhid_error(cid, ERR_MSG_TIMEOUT);
+      //   last_req_state = AUTH;
+      //   usbTiny(0);
+      //   layoutHome();
+      //   return;
+      // }
       if (reader == 0) {
         layoutHome();
         return;
@@ -298,6 +322,7 @@ void u2fhid_read_start(const U2FHID_FRAME *f) {
 
     if (reader->cmd == 0) {
       last_req_state = INIT;
+      next_page = false;
       cid = 0;
       reader = 0;
       usbTiny(0);
@@ -740,7 +765,10 @@ void u2f_register(const APDU *a) {
     } else {
       const char *appname = NULL;
       getReadableAppId(req->appId, &appname);
-      layoutU2FDialog(_("Register"), appname);
+      layoutDialogAdapterEx(_("U2F Register"), NULL, NULL,
+                            &bmp_bottom_right_arrow, NULL, NULL, _("App Name:"),
+                            appname, NULL, NULL);
+      next_page = true;
     }
     last_req_state = REG;
   }
@@ -892,7 +920,10 @@ void u2f_authenticate(const APDU *a) {
     buttonUpdate();  // Clear button state
     const char *appname = NULL;
     getReadableAppId(req->appId, &appname);
-    layoutU2FDialog(_("Authenticate"), appname);
+    layoutDialogAdapterEx(_("U2F Authenticate"), NULL, NULL,
+                          &bmp_bottom_right_arrow, NULL, NULL, _("App Name:"),
+                          appname, NULL, NULL);
+    next_page = true;
     last_req_state = AUTH;
   }
 

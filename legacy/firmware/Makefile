@@ -2,11 +2,15 @@ APPVER = 1.8.0
 
 FIRMWARE_BUILD_VERSION=$(shell cat version.h | grep "ONEKEY_VERSION " | awk -F "[\"\"]" '{print $$2}')
 FIRMWARE_BUILD_DATE=$(shell date "+%m%d")
+ifeq ($(EMULATOR),1)
+NAME = onekey_emu
+else
 ifndef BUILD_ID
 BUILD_COMMIT=$(shell git rev-parse HEAD | cut -c1-7)
 NAME=classic.$(FIRMWARE_BUILD_VERSION)-Stable-$(FIRMWARE_BUILD_DATE)-$(BUILD_COMMIT)
 else
 NAME=classic.$(FIRMWARE_BUILD_VERSION)-Alpha-$(FIRMWARE_BUILD_DATE)-$(BUILD_ID)
+endif
 endif
 
 SECP256K1_ZKP ?= 1
@@ -78,7 +82,11 @@ OBJS += se_chip.o
 ifneq ($(BITCOIN_ONLY),1)
 OBJS += u2f.o
 OBJS += ethereum.o
+OBJS += ethereum_definitions.o
+OBJS += ethereum_networks.o
 OBJS += ethereum_tokens.o
+OBJS += ethereum_onekey.o
+OBJS += ethereum_tokens_onekey.o
 OBJS += nem2.o
 OBJS += nem_mosaics.o
 OBJS += solana.o
@@ -127,6 +135,7 @@ OBJS += ada.o
 OBJS += cbor.o
 OBJS += sui.o
 OBJS += kaspa.o
+OBJS += nexa.o
 endif
 
 OBJS += debug.o
@@ -186,6 +195,7 @@ OBJS += ../vendor/trezor-crypto/nem.o
 OBJS += ../vendor/trezor-crypto/cardano.o
 
 OBJS += ../vendor/trezor-crypto/sha512.o
+OBJS += ../vendor/trezor-crypto/schnorr_bch.o
 
 OBJS += ../vendor/QR-Code-generator/c/qrcodegen.o
 
@@ -206,6 +216,8 @@ OBJS += protob/messages-management.pb.o
 ifneq ($(BITCOIN_ONLY),1)
 OBJS += ../vendor/trezor-crypto/cash_addr.o
 OBJS += protob/messages-ethereum.pb.o
+OBJS += protob/messages-ethereum-definitions.pb.o
+OBJS += protob/messages-ethereum-onekey.pb.o
 OBJS += protob/messages-nem.pb.o
 OBJS += protob/messages-solana.pb.o
 OBJS += protob/messages-starcoin.pb.o
@@ -222,6 +234,7 @@ OBJS += protob/messages-polkadot.pb.o
 OBJS += protob/messages-cardano.pb.o
 OBJS += protob/messages-sui.pb.o
 OBJS += protob/messages-kaspa.pb.o
+OBJS += protob/messages-nexa.pb.o
 endif
 
 OPTFLAGS ?= -Os
@@ -237,9 +250,10 @@ include ../Makefile.include
 
 ifeq ($(EMULATOR),1)
 CFLAGS += --warn-no-unused-parameter
+CFLAGS += -fstack-protector-all
+else
+#CFLAGS += -fstack-protector-strong
 endif
-CFLAGS += -fstack-protector-strong
-# CFLAGS += -fstack-protector-all
 CFLAGS += -Wno-sequence-point
 CFLAGS += -I../vendor/nanopb -Iprotob -DPB_FIELD_16BIT=1 -DPB_ENCODE_ARRAYS_UNPACKED=1 -DPB_VALIDATE_UTF8=1
 CFLAGS += -DSCM_REVISION='"$(shell git rev-parse HEAD | sed 's:\(..\):\\x\1:g')"'

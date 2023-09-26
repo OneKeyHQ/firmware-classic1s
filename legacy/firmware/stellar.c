@@ -37,6 +37,7 @@
 #include "bip32.h"
 #include "config.h"
 #include "crypto.h"
+#include "curves.h"
 #include "fonts.h"
 #include "fsm.h"
 #include "gettext.h"
@@ -47,7 +48,6 @@
 #include "oled.h"
 #include "protect.h"
 #include "util.h"
-#include "curves.h"
 
 static bool stellar_signing = false;
 static StellarTransaction stellar_activeTx;

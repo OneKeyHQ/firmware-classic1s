@@ -415,6 +415,13 @@ void usbInit(void) {
   } else {
     config_getTrezorCompMode(&trezor_comp_mode);
   }
+  if (!config_hasUsblock()) {
+    config_setUsblock(true);
+  } else {
+    bool lock = false;
+    config_getUsblock(&lock, true);
+    config_setUsblock(lock);
+  }
   // dev_descr.idProduct = trezor_comp_mode ? 0x53c1 : 0x4F4B;
   if (trezor_comp_mode) {
     dev_descr.idProduct = 0x53c1;
@@ -445,11 +452,15 @@ void usbPoll(void) {
   static const uint8_t *data;
 
   volatile bool reset = false;
+  bool lock = true;
 
   static bool usb_status_bak = false;
+  if (sys_usbState() == false) {
+    usb_connect_status = 0;
+  }
 
   ble_update_poll();
-
+  config_getUsblock(&lock, false);
   if (usb_connect_status && !usb_status_bak) {
     usb_status_bak = true;
     if (config_hasPin() && session_isUnlocked()) {
@@ -463,8 +474,7 @@ void usbPoll(void) {
       reset = true;
     }
   }
-  if (reset) {
-    // FTFixed: 设备重启后，需要清se权限
+  if (reset && lock) {
     config_lockDevice();
     svc_system_privileged();
     vector_table_t *ivt = (vector_table_t *)FLASH_PTR(FLASH_APP_START);
@@ -473,6 +483,12 @@ void usbPoll(void) {
       mpu_config_firmware();
     }
     __asm__ volatile("b reset_handler");
+  } else if (reset) {
+    clear_msg_out();
+
+    RCC_AHB2RSTR |= RCC_AHB2RSTR_OTGFSRST;
+    RCC_AHB2RSTR &= ~RCC_AHB2RSTR_OTGFSRST;
+    usbInit();
   }
 
   i2c_slave_poll();

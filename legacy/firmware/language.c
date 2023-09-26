@@ -51,13 +51,13 @@ const char *languages[][2] = {
     // menu.c
     {"About Device", "关于设备"},
     // layout2.c
-    {"Access hidden wallet", "访问隐藏钱包"},
+    {"Access Hidden Wallet", "访问隐藏钱包"},
     // ada.c
     {"Account:", "账号:"},
     // layout2.c
     {"Acitve", "激活"},
     // fsm_msg_coin.h fsm_msg_lisk.h
-    {"Address:", "地址"},
+    {"Address:", "地址:"},
     //
     {"Advance CFX Sign", "CFX高级签名"},
     //
@@ -78,6 +78,8 @@ const char *languages[][2] = {
     // layout2.c
     {"Any questions? Visit Help\nCenter for solutions:\nhelp.onekey.so",
      "还有其他问题? 请前往帮助\n中心寻求解答:\nhelp.onekey.so"},
+    // u2f.c
+    {"App Name:", "应用名称:"},
     // reset.c
     {"Are you sure to abort this\nprocess? All progress\nwill be lost.",
      "确定要终止本次流程吗? \n所有的进度都将丢失."},
@@ -91,6 +93,7 @@ const char *languages[][2] = {
     {"Asset Fingerprint:", "资产指纹:"},
     // u2f.c
     {"Authenticate", "认证"},
+    {"Authenticate U2F Security\nKey?", "要认证 U2F 安全密钥吗?"},
     // layout2.c
     {"Authenticity Check", "防伪检查"},
     // u2f.c
@@ -101,6 +104,8 @@ const char *languages[][2] = {
     {"Awesome!", "棒!"},
     // layout2.c
     {"BACKUP FAILED!", "备份失败"},
+    // tron.c
+    {"BANDWIDTH", "带宽"},
     // layout2.c
     {"BLE enable:", "使用蓝牙:"},
     // layout2.c
@@ -116,6 +121,8 @@ const char *languages[][2] = {
     // layout2.c
     {"Back Up Recovery Phrase", "备份助记词"},
     {"Backup Only", "仅备份"},
+    // tron.c
+    {"Balance:", "金额:"},
     // protect.c
     {"Before start, verify your \ncurrent PIN.",
      "在开始之前, 请先验证当前 \nPIN 码."},
@@ -243,7 +250,7 @@ const char *languages[][2] = {
     {"Continue only if you", "继续"},
     // layout2.c
     {"Continue?", "继续"},
-    {"Contract:", "合约:"},
+    {"Contract Address:", "合约地址:"},
     // recovery.c
     {"Correct!", "没问题!"},
     // layout2.c
@@ -267,6 +274,8 @@ const char *languages[][2] = {
     {"Decrypted message", "解密消息"},
     // layout2.c
     {"Decrypted signed message", "解密签名消息"},
+    // menu_list.c
+    {"Default", "默认"},
     // cosmos.c
     {"Delegate", "委托"},
     {"Delegator", "代理方"},
@@ -277,6 +286,8 @@ const char *languages[][2] = {
     {"Description", "描述"},
     {"Destination Address", "目标地址"},
     {"Destination Coins", "来源金额"},
+    // layout2.c
+    {"Details", "交易详情"},
     // menu_list.c
     {"Device Info", "设备信息"},
     // reset.c reset.c
@@ -285,9 +296,15 @@ const char *languages[][2] = {
     {"Device reset complete, restart now!", "设备已重置, 请重启!"},
     {"Device reset in progress", "设备重置中"},
     // menu_list.c
+    {"Device will auto lock when\nUSB plug or unplug.",
+     "插拔 USB 时, 设备将会自动锁定."},
+    {"Device will remain unlocked\nwhen USB plug or unplug.",
+     "插拔 USB 时, 设备不会锁定."},
+    // menu_list.c
     {"Disable", "禁用"},
     {"Disable Passphrase", "禁用 Passphrase"},
     {"Disable Trezor Compat", "禁用 Trezor 兼容"},
+    {"Disable USB Lock", "禁用 USB 锁"},
     {"Do not change this setting", "如果您不确定此操作的后"},
     // layout2.c lisk.c recovery.c reset.c trezor.c
     // fsm_msg_common.h fsm_msg_common.h fsm_msg_common.h
@@ -309,11 +326,18 @@ const char *languages[][2] = {
     // layout2.c
     {"Do you want to decrypt?", "请确认解密"},
     // fsm_msg_common.h
+    {"Do you want to disable\nUSB Lock?", "要禁用 USB 锁吗?"},
     {"Do you want to disable\npassphrase protection?",
      "要禁用 passphrase 加密吗?"},
+    {"Do you want to enable\nUSB Lock?", "要启用 USB 锁吗?"},
     {"Do you want to enable\npassphrase protection?",
      "要启用 passphrase 加密吗?"},
     {"Do you want to restart", "确定要重启设备并进入更新"},
+    // menu_list.c
+    {"Do you want to restore the\ninput direction to default?",
+     "确定要将输入方向恢复为默\n认值吗?"},
+    {"Do you want to reverse the\ninput direction?", "确定要反转输入方向吗?"},
+    //
     {"Do you want to set", "请确认设置"},
     // layout2.c
     {"Do you want to sign in?", "请确认登录"},
@@ -326,11 +350,14 @@ const char *languages[][2] = {
     {"Download OneKey Apps", "下载 OneKey 应用"},
     {"Download OneKey apps at:\nonekey.so/download",
      "下载 OneKey app 请前往:\nonekey.so/download"},
+    // tron.c
+    {"ENERGY", "能量"},
     //
     {"ETH advance signing turn", "ETH高级签名"},
     // menu_list.c
     {"Enable", "启用"},
     {"Enable Passphrase", "启用 Passphrase"},
+    {"Enable USB Lock", "启用 USB 锁"},
     // layout2.c
     {"Encrypt message?", "加密消息"},
     // layout2.c
@@ -401,6 +428,7 @@ const char *languages[][2] = {
     {"For more information", "了解更多"},
     // layout2.c
     {"Format:", "格式:"},
+    // layout2.c
     {"From", "发送方"},
     // layout2.c
     {"GPG sign for:", ""},
@@ -408,6 +436,8 @@ const char *languages[][2] = {
     {"Gas Fee Cap", "燃料单价上限"},
     {"Gas Limit", "燃料用量上限"},
     {"Gas Premium", "优先费用"},
+    // menu.c
+    {"General", "通用"},
     // reset.c
     {"Generating a standard\nwallet with a new set of\nrecovery phrase.",
      "即将创建由一组新助记词生\n成的标准钱包."},
@@ -433,6 +463,8 @@ const char *languages[][2] = {
     {"Incorrect PIN", "PIN码错误"},
     // reset.c
     {"Incorrect word! check your", "单词不正确! 请再次检查您"},
+    // menu_list.c
+    {"Input Direction", "输入方向"},
     // protect.c
     {"Invalid Recovery Phrase. \nCheck your backup and try again.",
      "无效助记词.\n请检查你的备份后重试."},
@@ -451,9 +483,11 @@ const char *languages[][2] = {
     // fsm_msg_common.h
     {"Loading private seed", "导入私钥"},
     // signing.c
-    {"Loading transaction", "载入交易"},
+    {"Loading transaction", "加载交易"},
     // trezor.c
     {"Lock Device", "锁定设备"},
+    // tron.c
+    {"Lock:", "锁定:"},
     //
     {"Locktime for this", "该交易时间锁定"},
     // layout2.c
@@ -465,8 +499,8 @@ const char *languages[][2] = {
     {"Make sure you still have a backup of current wallet.",
      "继续该操作前, 请确保你仍持有当前钱包的助记词."},
     // layout2.c
-    {"Maximum Fee Per Gas:", "交易费上限单价:"},
     {"Maximum Fee", "交易费上限"},
+    {"Maximum Fee Per Gas:", "每份燃料的交易费上限:"},
     {"Maximum Fee:", "交易费上限:"},
     // cosmos.c
     {"Memo", "备注"},
@@ -478,12 +512,14 @@ const char *languages[][2] = {
     {"Mnemonic", "助记词"},
     // cosmos.c
     {"Multi Send", "多签"},
+    // coin.h
+    {"Multisig Address", "多签地址"},
     // signing.c signing.c
     {"Multisig field provided but not expected.", ""},
-    {"NEXT", "继续"},
     // layout2.c
-    {"Need Backup", "未备份"},
+    {"NEEDS BACKUP!", "未备份!"},
     //
+    {"NEXT", "继续"},
     {"Never", "永不"},
     // layout2.c
     {"Next", "继续"},
@@ -570,7 +606,7 @@ const char *languages[][2] = {
     //
     {"Prev", "后退"},
     // ethereum.c
-    {"Priority fee per gas:", "每份燃料消耗的优先费用:"},
+    {"Priority Fee Per Gas:", "每份燃料消耗的矿工小费:"},
     // storage.c
     {"Processing...", "处理中..."},
     // cosmos.c
@@ -591,6 +627,7 @@ const char *languages[][2] = {
     // ethereum.c layout2.c
     {"Really send", "确认发送"},
     {"Receiver", "接收方"},
+    {"Receiver:", "接收方:"},
     //
     {"Recipient", "接收方"},
     //
@@ -608,6 +645,7 @@ const char *languages[][2] = {
     {"Redelegate", "重新委托"},
     // u2f.c
     {"Register", "注册"},
+    {"Register U2F Security\nKey?", "要注册 U2F 安全密钥吗?"},
     {"Reject", "拒绝"},
     // algorand.c
     {"Rekey to", "重新授权给"},
@@ -621,6 +659,8 @@ const char *languages[][2] = {
     {"Reset Complete", "重置成功"},
     {"Reset Device", "重置设备"},
     {"Reset device to factory \ndefault.", "将设备还原为出厂设置."},
+    // tron.c
+    {"Resource:", "资源:"},
     //
     {"Restore", "恢复钱包"},
     {"Restore Trezor Compat", "恢复 Trezor 兼容模式"},
@@ -628,6 +668,8 @@ const char *languages[][2] = {
      "输入助记词来恢复您曾使用\n过的钱包."},
     //
     {"Retry", "重试"},
+    // menu_list.c
+    {"Reverse", "反转"},
     // recovery.c
     {"Review Wordlist", "再次检查单词"},
     // layout2.c
@@ -668,8 +710,6 @@ const char *languages[][2] = {
      "设置一个长度在 4 到 9 位的 \nPIN 码来保护你的钱包."},
     // layout2.c
     {"Set auto power off time", "设置自动关机时间"},
-    // menu.c
-    {"Settings", "系统设置"},
     // layout2.c layout2.c
     {"Shutdown", "关机"},
     {"Sign Binary Message?", "签署二进制消息?"},
@@ -743,7 +783,8 @@ const char *languages[][2] = {
     {"To Pool:", "目标质押池:"},
     // layout2.c
     {"Token Amount:", "代币金额:"},
-    {"Token Contract:", "Token 地址:"},
+    {"Token Contract:", "合约地址:"},
+    {"Token Transfer", "代币转账"},
     // ethereum.c
     {"Total Amount", "总金额"},
     {"Total Amount:", "总金额:"},
@@ -765,16 +806,23 @@ const char *languages[][2] = {
     {"Txn type", "类型"},
     // cosmos.c
     {"Type", "类型"},
+    {"Type:", "类型:"},
     // u2f.c
     {"U2F Already Registered", "U2F 已注册"},
+    {"U2F Authenticate", "U2F 身份认证"},
     {"U2F Not Registered", "U2F 未注册"},
+    {"U2F Register", "U2F 注册"},
+    // menu_list.c
+    {"USB Lock", "USB 锁"},
     // fsm_msg_ethereum.h
-    {"Unable to show EIP-712 data. Sign at your own risk.",
-     "无法显示 EIP-712 数据.\n请谨慎甄别项目方后决定是否签名, 自负风险"},
+    {"Unable to decode EIP-712 data. Sign at your own risk.",
+     "无法解析 EIP-712 数据.\n可能存在风险, 请谨慎甄别"},
     // cosmos.c
     {"Undelegate", "取消委托"},
     // starcoin.c
     {"Unknown", "未知"},
+    // layout2.c
+    {"Unknown EVM Chain\nthe chain ID is", "未知的 EVM 网络\n链 ID 为"},
     // layout2.c
     {"Unknown Mosaic", ""},
     // tron_ui.c
@@ -878,6 +926,8 @@ const char *languages[][2] = {
     {"change the home screen", "修改屏保"},
     // signing.c
     {"changed", "修改"},
+    // layout2.c
+    {"cosigner", "共同签名者"},
     // reset.c
     {"create a new wallet?", "创建新的钱包?"},
     // tron_ui.c
@@ -923,6 +973,7 @@ const char *languages[][2] = {
     // ethereum.c ethereum.c
     {"message", "消息"},
     // layout2.c
+    {"mine", "我的"},
     {"minute", "分钟"},
     //
     {"minutes", "分钟"},
@@ -987,7 +1038,7 @@ const char *languages[][2] = {
     //
     {"transaction is set to", "被设定为"},
     // layout2.c layout2.c
-    {"transaction?", "交易?"},
+    {"transaction?", "交易吗?"},
     {"user: ", "用户:"},
     // u2f.c
     {"was used to register", "注册"},

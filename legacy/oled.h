@@ -26,8 +26,8 @@
 #include <stdint.h>
 
 #include "bitmaps.h"
-#include "fonts.h"
 #include "compatible.h"
+#include "fonts.h"
 
 #define OLED_NSS_HIGH gpio_set(GPIOI, GPIO0);
 #define OLED_NSS_LOW gpio_clear(GPIOI, GPIO0);

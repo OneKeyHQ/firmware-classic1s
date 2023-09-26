@@ -29,12 +29,14 @@
 #include "messages-cosmos.pb.h"
 #include "messages-crypto.pb.h"
 #include "messages-debug.pb.h"
+#include "messages-ethereum-onekey.pb.h"
 #include "messages-ethereum.pb.h"
 #include "messages-filecoin.pb.h"
 #include "messages-kaspa.pb.h"
 #include "messages-management.pb.h"
 #include "messages-near.pb.h"
 #include "messages-nem.pb.h"
+#include "messages-nexa.pb.h"
 #include "messages-polkadot.pb.h"
 #include "messages-ripple.pb.h"
 #include "messages-solana.pb.h"
@@ -133,8 +135,18 @@ void fsm_msgEthereumSignTxEIP1559(const EthereumSignTxEIP1559 *msg);
 void fsm_msgEthereumTxAck(const EthereumTxAck *msg);
 void fsm_msgEthereumSignMessage(const EthereumSignMessage *msg);
 void fsm_msgEthereumVerifyMessage(const EthereumVerifyMessage *msg);
-void fsm_msgEthereumSignMessageEIP712(const EthereumSignMessageEIP712 *msg);
 void fsm_msgEthereumSignTypedHash(const EthereumSignTypedHash *msg);
+
+// ethereum onekey
+void fsm_msgEthereumGetAddressOneKey(const EthereumGetAddressOneKey *msg);
+void fsm_msgEthereumGetPublicKeyOneKey(const EthereumGetPublicKeyOneKey *msg);
+void fsm_msgEthereumSignTxOneKey(const EthereumSignTxOneKey *msg);
+void fsm_msgEthereumSignTxEIP1559OneKey(const EthereumSignTxEIP1559OneKey *msg);
+void fsm_msgEthereumTxAckOneKey(const EthereumTxAckOneKey *msg);
+void fsm_msgEthereumSignMessageOneKey(const EthereumSignMessageOneKey *msg);
+void fsm_msgEthereumVerifyMessageOneKey(const EthereumVerifyMessageOneKey *msg);
+void fsm_msgEthereumSignMessageEIP712(const EthereumSignMessageEIP712 *msg);
+void fsm_msgEthereumSignTypedHashOneKey(const EthereumSignTypedHashOneKey *msg);
 
 // nem
 void fsm_msgNEMGetAddress(
@@ -239,6 +251,7 @@ void fsm_msgRippleSignTx(RippleSignTx *msg);
 // sui
 void fsm_msgSuiGetAddress(const SuiGetAddress *msg);
 void fsm_msgSuiSignTx(const SuiSignTx *msg);
+void fsm_msgSuiSignMessage(SuiSignMessage *msg);
 
 // filecoin
 void fsm_msgFilecoinGetAddress(const FilecoinGetAddress *msg);
@@ -280,4 +293,10 @@ void fsm_msgCardanoSignMessage(CardanoSignMessage *msg);
 void fsm_msgKaspaGetAddress(const KaspaGetAddress *msg);
 void fsm_msgKaspaSignTx(const KaspaSignTx *msg);
 void fsm_msgKaspaTxInputAck(const KaspaTxInputAck *msg);
+
+// Nexa
+void fsm_msgNexaGetAddress(const NexaGetAddress *msg);
+void fsm_msgNexaSignTx(const NexaSignTx *msg);
+void fsm_msgNexaTxInputAck(const NexaTxInputAck *msg);
+
 #endif

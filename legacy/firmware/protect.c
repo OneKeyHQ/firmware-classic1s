@@ -45,11 +45,13 @@
 #define MAX_WRONG_PINS 15
 
 bool protectAbortedByCancel = false;
+bool protectAbortedBySleep = false;
 // allow the app to connect to the device when in the tutorial page
 bool protectAbortedByInitializeOnboarding = false;
 bool protectAbortedByInitialize = false;
 bool protectAbortedByTimeout = false;
 extern bool exitBlindSignByInitialize;
+extern bool msg_command_inprogress;
 
 static uint8_t device_sleep_state = SLEEP_NONE;
 
@@ -255,7 +257,8 @@ uint8_t protectButtonValue(ButtonRequestType type, bool confirm_only,
 
 const char *requestPin(PinMatrixRequestType type, const char *text,
                        const char **new_pin) {
-  bool button_no = false;
+  bool button_no = false, pinmatrix_show = true;
+  uint32_t timer_out_count = 0;
   PinMatrixRequest resp = {0};
   *new_pin = NULL;
   memzero(&resp, sizeof(PinMatrixRequest));
@@ -263,9 +266,14 @@ const char *requestPin(PinMatrixRequestType type, const char *text,
   resp.type = type;
   usbTiny(1);
   msg_write(MessageType_MessageType_PinMatrixRequest, &resp);
-  pinmatrix_start(text);
   timer_out_set(timer_out_oper, default_oper_time);
-  while (timer_out_get(timer_out_oper)) {
+  timer_out_count = default_oper_time;
+  while (timer_out_count) {
+    timer_out_count = timer_out_get(timer_out_oper);
+    if ((timer_out_count < (default_oper_time - timer1s)) && pinmatrix_show) {
+      pinmatrix_start(text);
+      pinmatrix_show = false;
+    }
     usbPoll();
     buttonUpdate();
     if (msg_tiny_id == MessageType_MessageType_PinMatrixAck) {
@@ -398,7 +406,9 @@ bool protectPin(bool use_cached) {
   bool ret = config_unlock(pin);
   if (!ret) {
     fsm_sendFailure(FailureType_Failure_PinInvalid, NULL);
+    msg_command_inprogress = false;
     protectPinCheck(false);
+    msg_command_inprogress = true;
   }
   return ret;
 }
@@ -593,15 +603,19 @@ bool protectPassphrase(char *passphrase) {
   usbTiny(1);
   msg_write(MessageType_MessageType_PassphraseRequest, &resp);
 
-  if (!g_bIsBixinAPP) {
-    layoutDialogAdapterEx(_("Enter Passphrase"), NULL, NULL, NULL, NULL,
-                          _("Enter your Passphrase on\nconnnected device."),
-                          NULL, NULL, NULL, NULL);
-  }
-
-  bool result = false;
+  bool result = false, show = true;
+  uint32_t timer_out_count = 0;
   timer_out_set(timer_out_oper, default_oper_time);
-  while (timer_out_get(timer_out_oper)) {
+  timer_out_count = default_oper_time;
+  while (timer_out_count) {
+    timer_out_count = timer_out_get(timer_out_oper);
+    if ((timer_out_count < (default_oper_time - timer1s)) && show) {
+      layoutDialogAdapterEx(_("Enter Passphrase"), &bmp_bottom_left_close, NULL,
+                            NULL, NULL,
+                            _("Enter your Passphrase on\nconnnected device."),
+                            NULL, NULL, NULL, NULL);
+      show = false;
+    }
     usbPoll();
     buttonUpdate();
     if (msg_tiny_id == MessageType_MessageType_PassphraseAck) {
@@ -757,11 +771,24 @@ uint8_t protectWaitKey(uint32_t time_out, uint8_t mode) {
 
   protectAbortedByInitialize = false;
   protectAbortedByInitializeOnboarding = false;
+  protectAbortedBySleep = false;
   usbTiny(1);
   timer_out_set(timer_out_oper, time_out);
   while (1) {
-    layoutEnterSleep();
+    if (layoutEnterSleep(1) && (layoutLast != layoutScreensaver)) {
+      key = KEY_NULL;
+      protectAbortedBySleep = true;
+      break;
+    }
     usbPoll();
+#if !EMULATOR
+    if ((host_channel == CHANNEL_USB) && ((sys_usbState() == false)) &&
+        msg_command_inprogress) {
+      usbTiny(0);
+      layoutHome();
+      return KEY_NULL;
+    }
+#endif
     if (time_out > 0 && timer_out_get(timer_out_oper) == 0) break;
     protectAbortedByInitialize =
         (msg_tiny_id == MessageType_MessageType_Initialize);
@@ -785,6 +812,11 @@ uint8_t protectWaitKey(uint32_t time_out, uint8_t mode) {
         if (key == KEY_CONFIRM || key == KEY_CANCEL) break;
       }
     }
+#if !EMULATOR
+    if (isLongPress(KEY_UP_OR_DOWN) && getLongPressStatus()) {
+      break;
+    }
+#endif
     if (device_sleep_state == SLEEP_REENTER) {
       break;
     }
@@ -793,11 +825,26 @@ uint8_t protectWaitKey(uint32_t time_out, uint8_t mode) {
   protectAbortedByInitializeOnboarding = protectAbortedByInitialize;
   if (protectAbortedByInitialize) {
     if (device_sleep_state) device_sleep_state = SLEEP_CANCEL_BY_USB;
-    fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
+    // this error code will be sent when the message processing fails
+    if (false == msg_command_inprogress) {
+      fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
+    }
     layoutHome();
   }
 
   return key;
+}
+
+uint8_t protectWaitKeyValue(ButtonRequestType type, bool requset,
+                            uint32_t time_out, uint8_t mode) {
+  if (requset) {
+    ButtonRequest resp = {0};
+    memzero(&resp, sizeof(ButtonRequest));
+    resp.has_code = true;
+    resp.code = type;
+    msg_write(MessageType_MessageType_ButtonRequest, &resp);
+  }
+  return protectWaitKey(time_out, mode);
 }
 
 const char *protectInputPin(const char *text, uint8_t min_pin_len,
@@ -807,8 +854,14 @@ const char *protectInputPin(const char *text, uint8_t min_pin_len,
   int index = 0, max_index = 0;
   bool update = true, first_num = false;
   static char pin[10] = "";
+  bool d = false;
+  config_getInputDirection(&d);
 
   memzero(pin, sizeof(pin));
+
+#if !EMULATOR
+  enableLongPress(true);
+#endif
 
 refresh_menu:
   if (update) {
@@ -834,6 +887,44 @@ refresh_menu:
 
   layoutInputPin(counter, text, index, cancel_allowed);
   key = protectWaitKey(0, 0);
+#if !EMULATOR
+  if (isLongPress(KEY_UP_OR_DOWN) && getLongPressStatus()) {
+    if (isLongPress(KEY_UP)) {  // up
+      if (!d) {                 // default direction
+        if (index > 1)
+          index--;
+        else
+          index = max_index;
+      } else {
+        if (index < max_index)
+          index++;
+        else
+          index = 1;
+      }
+    } else if (isLongPress(KEY_DOWN)) {  // down
+      if (!d) {
+        if (index < max_index)
+          index++;
+        else
+          index = 1;
+      } else {
+        if (index > 1)
+          index--;
+        else
+          index = max_index;
+      }
+    }
+    delay_ms(75);
+    goto refresh_menu;
+  }
+#endif
+  if (d) {  // Reverse direction
+    if (key == KEY_UP) {
+      key = KEY_DOWN;
+    } else if (key == KEY_DOWN) {
+      key = KEY_UP;
+    }
+  }
   switch (key) {
     case KEY_UP:
       if (index > 1)
@@ -850,10 +941,18 @@ refresh_menu:
     case KEY_CONFIRM:
       (void)pin;
       if (index == 10) {
+#if !EMULATOR
+        enableLongPress(false);
+#endif
         return pin;
       } else {
         pin[counter++] = index + '0';
-        if (counter == max_pin_len) return pin;
+        if (counter == max_pin_len) {
+#if !EMULATOR
+          enableLongPress(false);
+#endif
+          return pin;
+        }
         update = true;
         goto refresh_menu;
       }
@@ -868,6 +967,11 @@ refresh_menu:
     default:
       break;
   }
+
+#if !EMULATOR
+  enableLongPress(false);
+#endif
+
   return NULL;
 }
 
@@ -1166,6 +1270,7 @@ void enter_sleep(void) {
     }
   }
 
+  host_channel = CHANNEL_NULL;
   layoutScreensaver();
   if (sleep_count == 1) {
   sleep_loop:
@@ -1215,6 +1320,7 @@ void enter_sleep(void) {
     oledBufferRestore(oled_prev);
     oledRefresh();
     device_sleep_state = SLEEP_NONE;
+    hide_icons(false);
     return;
   }
 }
@@ -1232,17 +1338,44 @@ bool inputPassphraseOnDevice(char *passphrase) {
   uint8_t counter = 0, index = 0, symbol_index = 0;
   static uint8_t symbol_table[33] = " \'\",./_\?!:;&*$#=+-()[]{}<>@\\^`%|~";
   static uint8_t last_symbol = 0;
+  bool ret = false;
+  bool d = false;
+  config_getInputDirection(&d);
+
+#if !EMULATOR
+  enableLongPress(true);
+#endif
 
 input_passphrase:
   layoutInputPassphrase(_("Enter Passphrase"), counter, words, index,
                         input_type);
 wait_key:
   key = protectWaitKey(0, 0);
+#if !EMULATOR
+  if (isLongPress(KEY_UP_OR_DOWN) && getLongPressStatus()) {
+    if (isLongPress(KEY_UP)) {
+      key = KEY_UP;
+    } else if (isLongPress(KEY_DOWN)) {
+      key = KEY_DOWN;
+    }
+    delay_ms(75);
+  }
+  if (d && menu_status == MENU_INPUT_PASSPHRASE) {  // Reverse direction
+    if (key == KEY_UP) {
+      key = KEY_DOWN;
+    } else if (key == KEY_DOWN) {
+      key = KEY_UP;
+    }
+  }
+#endif
   if (MENU_INPUT_PASSPHRASE == menu_status) {
     if (index == 0) {
       if (key == KEY_CONFIRM) {
         layoutInputMethod(input_type);
         menu_status = MENU_INPUT_SELECT;
+#if !EMULATOR
+        enableLongPress(false);
+#endif
         goto wait_key;
       }
     }
@@ -1363,19 +1496,22 @@ wait_key:
             index = symbol_table[symbol_index];
           }
         } else {
-          return false;
+          ret = false;
+          goto __ret;
         }
         goto input_passphrase;
       case KEY_CONFIRM:
         if (index == INPUT_CONFIRM) {
           strlcpy(passphrase, words, sizeof(words));
-          return true;
+          ret = true;
+          goto __ret;
         }
         if (counter < MAX_PASSPHRASE_LEN) {
           words[counter++] = index;
           if (counter == MAX_PASSPHRASE_LEN) {
             strlcpy(passphrase, words, sizeof(words));
-            return true;
+            ret = true;
+            goto __ret;
           }
         }
         if (INPUT_LOWERCASE == input_type) {
@@ -1416,12 +1552,20 @@ wait_key:
           symbol_index = 0;
           index = symbol_table[symbol_index];
         }
+#if !EMULATOR
+        enableLongPress(true);
+#endif
         goto input_passphrase;
       default:
         break;
     }
   }
-  return false;
+
+__ret:
+#if !EMULATOR
+  enableLongPress(false);
+#endif
+  return ret;
 }
 
 bool protectPassphraseOnDevice(char *passphrase) {
@@ -1454,6 +1598,7 @@ bool protectPassphraseOnDevice(char *passphrase) {
     if (msg_tiny_id == MessageType_MessageType_ButtonAck) {
       msg_tiny_id = 0xFFFF;
       result = true;
+      timeout_flag = false;
       break;
     }
 
@@ -1473,7 +1618,11 @@ bool protectPassphraseOnDevice(char *passphrase) {
   if (timeout_flag) protectAbortedByTimeout = true;
 
   if (result) {
-    return inputPassphraseOnDevice(passphrase);
+    if (false == inputPassphraseOnDevice(passphrase)) {
+      fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
+      return false;
+    }
+    return true;
   }
   return false;
 }

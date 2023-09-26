@@ -692,6 +692,10 @@ static void select_complete_word(char *title, int start, int len) {
   uint8_t key = KEY_NULL;
   int index = 0;
 
+#if !EMULATOR
+  enableLongPress(false);
+#endif
+
 refresh_menu:
   layoutItemsSelectAdapterWords(
       &bmp_bottom_middle_arrow_up, &bmp_bottom_middle_arrow_down,
@@ -724,6 +728,10 @@ refresh_menu:
     default:
       break;
   }
+
+#if !EMULATOR
+  enableLongPress(true);
+#endif
 }
 
 static uint8_t recovery_check_words(void) {
@@ -799,8 +807,15 @@ static bool input_words(void) {
   char desc[64] = "";
   char title[13] = "";
   char last_letter = 0;
+  bool ret = false;
+  bool d = false;
+  config_getInputDirection(&d);
 
   memzero(words[word_index], sizeof(words[word_index]));
+
+#if !EMULATOR
+  enableLongPress(true);
+#endif
 
 refresh_menu:
   memzero(desc, sizeof(desc));
@@ -813,6 +828,23 @@ refresh_menu:
                                                   letter_list);
   layoutInputWord(desc, prefix_len, words[word_index], letter_list + 2 * index);
   key = protectWaitKey(0, 0);
+#if !EMULATOR
+  if (isLongPress(KEY_UP_OR_DOWN) && getLongPressStatus()) {
+    if (isLongPress(KEY_UP)) {
+      key = KEY_UP;
+    } else if (isLongPress(KEY_DOWN)) {
+      key = KEY_DOWN;
+    }
+    delay_ms(75);
+  }
+  if (d) {  // Reverse direction
+    if (key == KEY_UP) {
+      key = KEY_DOWN;
+    } else if (key == KEY_DOWN) {
+      key = KEY_UP;
+    }
+  }
+#endif
   switch (key) {
     case KEY_DOWN:
       if (index < letter_count - 1)
@@ -840,7 +872,8 @@ refresh_menu:
         strcat(title, "_");
         select_complete_word(title, candidate_location, letter_count);
         if (word_index == word_count) {
-          return true;
+          ret = true;
+          goto __ret;
         } else {  // next word
           prefix_len = 0;
           index = 0;
@@ -875,7 +908,12 @@ refresh_menu:
     default:
       break;
   }
-  return false;
+
+__ret:
+#if !EMULATOR
+  enableLongPress(false);
+#endif
+  return ret;
 }
 
 bool recovery_on_device(void) {
@@ -891,7 +929,7 @@ bool recovery_on_device(void) {
   }
 prompt_recovery:
   layoutDialogAdapterEx(
-      _("Import Wallet"), &bmp_bottom_left_arrow, NULL, &bmp_bottom_right_arrow,
+      _("Import Wallet"), &bmp_bottom_left_close, NULL, &bmp_bottom_right_arrow,
       NULL,
       _("Restore the wallet you\npreviously used from a \nrecovery phrase"),
       NULL, NULL, NULL, NULL);
@@ -901,7 +939,7 @@ prompt_recovery:
   }
 
 select_mnemonic_count:
-  if (!protectSelectMnemonicNumber(&word_count, false)) {
+  if (!protectSelectMnemonicNumber(&word_count, true)) {
     goto_check(prompt_recovery);
   }
 

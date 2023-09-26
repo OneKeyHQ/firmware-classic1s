@@ -21,9 +21,9 @@
 
 #include "common.h"
 #include "flash.h"
+#include "gd32f4xx.h"
 #include "memory.h"
 #include "supervise.h"
-#include "gd32f4xx.h"
 
 static const uint32_t FLASH_SECTOR_TABLE[FLASH_SECTOR_COUNT + 1] = {
     // BANK0 size 1MB
