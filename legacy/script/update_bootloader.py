@@ -9,7 +9,7 @@ import click
 
 LEGACY_ROOT = Path(__file__).parent.parent.resolve()
 
-BOOTLOADER_BUILT = LEGACY_ROOT / "bootloader" / "bootloader1.bin"
+BOOTLOADER_BUILT = LEGACY_ROOT / "bootloader" / "bootloader.bin"
 BOOTLOADER_IMAGE = LEGACY_ROOT / "firmware" / "bootloader.dat"
 BOOTLOADER_QA_IMAGE = LEGACY_ROOT / "firmware" / "bootloader_qa.dat"
 

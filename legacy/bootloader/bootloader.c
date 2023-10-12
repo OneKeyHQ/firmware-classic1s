@@ -147,7 +147,6 @@ int main(void) {
 #ifndef APPVER
     // FTFixed:生产阶段最后一步已经做过此操作，不需要再做
     // memory_protect();
-    memory_write_lock();
     oledInit();
     sys_poweron();
     buttonsIrqInit();

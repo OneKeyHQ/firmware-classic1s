@@ -144,11 +144,7 @@ ifdef APPVER
 	CFLAGS   += -DAPPVER=$(APPVER)
 	LDSCRIPT  = $(TOP_DIR)/gd32_hard/memory_app_$(APPVER)_gd32.ld
 else
-ifdef BOOTLOADER0
-	LDSCRIPT  = $(TOP_DIR)/gd32_hard/memory_boot0_gd32.ld
-else 
-    LDSCRIPT  = $(TOP_DIR)/gd32_hard/memory_gd32.ld
-endif
+	LDSCRIPT  = $(TOP_DIR)/gd32_hard/memory_gd32.ld
 endif
 
 CFLAGS   += -DEMULATOR=0

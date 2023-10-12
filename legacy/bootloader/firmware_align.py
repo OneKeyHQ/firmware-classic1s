@@ -2,8 +2,7 @@
 import os
 import sys
 
-# FTFixed: 增加了SE升级之后，32K空间不足，增加为64K
-TOTALSIZE = 48 * 1024
+TOTALSIZE = 32768 * 2
 MAXSIZE = TOTALSIZE - 32
 
 infile = sys.argv[1]

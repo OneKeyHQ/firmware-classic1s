@@ -34,7 +34,6 @@ void memory_protect(void) {
   fmc_lock();
 }
 
-// boot1's sectors write lock
 void memory_write_lock(void) {
   uint32_t option_byte0 = FMC_OBCTL0;
 
@@ -44,20 +43,20 @@ void memory_write_lock(void) {
   /* disable security protection */
   fmc_unlock();
   ob_unlock();
-  // bootloader's sectors are protected
-  ob_write_protection_enable(OB_WP_1 | OB_WP_2 | OB_WP_3);
+  // bootloader's sectors  unlock
+  ob_write_protection_enable(OB_WP_0 | OB_WP_1 | OB_WP_2 | OB_WP_3);
   ob_start();
   ob_lock();
   fmc_lock();
 }
 
-// // boot1's sectors write unlock
+// Read protection is unaffected and always stays locked to the desired value.
 void memory_write_unlock(void) {
   /* disable security protection */
   fmc_unlock();
   ob_unlock();
-  // bootloader's sectors unlock
-  ob_write_protection_disable(OB_WP_1 | OB_WP_2 | OB_WP_3);
+  // bootloader's sectors  unlock
+  ob_write_protection_disable(OB_WP_0 | OB_WP_1 | OB_WP_2 | OB_WP_3);
   ob_start();
   ob_lock();
   fmc_lock();

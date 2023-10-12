@@ -27,7 +27,6 @@
 #include "layout.h"
 #include "memory.h"
 #include "oled.h"
-#include "secbool.h"
 #include "util.h"
 
 char bootloader_version[8] = {0};
@@ -38,19 +37,11 @@ static int known_bootloader(int r, const uint8_t *hash) {
   // BEGIN AUTO-GENERATED QA BOOTLOADER ENTRIES (bl_check_qa.txt)
   if (0 ==
       memcmp(hash,
-             "\xc6\x70\xf8\x77\x68\xee\x0a\xef\x8c\xd7\xfe\x71\x80\xe1\xe8\x61"
-             "\x7c\x4f\xe7\x00\x2f\x12\xe7\x2f\x54\x2d\xb6\xf8\x0d\x08\x89\x67",
-             32)) {
-    memcpy(bootloader_version, "2.0.0", strlen("2.0.0"));
-    return 1;  // 2.0.0 shipped with fw 3.0.0
-  }
-  if (0 ==
-      memcmp(hash,
-             "\x8c\xd9\xdc\x30\x4d\xf0\x13\xe5\x29\xd4\xb3\xd2\x3d\x15\xf9\xd2"
-             "\xc6\x1d\x2e\x46\xef\x9b\x09\x56\xc5\x49\xf9\xea\x0c\xbf\x42\x35",
+             "\x17\x94\xa3\xfe\xf2\x32\xed\x05\xbc\x57\x21\xdf\xc4\x56\x0d\x62"
+             "\x3d\xf2\xe0\xdb\x1d\xd9\xb8\x30\xc4\x76\x5d\x8a\x1a\x0d\xf9\x84",
              32)) {
     memcpy(bootloader_version, "2.0.1", strlen("2.0.1"));
-    return 1;  // 2.0.1 shipped with fw 3.0.0
+    return 1;  // 2.0.1 shipped with fw 3.4.0
   }
   // END AUTO-GENERATED QA BOOTLOADER ENTRIES (bl_check_qa.txt)
 
@@ -64,19 +55,11 @@ static int known_bootloader(int r, const uint8_t *hash) {
   // BEGIN AUTO-GENERATED BOOTLOADER ENTRIES (bl_check.txt)
   if (0 ==
       memcmp(hash,
-             "\x2f\xe5\x61\x74\xde\x5d\x3e\x44\xb0\xbd\x2f\xee\x17\x09\x27\x9a"
-             "\x98\x7d\xdc\x3e\x7e\x11\x12\xfd\xd5\xd2\x9d\x6c\xbd\x6a\xd1\x9f",
-             32)) {
-    memcpy(bootloader_version, "2.0.0", strlen("2.0.0"));
-    return 1;  // 2.0.0 shipped with fw 3.0.0
-  }
-  if (0 ==
-      memcmp(hash,
-             "\x9f\x4d\xe8\xa2\x97\x74\xda\xba\xdf\x2e\xe2\x20\x34\x8f\xb7\xbc"
-             "\x08\xc8\xd7\x18\xb2\x6b\x98\x3b\xd2\x12\x6f\xe2\xee\xfe\x96\x9a",
+             "\x7d\xc2\x8c\x08\xce\x12\x60\x8d\x08\x1e\xc6\xd0\x89\x15\x8b\x1a"
+             "\x10\xa1\xaf\x38\x57\x4d\xfb\x8f\x02\xf2\x03\xa0\xf7\xf8\x00\x59",
              32)) {
     memcpy(bootloader_version, "2.0.1", strlen("2.0.1"));
-    return 1;  // 2.0.1 shipped with fw 3.0.0
+    return 1;  // 2.0.1 shipped with fw 3.4.0
   }
   // END AUTO-GENERATED BOOTLOADER ENTRIES (bl_check.txt)
   return 0;
@@ -154,6 +137,7 @@ void check_and_replace_bootloader(bool shutdown_on_replace) {
 
   char delay_str[4] = "3s";
   for (int i = 2; i >= 0; i--) {
+    oledclearLine(6);
     oledclearLine(7);
     delay_str[0] = '1' + i;
     oledDrawStringCenter(OLED_WIDTH / 2, 54, delay_str, FONT_STANDARD);
@@ -162,7 +146,7 @@ void check_and_replace_bootloader(bool shutdown_on_replace) {
   }
 
   // unlock boot1's sectors
-  memory_write_unlock();
+  // memory_write_unlock();
 
   for (uint8_t tries = 0; tries < 10; tries++) {
     // replace bootloader
