@@ -44,7 +44,6 @@ const uint32_t FIRMWARE_MAGIC_SE = 0x39384654;   // TF89
  * Latest scheme v3 ref: https://github.com/trezor/trezor-firmware/issues/2513
  */
 #define PUBKEYS_V3 7
-#define PUBKEYS_V2 5
 
 #if DEBUG_T1_SIGNATURES || BOOTLOADER_QA
 
@@ -68,27 +67,6 @@ static const uint8_t * const pubkey_v3[PUBKEYS_V3] = {
     (const uint8_t *)"\x02\x15\x67\x65\xb8\xf3\x38\x91\x17\xae\x8c\x59\x09\x41\x87\x78\x4d\x26\xa6\x10\xfd\xb7\x27\xc5\x57\x6c\x70\x6b\x45\xc6\x86\x26\x86"
 };
 
-// the "new", or second signing scheme keys
-
-/*
- Debug private keys for v2 (previously called "new") scheme
- corresponding to pubkeys below as python hexstring array:
-
- ['4444444444444444444444444444444444444444444444444444444444444444',
-  '4545454545454545454545454545454545454545454545454545454545454545',
-  'bfc4bca9c9c228a16639d3503d999a733a439210b64cebe757a4fd03ca46a5c8',
-  '5518381d95e93e8eb68a294354989906e3828f36b4556a2ad85d8333294eb1b7',
-  '1d1d34168760dec092c9ff89377d8659076d2dfd95e0281719c15f90d067e211']
- */
-
-static const uint8_t * const pubkey_v2[PUBKEYS_V2] = {
-    (const uint8_t *)"\x02\xad\x90\x35\xd6\x7a\xc4\x79\x5c\x91\x3c\x45\x2d\x25\x15\x6f\x0b\x09\x4c\x34\xf6\x56\xa2\x49\xb9\x4d\x8d\x66\x19\xab\x0d\x92\xb1",
-    (const uint8_t *)"\x03\x95\xb8\x3d\xa4\x42\xc6\x89\xbd\xa8\x2e\x9f\x95\x43\x81\x1f\xec\x2f\x58\x33\x4f\x5c\x76\x36\x1f\x5a\x49\xfb\xb6\x63\x4a\x81\x15",
-    (const uint8_t *)"\x02\xe0\xd5\xef\x94\xcf\x95\x0b\x9f\x85\x5f\xb5\x52\x67\x64\xdc\x28\xd2\xd9\x65\x82\xc1\xca\x1a\xd3\x9c\xab\xab\x65\x3e\x61\x98\xf8",
-    (const uint8_t *)"\x03\xc9\xec\x74\x0c\xb3\x32\x81\x65\xdc\x3f\xdb\x93\xa5\x4e\x70\x75\x56\x9b\x7a\x54\xcd\xee\xc0\x21\x1f\xa9\xd9\x52\xc6\x64\x79\x60",
-    (const uint8_t *)"\x02\xd2\x08\xab\xa7\x9b\x6f\x60\xf1\x78\x60\x81\x67\xdd\xb7\x77\x86\x0a\x81\x55\x02\x2e\x28\xf1\x20\xa4\x16\x30\x86\x9a\x4e\x0f\x0d"
-};
-
 #else  // DEBUG_T1_SIGNATURES is now 0
 // These public keys are production keys
 // - used in production devices
@@ -104,14 +82,6 @@ static const uint8_t * const pubkey_v3[PUBKEYS_V3] = {
     (const uint8_t *)"\x02\xe4\x2f\xc6\x6a\xb1\x1b\x68\x3b\x46\x7d\x8d\x7f\xb1\x3f\x35\x62\x60\xee\xc3\x67\x6a\xdb\x64\xec\x20\x1f\xfa\xa1\x3d\x2a\x5f\x1e"
 };
 
-// the "new", or second signing scheme keys
-static const uint8_t * const pubkey_v2[PUBKEYS_V2] = {
-    (const uint8_t *)"\x02\xad\x90\x35\xd6\x7a\xc4\x79\x5c\x91\x3c\x45\x2d\x25\x15\x6f\x0b\x09\x4c\x34\xf6\x56\xa2\x49\xb9\x4d\x8d\x66\x19\xab\x0d\x92\xb1",
-    (const uint8_t *)"\x03\x95\xb8\x3d\xa4\x42\xc6\x89\xbd\xa8\x2e\x9f\x95\x43\x81\x1f\xec\x2f\x58\x33\x4f\x5c\x76\x36\x1f\x5a\x49\xfb\xb6\x63\x4a\x81\x15",
-    (const uint8_t *)"\x02\xe0\xd5\xef\x94\xcf\x95\x0b\x9f\x85\x5f\xb5\x52\x67\x64\xdc\x28\xd2\xd9\x65\x82\xc1\xca\x1a\xd3\x9c\xab\xab\x65\x3e\x61\x98\xf8",
-    (const uint8_t *)"\x03\xc9\xec\x74\x0c\xb3\x32\x81\x65\xdc\x3f\xdb\x93\xa5\x4e\x70\x75\x56\x9b\x7a\x54\xcd\xee\xc0\x21\x1f\xa9\xd9\x52\xc6\x64\x79\x60",
-    (const uint8_t *)"\x02\xd2\x08\xab\xa7\x9b\x6f\x60\xf1\x78\x60\x81\x67\xdd\xb7\x77\x86\x0a\x81\x55\x02\x2e\x28\xf1\x20\xa4\x16\x30\x86\x9a\x4e\x0f\x0d"
-};
 #endif
 
 #define FLASH_META_START 0x08008000
@@ -191,26 +161,17 @@ int signatures_ok(const image_header *hdr, uint8_t store_fingerprint[32],
     if (use_verifymessage != sectrue) {
       return SIG_FAIL;
     }
-    pubkey_ptr = pubkey_v3;
-    compute_firmware_fingerprint_for_verifymessage(hdr, hash);
-    pubkeys = PUBKEYS_V3;
-    sigindex1 = hdr->signatures_4.sigindex1;
-    sigindex2 = hdr->signatures_4.sigindex2;
-    sigindex3 = hdr->signatures_4.sigindex3;
-    sigindex4 = hdr->signatures_4.sigindex4;
-  } else {  // 3/5 signatures v2
-    if (use_verifymessage != secfalse) {
-      return SIG_FAIL;
-    }
-    pubkey_ptr = pubkey_v2;
-    compute_firmware_fingerprint(hdr, hash);
-    pubkeys = PUBKEYS_V2;
-    sigindex1 = hdr->signatures_3.sigindex1;
-    sigindex2 = hdr->signatures_3.sigindex2;
-    sigindex3 = hdr->signatures_3.sigindex3;
-    sigindex4 = 0;
+  } else {
+    return SIG_FAIL;
   }
 
+  pubkey_ptr = pubkey_v3;
+  compute_firmware_fingerprint_for_verifymessage(hdr, hash);
+  pubkeys = PUBKEYS_V3;
+  sigindex1 = hdr->signatures_4.sigindex1;
+  sigindex2 = hdr->signatures_4.sigindex2;
+  sigindex3 = hdr->signatures_4.sigindex3;
+  sigindex4 = hdr->signatures_4.sigindex4;
   if (store_fingerprint) {
     memcpy(store_fingerprint, hash, 32);
   }
@@ -220,21 +181,17 @@ int signatures_ok(const image_header *hdr, uint8_t store_fingerprint[32],
   if (sigindex3 < 1 || sigindex3 > pubkeys) {
     return SIG_FAIL;  // invalid index
   }
-  if (use_verifymessage == sectrue) {
-    if (sigindex4 < 1 || sigindex4 > pubkeys) {
-      return SIG_FAIL;  // invalid index
-    }
+  if (sigindex4 < 1 || sigindex4 > pubkeys) {
+    return SIG_FAIL;  // invalid index
   }
 
   if (sigindex1 == sigindex2) return SIG_FAIL;  // duplicate use
   if (sigindex1 == sigindex3) return SIG_FAIL;  // duplicate use
   if (sigindex2 == sigindex3) return SIG_FAIL;  // duplicate use
 
-  if (use_verifymessage == sectrue) {
-    if (sigindex4 == sigindex1) return SIG_FAIL;  // duplicate use
-    if (sigindex4 == sigindex2) return SIG_FAIL;  // duplicate use
-    if (sigindex4 == sigindex3) return SIG_FAIL;  // duplicate use
-  }
+  if (sigindex4 == sigindex1) return SIG_FAIL;  // duplicate use
+  if (sigindex4 == sigindex2) return SIG_FAIL;  // duplicate use
+  if (sigindex4 == sigindex3) return SIG_FAIL;  // duplicate use
 
   if (0 != ecdsa_verify_digest(&secp256k1, pubkey_ptr[sigindex1 - 1], hdr->sig1,
                                hash)) {  // failure
@@ -251,11 +208,9 @@ int signatures_ok(const image_header *hdr, uint8_t store_fingerprint[32],
     return SIG_FAIL;
   }
 
-  if (use_verifymessage == sectrue) {
-    if (0 != ecdsa_verify_digest(&secp256k1, pubkey_ptr[sigindex4 - 1],
-                                 hdr->signatures_4.sig4, hash)) {  // failure
-      return SIG_FAIL;
-    }
+  if (0 != ecdsa_verify_digest(&secp256k1, pubkey_ptr[sigindex4 - 1],
+                               hdr->signatures_4.sig4, hash)) {  // failure
+    return SIG_FAIL;
   }
 
   return SIG_OK;
@@ -268,8 +223,7 @@ int signatures_match(const image_header *hdr, uint8_t store_fingerprint[32]) {
   // timing side channels.
   // Return only the hash for the v2 computation so that it is
   // the same shown in previous bootloader.
-  result ^= signatures_ok(hdr, store_fingerprint, secfalse);
-  result ^= signatures_ok(hdr, NULL, sectrue);
+  result ^= signatures_ok(hdr, store_fingerprint, sectrue);
   if (result != SIG_OK) {
     return SIG_FAIL;
   }
