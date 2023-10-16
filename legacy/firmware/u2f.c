@@ -66,7 +66,6 @@ static uint32_t last_good_auth_check_cid = 0;
 
 // Circular Output buffer
 static uint32_t u2f_out_start = 0;
-static secbool check_preset_data_state = secfalse;
 
 uint32_t u2f_out_end = 0;
 uint8_t u2f_out_packets[U2F_OUT_PKT_BUFFER_LEN][HID_RPT_SIZE];
@@ -476,10 +475,6 @@ void st_version(void) {
 }
 
 void gd32_protect(void) {
-  if (sectrue != check_preset_data_state) {
-    send_u2f_error(U2F_SW_CONDITIONS_NOT_SATISFIED);
-    return;
-  }
   // memory protect later
   memory_protect();
   send_u2f_error(U2F_SW_NO_ERROR);

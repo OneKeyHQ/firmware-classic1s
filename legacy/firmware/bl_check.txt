@@ -1,2 +1,1 @@
-2fe56174de5d3e44b0bd2fee1709279a987ddc3e7e1112fdd5d29d6cbd6ad19f 2.0.0 shipped with fw 3.0.0
-9f4de8a29774dabadf2ee220348fb7bc08c8d718b26b983bd2126fe2eefe969a 2.0.1 shipped with fw 3.0.0
+50eae074d3477e7edc0a1327cfb8c0ffbbc1aaea7ef063e5849c732575ac87b9 2.0.1 shipped with fw 3.4.0

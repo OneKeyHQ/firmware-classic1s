@@ -49,10 +49,11 @@ static void svhandler_flash_program(uint32_t psize) {
 
 static void svhandler_flash_erase_sector(uint8_t sector) {
   /* we only allow erasing storage sectors 2 and 3. */
-  if (sector < FLASH_STORAGE_SECTOR_FIRST ||
-      sector > FLASH_STORAGE_SECTOR_LAST) {
-    return;
-  }
+  // if (sector < FLASH_STORAGE_SECTOR_FIRST ||
+  //     sector > FLASH_STORAGE_SECTOR_LAST) {
+  //   return;
+  // }
+  return;
   flash_erase_sector(sector, FLASH_CR_PROGRAM_X32);
 }
 
