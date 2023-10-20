@@ -29,6 +29,7 @@
 #define FLASH_OTP_BLOCK_RANDOMNESS 3
 
 #define FLASH_OTP_BLOCK_THD89_SESSION_KEY 8
+#define FLASH_OTP_BLOCK_FACTORY_ACTIVATE 9
 
 bool flash_otp_is_locked(uint8_t block);
 bool flash_otp_lock(uint8_t block);

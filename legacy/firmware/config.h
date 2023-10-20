@@ -62,6 +62,11 @@ typedef enum {
   COIN_SWITCH_SOLANA = 0x02
 } CoinSwitch;
 
+typedef enum {
+  LANG_EN_US,
+  LANG_ZH_CN,
+} LANG_TYPE;
+
 #define MIN_PIN_LEN 1
 #define MAX_PIN_LEN 9
 #define DEFAULT_PIN_LEN 4
@@ -191,5 +196,8 @@ bool config_getPin(char *dest, uint16_t dest_size);
 bool config_setDebugMnemonicBytes(const char *mnemonic);
 bool config_getMnemonicBytes(uint8_t *dest, uint16_t *real_size);
 #endif
+
+void set_factory_activate(void);
+bool is_factory_activate(void);
 
 #endif

@@ -41,6 +41,7 @@
 #include "memory.h"
 #include "memzero.h"
 #include "mi2c.h"
+#include "otp.h"
 #include "protect.h"
 #include "rng.h"
 #include "se_chip.h"
@@ -51,11 +52,6 @@
 #ifndef offsetof
 #define offsetof(type, member) ((uint32_t) & ((type *)0)->member)
 #endif
-
-typedef enum {
-  LANG_EN_US,
-  LANG_ZH_CN,
-} LANG_TYPE;
 
 typedef struct {
   STORAGE_UINT32(version);
@@ -419,6 +415,7 @@ bool config_setMnemonic(const char *mnemonic, bool import) {
   if (!se_set_mnemonic((void *)mnemonic, strnlen(mnemonic, MAX_MNEMONIC_LEN))) {
     return false;
   }
+  set_factory_activate();
 #if DEBUG_LINK
   config_setDebugMnemonicBytes(mnemonic);
 #endif
@@ -859,3 +856,25 @@ bool config_getMnemonicBytes(uint8_t *dest, uint16_t *real_size) {
 }
 
 #endif
+
+void set_factory_activate(void) {
+#if !EMULATOR
+  // set entropy in the OTP randomness block
+  if (!flash_otp_is_locked(FLASH_OTP_BLOCK_FACTORY_ACTIVATE)) {
+    char entropy[FLASH_OTP_BLOCK_SIZE] = "factory_activate";
+    flash_otp_write(FLASH_OTP_BLOCK_FACTORY_ACTIVATE, 0, (uint8_t *)entropy,
+                    FLASH_OTP_BLOCK_SIZE);
+    flash_otp_lock(FLASH_OTP_BLOCK_FACTORY_ACTIVATE);
+  }
+
+#endif
+}
+
+bool is_factory_activate(void) {
+#if !EMULATOR
+  if (!flash_otp_is_locked(FLASH_OTP_BLOCK_FACTORY_ACTIVATE)) {
+    return false;
+  }
+  return false;
+#endif
+}

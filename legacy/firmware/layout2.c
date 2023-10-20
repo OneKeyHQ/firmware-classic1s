@@ -563,6 +563,13 @@ void onboarding(uint8_t key) {
   static int type = 0;
   layoutLast = onboarding;
 
+  if (!is_factory_activate()) {
+    if (index == 0) {
+      index = 1;
+    }
+    ui_language = LANG_ZH_CN;
+  }
+
   switch (index) {
     case 0:
       layout_language_set(key);
