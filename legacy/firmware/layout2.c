@@ -744,7 +744,7 @@ static void _layout_home(bool update_menu) {
   if (update_menu && initialized) {
     main_menu_init(initialized);
   }
-  if (!initialized) {
+  if (!initialized && !se_isFactoryMode()) {
     layoutLast = onboarding;
   }
 
@@ -770,7 +770,7 @@ void layoutBusyscreen(void) {
 void layoutHome(void) {
 #if !EMULATOR
   static bool first_boot = true;
-  if (first_boot && !config_isInitialized()) {
+  if (first_boot && !config_isInitialized() && !se_isFactoryMode()) {
     first_boot = false;
     onboarding(KEY_UP);
   } else

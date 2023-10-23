@@ -123,5 +123,6 @@ void se_authorization_clear(void);
 uint16_t se_lasterror(void);
 
 bool se_isFactoryMode(void);
+bool se_disableFactoryMode(void);
 
 #endif

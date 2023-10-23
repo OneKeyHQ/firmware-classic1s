@@ -39,6 +39,7 @@
 #if !EMULATOR
 #include <libopencm3/stm32/desig.h>
 #include "ble.h"
+#include "menu_list.h"
 #include "otp.h"
 #include "se_chip.h"
 #include "sys.h"
@@ -218,6 +219,7 @@ int main(void) {
 #endif
 
   config_init();
+  menu_default();
   layoutHome();
   usbInit();
 
