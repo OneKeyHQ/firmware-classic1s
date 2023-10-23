@@ -566,3 +566,5 @@ void main_menu_init(bool state) {
     menu_update(&settings_menu, previous, &main_menu);
   }
 }
+
+void menu_default(void) { menu_init(&main_menu); }

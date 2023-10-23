@@ -402,7 +402,7 @@ secbool se_read_certificate(uint8_t *cert, uint16_t *len) {
 
 secbool se_has_cerrificate(void) {
   uint8_t cert[512];
-  uint16_t cert_len;
+  uint16_t cert_len = sizeof(cert);
   return se_read_certificate(cert, &cert_len);
 }
 
@@ -1317,14 +1317,29 @@ int hdnode_bip340_get_shared_key(const HDNode *node,
 uint16_t se_lasterror(void) { return thd89_last_error(); }
 
 bool se_isFactoryMode(void) {
-  char *serial;
-  if (!se_has_cerrificate()) {
-    return true;
+  // char *serial;
+  // if (!se_has_cerrificate()) {
+  //   return true;
+  // }
+  // if (!se_get_sn(&serial)) {
+  //   return true;
+  // }
+  // return false;
+  uint8_t cmd[5] = {0x00, 0xf8, 0x04, 0x00, 0x00};
+  uint8_t flag = 0xff;
+  uint16_t len = sizeof(flag);
+  if (!thd89_transmit(cmd, sizeof(cmd), &flag, &len)) {
+    return false;
   }
-  if (!se_get_sn(&serial)) {
-    return true;
+  return flag == 0x00;
+}
+
+bool se_disableFactoryMode(void) {
+  uint8_t cmd[5] = {0x00, 0xf8, 0x03, 0x00, 0x00};
+  if (!thd89_transmit(cmd, sizeof(cmd), NULL, NULL)) {
+    return false;
   }
-  return false;
+  return true;
 }
 
 #endif
