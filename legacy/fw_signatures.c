@@ -240,16 +240,16 @@ int mem_is_empty(const uint8_t *src, uint32_t len) {
 int check_firmware_hashes(const image_header *hdr) {
   uint8_t hash[32] = {0};
   // check hash of the first code chunk
-  sha256_Raw(FLASH_PTR(FLASH_APP_START), (64 - 1) * 1024, hash);
+  sha256_Raw(FLASH_PTR(FLASH_APP_START), (256 - 1) * 1024, hash);
   if (0 != memcmp(hash, hdr->hashes, 32)) return SIG_FAIL;
   // check remaining used chunks
   uint32_t total_len = FLASH_FWHEADER_LEN + hdr->codelen;
-  int used_chunks = total_len / FW_CHUNK_SIZE;
-  if (total_len % FW_CHUNK_SIZE > 0) {
+  int used_chunks = total_len / (4 * FW_CHUNK_SIZE);
+  if (total_len % (4 * FW_CHUNK_SIZE) > 0) {
     used_chunks++;
   }
   for (int i = 1; i < used_chunks; i++) {
-    sha256_Raw(FLASH_PTR(FLASH_FWHEADER_START + (64 * i) * 1024), 64 * 1024,
+    sha256_Raw(FLASH_PTR(FLASH_FWHEADER_START + (256 * i) * 1024), 256 * 1024,
                hash);
     if (0 != memcmp(hdr->hashes + 32 * i, hash, 32)) return SIG_FAIL;
   }

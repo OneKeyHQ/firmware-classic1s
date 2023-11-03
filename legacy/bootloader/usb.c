@@ -90,22 +90,13 @@ static void flash_exit(void) { return; }
 #include "usb_erase.h"
 
 static void check_and_write_chunk(void) {
-  uint32_t offset = (chunk_idx == 0) ? FLASH_FWHEADER_LEN : 0;
-  uint32_t chunk_pos = flash_pos % FW_CHUNK_SIZE;
-  if (chunk_pos == 0) {
-    chunk_pos = FW_CHUNK_SIZE;
-  }
   uint8_t hash[32] = {0};
-  SHA256_CTX ctx = {0};
-  sha256_Init(&ctx);
-  sha256_Update(&ctx, (const uint8_t *)FW_CHUNK + offset, chunk_pos - offset);
-  if (chunk_pos < 64 * 1024) {
-    // pad with FF
-    for (uint32_t i = chunk_pos; i < 64 * 1024; i += 4) {
-      sha256_Update(&ctx, (const uint8_t *)"\xFF\xFF\xFF\xFF", 4);
-    }
+  if (0 == chunk_idx) {
+    sha256_Raw(FLASH_PTR(FLASH_APP_START), (256 - 1) * 1024, hash);
+  } else {
+    sha256_Raw(FLASH_PTR(FLASH_APP_START + chunk_idx * 256 * 1024 - 1024),
+               256 * 1024, hash);
   }
-  sha256_Final(&ctx, hash);
 
   const image_header *hdr = (const image_header *)FW_HEADER;
   // invalid chunk sent
@@ -422,8 +413,14 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
             flash_pos += 4;
             wi = 0;
             // finished the whole chunk
-            if (flash_pos % FW_CHUNK_SIZE == 0) {
-              check_and_write_chunk();
+            if (UPDATE_ST == update_mode) {
+              if (flash_pos % (4 * FW_CHUNK_SIZE) == 0) {
+                check_and_write_chunk();
+              }
+            } else {
+              if (flash_pos % FW_CHUNK_SIZE == 0) {
+                check_and_write_chunk();
+              }
             }
           }
           p++;
@@ -632,7 +629,7 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
         }
         // finished the whole chunk
         if (UPDATE_ST == update_mode) {
-          if ((flash_pos % FW_CHUNK_SIZE == 0) &&
+          if ((flash_pos % (4 * FW_CHUNK_SIZE) == 0) &&
               (flash_pos < combined_hdr->codelen + FLASH_FWHEADER_LEN)) {
             check_and_write_chunk();
           }
