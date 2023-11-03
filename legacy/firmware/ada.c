@@ -48,22 +48,52 @@ extern int convert_bits(uint8_t *out, size_t *outlen, int outbits,
 extern HDNode *fsm_getDerivedNode(const char *curve, const uint32_t *address_n,
                                   size_t address_n_count,
                                   uint32_t *fingerprint);
+#if EMULATOR
+static HDNode ada_node;
 
+bool fsm_getCardanoIcaruNode(HDNode *node, const uint32_t *address_n,
+                             size_t address_n_count, uint32_t *fingerprint) {
+  if (!config_getCardanoRootNode(node)) {
+    layoutHome();
+    return 0;
+  }
+  if (hdnode_private_ckd_cached(node, address_n, address_n_count,
+                                fingerprint) == 0) {
+    fsm_sendFailure(FailureType_Failure_ProcessError,
+                    "Failed to derive private key");
+    return false;
+  }
+  hdnode_fill_public_key(node);
+
+  return true;
+}
+#endif
 bool deriveCardanoIcaruNode(HDNode *node, const uint32_t *address_n,
                             size_t address_n_count, uint32_t *fingerprint) {
+#if EMULATOR
+  memcpy(node, &ada_node, sizeof(HDNode));
+  if (hdnode_private_ckd_cached(node, address_n, address_n_count,
+                                fingerprint) == 0) {
+    fsm_sendFailure(FailureType_Failure_ProcessError,
+                    "Failed to derive private key");
+    return false;
+  }
+  hdnode_fill_public_key(node);
+#else
   HDNode *node_temp;
   node_temp = fsm_getDerivedNode(ED25519_CARDANO_NAME, address_n,
                                  address_n_count, fingerprint);
 
   if (!node_temp) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Failed to derive private key"));
+                    "Failed to derive private key");
   }
   if (node_temp->public_key[0] != 1) {
     return false;
   }
   hdnode_fill_public_key(node_temp);
   memcpy(node, node_temp, sizeof(HDNode));
+#endif
   return true;
 }
 
@@ -432,7 +462,7 @@ static bool layoutOutput(const CardanoTxOutput *output) {
       oledClear();
       layoutHeader(tx_msg[0]);
       oledDrawStringAdapter(
-          0, 13, _("The following transaction output contains tokens."),
+          0, 13, __("The following transaction output contains tokens."),
           FONT_STANDARD);
       layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
       layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
@@ -459,8 +489,7 @@ static bool layoutOutput(const CardanoTxOutput *output) {
     layoutHeader(tx_msg[0]);
     bn_format_uint64(output->amount, NULL, " ADA", 6, 0, false, ',', str_amount,
                      sizeof(str_amount));
-    strcat(desc, _("Amount"));
-    strcat(desc, ":");
+    strcat(desc, _(I__AMOUNT_COLON));
     oledDrawStringAdapter(0, 13, desc, FONT_STANDARD);
     oledDrawStringAdapter(0, 13 + 10, str_amount, FONT_STANDARD);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
@@ -491,7 +520,7 @@ static bool layoutOutput(const CardanoTxOutput *output) {
       layoutHeader(tx_msg[0]);
 
       if (0 == index) {
-        oledDrawStringAdapter(0, 13, _("Send to:"), FONT_STANDARD);
+        oledDrawStringAdapter(0, 13, _(I__SEND_TO_COLON), FONT_STANDARD);
         oledDrawStringAdapter(0, 13 + 1 * 10, str[0], FONT_STANDARD);
         oledDrawStringAdapter(0, 13 + 2 * 10, str[1], FONT_STANDARD);
         oledDrawStringAdapter(0, 13 + 3 * 10, str[2], FONT_STANDARD);
@@ -551,7 +580,7 @@ static bool layoutOutput(const CardanoTxOutput *output) {
     } else {
       oledClear();
       layoutHeader(tx_msg[0]);
-      oledDrawStringAdapter(0, 13, _("Send to:"), FONT_STANDARD);
+      oledDrawStringAdapter(0, 13, _(I__SEND_TO_COLON), FONT_STANDARD);
       oledDrawStringAdapter(0, 13 + 10, output->address, FONT_STANDARD);
       layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
       layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
@@ -577,7 +606,7 @@ static bool layoutFinal(void) {
   const char **tx_msg = format_tx_message("Cardano");
 
   oledClear();
-  layoutHeader(_("Sign Transaction"));
+  layoutHeader(_(T__SIGN_TRANSACTION));
   oledDrawStringAdapter(0, 13, tx_msg[1], FONT_STANDARD);
   layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
   layoutButtonYesAdapter(NULL, &bmp_bottom_right_confirm);
@@ -602,8 +631,7 @@ static bool layoutFee(void) {
 
   oledClear();
   layoutHeader(tx_msg[0]);
-  strcat(desc, _("Fee"));
-  strcat(desc, ":");
+  strcat(desc, _(I__FEE_COLON));
   bn_format_uint64(ada_signer.signertx.fee, NULL, " ADA", 6, 0, false, ',',
                    str_amount, sizeof(str_amount));
   oledDrawStringAdapter(0, 13, desc, FONT_STANDARD);
@@ -739,14 +767,14 @@ refresh_layout:
   layoutHeader(tx_msg[0]);
 
   if (0 == index) {
-    oledDrawStringAdapter(0, 13, _("Asset Fingerprint:"), FONT_STANDARD);
+    oledDrawStringAdapter(0, 13, __("Asset Fingerprint:"), FONT_STANDARD);
     oledDrawStringAdapter(0, 13 + 10, fingerprint, FONT_STANDARD);
-    oledDrawStringAdapter(0, 13 + 30, _("Token Amount:"), FONT_STANDARD);
+    oledDrawStringAdapter(0, 13 + 30, __("Token Amount:"), FONT_STANDARD);
     oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8,
                    &bmp_bottom_middle_arrow_down);
   } else {
     oledDrawStringAdapter(0, 13, fingerprint, FONT_STANDARD);
-    oledDrawStringAdapter(0, 13 + 20, _("Token Amount:"), FONT_STANDARD);
+    oledDrawStringAdapter(0, 13 + 20, __("Token Amount:"), FONT_STANDARD);
     oledDrawStringAdapter(0, 13 + 30, amount, FONT_STANDARD);
     oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8,
                    &bmp_bottom_middle_arrow_up);
@@ -828,16 +856,18 @@ static bool layoutCertificate(const CardanoTxCertificate *cert) {
 
   oledClear();
   layoutHeader(tx_msg[0]);
-  oledDrawStringAdapter(0, 13, _("Transaction Type:"), FONT_STANDARD);
+  oledDrawStringAdapter(0, 13, _(I__TRANSACTION_TYPE_COLON), FONT_STANDARD);
   if (cert->type == CardanoCertificateType_STAKE_REGISTRATION) {
-    oledDrawStringAdapter(0, 13 + 10, _("Stake key registration"),
+    oledDrawStringAdapter(0, 13 + 10, _(I__STAKE_KEY_REGISTRATION_COLON),
                           FONT_STANDARD);
   } else if (cert->type == CardanoCertificateType_STAKE_DEREGISTRATION) {
-    oledDrawStringAdapter(0, 13 + 10, _("Stake deregistration"), FONT_STANDARD);
+    oledDrawStringAdapter(0, 13 + 10, _(I__STAKE_DEREGISTRATION_COLON),
+                          FONT_STANDARD);
   } else if (cert->type == CardanoCertificateType_STAKE_DELEGATION) {
-    oledDrawStringAdapter(0, 13 + 10, _("Stake delegation"), FONT_STANDARD);
+    oledDrawStringAdapter(0, 13 + 10, _(I__STAKE_DELEGATION_COLON),
+                          FONT_STANDARD);
   } else if (cert->type == CardanoCertificateType_STAKE_POOL_REGISTRATION) {
-    oledDrawStringAdapter(0, 13 + 10, _("Pool registration"), FONT_STANDARD);
+    oledDrawStringAdapter(0, 13 + 10, __("Pool registration"), FONT_STANDARD);
   }
 
   layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
@@ -857,7 +887,7 @@ static bool layoutCertificate(const CardanoTxCertificate *cert) {
   if (cert->path_count > 0) {
     oledClear();
     layoutHeader(tx_msg[0]);
-    oledDrawStringAdapter(0, 13, _("Account:"), FONT_STANDARD);
+    oledDrawStringAdapter(0, 13, __("Account:"), FONT_STANDARD);
     oledDrawString(0, 13 + 10,
                    address_n_str(cert->path, cert->path_count, true),
                    FONT_STANDARD);
@@ -882,7 +912,7 @@ static bool layoutCertificate(const CardanoTxCertificate *cert) {
     bech32_encode(pool, "pool", data, datalen, BECH32_ENCODING_BECH32);
     oledClear();
     layoutHeader(tx_msg[0]);
-    oledDrawStringAdapter(0, 13, _("To Pool:"), FONT_STANDARD);
+    oledDrawStringAdapter(0, 13, _(I__TO_POOL_COLON), FONT_STANDARD);
     oledDrawStringAdapter(0, 13 + 10, pool, FONT_STANDARD);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_confirm);
@@ -1199,7 +1229,7 @@ bool hash_stage() {
 bool _processs_tx_init(CardanoSignTxInit *msg) {
   if (msg->signing_mode != CardanoTxSigningMode_ORDINARY_TRANSACTION) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Only support ORDINARY TRANSACTION"));
+                    "Only support ORDINARY TRANSACTION");
     return false;
   }
   memset(&ada_signer, 0, sizeof(struct AdaSigner));
@@ -1210,7 +1240,7 @@ bool _processs_tx_init(CardanoSignTxInit *msg) {
       (msg->total_collateral > LOVELACE_MAX_SUPPLY) ||
       (msg->has_total_collateral)) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Invalid tx signing request"));
+                    "Invalid tx signing request");
     return false;
   }
   if (!validate_network_info(msg->network_id, msg->protocol_magic))
@@ -1321,10 +1351,17 @@ bool cardano_txwitness(CardanoTxWitnessRequest *msg,
   deriveCardanoIcaruNode(&node, msg->path, msg->path_count, &fingerprint);
   resp->pub_key.size = 32;
   memcpy(resp->pub_key.bytes, node.public_key + 1, 32);
+#if EMULATOR
+  ed25519_public_key pk = {0};
+  ed25519_publickey_ext(node.private_key_extension, pk);
+  ed25519_sign_ext(ada_signer.digest, 32, node.private_key,
+                   node.private_key_extension, resp->signature.bytes);
+#else
   if (hdnode_sign(&node, ada_signer.digest, 32, 0, resp->signature.bytes, NULL,
                   NULL) != 0) {
     return false;
   }
+#endif
 
   resp->signature.size = 64;
   if ((msg->path[0] == 2147483692) &&
@@ -1439,10 +1476,14 @@ bool ada_sign_messages(const HDNode *node, CardanoSignMessage *msg,
          msg->message.size);
   sig_structure_index += msg->message.size;
 
+#if EMULATOR
+  ed25519_sign(sig_structure, sig_structure_index, node->private_key, sig);
+#else
   if (!hdnode_sign(node, sig_structure, sig_structure_index, 0, sig, NULL,
                    NULL)) {
     return false;
   }
+#endif
   size = cbor_writeToken(CBOR_TYPE_BYTES, 64, buffer, 10);
   memcpy(data + data_index, buffer, size);
   data_index += size;

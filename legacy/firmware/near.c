@@ -364,8 +364,11 @@ bool near_sign_tx(const NearSignTx *msg, const HDNode *node,
   sha256_Update(&ctx, msg->raw_tx.bytes, msg->raw_tx.size);
   sha256_Final(&ctx, hash);
 
+#if EMULATOR
+  ed25519_sign(hash, 32, node->private_key, resp->signature.bytes);
+#else
   hdnode_sign(node, hash, 32, 0, resp->signature.bytes, NULL, NULL);
-
+#endif
   resp->signature.size = 64;
   return true;
 }

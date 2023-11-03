@@ -130,7 +130,7 @@ static bool decode_definition(const pb_size_t size, const pb_byte_t *bytes,
                               void *definition) {
   // parse received definition
   static struct EncodedDefinition parsed_def;
-  const char *error_str = _("Invalid Ethereum definition");
+  const char *error_str = "Invalid Ethereum definition";
 
   memzero(&parsed_def, sizeof(parsed_def));
   if (!parse_encoded_definition(&parsed_def, size, bytes)) {
@@ -144,12 +144,12 @@ static bool decode_definition(const pb_size_t size, const pb_byte_t *bytes,
   }
 
   if (expected_type != parsed_def.definition_type) {
-    error_str = _("Definition type mismatch");
+    error_str = "Definition type mismatch";
     goto err;
   }
 
   if (MIN_DATA_VERSION > parsed_def.data_version) {
-    error_str = _("Definition is outdated");
+    error_str = "Definition is outdated";
     goto err;
   }
 
@@ -196,7 +196,7 @@ static bool decode_definition(const pb_size_t size, const pb_byte_t *bytes,
 #endif
   ) {
     // invalid signature
-    error_str = _("Invalid definition signature");
+    error_str = "Invalid definition signature";
     goto err;
   }
 
@@ -259,12 +259,12 @@ static const EthereumNetworkInfo *get_network(
 
   if (chain_id != CHAIN_ID_UNKNOWN && decoded_network.chain_id != chain_id) {
     fsm_sendFailure(FailureType_Failure_DataError,
-                    _("Network definition mismatch"));
+                    "Network definition mismatch");
     return NULL;
   }
   if (slip44 != SLIP44_UNKNOWN && decoded_network.slip44 != slip44) {
     fsm_sendFailure(FailureType_Failure_DataError,
-                    _("Network definition mismatch"));
+                    "Network definition mismatch");
     return NULL;
   }
 

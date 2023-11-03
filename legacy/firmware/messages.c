@@ -275,12 +275,11 @@ void msg_read_common(char type, const uint8_t *buf, uint32_t len) {
 
     fields = MessageFields(type, 'i', msg_id);
     if (!fields) {  // unknown message
-      fsm_sendFailure(FailureType_Failure_UnexpectedMessage,
-                      _("Unknown message"));
+      fsm_sendFailure(FailureType_Failure_UnexpectedMessage, "Unknown message");
       return;
     }
     if (msg_encoded_size > MSG_IN_ENCODED_SIZE) {  // message is too big :(
-      fsm_sendFailure(FailureType_Failure_DataError, _("Message too big"));
+      fsm_sendFailure(FailureType_Failure_DataError, "Message too big");
       return;
     }
 
@@ -410,7 +409,7 @@ void msg_read_tiny(const uint8_t *buf, int len) {
     // There is a risk that the struct decoded from the message won't fit into
     // msg_tiny or the encoded message does not fit into the buffer. The first
     // is a fail-safe in case of a forgotten _Static_assert above.
-    fsm_sendFailure(FailureType_Failure_DataError, _("Message too big"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Message too big");
     msg_tiny_id = 0xFFFF;
     return;
   }

@@ -73,11 +73,10 @@ void reset_init(bool display_random, uint32_t _strength,
   }
 
   if (!g_bIsBixinAPP) {
-    layoutDialogAdapterEx(
-        _("Create New Wallet"), &bmp_bottom_left_close, NULL,
-        &bmp_bottom_right_arrow, NULL,
-        _("Generating a standard\nwallet with a new set of\nrecovery phrase."),
-        NULL, NULL, NULL, NULL);
+    layoutDialogCenterAdapterV2(
+        _(T__CREATE_NEW_WALLET), NULL, &bmp_bottom_left_close,
+        &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL, NULL, NULL,
+        _(C__GENERATING_A_STANDARD_WALLET_WITH_A_NEW_SET_OF_RECOVERY_PHRASE));
     if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
       fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
       layoutHome();
@@ -85,12 +84,16 @@ void reset_init(bool display_random, uint32_t _strength,
     }
   }
 
+#if EMULATOR
+  random_buffer(int_entropy, 32);
+#else
   if (!se_random_encrypted(int_entropy, 32)) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Failed to generate entropy"));
+                    "Failed to generate entropy");
     layoutHome();
     return;
   }
+#endif
 
   if (display_random) {
     for (int start = 0; start < 2; start++) {
@@ -109,8 +112,8 @@ void reset_init(bool display_random, uint32_t _strength,
       oledDrawStringCenter(OLED_WIDTH / 2, 2 + 3 * 9, ent_str[2], FONT_FIXED);
       oledDrawStringCenter(OLED_WIDTH / 2, 2 + 4 * 9, ent_str[3], FONT_FIXED);
       oledHLine(OLED_HEIGHT - 13);
-      layoutButtonNoAdapter(_("Cancel"), &bmp_btn_cancel);
-      layoutButtonYesAdapter(_("Continue"), &bmp_btn_confirm);
+      layoutButtonNoAdapter(__("Cancel"), &bmp_btn_cancel);
+      layoutButtonYesAdapter(__("Continue"), &bmp_btn_confirm);
       // 40 is the maximum pixels used for a row
       oledSCA(2 + 1 * 9, 2 + 1 * 9 + 6, 40);
       oledSCA(2 + 2 * 9, 2 + 2 * 9 + 6, 40);
@@ -143,8 +146,7 @@ void reset_init(bool display_random, uint32_t _strength,
 extern bool generate_seed_steps(void);
 void reset_entropy(const uint8_t *ext_entropy, uint32_t len) {
   if (!awaiting_entropy) {
-    fsm_sendFailure(FailureType_Failure_UnexpectedMessage,
-                    _("Not in Reset mode"));
+    fsm_sendFailure(FailureType_Failure_UnexpectedMessage, "Not in Reset mode");
     return;
   }
   awaiting_entropy = false;
@@ -163,10 +165,10 @@ void reset_entropy(const uint8_t *ext_entropy, uint32_t len) {
       config_setNeedsBackup(true);
     }
     if (config_setMnemonic(mnemonic, false)) {
-      fsm_sendSuccess(_("Device successfully initialized"));
+      fsm_sendSuccess("Device successfully initialized");
     } else {
       fsm_sendFailure(FailureType_Failure_ProcessError,
-                      _("Failed to store mnemonic"));
+                      "Failed to store mnemonic");
     }
     layoutHome();
   } else {
@@ -186,7 +188,7 @@ void reset_backup(bool separated, const char *mnemonic) {
     config_getNeedsBackup(&needs_backup);
     if (!needs_backup) {
       fsm_sendFailure(FailureType_Failure_UnexpectedMessage,
-                      _("Seed already backed up"));
+                      "Seed already backed up");
       return;
     }
 
@@ -225,14 +227,14 @@ void reset_backup(bool separated, const char *mnemonic) {
   config_setUnfinishedBackup(false);
 
   if (separated) {
-    fsm_sendSuccess(_("Seed successfully backed up"));
+    fsm_sendSuccess("Seed successfully backed up");
   } else {
     config_setNeedsBackup(false);
     if (config_setMnemonic(mnemonic, false)) {
-      fsm_sendSuccess(_("Device successfully initialized"));
+      fsm_sendSuccess("Device successfully initialized");
     } else {
       fsm_sendFailure(FailureType_Failure_ProcessError,
-                      _("Failed to store mnemonic"));
+                      "Failed to store mnemonic");
     }
   }
   layoutHome();
@@ -249,12 +251,11 @@ void random_order(uint32_t *str, size_t len) {
 
 bool verify_mnemonic(const char *mnemonic) {
   uint8_t key = KEY_NULL;
-  char desc[64] = "";
+  char desc[64] = "", num_str[8] = {0};
   char words[24][12];
   uint32_t words_order[3];
   uint32_t i = 0, word_count = 0;
   uint32_t index = 0, selected = 0;
-
   memzero(words, sizeof(words));
   while (mnemonic[i] != 0) {
     // copy current_word
@@ -272,12 +273,10 @@ bool verify_mnemonic(const char *mnemonic) {
     }
   }
 
-  layoutDialogAdapterEx(
-      _("Check Recovery Phrase"), &bmp_bottom_left_arrow, NULL,
-      &bmp_bottom_right_arrow, NULL,
-      _("Next, follow the guide and\ncheck words one by one."), NULL, NULL,
-      NULL, NULL);
-
+  layoutDialogCenterAdapterV2(
+      _(T__CHECK_RECOVERY_PHRASE), NULL, &bmp_bottom_left_arrow,
+      &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL, NULL, NULL,
+      _(C__NEXT_FOLLOW_THE_GUIDE_AND_CHECK_WORDS_ONE_BY_ONE));
   key = protectWaitKey(0, 1);
   if (key != KEY_CONFIRM) {
     return false;
@@ -286,10 +285,9 @@ bool verify_mnemonic(const char *mnemonic) {
 refresh_menu:
   i = 0;
   memzero(desc, sizeof(desc));
-  strcat(desc, _("Check Word "));
-  strcat(desc, " #");
-  uint2str(index + 1, desc + strlen(desc));
-
+  strcat(desc, _(T__CHECK_WORD_SHARP_STR));
+  uint2str(index + 1, num_str);
+  str_replace(desc, "{}", num_str);
   selected = mnemonic_find_word(words[index]);
   words_order[0] = selected;
   do {
@@ -324,10 +322,10 @@ select_word:
       goto select_word;
     case KEY_CONFIRM:
       if (words_order[i] != selected) {
-        layoutDialogSwipeCenterAdapter(
-            &bmp_icon_error, NULL, NULL, &bmp_bottom_right_retry, NULL, NULL,
-            NULL, NULL, NULL, _("Incorrect word! check your"),
-            _("backup and try again."), NULL);
+        layoutDialogCenterAdapterV2(
+            NULL, &bmp_icon_error, NULL, &bmp_bottom_right_retry, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            _(C__INCORRECT_WORD_EXCLAM_CHECK_YOUR_BACKUP_AND_TRY_AGAIN));
 
         key = protectWaitKey(0, 1);
         if (key != KEY_CONFIRM) {
@@ -345,9 +343,9 @@ select_word:
       return false;
   }
 
-  layoutDialogSwipeCenterAdapter(
-      &bmp_icon_ok, NULL, NULL, &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL,
-      NULL, _("Awesome!"), _("Your backup is complete."), NULL);
+  layoutDialogCenterAdapterV2(NULL, &bmp_icon_ok, NULL, &bmp_bottom_right_arrow,
+                              NULL, NULL, NULL, NULL, NULL, NULL,
+                              _(C__AWESOME_EXCLAM_YOUR_WALLET_IS_RESTORED));
 
   while (1) {
     key = protectWaitKey(0, 1);
@@ -406,15 +404,15 @@ refresh_menu:
     }
   } else if (type == 1) {
     memzero(desc, sizeof(desc));
-    strcat(desc, _("Recovery Phrase "));
+    strcat(desc, _(T__RECOVERY_PHRASE_BRACKET_STR_BRACKET));
     if (index == 0) {
-      strcat(desc, "(1-6)");
+      str_replace(desc, "{}", "1-6");
     } else if (index == 1) {
-      strcat(desc, "(7-12)");
+      str_replace(desc, "{}", "7-12");
     } else if (index == 2) {
-      strcat(desc, "(13-18)");
+      str_replace(desc, "{}", "13-18");
     } else {
-      strcat(desc, "(19-24)");
+      str_replace(desc, "{}", "19-24");
     }
     if (index == pages - 1) {
       layoutWords(desc, &bmp_bottom_middle_arrow_up,
@@ -471,15 +469,16 @@ refresh_menu:
 bool writedown_mnemonic(const char *mnemonic, uint32_t count) {
   uint8_t key = KEY_NULL;
   char desc[63] = "";
-  strcat(desc, _("Next, check the written "));
-  uint2str(count, desc + strlen(desc));
-  strcat(desc, _(" words again."));
+  char num_str[8] = "";
+  strcat(desc, _(C__NEXT_CHECK_THE_WRITTEN_STR_WORDS_AGAIN));
+  uint2str(count, num_str);
+  str_replace(desc, "{}", num_str);
 write_mnemonic:
-  if (scroll_mnemonic(_("Word"), mnemonic, 0)) {
+  if (scroll_mnemonic(_(O__WORD), mnemonic, 0)) {
   check_words_again:
-    layoutDialogAdapterEx(_("Check Words Again"), &bmp_bottom_left_close, NULL,
-                          &bmp_bottom_right_arrow, NULL, desc, NULL, NULL, NULL,
-                          NULL);
+    layoutDialogCenterAdapterV2(_(T__CHECK_WORDS_AGAIN), NULL,
+                                &bmp_bottom_left_close, &bmp_bottom_right_arrow,
+                                NULL, NULL, NULL, NULL, NULL, NULL, desc);
     while (1) {
       key = protectWaitKey(0, 1);
       if (key == KEY_CONFIRM || key == KEY_CANCEL) {
@@ -487,11 +486,10 @@ write_mnemonic:
       }
     }
     if (key != KEY_CONFIRM) {
-      layoutDialogAdapterEx(
-          _("Abort Backup?"), &bmp_bottom_left_close, NULL,
-          &bmp_bottom_right_confirm, NULL,
-          _("Are you sure to abort this\nprocess? All progress\nwill be lost."),
-          NULL, NULL, NULL, NULL);
+      layoutDialogCenterAdapterV2(
+          _(T__ABORT_BACKUP_QUES), NULL, &bmp_bottom_left_close,
+          &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL, NULL, NULL,
+          _(C__ARE_YOU_SURE_TO_ABORT_THIS_PROCESS_QUES_ALL_PROGRESS_WILL_BE_LOST));
       key = protectWaitKey(0, 1);
       if (key == KEY_CONFIRM) {
         return false;
@@ -506,11 +504,10 @@ write_mnemonic:
     if (!verify_mnemonic(mnemonic)) {
       goto_check(check_mnemonic);
     }
-    layoutDialogAdapterEx(_("Almost Done!"), NULL, NULL,
-                          &bmp_bottom_right_arrow, NULL,
-                          _("Recovery phrase is the \nonly way to recover "
-                            "your\nassets. So keep it in a\nsafe place."),
-                          NULL, NULL, NULL, NULL);
+    layoutDialogCenterAdapterV2(
+        _(T__ALMOST_DONW_EXCLAM), NULL, NULL, &bmp_bottom_right_arrow, NULL,
+        NULL, NULL, NULL, NULL, NULL,
+        _(C__RECOVERY_PHRASE_IS_THE_ONLY_WAY_TO_RECOVER_YOUR_ASSETS_SO_KEEP_IT_IN_A_SAFE_PLACE));
     while (1) {
       key = protectWaitKey(0, 1);
       if (key == KEY_CONFIRM) {
@@ -520,30 +517,32 @@ write_mnemonic:
     if (!protectChangePinOnDevice(true, true, false)) {
       goto_check(check_mnemonic);
     }
+#if EMULATOR
+    config_setMnemonic(mnemonic, false);
+#else
     se_set_mnemonic(mnemonic, strlen(mnemonic));
+#endif
     return true;
   }
   return false;
 }
 
 bool reset_on_device(void) {
-  char desc[128] = "";
+  char desc[256] = "";
+  char num_buf[8] = "";
   uint8_t key = KEY_NULL;
 
   if (config_hasPin()) {
     uint8_t ui_language_bak = ui_language;
-    const char *lang[2] = {"en-US", "zh-CN"};
     config_wipe();
     ui_language = ui_language_bak;
-    config_setLanguage(lang[ui_language]);
+    config_setLanguage(i18n_lang_keys[ui_language]);
   }
 prompt_creat:
-  layoutDialogAdapterEx(
-      _("Create New Wallet"), &bmp_bottom_left_close, NULL,
-      &bmp_bottom_right_arrow, NULL,
-      _("Generating a standard\nwallet with a new set of\nrecovery phrase."),
-      NULL, NULL, NULL, NULL);
-
+  layoutDialogCenterAdapterV2(
+      _(T__CREATE_NEW_WALLET), NULL, &bmp_bottom_left_close,
+      &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL, NULL, NULL,
+      _(C__GENERATING_A_STANDARD_WALLET_WITH_A_NEW_SET_OF_RECOVERY_PHRASE));
   key = protectWaitKey(0, 1);
   if (key != KEY_CONFIRM) {
     return false;
@@ -569,21 +568,24 @@ select_mnemonic_count:
   }
 
   memzero(desc, sizeof(desc));
-  strcat(desc, _("The next screen will start\ndisplay "));
-  uint2str(words_count, desc + strlen(desc));
   strcat(
       desc,
-      _(" words called\nRecovery Phrase. Write it\ndown on sheet in order."));
-
-  layoutDialogAdapterEx(_("Back Up Recovery Phrase"), &bmp_bottom_left_arrow,
-                        NULL, &bmp_bottom_right_arrow, NULL, desc, NULL, NULL,
-                        NULL, NULL);
+      _(C__THE_NEXT_SCREEN_WILL_START_DISPLAY_STR_WORDS_CALLED_RECOVERY_PHRASE_WRITE_IT_DOWN_ON_SHEET_IN_ORDER));
+  uint2str(words_count, num_buf);
+  str_replace(desc, "{}", num_buf);
+  layoutDialogCenterAdapterV2(_(T__BACK_UP_RECOVERY_PHRASE), NULL,
+                              &bmp_bottom_left_arrow, &bmp_bottom_right_arrow,
+                              NULL, NULL, NULL, NULL, NULL, NULL, desc);
   key = protectWaitKey(0, 1);
   if (key != KEY_CONFIRM) {
     goto_check(select_mnemonic_count);
   }
 
+#if EMULATOR
+  random_buffer(int_entropy, 32);
+#else
   if (!se_random_encrypted(int_entropy, 32)) return false;
+#endif
   const char *mnemonic = mnemonic_from_data(int_entropy, strength / 8);
   memzero(int_entropy, 32);
 
@@ -592,7 +594,7 @@ select_mnemonic_count:
   }
   if (!config_setMnemonic(mnemonic, false)) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Failed to store mnemonic"));
+                    "Failed to store mnemonic");
   }
   mnemonic_clear();
   layoutSwipe();

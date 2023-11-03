@@ -29,7 +29,7 @@ void fsm_msgRippleGetAddress(RippleGetAddress *msg) {
   if (!node) return;
   if (hdnode_fill_public_key(node) != 0) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Failed to derive public key"));
+                    "Failed to derive public key");
     layoutHome();
     return;
   }
@@ -41,7 +41,7 @@ void fsm_msgRippleGetAddress(RippleGetAddress *msg) {
   if (msg->has_show_display && msg->show_display) {
     char desc[16] = {0};
     strcat(desc, "Ripple");
-    strcat(desc, _("Address:"));
+    strcat(desc, _(I__ADDRESS_COLON));
     if (!fsm_layoutAddress(resp->address, NULL, desc, false, 0, msg->address_n,
                            msg->address_n_count, false, NULL, 0, 0, NULL)) {
       return;
@@ -65,7 +65,7 @@ void fsm_msgRippleSignTx(RippleSignTx *msg) {
 
   if (hdnode_fill_public_key(node) != 0) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Failed to derive public key"));
+                    "Failed to derive public key");
     layoutHome();
     return;
   }
@@ -73,7 +73,7 @@ void fsm_msgRippleSignTx(RippleSignTx *msg) {
   if (ripple_sign_tx(msg, node, resp)) {
     msg_write(MessageType_MessageType_RippleSignedTx, resp);
   } else {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Signing failed"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Signing failed");
   }
 
   layoutHome();

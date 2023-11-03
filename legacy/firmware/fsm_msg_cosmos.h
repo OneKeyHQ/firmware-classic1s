@@ -30,7 +30,7 @@ void fsm_msgCosmosGetAddress(CosmosGetAddress *msg) {
 
   if (hdnode_fill_public_key(node) != 0) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Failed to derive public key"));
+                    "Failed to derive public key");
     layoutHome();
     return;
   }
@@ -40,8 +40,7 @@ void fsm_msgCosmosGetAddress(CosmosGetAddress *msg) {
     memcpy(msg->hrp, "cosmos", 6);  // default cosmos
   }
   if (!cosmos_get_address(resp->address, node->public_key, msg->hrp)) {
-    fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Failed to get address"));
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Failed to get address");
     layoutHome();
     return;
   }
@@ -55,7 +54,7 @@ void fsm_msgCosmosGetAddress(CosmosGetAddress *msg) {
       strcat(desc, "Cosmos");
     }
     strcat(desc, " ");
-    strcat(desc, _("Address:"));
+    strcat(desc, _(I__ADDRESS_COLON));
     if (!fsm_layoutAddress(resp->address, NULL, desc, false, 0, msg->address_n,
                            msg->address_n_count, true, NULL, 0, 0, NULL)) {
       return;
@@ -79,7 +78,7 @@ void fsm_msgCosmosSignTx(const CosmosSignTx *msg) {
 
   if (hdnode_fill_public_key(node) != 0) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Failed to derive public key"));
+                    "Failed to derive public key");
     layoutHome();
     return;
   }

@@ -26,7 +26,7 @@ static bool fsm_ethereumCheckPathOneKey(uint32_t address_n_count,
   }
 
   if (config_getSafetyCheckLevel() == SafetyCheckLevel_Strict) {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Forbidden key path"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Forbidden key path");
     return false;
   }
 
@@ -58,7 +58,7 @@ void fsm_msgEthereumGetPublicKeyOneKey(const EthereumGetPublicKeyOneKey *msg) {
 
   if (hdnode_fill_public_key(node) != 0) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Failed to derive public key"));
+                    "Failed to derive public key");
     layoutHome();
     return;
   }
@@ -185,7 +185,7 @@ void fsm_msgEthereumGetAddressOneKey(const EthereumGetAddressOneKey *msg) {
     } else {
       ASSIGN_ETHEREUM_NAME(chain_name, 0);  // unknown chain
     }
-    snprintf(desc, 32, "%s %s", chain_name, _("Address:"));
+    snprintf(desc, 32, "%s %s", chain_name, _(I__ADDRESS_COLON));
     if (!fsm_layoutAddress(resp->address, NULL, desc, false, 0, msg->address_n,
                            msg->address_n_count, true, NULL, 0, 0, NULL)) {
       return;
@@ -236,13 +236,13 @@ void fsm_msgEthereumSignMessageOneKey(const EthereumSignMessageOneKey *msg) {
 void fsm_msgEthereumVerifyMessageOneKey(
     const EthereumVerifyMessageOneKey *msg) {
   if (ethereum_message_verify_onekey(msg) != 0) {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Invalid signature"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Invalid signature");
     return;
   }
 
   uint8_t pubkeyhash[20];
   if (!ethereum_parse_onekey(msg->address, pubkeyhash)) {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Invalid address"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Invalid address");
     return;
   }
 
@@ -253,15 +253,15 @@ void fsm_msgEthereumVerifyMessageOneKey(
     return;
   }
 
-  layoutDialogSwipe(&bmp_icon_ok, NULL, _("Continue"), NULL, NULL,
-                    _("The signature is valid."), NULL, NULL, NULL, NULL);
+  layoutDialogSwipe(&bmp_icon_ok, NULL, __("Continue"), NULL, NULL,
+                    _(C__THE_SIGNATURE_IS_VALID), NULL, NULL, NULL, NULL);
   if (!protectButton(ButtonRequestType_ButtonRequest_Other, true)) {
     fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
     layoutHome();
     return;
   }
 
-  fsm_sendSuccess(_("Message verified"));
+  fsm_sendSuccess("Message verified");
 
   layoutHome();
 }
@@ -283,7 +283,7 @@ void fsm_msgEthereumSignMessageEIP712(const EthereumSignMessageEIP712 *msg) {
   data2hex(msg->message_hash.bytes, 32, msg_hash);
   if (!fsm_layoutSignHash(
           "Ethereum", resp->address, domain_hash, msg_hash,
-          _("Unable to decode EIP-712 data. Sign at your own risk."))) {
+          _(C__UNBALE_TO_DECODE_EIP712_DATA_SIGN_AT_YOUR_OWN_RISK_EXCLAM))) {
     fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
     layoutHome();
     return;
@@ -310,7 +310,7 @@ void fsm_msgEthereumSignTypedHashOneKey(
 
   if (msg->domain_separator_hash.size != 32 ||
       (msg->has_message_hash && msg->message_hash.size != 32)) {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Invalid hash length"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Invalid hash length");
     return;
   }
 
@@ -334,7 +334,8 @@ void fsm_msgEthereumSignTypedHashOneKey(
   // ethereum_address_checksum adds trailing zero
 
   char warn_msg[128] = {0};
-  strcat(warn_msg, _("Unable to decode EIP-712 data. Sign at your own risk."));
+  strcat(warn_msg,
+         _(C__UNBALE_TO_DECODE_EIP712_DATA_SIGN_AT_YOUR_OWN_RISK_EXCLAM));
   if (msg->has_message_hash) {
     char domain_hash[65] = {0};
     char msg_hash[65] = {0};

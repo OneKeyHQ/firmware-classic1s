@@ -122,6 +122,9 @@ void kaspa_sign_sighash(HDNode *node, const uint8_t *raw_message,
 
   CALCULATE_SIGNING_HASH(raw_message, raw_message_len);
   if (strcmp(schema, "schnorr") == 0) {
+#if EMULATOR
+    tx_sign_bip340(node->private_key, schnorr_digest, signature, signature_len);
+#else
     uint8_t sig[64];
     int ret = hdnode_bip340_sign_digest(node, schnorr_digest, sig);
     if (ret != 0) {
@@ -130,8 +133,14 @@ void kaspa_sign_sighash(HDNode *node, const uint8_t *raw_message,
       return;
     }
     *signature_len = 64;
+#endif
   } else {
     // ecdsa sign
+#if EMULATOR
+    CALCULATE_SIGNING_HASH_ECDSA
+    tx_sign_ecdsa(&secp256k1, node->private_key, ecdsa_digest, signature,
+                  signature_len);
+#else
     CALCULATE_SIGNING_HASH_ECDSA;
     uint8_t sig[64];
     int ret = hdnode_sign_digest(node, ecdsa_digest, sig, NULL, NULL);
@@ -141,5 +150,6 @@ void kaspa_sign_sighash(HDNode *node, const uint8_t *raw_message,
       return;
     }
     *signature_len = ecdsa_sig_to_der(sig, signature);
+#endif
   }
 }

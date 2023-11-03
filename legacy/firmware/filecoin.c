@@ -193,7 +193,7 @@ refresh_menu:
   oledClear();
   y = 13;
   if (index == max_index) {
-    layoutHeader(_("Sign Transaction"));
+    layoutHeader(_(T__SIGN_TRANSACTION));
     oledDrawStringAdapter(0, y, tx_msg[1], FONT_STANDARD);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_confirm);
@@ -201,7 +201,7 @@ refresh_menu:
     fil_tx_getItem(index, token_key, sizeof(token_key), token_val,
                    sizeof(token_val), 0, &pageCount);
     memset(desc, 0, 64);
-    strcat(desc, _(token_key));
+    strcat(desc, token_key);
     strcat(desc, ":");
     if ((0 == index) || (4 == index) || (5 == index)) {
       p = strchr(token_val, '.');
@@ -292,9 +292,14 @@ bool filecoin_sign_tx(const FilecoinSignTx *msg, const HDNode *node,
   data2hexaddr(message_digest, 32, buf);
 
   uint8_t v;
+#if EMULATOR
+  if (ecdsa_sign_digest(&secp256k1, node->private_key, message_digest,
+                        resp->signature.bytes, &v, ethereum_is_canonic) != 0) {
+#else
   if (hdnode_sign_digest(node, message_digest, resp->signature.bytes, &v,
                          ethereum_is_canonic) != 0) {
-    fsm_sendFailure(FailureType_Failure_ProcessError, _("Signing failed"));
+#endif
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Signing failed");
     return false;
   }
   resp->signature.bytes[64] = v;

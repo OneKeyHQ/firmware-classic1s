@@ -11,18 +11,18 @@ extern uint8_t ui_language;
 char* format_time(uint32_t ms) {
   static char line[sizeof("4294967296 minutes?")] = {0};
 
-  const char* unit = _("second");
+  const char* unit = _(O__HOUR);
 
   if (ms == 0) {
-    return _("Never");
+    return _(O__NEVER);
   }
   uint32_t num = ms / 1000U;
 
   if (ms >= 60 * 60 * 1000) {
-    unit = _("hour");
+    unit = _(O__HOUR);
     num /= 60 * 60U;
   } else if (ms >= 60 * 1000) {
-    unit = _("minute");
+    unit = _(O__MINUTE);
     num /= 60U;
   }
 
@@ -36,10 +36,10 @@ char* format_time(uint32_t ms) {
 }
 
 char* menu_para_ble_state(void) {
-  return ble_get_switch() ? _(" Enabled") : _(" Disabled");
+  return ble_get_switch() ? _(O__ENABLED) : _(O__DISABLED);
 }
 
-char* menu_para_language(void) { return ui_language ? "简体中文" : "English"; }
+char* menu_para_language(void) { return (char*)i18n_langs[ui_language]; }
 
 char* menu_para_shutdown(void) {
   return format_time(config_getAutoLockDelayMs());
@@ -47,31 +47,27 @@ char* menu_para_shutdown(void) {
 
 char* menu_para_autolock(void) { return format_time(config_getSleepDelayMs()); }
 
-char* menu_para_eth_eip_switch(void) { return _(" On"); };
-
-char* menu_para_sol_switch(void) { return _(" On"); };
-
 char* menu_para_passphrase(void) {
   bool passphrase_protection = false;
   config_getPassphraseProtection(&passphrase_protection);
-  return passphrase_protection ? _(" Enabled") : _(" Disabled");
+  return passphrase_protection ? _(O__ENABLED) : _(O__DISABLED);
 };
 
 char* menu_para_trezor_comp_mode_state(void) {
   bool trezor_comp_mode_current = false;
   config_getTrezorCompMode(&trezor_comp_mode_current);
-  return trezor_comp_mode_current ? _(" Enabled") : _(" Disabled");
+  return trezor_comp_mode_current ? _(O__ENABLED) : _(O__DISABLED);
 }
 
 char* menu_para_safety_checks_state(void) {
   SafetyCheckLevel safetyCheckLevel = config_getSafetyCheckLevel();
-  if (safetyCheckLevel == SafetyCheckLevel_Strict) return _(" Enabled");
-  return _(" Disabled");
+  if (safetyCheckLevel == SafetyCheckLevel_Strict) return _(O__ENABLED);
+  return _(O__DISABLED);
 }
 
 int menu_para_ble_index(void) { return ble_get_switch() ? 0 : 1; }
 
-int menu_para_language_index(void) { return ui_language ? 1 : 0; }
+int menu_para_language_index(void) { return ui_language; }
 
 int menu_para_shutdown_index(void) {
   int ms = config_getAutoLockDelayMs();
@@ -135,8 +131,7 @@ void menu_para_set_ble(int index) {
 }
 
 void menu_para_set_language(int index) {
-  const char* lang[2] = {"en-US", "zh-CN"};
-  if (ui_language != index) config_setLanguage(lang[index]);
+  if (ui_language != index) config_setLanguage(i18n_lang_keys[index]);
 }
 
 void menu_para_set_shutdown(int index) {
@@ -153,7 +148,7 @@ void menu_para_set_sleep(int index) {
 char* menu_para_usb_lock(void) {
   bool lock = false;
   config_getUsblock(&lock, true);
-  return lock ? _(" Enabled") : _(" Disabled");
+  return lock ? _(O__ENABLED) : _(O__DISABLED);
 };
 
 int menu_para_usb_lock_index(void) {
@@ -165,7 +160,7 @@ int menu_para_usb_lock_index(void) {
 char* menu_para_input_direction(void) {
   bool d = false;
   config_getInputDirection(&d);
-  return d ? _("Reverse") : _("Default");
+  return d ? _(O__REVERSE) : _(O__DEFAULT);
 };
 
 int menu_para_input_direction_index(void) {

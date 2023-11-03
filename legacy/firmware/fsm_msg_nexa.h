@@ -23,7 +23,7 @@ static bool fsm_nexa_CheckPath(uint32_t address_n_count,
     return true;
   }
   if (config_getSafetyCheckLevel() == SafetyCheckLevel_Strict) {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Forbidden key path"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Forbidden key path");
     return false;
   }
 
@@ -48,7 +48,7 @@ void fsm_msgNexaGetAddress(const NexaGetAddress *msg) {
   if (msg->has_show_display && msg->show_display) {
     char desc[16] = {0};
     strcat(desc, "Nexa");
-    strcat(desc, _("Address:"));
+    strcat(desc, _(I__ADDRESS_COLON));
     if (!fsm_layoutAddress(resp->address, NULL, desc, false, 0, msg->address_n,
                            msg->address_n_count, true, NULL, 0, 0, NULL)) {
       return;

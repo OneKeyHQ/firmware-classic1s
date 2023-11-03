@@ -25,7 +25,7 @@ static bool fsm_nemCheckPath(uint32_t address_n_count,
 
   if (config_getSafetyCheckLevel() == SafetyCheckLevel_Strict &&
       !nem_path_check(address_n_count, address_n, network, false)) {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Forbidden key path"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Forbidden key path");
     return false;
   }
 
@@ -39,7 +39,7 @@ void fsm_msgNEMGetAddress(NEMGetAddress *msg) {
 
   const char *network;
   CHECK_PARAM((network = nem_network_name(msg->network)),
-              _("Invalid NEM network"));
+              "Invalid NEM network");
 
   CHECK_INITIALIZED
   CHECK_PIN
@@ -87,8 +87,8 @@ void fsm_msgNEMSignTx(NEMSignTx *msg) {
                           msg->has_mosaic_creation + msg->has_supply_change +
                           msg->has_aggregate_modification +
                           msg->has_importance_transfer;
-  CHECK_PARAM(provided != 0, _("No transaction provided"));
-  CHECK_PARAM(provided == 1, _("More than one transaction provided"));
+  CHECK_PARAM(provided != 0, "No transaction provided");
+  CHECK_PARAM(provided == 1, "More than one transaction provided");
 
   NEM_CHECK_PARAM(nem_validate_common(&msg->transaction, false));
   NEM_CHECK_PARAM_WHEN(
@@ -115,9 +115,9 @@ void fsm_msgNEMSignTx(NEMSignTx *msg) {
     NEM_CHECK_PARAM(nem_validate_common(&msg->multisig, true));
 
     CHECK_PARAM(msg->transaction.network == msg->multisig.network,
-                _("Inner transaction network is different"));
+                "Inner transaction network is different");
   } else {
-    CHECK_PARAM(!cosigning, _("No multisig transaction to cosign"));
+    CHECK_PARAM(!cosigning, "No multisig transaction to cosign");
   }
 
   CHECK_INITIALIZED
@@ -131,7 +131,7 @@ void fsm_msgNEMSignTx(NEMSignTx *msg) {
 
     if (!nem_askMultisig(address, network, cosigning, msg->transaction.fee)) {
       fsm_sendFailure(FailureType_Failure_ActionCancelled,
-                      _("Signing cancelled by user"));
+                      "Signing cancelled by user");
       layoutHome();
       return;
     }
@@ -152,7 +152,7 @@ void fsm_msgNEMSignTx(NEMSignTx *msg) {
 
   if (hdnode_fill_public_key(node) != 0) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Failed to derive public key"));
+                    "Failed to derive public key");
     layoutHome();
     return;
   }
@@ -169,7 +169,7 @@ void fsm_msgNEMSignTx(NEMSignTx *msg) {
 
   if (msg->has_transfer && !nem_askTransfer(common, &msg->transfer, network)) {
     fsm_sendFailure(FailureType_Failure_ActionCancelled,
-                    _("Signing cancelled by user"));
+                    "Signing cancelled by user");
     layoutHome();
     return;
   }
@@ -177,7 +177,7 @@ void fsm_msgNEMSignTx(NEMSignTx *msg) {
   if (msg->has_provision_namespace &&
       !nem_askProvisionNamespace(common, &msg->provision_namespace, network)) {
     fsm_sendFailure(FailureType_Failure_ActionCancelled,
-                    _("Signing cancelled by user"));
+                    "Signing cancelled by user");
     layoutHome();
     return;
   }
@@ -185,7 +185,7 @@ void fsm_msgNEMSignTx(NEMSignTx *msg) {
   if (msg->has_mosaic_creation &&
       !nem_askMosaicCreation(common, &msg->mosaic_creation, network, address)) {
     fsm_sendFailure(FailureType_Failure_ActionCancelled,
-                    _("Signing cancelled by user"));
+                    "Signing cancelled by user");
     layoutHome();
     return;
   }
@@ -193,7 +193,7 @@ void fsm_msgNEMSignTx(NEMSignTx *msg) {
   if (msg->has_supply_change &&
       !nem_askSupplyChange(common, &msg->supply_change, network)) {
     fsm_sendFailure(FailureType_Failure_ActionCancelled,
-                    _("Signing cancelled by user"));
+                    "Signing cancelled by user");
     layoutHome();
     return;
   }
@@ -202,7 +202,7 @@ void fsm_msgNEMSignTx(NEMSignTx *msg) {
       !nem_askAggregateModification(common, &msg->aggregate_modification,
                                     network, !msg->has_multisig)) {
     fsm_sendFailure(FailureType_Failure_ActionCancelled,
-                    _("Signing cancelled by user"));
+                    "Signing cancelled by user");
     layoutHome();
     return;
   }
@@ -210,7 +210,7 @@ void fsm_msgNEMSignTx(NEMSignTx *msg) {
   if (msg->has_importance_transfer &&
       !nem_askImportanceTransfer(common, &msg->importance_transfer, network)) {
     fsm_sendFailure(FailureType_Failure_ActionCancelled,
-                    _("Signing cancelled by user"));
+                    "Signing cancelled by user");
     layoutHome();
     return;
   }
@@ -312,11 +312,13 @@ void fsm_msgNEMSignTx(NEMSignTx *msg) {
     }
   }
 
-  // resp->data.size =
-  //     nem_transaction_end(&context, node->private_key,
-  //     resp->signature.bytes);
+#if EMULATOR
+  resp->data.size =
+      nem_transaction_end(&context, node->private_key, resp->signature.bytes);
+#else
   se_ed25519_sign_keccak(context.buffer, context.offset, resp->signature.bytes);
   resp->data.size = context.offset;
+#endif
 
   resp->signature.size = sizeof(ed25519_signature);
 
@@ -329,20 +331,20 @@ void fsm_msgNEMDecryptMessage(NEMDecryptMessage *msg) {
 
   CHECK_INITIALIZED
 
-  CHECK_PARAM(nem_network_name(msg->network), _("Invalid NEM network"));
-  CHECK_PARAM(msg->has_payload, _("No payload provided"));
+  CHECK_PARAM(nem_network_name(msg->network), "Invalid NEM network");
+  CHECK_PARAM(msg->has_payload, "No payload provided");
   CHECK_PARAM(msg->payload.size >= NEM_ENCRYPTED_PAYLOAD_SIZE(0),
-              _("Invalid encrypted payload"));
-  CHECK_PARAM(msg->has_public_key, _("No public key provided"));
-  CHECK_PARAM(msg->public_key.size == 32, _("Invalid public key"));
+              "Invalid encrypted payload");
+  CHECK_PARAM(msg->has_public_key, "No public key provided");
+  CHECK_PARAM(msg->public_key.size == 32, "Invalid public key");
 
   CHECK_PIN
 
   char address[NEM_ADDRESS_SIZE + 1];
   nem_get_address(msg->public_key.bytes, msg->network, address);
 
-  layoutNEMDialog(&bmp_icon_question, _("Cancel"), _("Confirm"),
-                  _("Decrypt message"), _("Confirm address?"), address);
+  layoutNEMDialog(&bmp_icon_question, __("Cancel"), __("Confirm"),
+                  _(T__DECRYPT_MESSAGE), _(T__CONFIRM_ADDRESS_QUES), address);
   if (!protectButton(ButtonRequestType_ButtonRequest_Other, false)) {
     fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
     layoutHome();
@@ -368,7 +370,7 @@ void fsm_msgNEMDecryptMessage(NEMDecryptMessage *msg) {
                                 size, resp->payload.bytes);
   if (!ret) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Failed to decrypt payload"));
+                    "Failed to decrypt payload");
     layoutHome();
     return;
   }

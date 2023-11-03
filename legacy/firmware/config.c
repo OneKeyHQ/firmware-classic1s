@@ -94,11 +94,19 @@ typedef struct {
 
 #define PRIVATE_KEY 1 << 31
 
+#if EMULATOR
+#define KEY_IMPORTED (uint32_t)(offsetof(PriConfig, imported) | PRIVATE_KEY)
+#define KEY_FLAGS (uint32_t)(offsetof(PriConfig, flags) | PRIVATE_KEY)
+#define KEY_UNFINISHED_BACKUP \
+  (uint32_t)(offsetof(PriConfig, unfinished_backup) | PRIVATE_KEY)
+#define KEY_NO_BACKUP (uint32_t)(offsetof(PriConfig, no_backup) | PRIVATE_KEY)
+#else
 #define KEY_IMPORTED offsetof(PriConfig, imported) | PRIVATE_KEY
 #define KEY_FLAGS offsetof(PriConfig, flags) | PRIVATE_KEY
 #define KEY_UNFINISHED_BACKUP \
   offsetof(PriConfig, unfinished_backup) | PRIVATE_KEY
 #define KEY_NO_BACKUP offsetof(PriConfig, no_backup) | PRIVATE_KEY
+#endif
 
 static uint32_t config_uuid[UUID_SIZE / sizeof(uint32_t)];
 _Static_assert(sizeof(config_uuid) == UUID_SIZE, "config_uuid has wrong size");
@@ -279,18 +287,15 @@ void config_setLanguage(const char *lang) {
   if (lang == NULL) {
     return;
   }
-  // Sanity check.
-  if (strcmp(lang, "en-US") == 0 || strcmp(lang, "english") == 0) {
-    ui_language = LANG_EN_US;
-  } else if (strcmp(lang, "zh-CN") == 0 || strcmp(lang, "chinese") == 0) {
-    ui_language = LANG_ZH_CN;
-  } else {
-    return;
+  for (uint8_t i = 0; i < langs_len; i++) {
+    if (strcmp(lang, i18n_lang_keys[i]) == 0) {
+      ui_language = i;
+      config_set(KEY_LANGUAGE, lang,
+                 strnlen(lang, MAX_LANGUAGE_LEN) + 1);  // append '\0'
+      font_set(ui_language ? "dingmao_9x9" : "english");
+      break;
+    }
   }
-
-  config_set(KEY_LANGUAGE, lang,
-             strnlen(lang, MAX_LANGUAGE_LEN) + 1);  // append '\0'
-  font_set(ui_language ? "dingmao_9x9" : "english");
 }
 
 void config_setPassphraseProtection(bool passphrase_protection) {
@@ -317,7 +322,7 @@ bool config_genSessionSeed(void) {
   char passphrase[MAX_PASSPHRASE_LEN + 1] = {0};
   uint8_t status = 0;
   if (!se_get_session_seed_state(&status)) {
-    fsm_sendFailure(FailureType_Failure_ProcessError, _("Session state error"));
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Session state error");
     return false;
   }
 
@@ -330,20 +335,20 @@ bool config_genSessionSeed(void) {
   if (!protectPassphrase(passphrase)) {
     memzero(passphrase, sizeof(passphrase));
     fsm_sendFailure(FailureType_Failure_ActionCancelled,
-                    _("Passphrase dismissed"));
+                    "Passphrase dismissed");
     return false;
   }
   // TODO. if passphrase is null it would special choose
   if (passphrase[0] == 0) {
   } else {  // passphrase is used - confirm on the display
     layoutDialogCenterAdapterV2(
-        "Access Hidden Wallet", NULL, &bmp_bottom_left_close,
+        _(T__ACCESS_HIDDEN_WALLET), NULL, &bmp_bottom_left_close,
         &bmp_bottom_right_confirm, NULL, NULL, NULL, NULL, NULL, NULL,
-        _("Next screen will show the\npassphrase!"));
+        _(C__NEXT_SCREEN_WILL_SHOW_THE_ENTERED_PASSPHRASE));
     if (!protectButton(ButtonRequestType_ButtonRequest_Other, false)) {
       memzero(passphrase, sizeof(passphrase));
       fsm_sendFailure(FailureType_Failure_ActionCancelled,
-                      _("Passphrase dismissed"));
+                      "Passphrase dismissed");
       layoutHome();
       return false;
     }
@@ -351,7 +356,7 @@ bool config_genSessionSeed(void) {
     if (!protectButton(ButtonRequestType_ButtonRequest_Other, false)) {
       memzero(passphrase, sizeof(passphrase));
       fsm_sendFailure(FailureType_Failure_ActionCancelled,
-                      _("Passphrase dismissed"));
+                      "Passphrase dismissed");
       layoutHome();
       return false;
     }
@@ -385,15 +390,18 @@ bool config_getLabel(char *dest, uint16_t dest_size) {
 
 bool config_getLanguage(char *dest, uint16_t dest_size) {
   if (sectrue == config_get_string(KEY_LANGUAGE, dest, &dest_size)) {
-    if (strcmp(dest, "en-US") == 0 || strcmp(dest, "english") == 0) {
-      ui_language = LANG_EN_US;
-    } else if (strcmp(dest, "zh-CN") == 0 || strcmp(dest, "chinese") == 0) {
-      ui_language = LANG_ZH_CN;
+    for (uint8_t i = 0; i < langs_len; i++) {
+      if (strcmp(dest, i18n_lang_keys[i]) == 0) {
+        ui_language = i;
+        break;
+      }
     }
   } else {
-    ui_language = LANG_EN_US;
+    ui_language = 0;
+    strcpy(dest, i18n_lang_keys[0]);
   }
   font_set(ui_language ? "dingmao_9x9" : "english");
+
   return true;
 }
 
@@ -565,11 +573,11 @@ uint32_t config_getAutoLockDelayMs(void) {
   if (sectrue == autoLockDelayMsCached) {
     return autoLockDelayMs;
   }
-#if EMULATOR
-  if (sectrue != storage_is_unlocked()) {
-    return autoLockDelayMsDefault;
-  }
-#endif
+  // #if EMULATOR
+  //   if (sectrue != storage_is_unlocked()) {
+  //     return autoLockDelayMsDefault;
+  //   }
+  // #endif
   if (sectrue != config_get_uint32(KEY_AUTO_LOCK_DELAY_MS, &autoLockDelayMs)) {
     autoLockDelayMs = autoLockDelayMsDefault;
   }
