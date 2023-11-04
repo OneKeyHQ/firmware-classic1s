@@ -903,8 +903,9 @@ void fsm_msgBixinVerifyDeviceRequest(const BixinVerifyDeviceRequest *msg) {
   resp->signature.size = 64;
   se_read_certificate(resp->cert.bytes,
                       &resp->cert.size);  // read certificate from SE
-  if (!se_sign_message((uint8_t *)msg->data.bytes, msg->data.size,
-                       resp->signature.bytes)) {
+
+  if (!se_sign_message_feitian((uint8_t *)msg->data.bytes, msg->data.size,
+                               resp->signature.bytes)) {
     fsm_sendFailure(FailureType_Failure_UnexpectedMessage, NULL);
     layoutHome();
     return;
