@@ -75,8 +75,13 @@ bool starcoin_sign_tx(const StarcoinSignTx *msg, const HDNode *node,
   memcpy(buf, STC_RAW_USER_TX_PREFIX_HASH, 32);
   memcpy(buf + 32, msg->raw_tx.bytes, msg->raw_tx.size);
 
+#if EMULATOR
+  ed25519_sign(buf, msg->raw_tx.size + 32, node->private_key,
+               resp->signature.bytes);
+#else
   hdnode_sign(node, buf, msg->raw_tx.size + 32, 0, resp->signature.bytes, NULL,
               NULL);
+#endif
   memcpy(resp->public_key.bytes, &node->public_key[1], 32);
   resp->signature.size = 64;
   resp->public_key.size = 32;
@@ -97,7 +102,7 @@ static void unsigned_int_to_leb128(uint32_t val, uint8_t *s) {
 
 bool starcoin_sign_message(const HDNode *node, const StarcoinSignMessage *msg,
                            StarcoinMessageSignature *resp) {
-  layoutProgressSwipe(_("Signing"), 0);
+  layoutProgressSwipe(_(C__SIGNING), 0);
 
   uint8_t buf[sizeof(StarcoinSignMessage_message_t) + 32 + 2] = {0};
   uint8_t msg_length_data[8] = {0};
@@ -107,8 +112,13 @@ bool starcoin_sign_message(const HDNode *node, const StarcoinSignMessage *msg,
   memcpy(buf, STC_MSG_SIGN_PREFIX_HASH, 32);
   memcpy(buf + 32, (uint8_t *)&msg_length_data, msg_header_size);
   memcpy(buf + 32 + msg_header_size, msg->message.bytes, msg->message.size);
+#if EMULATOR
+  ed25519_sign(buf, 32 + msg_header_size + msg->message.size, node->private_key,
+               resp->signature.bytes);
+#else
   hdnode_sign(node, buf, 32 + msg_header_size + msg->message.size, 0,
               resp->signature.bytes, NULL, NULL);
+#endif
 
   memcpy(resp->public_key.bytes, &node->public_key[1], 32);
 

@@ -133,7 +133,10 @@ struct AdaSigner {
   uint8_t datum_hash[32];
   uint16_t datum_hash_size;
 };
-
+#if EMULATOR
+bool fsm_getCardanoIcaruNode(HDNode *node, const uint32_t *address_n,
+                             size_t address_n_count, uint32_t *fingerprint);
+#endif
 bool deriveCardanoIcaruNode(HDNode *node, const uint32_t *address_n,
                             size_t address_n_count, uint32_t *fingerprint);
 

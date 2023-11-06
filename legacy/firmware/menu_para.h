@@ -7,8 +7,6 @@ char* menu_para_ble_state(void);
 char* menu_para_language(void);
 char* menu_para_shutdown(void);
 char* menu_para_autolock(void);
-char* menu_para_eth_eip_switch(void);
-char* menu_para_sol_switch(void);
 char* menu_para_passphrase(void);
 char* menu_para_trezor_comp_mode_state(void);
 char* menu_para_safety_checks_state(void);

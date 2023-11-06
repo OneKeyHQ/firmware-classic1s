@@ -47,6 +47,9 @@ static bool ethereum_signing = false;
 static uint32_t data_total, data_left;
 static EthereumTxRequestOneKey msg_tx_request;
 static CONFIDENTIAL HDNode *_node = NULL;
+#if EMULATOR
+static CONFIDENTIAL uint8_t privkey[32];
+#endif
 static uint64_t chain_id;
 static bool eip1559;
 static struct SHA3_CTX keccak_ctx = {0};
@@ -224,7 +227,7 @@ static uint32_t rlp_calculate_access_list_length(
 static void send_request_chunk(void) {
   int progress = 1000 - (data_total > 1000000 ? data_left / (data_total / 800)
                                               : data_left * 800 / data_total);
-  layoutProgressAdapter(_("Signing"), progress);
+  layoutProgressAdapter(_(C__SIGNING), progress);
   msg_tx_request.has_data_length = true;
   msg_tx_request.data_length = data_left <= 1024 ? data_left : 1024;
   msg_write(MessageType_MessageType_EthereumTxRequestOneKey, &msg_tx_request);
@@ -238,7 +241,7 @@ static int ethereum_is_canonic(uint8_t v, uint8_t signature[64]) {
 static void send_signature(void) {
   uint8_t hash[32] = {0}, sig[64] = {0};
   uint8_t v = 0;
-  layoutProgressAdapter(_("Signing"), 1000);
+  layoutProgressAdapter(_(C__SIGNING), 1000);
 
   if (eip1559) {
     hash_rlp_list_length(rlp_calculate_access_list_length(
@@ -246,7 +249,7 @@ static void send_signature(void) {
     for (size_t i = 0; i < signing_access_list_count; i++) {
       uint8_t address[20] = {0};
       if (!ethereum_parse_onekey(signing_access_list[i].address, address)) {
-        fsm_sendFailure(FailureType_Failure_DataError, _("Malformed address"));
+        fsm_sendFailure(FailureType_Failure_DataError, "Malformed address");
         ethereum_signing_abort_onekey();
         return;
       }
@@ -275,11 +278,19 @@ static void send_signature(void) {
   }
 
   keccak_Final(&keccak_ctx, hash);
+#if EMULATOR
+  if (ecdsa_sign_digest(&secp256k1, privkey, hash, sig, &v,
+                        ethereum_is_canonic) != 0) {
+#else
   if (hdnode_sign_digest(_node, hash, sig, &v, ethereum_is_canonic) != 0) {
-    fsm_sendFailure(FailureType_Failure_ProcessError, _("Signing failed"));
+#endif
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Signing failed");
     ethereum_signing_abort_onekey();
     return;
   }
+#if EMULATOR
+  memzero(privkey, sizeof(privkey));
+#endif
 
   /* Send back the result */
   msg_tx_request.has_data_length = false;
@@ -381,7 +392,7 @@ static bool layoutEthereumConfirmTx(
     }
     ethereum_address_checksum(to, to_str, rskip60, chain_id);
   } else {
-    strlcpy(to_str, _("to new contract?"), sizeof(to_str));
+    strlcpy(to_str, "to new contract?", sizeof(to_str));
   }
   if (is_nft_transfer) {
     char recip[64] = {0};
@@ -398,8 +409,8 @@ static bool layoutEthereumConfirmTx(
     if (!is_eip1559) {
       return layoutTransactionSignEVM(
           chain_name, params->chain_id, true, token_amount, to_str, signer,
-          recip, token_id, NULL, 0, _("Maximum Fee:"), gas_value, NULL, NULL,
-          NULL, NULL, NULL, NULL);
+          recip, token_id, NULL, 0, _(I__ETH_MAXIMUM_FEE_COLON), gas_value,
+          NULL, NULL, NULL, NULL, NULL, NULL);
     } else {
       return layoutTransactionSignEVM(chain_name, params->chain_id, true,
                                       token_amount, to_str, signer, recip,
@@ -408,9 +419,10 @@ static bool layoutEthereumConfirmTx(
     }
   } else if (token == NULL) {
     if (!is_eip1559 && data_total > 0) {
-      return layoutBlindSign(
-          chain_name, true, to_str, signer, params->data_initial_chunk_bytes,
-          data_total, _("Maximum Fee:"), gas_value, NULL, NULL, NULL, NULL);
+      return layoutBlindSign(chain_name, true, to_str, signer,
+                             params->data_initial_chunk_bytes, data_total,
+                             _(I__ETH_MAXIMUM_FEE_COLON), gas_value, NULL, NULL,
+                             NULL, NULL);
     } else if (is_eip1559 && data_total > 0) {
       return layoutBlindSign(chain_name, true, to_str, signer,
                              params->data_initial_chunk_bytes, data_total, key1,
@@ -424,13 +436,13 @@ static bool layoutEthereumConfirmTx(
         return layoutTransactionSignEVM(
             chain_name, params->chain_id, false, amount, to_str, signer, NULL,
             NULL, params->data_initial_chunk_bytes, data_total,
-            _("Maximum Fee:"), gas_value, _("Total Amount:"), total_amount,
-            NULL, NULL, NULL, NULL);
+            _(I__ETH_MAXIMUM_FEE_COLON), gas_value, _(I__TOTAL_AMOUNT_COLON),
+            total_amount, NULL, NULL, NULL, NULL);
       } else {
         return layoutTransactionSignEVM(
             chain_name, params->chain_id, false, amount, to_str, signer, NULL,
             NULL, params->data_initial_chunk_bytes, data_total, key1, value1,
-            key2, value2, key3, value3, _("Total Amount:"), total_amount);
+            key2, value2, key3, value3, _(I__TOTAL_AMOUNT_COLON), total_amount);
       }
     }
   } else {
@@ -441,13 +453,13 @@ static bool layoutEthereumConfirmTx(
     if (!is_eip1559) {
       return layoutTransactionSignEVM(
           chain_name, params->chain_id, true, amount, to_str, signer, NULL,
-          NULL, NULL, 0, _("Maximum Fee:"), gas_value, _("Total Amount:"),
-          total_amount, NULL, NULL, NULL, NULL);
+          NULL, NULL, 0, _(I__ETH_MAXIMUM_FEE_COLON), gas_value,
+          _(I__TOTAL_AMOUNT_COLON), total_amount, NULL, NULL, NULL, NULL);
     } else {
-      return layoutTransactionSignEVM(chain_name, params->chain_id, true,
-                                      amount, to_str, signer, NULL, NULL, NULL,
-                                      0, key1, value1, key2, value2, key3,
-                                      value3, _("Total Amount:"), total_amount);
+      return layoutTransactionSignEVM(
+          chain_name, params->chain_id, true, amount, to_str, signer, NULL,
+          NULL, NULL, 0, key1, value1, key2, value2, key3, value3,
+          _(I__TOTAL_AMOUNT_COLON), total_amount);
     }
   }
 
@@ -498,7 +510,7 @@ static bool ethereum_signing_init_common(struct signing_params *params) {
 
   /* eip-155 chain id */
   if (params->chain_id < 1) {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Chain ID out of bounds"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Chain ID out of bounds");
     return false;
   }
   chain_id = params->chain_id;
@@ -506,7 +518,7 @@ static bool ethereum_signing_init_common(struct signing_params *params) {
   if (params->data_length > 0) {
     if (params->data_initial_chunk_size == 0) {
       fsm_sendFailure(FailureType_Failure_DataError,
-                      _("Data length provided, but no initial chunk"));
+                      "Data length provided, but no initial chunk");
       return false;
     }
     /* Our encoding only supports transactions up to 2^24 bytes.  To
@@ -514,7 +526,7 @@ static bool ethereum_signing_init_common(struct signing_params *params) {
      */
     if (params->data_length > 16000000) {
       fsm_sendFailure(FailureType_Failure_DataError,
-                      _("Data length exceeds limit"));
+                      "Data length exceeds limit");
       return false;
     }
     data_total = params->data_length;
@@ -523,7 +535,7 @@ static bool ethereum_signing_init_common(struct signing_params *params) {
   }
   if (params->data_initial_chunk_size > data_total) {
     fsm_sendFailure(FailureType_Failure_DataError,
-                    _("Invalid size of initial chunk"));
+                    "Invalid size of initial chunk");
     return false;
   }
 
@@ -537,7 +549,7 @@ static bool ethereum_signing_init_common(struct signing_params *params) {
   bool contract_without_data = (tolen == 0 && params->data_length == 0);
 
   if (wrong_length || contract_without_data) {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Safety check failed"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Safety check failed");
     return false;
   }
 
@@ -673,7 +685,7 @@ void ethereum_signing_init_onekey(const EthereumSignTxOneKey *msg,
 
   // sanity check that fee doesn't overflow
   if (msg->gas_price.size + msg->gas_limit.size > 30) {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Safety check failed"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Safety check failed");
     ethereum_signing_abort_onekey();
     return;
   }
@@ -684,7 +696,7 @@ void ethereum_signing_init_onekey(const EthereumSignTxOneKey *msg,
     if (msg->tx_type == 1 || msg->tx_type == 6) {
       tx_type = msg->tx_type;
     } else {
-      fsm_sendFailure(FailureType_Failure_DataError, _("Txtype out of bounds"));
+      fsm_sendFailure(FailureType_Failure_DataError, "Txtype out of bounds");
       ethereum_signing_abort_onekey();
       return;
     }
@@ -738,7 +750,7 @@ void ethereum_signing_init_onekey(const EthereumSignTxOneKey *msg,
   /* Stage 1: Calculate total RLP length */
   uint32_t rlp_length = 0;
 
-  layoutProgressAdapter(_("Signing"), 0);
+  layoutProgressAdapter(_(C__SIGNING), 0);
 
   rlp_length += rlp_calculate_length(msg->nonce.size, msg->nonce.bytes[0]);
   rlp_length +=
@@ -760,7 +772,7 @@ void ethereum_signing_init_onekey(const EthereumSignTxOneKey *msg,
   /* Stage 2: Store header fields */
   hash_rlp_list_length(rlp_length);
 
-  layoutProgressAdapter(_("Signing"), 100);
+  layoutProgressAdapter(_(C__SIGNING), 100);
 
   if (tx_type) {
     hash_rlp_number(tx_type);
@@ -775,6 +787,9 @@ void ethereum_signing_init_onekey(const EthereumSignTxOneKey *msg,
   data_left = data_total - params.data_initial_chunk_size;
 
   _node = (HDNode *)node;
+#if EMULATOR
+  memcpy(privkey, node->private_key, 32);
+#endif
 
   if (data_left > 0) {
     send_request_chunk();
@@ -808,7 +823,7 @@ void ethereum_signing_init_eip1559_onekey(
   // sanity check that fee doesn't overflow
   if (msg->max_gas_fee.size + msg->gas_limit.size > 30 ||
       msg->max_priority_fee.size + msg->gas_limit.size > 30) {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Safety check failed"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Safety check failed");
     ethereum_signing_abort_onekey();
     return;
   }
@@ -861,9 +876,9 @@ void ethereum_signing_init_eip1559_onekey(
   if (!ethereum_signing_confirm_common(
           &params, signer, msg->max_gas_fee.bytes, msg->max_gas_fee.size,
           msg->gas_limit.bytes, msg->gas_limit.size, true, is_nft_transfer,
-          recipient, token_id, token_value, _("Maximum Fee:"), max_fee_str,
-          _("Maximum Fee Per Gas:"), max_fee_per_gas_str,
-          _("Priority Fee Per Gas:"), priority_fee_per_gas_str)) {
+          recipient, token_id, token_value, _(I__ETH_MAXIMUM_FEE_COLON),
+          max_fee_str, _(I__MAXIMUM_FEE_PER_GAS_COLON), max_fee_per_gas_str,
+          _(I__PRIORITY_FEE_PER_GAS_COLON), priority_fee_per_gas_str)) {
     fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
     ethereum_signing_abort_onekey();
     return;
@@ -872,7 +887,7 @@ void ethereum_signing_init_eip1559_onekey(
   /* Stage 1: Calculate total RLP length */
   uint32_t rlp_length = 0;
 
-  layoutProgressAdapter(_("Signing"), 0);
+  layoutProgressAdapter(_(C__SIGNING), 0);
 
   rlp_length += rlp_calculate_number_length(chain_id);
   rlp_length += rlp_calculate_length(msg->nonce.size, msg->nonce.bytes[0]);
@@ -897,7 +912,7 @@ void ethereum_signing_init_eip1559_onekey(
   hash_rlp_number(EIP1559_TX_TYPE);
   hash_rlp_list_length(rlp_length);
 
-  layoutProgressAdapter(_("Signing"), 100);
+  layoutProgressAdapter(_(C__SIGNING), 100);
 
   hash_rlp_number(chain_id);
   hash_rlp_field(msg->nonce.bytes, msg->nonce.size);
@@ -915,6 +930,9 @@ void ethereum_signing_init_eip1559_onekey(
   signing_access_list_count = msg->access_list_count;
 
   _node = (HDNode *)node;
+#if EMULATOR
+  memcpy(privkey, node->private_key, 32);
+#endif
 
   if (data_left > 0) {
     send_request_chunk();
@@ -926,20 +944,19 @@ void ethereum_signing_init_eip1559_onekey(
 void ethereum_signing_txack_onekey(const EthereumTxAckOneKey *tx) {
   if (!ethereum_signing) {
     fsm_sendFailure(FailureType_Failure_UnexpectedMessage,
-                    _("Not in Ethereum signing mode"));
+                    "Not in Ethereum signing mode");
     layoutHome();
     return;
   }
 
   if (tx->data_chunk.size > data_left) {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Too much data"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Too much data");
     ethereum_signing_abort_onekey();
     return;
   }
 
   if (data_left > 0 && tx->data_chunk.size == 0) {
-    fsm_sendFailure(FailureType_Failure_DataError,
-                    _("Empty data chunk received"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Empty data chunk received");
     ethereum_signing_abort_onekey();
     return;
   }
@@ -958,6 +975,9 @@ void ethereum_signing_txack_onekey(const EthereumTxAckOneKey *tx) {
 void ethereum_signing_abort_onekey(void) {
   if (ethereum_signing) {
     _node = NULL;
+#if EMULATOR
+    memzero(privkey, sizeof(privkey));
+#endif
     layoutHome();
     ethereum_signing = false;
   }
@@ -1018,9 +1038,14 @@ void ethereum_message_sign_onekey(const EthereumSignMessageOneKey *msg,
   ethereum_message_hash(msg->message.bytes, msg->message.size, hash);
 
   uint8_t v = 0;
+#if EMULATOR
+  if (ecdsa_sign_digest(&secp256k1, node->private_key, hash,
+                        resp->signature.bytes, &v, ethereum_is_canonic) != 0) {
+#else
   if (hdnode_sign_digest(node, hash, resp->signature.bytes, &v,
                          ethereum_is_canonic) != 0) {
-    fsm_sendFailure(FailureType_Failure_ProcessError, _("Signing failed"));
+#endif
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Signing failed");
     return;
   }
   resp->signature.bytes[64] = 27 + v;
@@ -1049,9 +1074,14 @@ void ethereum_message_sign_eip712_onekey(const EthereumSignMessageEIP712 *msg,
   keccak_Final(&ctx, hash);
 
   uint8_t v = 0;
+#if EMULATOR
+  if (ecdsa_sign_digest(&secp256k1, node->private_key, hash,
+                        resp->signature.bytes, &v, ethereum_is_canonic) != 0) {
+#else
   if (hdnode_sign_digest(node, hash, resp->signature.bytes, &v,
                          ethereum_is_canonic) != 0) {
-    fsm_sendFailure(FailureType_Failure_ProcessError, _("Signing failed"));
+#endif
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Signing failed");
     return;
   }
   resp->signature.bytes[64] = 27 + v;
@@ -1061,13 +1091,13 @@ void ethereum_message_sign_eip712_onekey(const EthereumSignMessageEIP712 *msg,
 
 int ethereum_message_verify_onekey(const EthereumVerifyMessageOneKey *msg) {
   if (msg->signature.size != 65) {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Malformed signature"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Malformed signature");
     return 1;
   }
 
   uint8_t pubkeyhash[20] = {0};
   if (!ethereum_parse_onekey(msg->address, pubkeyhash)) {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Malformed address"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Malformed address");
     return 1;
   }
 
@@ -1133,9 +1163,14 @@ void ethereum_typed_hash_sign_onekey(const EthereumSignTypedHashOneKey *msg,
                       msg->has_message_hash, hash);
 
   uint8_t v = 0;
+#if EMULATOR
+  if (ecdsa_sign_digest(&secp256k1, node->private_key, hash,
+                        resp->signature.bytes, &v, ethereum_is_canonic) != 0) {
+#else
   if (hdnode_sign_digest(node, hash, resp->signature.bytes, &v,
                          ethereum_is_canonic) != 0) {
-    fsm_sendFailure(FailureType_Failure_ProcessError, _("Signing failed"));
+#endif
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Signing failed");
     return;
   }
   resp->signature.bytes[64] = 27 + v;

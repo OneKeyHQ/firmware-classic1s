@@ -291,13 +291,13 @@ void u2fhid_read_start(const U2FHID_FRAME *f) {
           // dialog_timeout = 10 * U2F_TIMEOUT;
           if (last_req_state == REG) {
             layoutDialogCenterAdapterV2(
-                _("U2F Register"), NULL, NULL, &bmp_bottom_right_confirm, NULL,
-                NULL, NULL, NULL, NULL, NULL, _("Register U2F Security\nKey?"));
+                _(T__U2F_REGISTER), NULL, NULL, &bmp_bottom_right_confirm, NULL,
+                NULL, NULL, NULL, NULL, NULL, _(T__U2F_AUTHENTICATE));
           } else {
-            layoutDialogCenterAdapterV2(_("U2F Authenticate"), NULL, NULL,
-                                        &bmp_bottom_right_confirm, NULL, NULL,
-                                        NULL, NULL, NULL, NULL,
-                                        _("Authenticate U2F Security\nKey?"));
+            layoutDialogCenterAdapterV2(
+                _(T__U2F_AUTHENTICATE), NULL, NULL, &bmp_bottom_right_confirm,
+                NULL, NULL, NULL, NULL, NULL, NULL,
+                _(C__AUTHENTICATE_U2F_SECURITY_KEY_QUES));
           }
           delay_ms(100);
           next_page = false;
@@ -748,21 +748,21 @@ void u2f_register(const APDU *a) {
         0 == memcmp(req->appId, BOGUS_APPID_FIREFOX, U2F_APPID_SIZE)) {
       if (cid == last_good_auth_check_cid) {
         layoutDialogCenterAdapterV2(
-            "U2F Already Registered", NULL, NULL, &bmp_bottom_right_confirm,
+            _(T__U2F_ALREADY_REGISTER), NULL, NULL, &bmp_bottom_right_confirm,
             NULL, NULL, NULL, NULL, NULL, NULL,
-            _("This U2F device is already\nregistered in this\napplication."));
+            _(C__THIS_U2F_DEVICE_IS_ALREADY_REGISTERED_IN_THIS_APP));
       } else {
         layoutDialogCenterAdapterV2(
-            "U2F Not Registered", NULL, NULL, &bmp_bottom_right_confirm, NULL,
+            _(T__U2F_NOT_REGISTER), NULL, NULL, &bmp_bottom_right_confirm, NULL,
             NULL, NULL, NULL, NULL, NULL,
-            _("This U2F device is not\nregistered in this\napplication."));
+            _(C__THIS_U2F_DEVICE_IS_NOT_REGISTERED_IN_THIS_APP));
       }
     } else {
       const char *appname = NULL;
       getReadableAppId(req->appId, &appname);
-      layoutDialogAdapterEx(_("U2F Register"), NULL, NULL,
-                            &bmp_bottom_right_arrow, NULL, NULL, _("App Name:"),
-                            appname, NULL, NULL);
+      layoutDialogAdapterEx(_(T__U2F_REGISTER), NULL, NULL,
+                            &bmp_bottom_right_arrow, NULL, NULL,
+                            _(I__APP_NAME_COLON), appname, NULL, NULL);
       next_page = true;
     }
     last_req_state = REG;
@@ -915,9 +915,9 @@ void u2f_authenticate(const APDU *a) {
     buttonUpdate();  // Clear button state
     const char *appname = NULL;
     getReadableAppId(req->appId, &appname);
-    layoutDialogAdapterEx(_("U2F Authenticate"), NULL, NULL,
-                          &bmp_bottom_right_arrow, NULL, NULL, _("App Name:"),
-                          appname, NULL, NULL);
+    layoutDialogAdapterEx(_(T__U2F_AUTHENTICATE), NULL, NULL,
+                          &bmp_bottom_right_arrow, NULL, NULL,
+                          _(I__APP_NAME_COLON), appname, NULL, NULL);
     next_page = true;
     last_req_state = AUTH;
   }

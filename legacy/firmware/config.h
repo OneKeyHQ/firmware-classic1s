@@ -20,6 +20,10 @@
 #ifndef __CONFIG_H__
 #define __CONFIG_H__
 
+#if EMULATOR
+#include "config_emu.h"
+#else
+
 #include "bip32.h"
 #include "messages-bitcoin.pb.h"
 #include "messages-common.pb.h"
@@ -188,8 +192,8 @@ extern char config_uuid_str[2 * UUID_SIZE + 1];
 #if DEBUG_LINK
 bool config_setDebugPin(const char *pin);
 bool config_getPin(char *dest, uint16_t dest_size);
-bool config_setDebugMnemonicBytes(const char *mnemonic);
 bool config_getMnemonicBytes(uint8_t *dest, uint16_t *real_size);
 #endif
 
+#endif  // EMULATOR
 #endif

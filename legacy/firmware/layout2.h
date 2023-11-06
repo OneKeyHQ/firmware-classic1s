@@ -200,7 +200,7 @@ void layoutItemsSelectAdapterEx(
     const char *current, const char *name2, const char *param,
     const char *previous, const char *pre_previous,
     const char *pre_pre_previous, const char *next, const char *next_next,
-    const char *next_next_next, bool show_index);
+    const char *next_next_next, bool show_index, bool show_scroll_bar);
 void layoutItemsSelectAdapterWords(
     const BITMAP *bmp_up, const BITMAP *bmp_down, const BITMAP *bmp_no,
     const BITMAP *bmp_yes, const char *btnNo, const char *btnYes,
@@ -236,7 +236,7 @@ bool layoutInputDirection(int index);
 #define layoutMenuItems(btn_yes, bmp_yes, index, count, title, current,        \
                         previous, next)                                        \
   layoutItemsSelectAdapter(&bmp_btn_up, &bmp_btn_down, &bmp_btn_back, bmp_yes, \
-                           _("Back"), btn_yes, index, count, title, NULL,      \
+                           "Back", btn_yes, index, count, title, NULL,         \
                            current, previous, next)
 
 #define layoutMenuItemsEx(btn_yes, bmp_yes, index, count, title, desc,       \
@@ -244,9 +244,9 @@ bool layoutInputDirection(int index);
                           pre_pre_previous, next, next_next, next_next_next) \
   layoutItemsSelectAdapterEx(                                                \
       &bmp_bottom_middle_arrow_up, &bmp_bottom_middle_arrow_down,            \
-      &bmp_bottom_left_arrow, bmp_yes, _("Back"), btn_yes, index, count,     \
-      title, desc, current, name2, param, previous, pre_previous,            \
-      pre_pre_previous, next, next_next, next_next_next, true)
+      &bmp_bottom_left_arrow, bmp_yes, "Back", btn_yes, index, count, title, \
+      desc, current, name2, param, previous, pre_previous, pre_pre_previous, \
+      next, next_next, next_next_next, true, true)
 
 uint8_t layoutStatusLogoEx(bool need_fresh, bool force_fresh);
 

@@ -46,8 +46,11 @@ void sui_sign_tx(const SuiSignTx *msg, const HDNode *node, SuiSignedTx *resp) {
     return;
   }
 
-  hdnode_sign(node, msg->raw_tx.bytes, msg->raw_tx.size, 0,
-              resp->signature.bytes, NULL, NULL);
+#if EMULATOR
+  ed25519_sign(digest, 32, node->private_key, resp->signature.bytes);
+#else
+  hdnode_sign(node, digest, 32, 0, resp->signature.bytes, NULL, NULL);
+#endif
   memcpy(resp->public_key.bytes, node->public_key + 1, 32);
   resp->signature.size = 64;
   resp->public_key.size = 32;
@@ -77,8 +80,11 @@ void sui_message_sign(const SuiSignMessage *msg, const HDNode *node,
   blake2b_Update(&ctx, num_bytes, num_bytes_len);
   blake2b_Update(&ctx, msg->message.bytes, msg->message.size);
   blake2b_Final(&ctx, digest, 32);
-
+#if EMULATOR
   ed25519_sign(digest, 32, node->private_key, resp->signature.bytes);
+#else
+  hdnode_sign(node, digest, 32, 0, resp->signature.bytes, NULL, NULL);
+#endif
   resp->signature.size = 64;
   msg_write(MessageType_MessageType_SuiMessageSignature, resp);
 }

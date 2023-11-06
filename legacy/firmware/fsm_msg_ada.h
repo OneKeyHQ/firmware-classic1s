@@ -26,14 +26,18 @@ void fsm_msgCardanoGetPublicKey(CardanoGetPublicKey *msg) {
 
   if (msg->derivation_type != CardanoDerivationType_ICARUS) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Only support ICARUS scheme"));
+                    "Only support ICARUS scheme");
     return;
   }
   HDNode node = {0};
   uint32_t fingerprint;
+#if EMULATOR
+  fsm_getCardanoIcaruNode(&node, msg->address_n, msg->address_n_count,
+                          &fingerprint);
+#else
   deriveCardanoIcaruNode(&node, msg->address_n, msg->address_n_count,
                          &fingerprint);
-
+#endif
   resp->node.depth = node.depth;
   resp->node.fingerprint = fingerprint;
   resp->node.child_num = node.child_num;
@@ -61,25 +65,25 @@ void fsm_msgCardanoGetAddress(CardanoGetAddress *msg) {
 
   if (msg->derivation_type != CardanoDerivationType_ICARUS) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Only support ICARUS scheme"));
+                    "Only support ICARUS scheme");
     return;
   }
 
   if (!ada_get_address(msg, resp->address)) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Deriving address failed"));
+                    "Deriving address failed");
     layoutHome();
     return;
   }
   if (msg->has_show_display && msg->show_display) {
     char desc[20] = {0};
     char addr_type[32] = {0};
-    snprintf(desc, 20, "Cardano %s", _("Address:"));
+    snprintf(desc, 20, "Cardano %s", _(I__ADDRESS_COLON));
     if (msg->address_parameters.address_type == CardanoAddressType_BASE) {
-      snprintf(addr_type, 32, "Base %s", _("Address:"));
+      snprintf(addr_type, 32, "Base %s", _(I__ADDRESS_COLON));
     } else if (msg->address_parameters.address_type ==
                CardanoAddressType_REWARD) {
-      snprintf(addr_type, 32, "Reward %s", _("Address:"));
+      snprintf(addr_type, 32, "Reward %s", _(I__ADDRESS_COLON));
     }
     if (msg->address_parameters.address_n_count > 0) {
       if (!fsm_layoutAddress(resp->address, addr_type, desc, false, 0,
@@ -142,7 +146,7 @@ void fsm_msgCardanoToken(CardanoToken *msg) {
 void fsm_msgCardanoTxCertificate(CardanoTxCertificate *msg) {
   if (!txHashBuilder_addCertificate(msg)) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Invalid Certificate request"));
+                    "Invalid Certificate request");
     layoutHome();
     return;
   }
@@ -152,7 +156,7 @@ void fsm_msgCardanoTxCertificate(CardanoTxCertificate *msg) {
 void fsm_msgCardanoTxWithdrawal(CardanoTxWithdrawal *msg) {
   if (!txHashBuilder_addWithdrawal(msg)) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Invalid Withdrawal request"));
+                    "Invalid Withdrawal request");
     layoutHome();
     return;
   }
@@ -162,7 +166,7 @@ void fsm_msgCardanoTxWithdrawal(CardanoTxWithdrawal *msg) {
 void fsm_msgCardanoTxAuxiliaryData(CardanoTxAuxiliaryData *msg) {
   if (!txHashBuilder_addAuxiliaryData(msg)) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Invalid AuxiliaryData request"));
+                    "Invalid AuxiliaryData request");
     layoutHome();
     return;
   }
@@ -209,7 +213,7 @@ void fsm_msgCardanoSignMessage(CardanoSignMessage *msg) {
   CHECK_PIN
 
   if ((msg->network_id != 0) && (msg->network_id != 1)) {
-    fsm_sendFailure(FailureType_Failure_ProcessError, _("Invalid Networ ID"));
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Invalid Networ ID");
     return;
   }
   HDNode node = {0};

@@ -56,15 +56,20 @@ OBJS += startup.o
 endif
 
 OBJS += font.o
+OBJS += font_ex.o
 OBJS += chinese.o
 OBJS += gettext.o
-OBJS += language.o
+OBJS += i18n/i18n.o
 OBJS += menu_para.o
 OBJS += menu_core.o
 OBJS += menu_list.o
 
 OBJS += messages.o
+ifeq ($(EMULATOR),1)
+OBJS += config_emu.o
+else
 OBJS += config.o
+endif
 OBJS += trezor.o
 OBJS += pinmatrix.o
 OBJS += fsm.o
@@ -199,8 +204,10 @@ OBJS += ../vendor/trezor-crypto/schnorr_bch.o
 
 OBJS += ../vendor/QR-Code-generator/c/qrcodegen.o
 
-#OBJS += ../vendor/trezor-storage/storage.o
-#OBJS += ../vendor/trezor-storage/norcow.o
+ifeq ($(EMULATOR),1)
+OBJS += ../vendor/trezor-storage/storage.o
+OBJS += ../vendor/trezor-storage/norcow.o
+endif
 
 OBJS += ../vendor/nanopb/pb_common.o
 OBJS += ../vendor/nanopb/pb_decode.o

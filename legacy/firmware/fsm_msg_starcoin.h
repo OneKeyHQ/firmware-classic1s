@@ -36,7 +36,7 @@ void fsm_msgStarcoinGetAddress(const StarcoinGetAddress *msg) {
 
   if (msg->has_show_display && msg->show_display) {
     char desc[20] = {0};
-    snprintf(desc, 20, "%s %s", "Starcoin", _("Address:"));
+    snprintf(desc, 20, "%s %s", "Starcoin", _(I__ADDRESS_COLON));
     if (!fsm_layoutAddress(resp->address, NULL, desc, false, 0, msg->address_n,
                            msg->address_n_count, true, NULL, 0, 0, NULL)) {
       return;
@@ -89,7 +89,7 @@ void fsm_msgStarcoinSignTx(const StarcoinSignTx *msg) {
 
   hdnode_fill_public_key(node);
   if (!starcoin_sign_tx(msg, node, resp)) {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Signing failed"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Signing failed");
     layoutHome();
     return;
   }
@@ -138,9 +138,9 @@ void fsm_msgStarcoinVerifyMessage(const StarcoinVerifyMessage *msg) {
       return;
     }
 
-    fsm_sendSuccess(_("Message verified"));
+    fsm_sendSuccess("Message verified");
   } else {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Invalid signature"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Invalid signature");
   }
 
   layoutHome();

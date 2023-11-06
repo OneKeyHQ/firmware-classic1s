@@ -109,18 +109,45 @@ static uint32_t unlock_path = 0;
   _Static_assert(sizeof(msg_resp) >= sizeof(TYPE), #TYPE " is too large"); \
   memzero(resp, sizeof(TYPE));
 
+#if EMULATOR
+#define CHECK_INITIALIZED                                      \
+  if (config_getMnemonicsImported()) {                         \
+    fsm_sendFailure(FailureType_Failure_ProcessError,          \
+                    "device is already used for backup");      \
+    return;                                                    \
+  }                                                            \
+  if (!config_isInitialized()) {                               \
+    fsm_sendFailure(FailureType_Failure_NotInitialized, NULL); \
+    return;                                                    \
+  }
+#else
 #define CHECK_INITIALIZED                                      \
   if (!config_isInitialized()) {                               \
     fsm_sendFailure(FailureType_Failure_NotInitialized, NULL); \
     return;                                                    \
   }
+#endif
 
-#define CHECK_NOT_INITIALIZED                                             \
-  if (config_isInitialized()) {                                           \
-    fsm_sendFailure(FailureType_Failure_UnexpectedMessage,                \
-                    _("Device is already initialized. Use Wipe first.")); \
-    return;                                                               \
+#if EMULATOR
+#define CHECK_NOT_INITIALIZED                                          \
+  if (config_getMnemonicsImported()) {                                 \
+    fsm_sendFailure(FailureType_Failure_ProcessError,                  \
+                    "device is already used for backup");              \
+    return;                                                            \
+  }                                                                    \
+  if (config_isInitialized()) {                                        \
+    fsm_sendFailure(FailureType_Failure_UnexpectedMessage,             \
+                    "Device is already initialized. Use Wipe first."); \
+    return;                                                            \
   }
+#else
+#define CHECK_NOT_INITIALIZED                                          \
+  if (config_isInitialized()) {                                        \
+    fsm_sendFailure(FailureType_Failure_UnexpectedMessage,             \
+                    "Device is already initialized. Use Wipe first."); \
+    return;                                                            \
+  }
+#endif
 
 #define CHECK_PIN          \
   if (!protectPin(true)) { \
@@ -134,11 +161,11 @@ static uint32_t unlock_path = 0;
     return;                 \
   }
 
-#define CHECK_UNLOCKED                                              \
-  if (!session_isUnlocked()) {                                      \
-    fsm_sendFailure(FailureType_Failure_ProcessError, _("Locked")); \
-    layoutHome();                                                   \
-    return;                                                         \
+#define CHECK_UNLOCKED                                           \
+  if (!session_isUnlocked()) {                                   \
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Locked"); \
+    layoutHome();                                                \
+    return;                                                      \
   }
 
 #define CHECK_PARAM(cond, errormsg)                             \
@@ -178,52 +205,52 @@ void fsm_sendFailure(FailureType code, const char *text)
   if (!text) {
     switch (code) {
       case FailureType_Failure_UnexpectedMessage:
-        text = _("Unexpected message");
+        text = "Unexpected message";
         break;
       case FailureType_Failure_ButtonExpected:
-        text = _("Button expected");
+        text = "Button expected";
         break;
       case FailureType_Failure_DataError:
-        text = _("Data error");
+        text = "Data error";
         break;
       case FailureType_Failure_ActionCancelled:
-        text = _("Action cancelled by user");
+        text = "Action cancelled by user";
         break;
       case FailureType_Failure_PinExpected:
-        text = _("PIN expected");
+        text = "PIN expected";
         break;
       case FailureType_Failure_PinCancelled:
-        text = _("PIN cancelled");
+        text = "PIN cancelled";
         break;
       case FailureType_Failure_PinInvalid:
-        text = _("PIN invalid");
+        text = "PIN invalid";
         break;
       case FailureType_Failure_InvalidSignature:
-        text = _("Invalid signature");
+        text = "Invalid signature";
         break;
       case FailureType_Failure_ProcessError:
-        text = _("Process error");
+        text = "Process error";
         break;
       case FailureType_Failure_NotEnoughFunds:
-        text = _("Not enough funds");
+        text = "Not enough funds";
         break;
       case FailureType_Failure_NotInitialized:
-        text = _("Device not initialized");
+        text = "Device not initialized";
         break;
       case FailureType_Failure_PinMismatch:
-        text = _("PIN mismatch");
+        text = "PIN mismatch";
         break;
       case FailureType_Failure_WipeCodeMismatch:
-        text = _("Wipe code mismatch");
+        text = "Wipe code mismatch";
         break;
       case FailureType_Failure_InvalidSession:
-        text = _("Invalid session");
+        text = "Invalid session";
         break;
       case FailureType_Failure_BatteryLow:
-        text = _("Battery low");
+        text = "Battery low";
         break;
       case FailureType_Failure_FirmwareError:
-        text = _("Firmware error");
+        text = "Firmware error";
         break;
     }
   }
@@ -250,7 +277,7 @@ static const CoinInfo *fsm_getCoin(bool has_name, const char *name) {
     coin = coinByName("Bitcoin");
   }
   if (!coin) {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Invalid coin name"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Invalid coin name");
     layoutHome();
     return 0;
   }
@@ -263,27 +290,51 @@ HDNode *fsm_getDerivedNode(const char *curve, const uint32_t *address_n,
   if (fingerprint) {
     *fingerprint = 0;
   }
-
+#if EMULATOR
+  if (!config_getRootNode(&node, curve)) {
+    layoutHome();
+    return 0;
+  }
+  if (!address_n || address_n_count == 0) {
+    return &node;
+  }
+  if (hdnode_private_ckd_cached(&node, address_n, address_n_count,
+                                fingerprint) == 0) {
+    fsm_sendFailure(FailureType_Failure_ProcessError,
+                    "Failed to derive private key");
+    layoutHome();
+    return 0;
+  }
+#else
   if (!config_genSessionSeed()) {
     layoutHome();
     return 0;
   }
   if (!se_derive_keys(&node, curve, address_n, address_n_count, fingerprint)) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Failed to derive private key"));
+                    "Failed to derive private key");
     layoutHome();
     return 0;
   }
+#endif
   return &node;
 }
 
 static bool fsm_getSlip21Key(const char *path[], size_t path_count,
                              uint8_t key[32]) {
-  // const uint8_t *seed = config_getSeed();
-  // if (seed == NULL) {
-  //   return false;
-  // }
-
+#if EMULATOR
+  const uint8_t *seed = config_getSeed();
+  if (seed == NULL) {
+    return false;
+  }
+  static CONFIDENTIAL Slip21Node node;
+  slip21_from_seed(seed, 64, &node);
+  for (size_t i = 0; i < path_count; ++i) {
+    slip21_derive_path(&node, (uint8_t *)path[i], strlen(path[i]));
+  }
+  memcpy(key, slip21_key(&node), 32);
+  memzero(&node, sizeof(node));
+#else
   static CONFIDENTIAL Slip21Node node;
   // slip21_from_seed(NULL, 0, &node);
   se_slip21_node(node.data);
@@ -292,6 +343,7 @@ static bool fsm_getSlip21Key(const char *path[], size_t path_count,
   }
   memcpy(key, slip21_key(&node), 32);
   memzero(&node, sizeof(node));
+#endif
 
   return true;
 }
@@ -447,8 +499,8 @@ static bool fsm_layoutPaginated(const char *description, const uint8_t *msg,
     msg += show_len;
     len -= show_len;
 
-    const char *label = len > 0 ? _("Next") : _("Confirm");
-    layoutDialogSwipeEx(&bmp_icon_question, _("Cancel"), label, description,
+    const char *label = len > 0 ? "Next" : "Confirm";
+    layoutDialogSwipeEx(&bmp_icon_question, "Cancel", label, description,
                         str[0], str[1], str[2], str[3], NULL, NULL, FONT_FIXED);
     if (!protectButton(ButtonRequestType_ButtonRequest_Other, false)) {
       return false;
@@ -492,16 +544,16 @@ bool fsm_layoutVerifyHash(const char *chain_name, const char *signer,
 
 bool fsm_layoutCommitmentData(const uint8_t *msg, uint32_t len) {
   if (is_valid_ascii(msg, len)) {
-    return fsm_layoutPaginated(_("Commitment data"), msg, len, true);
+    return fsm_layoutPaginated("Commitment data", msg, len, true);
   } else {
-    return fsm_layoutPaginated(_("Binary commitment data"), msg, len, false);
+    return fsm_layoutPaginated("Binary commitment data", msg, len, false);
   }
 }
 
 void fsm_msgRebootToBootloader(void) {
-  layoutDialogSwipe(&bmp_icon_question, _("Cancel"), _("Confirm"), NULL,
-                    _("Do you want to"), _("restart device in"),
-                    _("bootloader mode?"), NULL, NULL, NULL);
+  layoutDialogSwipe(&bmp_icon_question, __("Cancel"), __("Confirm"), NULL,
+                    __("Do you want to"), __("restart device in"),
+                    __("bootloader mode?"), NULL, NULL, NULL);
   if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
     fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
     layoutHome();
@@ -509,7 +561,7 @@ void fsm_msgRebootToBootloader(void) {
   }
   oledClear();
   oledRefresh();
-  fsm_sendSuccess(_("Rebooting"));
+  fsm_sendSuccess("Rebooting");
   // make sure the outgoing message is sent
   usbFlush(500);
 #if !EMULATOR
@@ -543,9 +595,9 @@ void fsm_postMsgCleanup(MessageType message_type) {
 bool fsm_layoutPathWarning(uint32_t address_n_count,
                            const uint32_t *address_n) {
   char desc[128] = {0};
-  strcat(desc, address_n_str(address_n, address_n_count, false));
-  strcat(desc, _(" is a non-standard path. Are you sure to use this path?"));
-  layoutDialogAdapterEx(_("Check Path"), &bmp_bottom_left_close, NULL,
+  strcat(desc, _(C__STR_IS_A_NON_STANDARD_PATH_USE_THIS_PATH_QUES));
+  str_replace(desc, "{}", address_n_str(address_n, address_n_count, false));
+  layoutDialogAdapterEx(_(T__CHECK_PATH), &bmp_bottom_left_close, NULL,
                         &bmp_bottom_right_confirm, NULL, desc, NULL, NULL, NULL,
                         NULL);
 

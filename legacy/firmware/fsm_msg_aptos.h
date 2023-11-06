@@ -36,7 +36,7 @@ void fsm_msgAptosGetAddress(const AptosGetAddress *msg) {
   if (msg->has_show_display && msg->show_display) {
     char desc[16] = {0};
     strcat(desc, "Aptos");
-    strcat(desc, _("Address:"));
+    strcat(desc, _(I__ADDRESS_COLON));
     if (!fsm_layoutAddress(resp->address, NULL, desc, false, 0, msg->address_n,
                            msg->address_n_count, true, NULL, 0, 0, NULL)) {
       return;

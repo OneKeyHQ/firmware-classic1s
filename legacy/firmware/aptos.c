@@ -49,8 +49,13 @@ void aptos_sign_tx(const AptosSignTx *msg, const HDNode *node,
   uint8_t buf[sizeof(AptosSignTx_raw_tx_t) + 32] = {0};
   memcpy(buf, APTOS_RAW_TX_PREFIX, 32);
   memcpy(buf + 32, msg->raw_tx.bytes, msg->raw_tx.size);
+#if EMULATOR
+  ed25519_sign(buf, msg->raw_tx.size + 32, node->private_key,
+               resp->signature.bytes);
+#else
   hdnode_sign(node, buf, msg->raw_tx.size + 32, 0, resp->signature.bytes, NULL,
               NULL);
+#endif
   memcpy(resp->public_key.bytes, node->public_key + 1, 32);
   resp->signature.size = 64;
   resp->public_key.size = 32;
@@ -98,8 +103,13 @@ void aptos_sign_message(const AptosSignMessage *msg, const HDNode *node,
     layoutHome();
     return;
   }
+#if EMULATOR
+  ed25519_sign((const uint8_t *)full_message, strlen(full_message),
+               node->private_key, resp->signature.bytes);
+#else
   hdnode_sign(node, (const uint8_t *)full_message, strlen(full_message), 0,
               resp->signature.bytes, NULL, NULL);
+#endif
   resp->signature.size = 64;
   msg_write(MessageType_MessageType_AptosMessageSignature, resp);
 }

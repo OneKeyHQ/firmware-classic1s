@@ -91,7 +91,6 @@ def update_hashes_in_header(data):
     data = bytearray(data)
     o = 0
     for h in prepare_hashes(data[FWHEADER_SIZE:]):
-        print("hash: ", h.hex())
         data[0x20 + o : 0x20 + o + 32] = h
         o += 32
     return bytes(data)

@@ -1,6 +1,6 @@
 #ifndef __SE_CHIP_H__
 #define __SE_CHIP_H__
-
+#if !EMULATOR
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -124,5 +124,32 @@ uint16_t se_lasterror(void);
 
 bool se_isFactoryMode(void);
 bool se_disableFactoryMode(void);
-
+#else
+#define se_transmit(...) 0
+#define se_get_sn(...) false
+#define se_get_version(...) "1.1.0.0"
+#define se_backup(...) false
+#define se_restore(...) false
+#define se_verify(...) false
+#define se_device_init(...) false
+#define se_st_seed_en(...) false
+#define se_st_seed_de(...) false
+#define se_set_value(...) false
+#define st_backup_entory_to_se(...) false
+#define st_restore_entory_from_se(...) false
+#define se_reset_storage(...)
+#define se_isInitialized(...) false
+#define se_hasPin(...) false
+#define se_setPin(...) false
+#define se_verifyPin(...) false
+#define se_changePin(...) false
+#define se_pinFailedCounter(...) 0
+#define se_setSeedStrength(...) false
+#define se_getSeedStrength(...) false
+#define se_getNeedsBackup(...) false
+#define se_setNeedsBackup(...) false
+#define se_export_seed(...) false
+#define se_importSeed(...) false
+#define se_isFactoryMode(...) false
+#endif
 #endif

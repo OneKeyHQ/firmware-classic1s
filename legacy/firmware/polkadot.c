@@ -67,7 +67,7 @@ refresh_menu:
   polkadot_tx_getItem(index, token_key, sizeof(token_key), token_val,
                       sizeof(token_val), 0, &pageCount);
   memset(desc, 0, 64);
-  strcat(desc, _(token_key));
+  strcat(desc, token_key);
   strcat(desc, ":");
   if (index == 1) {
     layoutHeader(tx_msg[0]);
@@ -76,7 +76,7 @@ refresh_menu:
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
   } else if (max_index == index) {
-    layoutHeader(_("Sign Transaction"));
+    layoutHeader(_(T__SIGN_TRANSACTION));
     oledDrawStringAdapter(0, y, tx_msg[1], FONT_STANDARD);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_confirm);
@@ -170,9 +170,13 @@ bool polkadot_sign_tx(const PolkadotSignTx *msg, const HDNode *node,
       return false;
     }
   }
-
+#if EMULATOR
+  ed25519_sign(msg->raw_tx.bytes, msg->raw_tx.size, node->private_key,
+               resp->signature.bytes);
+#else
   hdnode_sign(node, msg->raw_tx.bytes, msg->raw_tx.size, 0,
               resp->signature.bytes, NULL, NULL);
+#endif
   resp->signature.size = 64;
 
   return true;

@@ -27,7 +27,7 @@ void fsm_msgNearGetAddress(NearGetAddress *msg) {
   // m/44h/397h/0h
   if ((msg->address_n_count != 3) || (msg->address_n[0] != 0x8000002c) ||
       (msg->address_n[1] != 0x8000018d)) {
-    fsm_sendFailure(FailureType_Failure_ProcessError, _("Invalid Path"));
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Invalid Path");
     layoutHome();
     return;
   }
@@ -44,7 +44,7 @@ void fsm_msgNearGetAddress(NearGetAddress *msg) {
   if (msg->has_show_display && msg->show_display) {
     char desc[16] = {0};
     strcat(desc, "Near");
-    strcat(desc, _("Address:"));
+    strcat(desc, _(I__ADDRESS_COLON));
     if (!fsm_layoutAddress(resp->address, NULL, desc, false, 0, msg->address_n,
                            msg->address_n_count, true, NULL, 0, 0, NULL)) {
       return;
@@ -65,7 +65,7 @@ void fsm_msgNearSignTx(const NearSignTx *msg) {
   // m/44h/397h/0h
   if ((msg->address_n_count != 3) || (msg->address_n[0] != 0x8000002c) ||
       (msg->address_n[1] != 0x8000018d)) {
-    fsm_sendFailure(FailureType_Failure_ProcessError, _("Invalid Path"));
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Invalid Path");
     layoutHome();
     return;
   }
@@ -76,7 +76,7 @@ void fsm_msgNearSignTx(const NearSignTx *msg) {
 
   hdnode_fill_public_key(node);
   if (!near_sign_tx(msg, node, resp)) {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Signing failed"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Signing failed");
     layoutHome();
     return;
   }
