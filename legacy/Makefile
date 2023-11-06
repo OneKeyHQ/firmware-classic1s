@@ -5,12 +5,14 @@ endif
 
 OBJS += buttons.o
 OBJS += common.o
-#OBJS += flash.o
+ifeq ($(EMULATOR),1)
+OBJS += flash.o
+OBJS += memory.o
+endif
 OBJS += fw_signatures.o
 OBJS += gen/bitmaps.o
 OBJS += gen/fonts.o
 OBJS += layout.o
-#OBJS += memory.o
 OBJS += oled.o
 OBJS += random_delays.o
 OBJS += rng.o

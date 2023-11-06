@@ -24,7 +24,7 @@ static bool fsm_stellarCheckPath(uint32_t address_n_count,
   }
 
   if (config_getSafetyCheckLevel() == SafetyCheckLevel_Strict) {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Forbidden key path"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Forbidden key path");
     return false;
   }
 
@@ -46,7 +46,7 @@ void fsm_msgStellarGetAddress(const StellarGetAddress *msg) {
   const HDNode *node = stellar_deriveNode(msg->address_n, msg->address_n_count);
   if (!node) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Failed to derive private key"));
+                    "Failed to derive private key");
     layoutHome();
     return;
   }
@@ -55,7 +55,7 @@ void fsm_msgStellarGetAddress(const StellarGetAddress *msg) {
                              sizeof(resp->address));
 
   if (msg->has_show_display && msg->show_display) {
-    if (!fsm_layoutAddress(resp->address, NULL, _("Public account ID"), false,
+    if (!fsm_layoutAddress(resp->address, NULL, __("Public account ID"), false,
                            0, msg->address_n, msg->address_n_count, true, NULL,
                            0, 0, NULL)) {
       return;
@@ -78,7 +78,7 @@ void fsm_msgStellarSignTx(const StellarSignTx *msg) {
 
   if (!stellar_signingInit(msg)) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Failed to derive private key"));
+                    "Failed to derive private key");
     layoutHome();
     return;
   }

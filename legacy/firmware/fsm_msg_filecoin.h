@@ -40,7 +40,7 @@ void fsm_msgFilecoinGetAddress(const FilecoinGetAddress *msg) {
   if (!get_filecoin_addr(pk, resp)) return;
   if (msg->has_show_display && msg->show_display) {
     char desc[20] = {0};
-    snprintf(desc, 20, "%s %s", "Filecoin", _("Address:"));
+    snprintf(desc, 20, "%s %s", "Filecoin", _(I__ADDRESS_COLON));
     if (!fsm_layoutAddress(resp->address, NULL, desc, false, 0, msg->address_n,
                            msg->address_n_count, true, NULL, 0, 0, NULL)) {
       return;
@@ -67,7 +67,7 @@ void fsm_msgFilecoinSignTx(const FilecoinSignTx *msg) {
     filecoin_testnet = false;
   }
   if (!filecoin_sign_tx(msg, node, resp)) {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Signing failed"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Signing failed");
     layoutHome();
     return;
   }

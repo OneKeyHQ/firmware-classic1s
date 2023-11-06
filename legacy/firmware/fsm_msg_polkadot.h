@@ -39,7 +39,7 @@ void fsm_msgPolkadotGetAddress(PolkadotGetAddress *msg) {
     strcat(desc, msg->network);
     desc[0] = desc[0] - ('a' - 'A');
     strcat(desc, " ");
-    strcat(desc, _("Address:"));
+    strcat(desc, _(I__ADDRESS_COLON));
     if (!fsm_layoutAddress(resp->address, NULL, desc, false, 0, msg->address_n,
                            msg->address_n_count, true, NULL, 0, 0, NULL)) {
       return;
@@ -63,7 +63,7 @@ void fsm_msgPolkadotSignTx(const PolkadotSignTx *msg) {
   hdnode_fill_public_key(node);
 
   if (!polkadot_sign_tx(msg, node, resp)) {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Signing failed"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Signing failed");
     layoutHome();
     return;
   }

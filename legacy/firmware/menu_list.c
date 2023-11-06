@@ -29,11 +29,10 @@ void menu_erase_device(int index) {
   if (!protectPinOnDevice(false, true)) {
     return;
   }
-  layoutDialogAdapterEx(
-      _("Erase Device"), &bmp_bottom_left_close, NULL,
-      &bmp_bottom_right_confirm, NULL,
-      _("Are you sure to reset this \ndevice? This action can not be undo!"),
-      NULL, NULL, NULL, NULL);
+  layoutDialogCenterAdapterV2(
+      _(T__ERASE_DEVICE), NULL, NULL, &bmp_bottom_right_confirm, NULL, NULL,
+      NULL, NULL, NULL, NULL,
+      _(C__ARE_YOU_SURE_TO_RESET_THIS_DEVICE_THIS_ACTION_CANNOT_BE_UNDO));
   key = protectWaitKey(0, 1);
   if (key != KEY_CONFIRM) {
     return;
@@ -44,15 +43,9 @@ void menu_erase_device(int index) {
   if (ui_language_bak) {
     ui_language = ui_language_bak;
   }
-  if (ui_language == 1) {
-    layoutDialogSwipeCenterAdapter(
-        &bmp_icon_ok, NULL, NULL, &bmp_bottom_right_confirm, NULL, NULL, NULL,
-        NULL, NULL, NULL, _("The device is reset,\nrestart now!"), NULL);
-  } else {
-    layoutDialogSwipeCenterAdapter(
-        &bmp_icon_ok, NULL, NULL, &bmp_bottom_right_confirm, NULL, NULL, NULL,
-        NULL, NULL, "Device reset complete,", "restart now!", NULL);
-  }
+  layoutDialogCenterAdapterV2(
+      NULL, &bmp_icon_ok, NULL, &bmp_bottom_right_confirm, NULL, NULL, NULL,
+      NULL, NULL, NULL, _(C__DEVICE_RESET_COMPLETE_RESTART_NOW_EXCLAM));
   while (1) {
     key = protectWaitKey(0, 1);
     if (key == KEY_CONFIRM) {
@@ -68,10 +61,10 @@ void menu_changePin(int index) {
   (void)index;
   uint8_t key = KEY_NULL;
 
-  layoutDialogAdapterEx(_("Change PIN"), &bmp_bottom_left_arrow, NULL,
-                        &bmp_bottom_right_arrow, NULL,
-                        _("Before start, verify your \ncurrent PIN."), NULL,
-                        NULL, NULL, NULL);
+  layoutDialogCenterAdapterV2(_(M__CHANGE_PIN), NULL, &bmp_bottom_left_arrow,
+                              &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL,
+                              NULL, NULL,
+                              _(C__BEFORE_START_VERIFY_YOUR_CURRENT_PIN));
   key = protectWaitKey(0, 1);
   if (key != KEY_CONFIRM) {
     return;
@@ -83,19 +76,19 @@ void menu_set_passphrase(int index) {
   (void)index;
 
   uint8_t key = KEY_NULL;
-
+  char title[32] = {0};
   if (index) {
-    layoutDialogAdapterEx(
-        _("Disable Passphrase"), &bmp_bottom_left_close, NULL,
-        &bmp_bottom_right_confirm, NULL, NULL,
-        _("Do you really want to \ndisable passphrase protection?"), NULL, NULL,
-        NULL);
+    snprintf(title, 32, "%s %s", _(O__ENABLE), _(M__PASSPHRASE));
+    layoutDialogCenterAdapterV2(
+        title, NULL, &bmp_bottom_left_close, &bmp_bottom_right_confirm, NULL,
+        NULL, NULL, NULL, NULL, NULL,
+        _(C__DO_YOU_WANT_TO_DISABLE_PASSPHRASE_ENCRYPTION));
   } else {
-    layoutDialogAdapterEx(
-        _("Enable Passphrase"), &bmp_bottom_left_close, NULL,
-        &bmp_bottom_right_confirm, NULL, NULL,
-        _("Do you really want to \nenable passphrase protection?"), NULL, NULL,
-        NULL);
+    snprintf(title, 32, "%s %s", _(O__DISABLE), _(M__PASSPHRASE));
+    layoutDialogCenterAdapterV2(
+        title, NULL, &bmp_bottom_left_close, &bmp_bottom_right_confirm, NULL,
+        NULL, NULL, NULL, NULL, NULL,
+        _(C__DO_YOU_WANT_TO_ENABLE_PASSPHRASE_ENCRYPTION));
   }
 
   key = protectWaitKey(0, 1);
@@ -109,11 +102,10 @@ void menu_set_passphrase(int index) {
 void menu_set_usb_lock(int index) {
   uint8_t key = KEY_NULL;
   if (index) {
-    layoutDialogAdapterEx(
-        _("Disable USB Lock"), &bmp_bottom_left_arrow, NULL,
-        &bmp_bottom_right_arrow, NULL,
-        _("Device will remain unlocked\nwhen USB plug or unplug."), NULL, NULL,
-        NULL, NULL);
+    layoutDialogCenterAdapterV2(
+        _(T__DISABLE_USB_LOCK), NULL, &bmp_bottom_left_arrow,
+        &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL, NULL, NULL,
+        _(C__DEVICE_WILL_REMAIN_UNLOCKED_WHEN_USB_PLUG_OR_UNPLUG));
     key = protectWaitKey(0, 1);
     if (key != KEY_CONFIRM) {
       return;
@@ -121,16 +113,16 @@ void menu_set_usb_lock(int index) {
     layoutDialogCenterAdapterV2(NULL, &bmp_icon_warning, &bmp_bottom_left_close,
                                 &bmp_bottom_right_confirm, NULL, NULL, NULL,
                                 NULL, NULL, NULL,
-                                _("Do you want to disable\nUSB Lock?"));
+                                _(C__DO_YOU_WANT_TO_DISABLE_USB_LOCK_QUES));
     key = protectWaitKey(0, 1);
     if (key != KEY_CONFIRM) {
       return;
     }
   } else {
-    layoutDialogAdapterEx(_("Enable USB Lock"), &bmp_bottom_left_arrow, NULL,
-                          &bmp_bottom_right_arrow, NULL,
-                          _("Device will auto lock when\nUSB plug or unplug."),
-                          NULL, NULL, NULL, NULL);
+    layoutDialogCenterAdapterV2(
+        _(T__ENABLE_USB_LOCK), NULL, &bmp_bottom_left_arrow,
+        &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL, NULL, NULL,
+        _(C__DEVICE_WILL_AUTO_LOCK_WHEN_USB_PLUG_OR_UNPLUG));
     key = protectWaitKey(0, 1);
     if (key != KEY_CONFIRM) {
       return;
@@ -138,7 +130,7 @@ void menu_set_usb_lock(int index) {
     layoutDialogCenterAdapterV2(NULL, &bmp_icon_warning, &bmp_bottom_left_close,
                                 &bmp_bottom_right_confirm, NULL, NULL, NULL,
                                 NULL, NULL, NULL,
-                                _("Do you want to enable\nUSB Lock?"));
+                                _(C__DO_YOU_WANT_TO_ENABLE_USB_LOCK_QUES));
     key = protectWaitKey(0, 1);
     if (key != KEY_CONFIRM) {
       return;
@@ -157,12 +149,12 @@ void menu_set_input_direction(int index) {
     layoutDialogCenterAdapterV2(
         NULL, &bmp_icon_warning, &bmp_bottom_left_close,
         &bmp_bottom_right_confirm, NULL, NULL, NULL, NULL, NULL, NULL,
-        _("Do you want to reverse the\ninput direction?"));
+        _(C__DO_YOU_WANT_TO_REVERSE_THE_INPUT_DIRECTION_QUES));
   } else {
     layoutDialogCenterAdapterV2(
         NULL, &bmp_icon_warning, &bmp_bottom_left_close,
         &bmp_bottom_right_confirm, NULL, NULL, NULL, NULL, NULL, NULL,
-        _("Do you want to restore the\ninput direction to default?"));
+        _(C__DO_YOU_WANT_TO_RESTORE_THE_INPUT_DIRECTION_TO_DEFAULT_QUES));
   }
   key = protectWaitKey(0, 1);
   if (key != KEY_CONFIRM) {
@@ -187,7 +179,10 @@ static struct menu ble_set_menu = {
 
 static struct menu_item language_set_menu_items[] = {
     {"English", NULL, true, menu_para_set_language, NULL, true, NULL},
-    {"简体中文", NULL, true, menu_para_set_language, NULL, true, NULL}};
+    {"中文 (简体)", NULL, true, menu_para_set_language, NULL, true, NULL},
+    {"中文 (繁體)", NULL, true, menu_para_set_language, NULL, true, NULL},
+    {"日本語", NULL, true, menu_para_set_language, NULL, true, NULL},
+    {"Español", NULL, true, menu_para_set_language, NULL, true, NULL}};
 
 static struct menu language_set_menu = {
     .start = 0,
@@ -308,11 +303,10 @@ void menu_check_all_words(int index) {
   uint32_t word_count = 0;
 
 refresh_menu:
-  layoutDialogAdapterEx(_("Check Recovery Phrase"), &bmp_bottom_left_arrow,
-                        NULL, &bmp_bottom_right_arrow, NULL,
-                        _("Check your Recovery \nPhrase backup, make sure \nit "
-                          "is exactly the same as \nthe one stored on device."),
-                        NULL, NULL, NULL, NULL);
+  layoutDialogCenterAdapterV2(
+      _(T__CHECK_RECOVERY_PHRASE), NULL, &bmp_bottom_left_arrow,
+      &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL, NULL, NULL,
+      _(C__CHECK_YOUR_RECOVERY_PHRASE_BACKUP_MAKE_SURE_IT_IS_EXACTLY_THE_SAME_AS_THE_ONE_STORED_ON_DEVICE));
   key = protectWaitKey(0, 1);
   if (key != KEY_CONFIRM) {
     return;
@@ -324,18 +318,20 @@ refresh_menu:
     if (!protectSelectMnemonicNumber(&word_count, true)) {
       goto refresh_menu;
     }
-    if (word_count == 12)
-      strcat(desc, _("Enter your 12-words  \nRecovery Phrase in order."));
-    else if (word_count == 18)
-      strcat(desc, _("Enter your 18-words  \nRecovery Phrase in order."));
-    else if (word_count == 24)
-      strcat(desc, _("Enter your 24-words  \nRecovery Phrase in order."));
-    else
+    strcat(desc, _(C__ENTER_YOUR_STR_WORDS_RECOVERY_PHRASE_IN_ORDER));
+    if (word_count == 12) {
+      str_replace(desc, "{}", "12");
+    } else if (word_count == 18) {
+      str_replace(desc, "{}", "18");
+    } else if (word_count == 24) {
+      str_replace(desc, "{}", "24");
+    } else {
       return;
+    }
 
-    layoutDialogAdapterEx(_("Enter Recovery Phrase"), &bmp_bottom_left_arrow,
-                          NULL, &bmp_bottom_right_arrow, NULL, desc, NULL, NULL,
-                          NULL, NULL);
+    layoutDialogCenterAdapterV2(_(T__ENTER_RECOVERY_PHRASE), NULL,
+                                &bmp_bottom_left_arrow, &bmp_bottom_right_arrow,
+                                NULL, NULL, NULL, NULL, NULL, NULL, desc);
     key = protectWaitKey(0, 1);
     if (key != KEY_CONFIRM) {
       return;
@@ -372,11 +368,10 @@ void menu_set_trezor_compatibility(int index) {
   uint8_t key = KEY_NULL;
 
   if (0 == index) {
-    layoutDialogAdapterEx(_("Restore Trezor Compat"), &bmp_bottom_left_close,
-                          NULL, &bmp_bottom_right_confirm, NULL, NULL,
-                          _("It will take effect after \ndevice restart."),
-                          NULL, NULL, NULL);
-
+    layoutDialogCenterAdapterV2(
+        _(T__RESTORE_TREZOR_COMPAT), NULL, &bmp_bottom_left_close,
+        &bmp_bottom_right_confirm, NULL, NULL, NULL, NULL, NULL, NULL,
+        _(C__IT_WILL_TAKE_EFFECT_AFTER_DEVICE_RESTART));
     while (1) {
       key = protectWaitKey(0, 1);
       if (key == KEY_CONFIRM) {
@@ -388,12 +383,10 @@ void menu_set_trezor_compatibility(int index) {
     }
   } else {
   _layout_disable:
-    layoutDialogAdapterEx(
-        _("Disable Trezor Compat"), &bmp_bottom_left_close, NULL,
-        &bmp_bottom_right_arrow, NULL,
-        _("This will prevent you from \nusing third-party wallet \nclients and "
-          "websites which \nonly support Trezor."),
-        NULL, NULL, NULL, NULL);
+    layoutDialogCenterAdapterV2(
+        _(T__DISABLE_TREZOR_COMPAT), NULL, &bmp_bottom_left_close,
+        &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL, NULL, NULL,
+        _(C__THIS_WILL_PREVENT_YOU_FROM_USING_THIRD_PARTY_WALLET_CLIENT_AND_WEBSITES_WHICH_ONLY_SUPPORT_TREZOR));
     while (1) {
       key = protectWaitKey(0, 1);
       if (key == KEY_CONFIRM) {
@@ -404,10 +397,10 @@ void menu_set_trezor_compatibility(int index) {
       }
     }
 
-    layoutDialogAdapterEx(_("Disable Trezor Compat"), &bmp_bottom_left_arrow,
-                          NULL, &bmp_bottom_right_confirm, NULL, NULL,
-                          _("It will take effect after \ndevice restart."),
-                          NULL, NULL, NULL);
+    layoutDialogCenterAdapterV2(
+        _(T__DISABLE_TREZOR_COMPAT), NULL, &bmp_bottom_left_arrow,
+        &bmp_bottom_right_confirm, NULL, NULL, NULL, NULL, NULL, NULL,
+        _(C__IT_WILL_TAKE_EFFECT_AFTER_DEVICE_RESTART));
     while (1) {
       key = protectWaitKey(0, 1);
       if (key == KEY_CONFIRM) {
@@ -418,11 +411,10 @@ void menu_set_trezor_compatibility(int index) {
       }
     }
 
-    layoutDialogSwipeCenterAdapter(
-        &bmp_icon_warning, &bmp_bottom_left_close, NULL,
-        &bmp_bottom_right_confirm, NULL, NULL, NULL, NULL, NULL, _("WARNING"),
-        _("Do not change this setting"), _("if you not sure."));
-
+    layoutDialogCenterAdapterV2(
+        NULL, &bmp_icon_warning, &bmp_bottom_left_close,
+        &bmp_bottom_right_confirm, NULL, NULL, NULL, NULL, NULL, NULL,
+        _(C__WARNING_EXCLAM_DONOT_CHANGE_THIS_SETTING_IF_YOU_NOT_SURE));
     while (1) {
       key = protectWaitKey(0, 1);
       if (key == KEY_CONFIRM) {
@@ -523,39 +515,11 @@ void menu_autolock_added_custom(void) {
     char *value = format_time(ms);
     memset(autolock_custom_name, 0, 32);
     strcat(autolock_custom_name, value);
-    strcat(autolock_custom_name, _("(Custom)"));
+    strcat(autolock_custom_name, _(O_BRACKET_CUSTOM_BRACKET));
     autolock_set_menu_items_added_custom[5].name = autolock_custom_name;
   } else {
     autolock_set_menu.counts = COUNT_OF(autolock_set_menu_items);
     autolock_set_menu.items = autolock_set_menu_items;
-  }
-}
-
-void menu_language_init(void) {
-  uint8_t key = KEY_NULL;
-  int index = 0;
-refresh_menu:
-  layoutItemsSelectAdapter(&bmp_btn_up, &bmp_btn_down, NULL, &bmp_btn_confirm,
-                           NULL, index == 0 ? "Okay" : "确认", index + 1, 2,
-                           NULL, NULL, index == 0 ? "English" : "简体中文",
-                           index > 0 ? "English" : NULL,
-                           index == 0 ? "简体中文" : NULL);
-
-  key = waitKey(0, 0);
-  switch (key) {
-    case KEY_UP:
-      if (index > 0) index--;
-      goto refresh_menu;
-    case KEY_DOWN:
-      if (index < 1) index++;
-      goto refresh_menu;
-    case KEY_CANCEL:
-      goto refresh_menu;
-    case KEY_CONFIRM:
-      menu_para_set_language(index);
-      break;
-    default:
-      break;
   }
 }
 

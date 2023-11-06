@@ -58,7 +58,7 @@ void fsm_msgConfluxGetAddress(const ConfluxGetAddress *msg) {
   }
   if (msg->has_show_display && msg->show_display) {
     char desc[20] = {0};
-    snprintf(desc, 20, "%s %s", "Conflux", _("Address:"));
+    snprintf(desc, 20, "%s %s", "Conflux", _(I__ADDRESS_COLON));
     if (!fsm_layoutAddress(resp->address, NULL, desc, false, 0, msg->address_n,
                            msg->address_n_count, false, NULL, 0, 0, NULL)) {
       return;
@@ -127,7 +127,7 @@ void fsm_msgConfluxSignMessageCIP23(const ConfluxSignMessageCIP23 *msg) {
   data2hex(msg->message_hash.bytes, 32, msg_hash);
   if (!fsm_layoutSignHash(
           "Conflux", signer_str, domain_hash, msg_hash,
-          _("Unable to decode EIP-712 data. Sign at your own risk."))) {
+          _(C__UNBALE_TO_DECODE_EIP712_DATA_SIGN_AT_YOUR_OWN_RISK_EXCLAM))) {
     fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
     layoutHome();
     return;

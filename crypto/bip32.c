@@ -592,8 +592,10 @@ int hdnode_sign(HDNode *node, const uint8_t *msg, uint32_t msg_len,
     } else if (node->curve == &ed25519_keccak_info) {
       ed25519_sign_keccak(msg, msg_len, node->private_key, sig);
 #endif
+#if !EMULATOR
     } else if (node->curve == &ed25519_ledger_info) {
       ed25519_sign(msg, msg_len, node->private_key, sig);
+#endif
     } else {
       return 1;  // unknown or unsupported curve
     }

@@ -90,3 +90,23 @@ uint32_t version_string_to_int(const char *version_str) {
   version |= (part << shift);
   return version;
 }
+
+bool str_replace(char *orig, const char *sub, const char *with) {
+  if (NULL == orig || NULL == orig || NULL == orig) {
+    return false;
+  }
+  int len = strlen(orig);
+  int len1 = strlen(sub);
+  int len2 = strlen(with);
+  char *dst = NULL;
+  char *src = NULL;
+  char *q = strstr(orig, sub);
+  if (!q) return false;
+  src = q + len1;
+  dst = q + len2;
+  memcpy(dst, src, orig + strlen(orig) - src);
+  memcpy(q, with, len2);
+  orig[len + len2 - len1] = '\0';
+
+  return true;
+}

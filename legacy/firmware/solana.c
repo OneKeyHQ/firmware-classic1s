@@ -30,6 +30,7 @@
 #include "sol/parser.h"
 #include "sol/printer.h"
 #include "sol/transaction_summary.h"
+#include "util.h"
 
 void solana_get_address_from_public_key(const uint8_t *public_key,
                                         char *address) {
@@ -42,7 +43,7 @@ void solana_sign_tx(const SolanaSignTx *msg, const HDNode *node,
   MessageHeader header;
   if (parse_message_header(&parser, &header)) {
     // This is not a valid Solana message
-    fsm_sendFailure(FailureType_Failure_DataError, _("Invalid message"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Invalid message");
     return;
   } else {
     uint8_t signer_pubkey[SIZE_PUBKEY];
@@ -56,7 +57,7 @@ void solana_sign_tx(const SolanaSignTx *msg, const HDNode *node,
       }
     }
     if (i >= signer_count) {
-      fsm_sendFailure(FailureType_Failure_DataError, _("Invalid params"));
+      fsm_sendFailure(FailureType_Failure_DataError, "Invalid params");
       return;
     }
   }
@@ -79,7 +80,7 @@ void solana_sign_tx(const SolanaSignTx *msg, const HDNode *node,
       summary_item_set_hash(item, "Message Hash", &UnrecognizedMessageHash);
     } else {
       fsm_sendFailure(FailureType_Failure_DataError,
-                      _("Please confirm the BlindSign enabled"));
+                      "Please confirm the BlindSign enabled");
       return;
     }
   }
@@ -92,12 +93,13 @@ void solana_sign_tx(const SolanaSignTx *msg, const HDNode *node,
   size_t steps = 0;
   uint8_t steps_list[MAX_TRANSACTION_SUMMARY_ITEMS];
   char title_str[65] = {0};
-  snprintf(title_str, 65, "%s %s", "Solana", _("Transaction"));
+  snprintf(title_str, 65, "%s", _(T__STR_CHAIN_TRANSACTION));
+  str_replace(title_str, "{}", "Solana");
   if (transaction_summary_finalize(summary_step_kinds, &num_summary_steps) ==
       0) {
     for (size_t i = 0; i < num_summary_steps; i++) {
       if (transaction_summary_display_item(i, DisplayFlagAll)) {
-        fsm_sendFailure(FailureType_Failure_DataError, _("Parse error"));
+        fsm_sendFailure(FailureType_Failure_DataError, "Parse error");
         layoutHome();
         return;
       } else {
@@ -125,7 +127,7 @@ void solana_sign_tx(const SolanaSignTx *msg, const HDNode *node,
 
         char desc[64];
         memset(desc, 0, sizeof(desc));
-        strcat(desc, _(title));
+        strcat(desc, title);
         strcat(desc, ":");
 
         steps_list[steps++] = i;
@@ -134,7 +136,7 @@ void solana_sign_tx(const SolanaSignTx *msg, const HDNode *node,
                               i < num_summary_steps - 1
                                   ? &bmp_bottom_right_arrow
                                   : &bmp_bottom_right_confirm,
-                              NULL, NULL, desc, _(text), NULL, NULL);
+                              NULL, NULL, desc, text, NULL, NULL);
 
         uint8_t key;
       button_scan:
@@ -160,12 +162,17 @@ void solana_sign_tx(const SolanaSignTx *msg, const HDNode *node,
         }
       }
     }
+#if EMULATOR
+    ed25519_sign(msg->raw_tx.bytes, msg->raw_tx.size, node->private_key,
+                 resp->signature.bytes);
+#else
     hdnode_sign(node, msg->raw_tx.bytes, msg->raw_tx.size, 0,
                 resp->signature.bytes, NULL, NULL);
+#endif
     resp->has_signature = true;
     resp->signature.size = 64;
   } else {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Parse error"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Parse error");
     return;
   }
   msg_write(MessageType_MessageType_SolanaSignedTx, resp);

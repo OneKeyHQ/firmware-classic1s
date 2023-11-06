@@ -25,10 +25,12 @@
 #include "common.h"
 #include "compiler_traits.h"
 #include "config.h"
+#include "font_ex.h"
 #include "gettext.h"
 #include "layout.h"
 #include "layout2.h"
 #include "memzero.h"
+#include "menu_list.h"
 #include "oled.h"
 #include "protect.h"
 #include "rng.h"
@@ -39,7 +41,6 @@
 #if !EMULATOR
 #include <libopencm3/stm32/desig.h>
 #include "ble.h"
-#include "menu_list.h"
 #include "otp.h"
 #include "se_chip.h"
 #include "sys.h"
@@ -222,6 +223,7 @@ int main(void) {
   menu_default();
   layoutHome();
   usbInit();
+  font_init();
 
 #if EMULATOR
   system_millis_lock_start = timer_ms();

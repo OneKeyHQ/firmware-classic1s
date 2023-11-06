@@ -68,9 +68,14 @@ void tron_message_sign(TronSignMessage *msg, const HDNode *node,
   tron_message_hash(msg_hash, 32, hash);
 
   uint8_t v;
+#if EMULATOR
+  if (ecdsa_sign_digest(&secp256k1, node->private_key, hash,
+                        resp->signature.bytes, &v, ethereum_is_canonic) != 0) {
+#else
   if (hdnode_sign_digest(node, hash, resp->signature.bytes, &v,
                          ethereum_is_canonic) != 0) {
-    fsm_sendFailure(FailureType_Failure_ProcessError, _("Signing failed"));
+#endif
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Signing failed");
     return;
   }
 
@@ -555,7 +560,7 @@ refresh_menu:
 
   if (index == 0) {
     layoutHeader(tx_msg[0]);
-    oledDrawStringAdapter(0, y, _("Type:"), FONT_STANDARD);
+    oledDrawStringAdapter(0, y, _(I__TYPE_COLON), FONT_STANDARD);
     if (msg->contract.has_freeze_balance_contract) {
       oledDrawStringAdapter(0, y + 10, "Freeze", FONT_STANDARD);
     } else {
@@ -566,21 +571,21 @@ refresh_menu:
   } else if (index == 1) {
     layoutHeader(tx_msg[0]);
     if (msg->contract.has_freeze_balance_contract) {
-      oledDrawStringAdapter(0, y, _("Balance:"), FONT_STANDARD);
+      oledDrawStringAdapter(0, y, _(I__BALANCE_COLON), FONT_STANDARD);
       oledDrawStringAdapter(0, y + 10, amount_str, FONT_STANDARD);
     } else {
-      oledDrawStringAdapter(0, y, _("Resource:"), FONT_STANDARD);
+      oledDrawStringAdapter(0, y, _(I__RESOURCE_COLON), FONT_STANDARD);
       if (msg->contract.unfreeze_balance_contract.resource ==
           TronResourceCode_BANDWIDTH) {
-        oledDrawStringAdapter(0, y + 10, _("BANDWIDTH"), FONT_STANDARD);
+        oledDrawStringAdapter(0, y + 10, __("BANDWIDTH"), FONT_STANDARD);
       } else {
-        oledDrawStringAdapter(0, y + 10, _("ENERGY"), FONT_STANDARD);
+        oledDrawStringAdapter(0, y + 10, __("ENERGY"), FONT_STANDARD);
       }
     }
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
   } else if (max_index == index) {
-    layoutHeader(_("Sign Transaction"));
+    layoutHeader(_(T__SIGN_TRANSACTION));
     oledDrawStringAdapter(0, 13, tx_msg[1], FONT_STANDARD);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_confirm);
@@ -590,7 +595,7 @@ refresh_menu:
       oledDrawStringAdapter(0, y, "Frozen duration:", FONT_STANDARD);
       oledDrawStringAdapter(0, y + 10, duration_str, FONT_STANDARD);
     } else {
-      oledDrawStringAdapter(0, y, _("Receiver:"), FONT_STANDARD);
+      oledDrawStringAdapter(0, y, _(I__RECEIVER_COLON), FONT_STANDARD);
       oledDrawStringAdapter(
           0, y + 10, msg->contract.unfreeze_balance_contract.receiver_address,
           FONT_STANDARD);
@@ -599,18 +604,18 @@ refresh_menu:
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
   } else if (index == 3) {
     layoutHeader(tx_msg[0]);
-    oledDrawStringAdapter(0, y, _("Resource:"), FONT_STANDARD);
+    oledDrawStringAdapter(0, y, _(I__RESOURCE_COLON), FONT_STANDARD);
     if (msg->contract.freeze_balance_contract.resource ==
         TronResourceCode_BANDWIDTH) {
-      oledDrawStringAdapter(0, y + 10, _("BANDWIDTH"), FONT_STANDARD);
+      oledDrawStringAdapter(0, y + 10, __("BANDWIDTH"), FONT_STANDARD);
     } else {
-      oledDrawStringAdapter(0, y + 10, _("ENERGY"), FONT_STANDARD);
+      oledDrawStringAdapter(0, y + 10, __("ENERGY"), FONT_STANDARD);
     }
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
   } else if (index == 4) {
     layoutHeader(tx_msg[0]);
-    oledDrawStringAdapter(0, y, _("Receiver:"), FONT_STANDARD);
+    oledDrawStringAdapter(0, y, _(I__RECEIVER_COLON), FONT_STANDARD);
     oledDrawStringAdapter(
         0, y + 10, msg->contract.freeze_balance_contract.receiver_address,
         FONT_STANDARD);
@@ -686,7 +691,7 @@ refresh_menu:
 
   if (index == 0) {
     layoutHeader(tx_msg[0]);
-    oledDrawStringAdapter(0, y, _("Type:"), FONT_STANDARD);
+    oledDrawStringAdapter(0, y, _(I__TYPE_COLON), FONT_STANDARD);
     if (msg->contract.has_freeze_balance_v2_contract) {
       oledDrawStringAdapter(0, y + 10, "Freeze Balance V2 Contract",
                             FONT_STANDARD);
@@ -698,22 +703,22 @@ refresh_menu:
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
   } else if (index == 1) {
     layoutHeader(tx_msg[0]);
-    oledDrawStringAdapter(0, y, _("Balance:"), FONT_STANDARD);
+    oledDrawStringAdapter(0, y, _(I__BALANCE_COLON), FONT_STANDARD);
     oledDrawStringAdapter(0, y + 10, amount_str, FONT_STANDARD);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
   } else if (index == 2) {
     layoutHeader(tx_msg[0]);
-    oledDrawStringAdapter(0, y, _("Resource:"), FONT_STANDARD);
+    oledDrawStringAdapter(0, y, _(I__RESOURCE_COLON), FONT_STANDARD);
     if (resource == TronResourceCode_BANDWIDTH) {
-      oledDrawStringAdapter(0, y + 10, _("BANDWIDTH"), FONT_STANDARD);
+      oledDrawStringAdapter(0, y + 10, __("BANDWIDTH"), FONT_STANDARD);
     } else {
-      oledDrawStringAdapter(0, y + 10, _("ENERGY"), FONT_STANDARD);
+      oledDrawStringAdapter(0, y + 10, __("ENERGY"), FONT_STANDARD);
     }
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
   } else {
-    layoutHeader(_("Sign Transaction"));
+    layoutHeader(_(T__SIGN_TRANSACTION));
     oledDrawStringAdapter(0, 13, tx_msg[1], FONT_STANDARD);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_confirm);
@@ -788,7 +793,7 @@ refresh_menu:
 
   if (index == 0) {
     layoutHeader(tx_msg[0]);
-    oledDrawStringAdapter(0, y, _("Type:"), FONT_STANDARD);
+    oledDrawStringAdapter(0, y, _(I__TYPE_COLON), FONT_STANDARD);
     if (msg->contract.has_delegate_resource_contract) {
       oledDrawStringAdapter(0, y + 10, "Delegate Resource Contract",
                             FONT_STANDARD);
@@ -800,23 +805,23 @@ refresh_menu:
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
   } else if (index == 1) {
     layoutHeader(tx_msg[0]);
-    oledDrawStringAdapter(0, y, _("Resource:"), FONT_STANDARD);
+    oledDrawStringAdapter(0, y, _(I__RESOURCE_COLON), FONT_STANDARD);
     if (resource == TronResourceCode_BANDWIDTH) {
-      oledDrawStringAdapter(0, y + 10, _("BANDWIDTH"), FONT_STANDARD);
+      oledDrawStringAdapter(0, y + 10, __("BANDWIDTH"), FONT_STANDARD);
     } else {
-      oledDrawStringAdapter(0, y + 10, _("ENERGY"), FONT_STANDARD);
+      oledDrawStringAdapter(0, y + 10, __("ENERGY"), FONT_STANDARD);
     }
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
   } else if (index == 2) {
     layoutHeader(tx_msg[0]);
-    oledDrawStringAdapter(0, y, _("Balance:"), FONT_STANDARD);
+    oledDrawStringAdapter(0, y, _(I__BALANCE_COLON), FONT_STANDARD);
     oledDrawStringAdapter(0, y + 10, amount_str, FONT_STANDARD);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
   } else if (index == 3) {
     layoutHeader(tx_msg[0]);
-    oledDrawStringAdapter(0, y, _("Receiver:"), FONT_STANDARD);
+    oledDrawStringAdapter(0, y, _(I__RECEIVER_COLON), FONT_STANDARD);
     if (msg->contract.has_delegate_resource_contract) {
       oledDrawStringAdapter(
           0, y + 10, msg->contract.delegate_resource_contract.receiver_address,
@@ -830,13 +835,13 @@ refresh_menu:
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
   } else if (max_index == index) {
-    layoutHeader(_("Sign Transaction"));
+    layoutHeader(_(T__SIGN_TRANSACTION));
     oledDrawStringAdapter(0, 13, tx_msg[1], FONT_STANDARD);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_confirm);
   } else if (index == 4) {
     layoutHeader(tx_msg[0]);
-    oledDrawStringAdapter(0, y, _("Lock:"), FONT_STANDARD);
+    oledDrawStringAdapter(0, y, __("Lock:"), FONT_STANDARD);
     if (msg->contract.delegate_resource_contract.lock) {
       oledDrawStringAdapter(0, y + 10, "True", FONT_STANDARD);
     } else {
@@ -904,12 +909,12 @@ bool tron_sign_tx(TronSignTx *msg, const char *owner_address,
   } else if (msg->contract.has_trigger_smart_contract) {
     if (!msg->contract.trigger_smart_contract.has_data) {
       fsm_sendFailure(FailureType_Failure_DataError,
-                      _("Invalid TRON contract call data"));
+                      "Invalid TRON contract call data");
       return false;
     }
     if (msg->contract.trigger_smart_contract.data.size < 4) {
       fsm_sendFailure(FailureType_Failure_DataError,
-                      _("Invalid TRON contract call data"));
+                      "Invalid TRON contract call data");
       return false;
     }
 
@@ -925,7 +930,7 @@ bool tron_sign_tx(TronSignTx *msg, const char *owner_address,
               &msg->contract.trigger_smart_contract.data.bytes[4 + 12], to_str,
               sizeof(to_str)) < 34) {
         fsm_sendFailure(FailureType_Failure_DataError,
-                        _("Failed to encode to TRON address"));
+                        "Failed to encode to TRON address");
         return false;
       }
       memcpy(value_bytes,
@@ -946,13 +951,13 @@ bool tron_sign_tx(TronSignTx *msg, const char *owner_address,
     }
   } else if (msg->contract.has_withdraw_balance_contract) {
     layoutDialogAdapterEx(tx_msg[0], &bmp_bottom_left_close, NULL,
-                          &bmp_bottom_right_arrow, NULL, NULL, _("Type:"),
+                          &bmp_bottom_right_arrow, NULL, NULL, _(I__TYPE_COLON),
                           "Withdraw Balance Contract", NULL, NULL);
     if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
       fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
       return false;
     }
-    layoutDialogAdapterEx(_("Sign Transaction"), &bmp_bottom_left_close, NULL,
+    layoutDialogAdapterEx(_(T__SIGN_TRANSACTION), &bmp_bottom_left_close, NULL,
                           &bmp_bottom_right_confirm, NULL, NULL, tx_msg[1],
                           NULL, NULL, NULL);
     if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
@@ -967,13 +972,13 @@ bool tron_sign_tx(TronSignTx *msg, const char *owner_address,
     }
   } else if (msg->contract.has_withdraw_expire_unfreeze_contract) {
     layoutDialogAdapterEx(tx_msg[0], &bmp_bottom_left_close, NULL,
-                          &bmp_bottom_right_arrow, NULL, NULL, _("Type:"),
+                          &bmp_bottom_right_arrow, NULL, NULL, _(I__TYPE_COLON),
                           "Withdraw Expire Unfreeze Contract", NULL, NULL);
     if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
       fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
       return false;
     }
-    layoutDialogAdapterEx(_("Sign Transaction"), &bmp_bottom_left_close, NULL,
+    layoutDialogAdapterEx(_(T__SIGN_TRANSACTION), &bmp_bottom_left_close, NULL,
                           &bmp_bottom_right_confirm, NULL, NULL, tx_msg[1],
                           NULL, NULL, NULL);
     if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
@@ -1000,10 +1005,10 @@ bool tron_sign_tx(TronSignTx *msg, const char *owner_address,
       msg->contract.has_trigger_smart_contract) {
     char amount_str[60];
     int to_len = strlen(to_str);
-    if (0 == to_len) memcpy(to_str, _("to new contract?"), sizeof(to_str));
+    if (0 == to_len) strlcpy(to_str, "to new contract?", sizeof(to_str));
     if (token == NULL) {
       if (amount == 0 && msg->contract.has_trigger_smart_contract) {
-        strcpy(amount_str, _("message"));
+        strcpy(amount_str, "message");
       } else {
         tron_format_amount(amount, amount_str, sizeof(amount_str));
         if (!layoutTransactionSign("TRON", 0, false, amount_str, to_str,
@@ -1024,8 +1029,8 @@ bool tron_sign_tx(TronSignTx *msg, const char *owner_address,
         tron_format_amount(msg->fee_limit, gas_value, sizeof(gas_value));
         if (!layoutTransactionSign("TRON", 0, true, amount_str, to_str,
                                    signer_str, NULL, NULL, NULL, 0,
-                                   _("Maximum Fee:"), gas_value, NULL, NULL,
-                                   NULL, NULL, NULL, NULL)) {
+                                   _(I__ETH_MAXIMUM_FEE_COLON), gas_value, NULL,
+                                   NULL, NULL, NULL, NULL, NULL)) {
           fsm_sendFailure(FailureType_Failure_ActionCancelled,
                           "Signing cancelled");
           return false;
@@ -1063,9 +1068,14 @@ bool tron_sign_tx(TronSignTx *msg, const char *owner_address,
 
   // sign tx hash
   uint8_t v;
+#if EMULATOR
+  if (ecdsa_sign_digest(&secp256k1, node->private_key, hash,
+                        resp->signature.bytes, &v, ethereum_is_canonic) != 0) {
+#else
   if (hdnode_sign_digest(node, hash, resp->signature.bytes, &v,
                          ethereum_is_canonic) != 0) {
-    fsm_sendFailure(FailureType_Failure_ProcessError, _("Signing failed"));
+#endif
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Signing failed");
     return false;
   }
 

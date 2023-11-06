@@ -79,9 +79,9 @@ void check_and_replace_bootloader(bool shutdown_on_replace) {
   int r = memory_bootloader_hash(hash);
 
   if (!known_bootloader(r, hash)) {
-    layoutDialog(&bmp_icon_error, NULL, NULL, NULL, _("Unknown bootloader"),
-                 _("detected."), NULL, _("Shutdown your OneKey"),
-                 _("contact our support."), NULL);
+    layoutDialog(&bmp_icon_error, NULL, NULL, NULL, "Unknown bootloader",
+                 "detected.", NULL, "Shutdown your OneKey",
+                 "contact our support.", NULL);
     delay_ms(1000);
     shutdown();
   }
@@ -96,8 +96,8 @@ void check_and_replace_bootloader(bool shutdown_on_replace) {
   }
 
   if (sys_usbState() == false && battery_cap == 0xff) {
-    layoutDialogCenterAdapterEx(NULL, NULL, NULL, NULL,
-                                _("Get battery level..."), NULL, NULL, NULL);
+    layoutDialogCenterAdapterEx(NULL, NULL, NULL, NULL, "Get battery level...",
+                                NULL, NULL, NULL);
     while (1) {
       if (battery_cap == 0xff) {
         ble_request_info(BLE_CMD_BATTERY);
@@ -114,8 +114,8 @@ void check_and_replace_bootloader(bool shutdown_on_replace) {
   if (sys_usbState() == false && battery_cap < 2) {
     layoutDialogCenterAdapterEx(
         &bmp_icon_warning, NULL, &bmp_bottom_right_confirm, NULL,
-        _("Low Battery!Use cable or"), _("Charge to 25% before"),
-        _("updating the bootloader"), NULL);
+        "Low Battery!Use cable or", "Charge to 25% before",
+        "updating the bootloader", NULL);
     while (1) {
       uint8_t key = keyScan();
       if (key == KEY_CONFIRM) {
@@ -132,8 +132,8 @@ void check_and_replace_bootloader(bool shutdown_on_replace) {
   // YOUR DEVICE.
 
   layoutDialogCenterAdapterEx(
-      &bmp_icon_warning, NULL, NULL, NULL, _("DO NOT power off during"),
-      _("update,or it may cause"), _("irreversible malfunction"), NULL);
+      &bmp_icon_warning, NULL, NULL, NULL, "DO NOT power off during",
+      "update,or it may cause", "irreversible malfunction", NULL);
 
   char delay_str[4] = "3s";
   for (int i = 2; i >= 0; i--) {
@@ -163,18 +163,18 @@ void check_and_replace_bootloader(bool shutdown_on_replace) {
     if (r == 32 && 0 == memcmp(hash, bl_hash, 32)) {
       if (shutdown_on_replace) {
         // OK -> show info and halt
-        layoutDialog(&bmp_icon_info, NULL, NULL, NULL, _("Update finished"),
-                     _("successfully."), NULL, _("Please reconnect"),
-                     _("the device."), NULL);
+        layoutDialog(&bmp_icon_info, NULL, NULL, NULL, "Update finished",
+                     "successfully.", NULL, "Please reconnect", "the device.",
+                     NULL);
         shutdown();
       }
       return;
     }
   }
   // show info and halt
-  layoutDialog(&bmp_icon_error, NULL, NULL, NULL, _("Bootloader update"),
-               _("broken."), NULL, _("Unplug your OneKey"),
-               _("contact our support."), NULL);
+  layoutDialog(&bmp_icon_error, NULL, NULL, NULL, "Bootloader update",
+               "broken.", NULL, "Unplug your OneKey", "contact our support.",
+               NULL);
   delay_ms(1000);
   shutdown();
 #endif

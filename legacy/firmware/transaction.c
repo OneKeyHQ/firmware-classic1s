@@ -533,6 +533,18 @@ bool tx_sign_ecdsa(const ecdsa_curve *curve, const uint8_t *private_key,
   return true;
 }
 
+bool tx_sign_bip340(const uint8_t *private_key, const uint8_t *hash,
+                    uint8_t *out, pb_size_t *size) {
+  static CONFIDENTIAL uint8_t output_private_key[32] = {0};
+  bool ret = (zkp_bip340_tweak_private_key(private_key, NULL,
+                                           output_private_key) == 0);
+  ret =
+      ret && (zkp_bip340_sign_digest(output_private_key, hash, out, NULL) == 0);
+  *size = ret ? 64 : 0;
+  memzero(output_private_key, sizeof(output_private_key));
+  return ret;
+}
+
 // tx methods
 bool tx_input_check_hash(Hasher *hasher, const TxInputType *input) {
   hasher_Update(hasher, (const uint8_t *)&input->address_n_count,

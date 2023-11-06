@@ -111,6 +111,8 @@ uint32_t serialize_p2tr_witness(const uint8_t *signature,
                                 uint8_t *out);
 bool tx_sign_ecdsa(const ecdsa_curve *curve, const uint8_t *private_key,
                    const uint8_t *hash, uint8_t *out, pb_size_t *size);
+bool tx_sign_bip340(const uint8_t *private_key, const uint8_t *hash,
+                    uint8_t *out, pb_size_t *size);
 void op_return_to_script_pubkey(const uint8_t *op_return_data,
                                 size_t op_return_size, uint8_t *script_pubkey,
                                 pb_size_t *script_pubkey_size);

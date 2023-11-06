@@ -100,7 +100,7 @@ refresh_menu:
     }
   }
   memset(desc, 0, 64);
-  strcat(desc, _(token_key));
+  strcat(desc, token_key);
   strcat(desc, ":");
   if (index == 0) {
     sub_index = 0;
@@ -110,7 +110,7 @@ refresh_menu:
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
   } else if (max_index == index) {
-    layoutHeader(_("Sign Transaction"));
+    layoutHeader(_(T__SIGN_TRANSACTION));
     oledDrawStringAdapter(0, 13, tx_msg[1], FONT_STANDARD);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_confirm);
@@ -254,9 +254,14 @@ bool cosmos_sign_tx(const CosmosSignTx *msg, const HDNode *node,
 
   // sign tx hash
   uint8_t v;
+#if EMULATOR
+  if (ecdsa_sign_digest(&secp256k1, node->private_key, hash,
+                        resp->signature.bytes, &v, ethereum_is_canonic) != 0) {
+#else
   if (hdnode_sign_digest(node, hash, resp->signature.bytes, &v,
                          ethereum_is_canonic) != 0) {
-    fsm_sendFailure(FailureType_Failure_ProcessError, _("Signing failed"));
+#endif
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Signing failed");
     layoutHome();
     return false;
   }

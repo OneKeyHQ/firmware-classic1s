@@ -1,7 +1,8 @@
 #include "font.h"
 
 // #define USE_SONGTI
-#define USE_DINGMAO
+// #define USE_DINGMAO
+#define USE_DINGMAO_FULL
 #define FONT_ZONE_SIZE (94)
 #define DEFALUT_FONT "dingmao_9x9"
 
@@ -12134,6 +12135,13 @@ static const struct font_desc font_dingmao_9x9 = {.idx = DINGMAO_9_IDX,
                                                   .data = dingmao_9x9,
                                                   .empty = emptySymbol_9};
 
+static const struct font_desc font_dingmao_9x9_full = {.idx = DINGMAO_9_IDX,
+                                                       .name = "dingmao_9x9",
+                                                       .pixel = 9,
+                                                       .width = 10,  // 1 space
+                                                       .data = NULL,
+                                                       .empty = NULL};
+
 static const struct font_desc font_default = {.idx = DEFAULT_IDX,
                                               .name = "englise",
                                               .pixel = 8,
@@ -12149,10 +12157,13 @@ static const struct font_desc *fonts[] = {
 #ifdef USE_DINGMAO
     &font_dingmao_9x9,
 #endif
+#ifdef USE_DINGMAO_FULL
+    &font_dingmao_9x9_full,
+#endif
 };
 
 // default use dingmao
-static const struct font_desc *current_font = &font_dingmao_9x9;
+static const struct font_desc *current_font = &font_dingmao_9x9_full;
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 #define num_fonts ARRAY_SIZE(fonts)
@@ -12224,7 +12235,6 @@ const uint8_t *get_font_data(const char *zh) {
     font = &font_dingmao_9x9;
   }
   memcpy(buf, font->empty, sizeof(buf));
-
   int lo = 0, hi = WORDS_NUMBER - 1;
   while (lo <= hi) {
     int mid = lo + (hi - lo) / 2;

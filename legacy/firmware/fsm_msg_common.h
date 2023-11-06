@@ -134,7 +134,7 @@ bool get_features(Features *resp) {
 
   strlcpy(resp->onekey_version, ONEKEY_VERSION, sizeof(resp->onekey_version));
   if (se_get_sn(&serial)) {
-    if (serial[0] == 0xff && serial[1] == 0xff) {
+    if ((uint8_t)serial[0] == 0xff && (uint8_t)serial[1] == 0xff) {
       resp->has_onekey_serial = false;
     } else {
       resp->has_onekey_serial = true;
@@ -215,8 +215,8 @@ void fsm_msgPing(const Ping *msg) {
   if (msg->has_button_protection && msg->button_protection) {
     layoutDialogCenterAdapterV2(
         NULL, &bmp_icon_question, &bmp_bottom_left_close,
-        &bmp_bottom_right_confirm, NULL, NULL, _("Do you really want to"),
-        _("answer to ping"), NULL, NULL, NULL);
+        &bmp_bottom_right_confirm, NULL, NULL, __("Do you really want to"),
+        __("answer to ping"), NULL, NULL, NULL);
 
     if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
       fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
@@ -247,25 +247,25 @@ void fsm_msgChangePin(const ChangePin *msg) {
       layoutDialogCenterAdapterV2(
           NULL, &bmp_icon_warning, &bmp_bottom_left_close,
           &bmp_bottom_right_confirm, NULL, NULL, NULL, NULL, NULL, NULL,
-          _("Are you sure to disable\nPIN protection?"));
+          _(C__ARE_YOU_SURE_TO_DISABLE_PIN_PROTECTION_EXCLAM));
     } else {
-      fsm_sendSuccess(_("PIN removed"));
+      fsm_sendSuccess("PIN removed");
       return;
     }
   } else {
     if (config_hasPin()) {
       layoutDialogCenterAdapterV2(
           NULL, &bmp_icon_warning, &bmp_bottom_left_close,
-          &bmp_bottom_right_confirm, NULL, NULL, _("Do you really want to"),
-          _("change current PIN?"), NULL, NULL, NULL);
+          &bmp_bottom_right_confirm, NULL, NULL, __("Do you really want to"),
+          __("change current PIN?"), NULL, NULL, NULL);
     } else {
       if (g_bIsBixinAPP) {
         button_confirm = false;
       } else {
         layoutDialogCenterAdapterV2(
             NULL, &bmp_icon_warning, &bmp_bottom_left_close,
-            &bmp_bottom_right_confirm, NULL, NULL, _("Do you really want to"),
-            _("set new PIN?"), NULL, NULL, NULL);
+            &bmp_bottom_right_confirm, NULL, NULL, __("Do you really want to"),
+            __("set new PIN?"), NULL, NULL, NULL);
       }
     }
   }
@@ -278,9 +278,9 @@ void fsm_msgChangePin(const ChangePin *msg) {
   if (protectChangePin(removal)) {
     i2c_set_wait(false);
     if (removal) {
-      fsm_sendSuccess(_("PIN removed"));
+      fsm_sendSuccess("PIN removed");
     } else {
-      fsm_sendSuccess(_("PIN changed"));
+      fsm_sendSuccess("PIN changed");
     }
   }
 
@@ -299,22 +299,22 @@ void fsm_msgChangeWipeCode(const ChangeWipeCode *msg) {
   if (removal) {
     // Note that if storage is locked, then config_hasWipeCode() returns false.
     if (has_wipe_code || !session_isUnlocked()) {
-      layoutDialogSwipe(&bmp_icon_question, _("Cancel"), _("Confirm"), NULL,
-                        NULL, _("Do you really want to"),
-                        _("disable wipe code"), _("protection?"), NULL, NULL);
+      layoutDialogSwipe(&bmp_icon_question, "Cancel", "Confirm", NULL, NULL,
+                        __("Do you really want to"), __("disable wipe code"),
+                        __("protection?"), NULL, NULL);
     } else {
-      fsm_sendSuccess(_("Wipe code removed"));
+      fsm_sendSuccess("Wipe code removed");
       return;
     }
   } else {
     if (has_wipe_code) {
-      layoutDialogSwipe(&bmp_icon_question, _("Cancel"), _("Confirm"), NULL,
-                        NULL, _("Do you really want to"),
-                        _("change the current"), _("wipe code?"), NULL, NULL);
+      layoutDialogSwipe(&bmp_icon_question, __("Cancel"), __("Confirm"), NULL,
+                        NULL, __("Do you really want to"),
+                        __("change the current"), __("wipe code?"), NULL, NULL);
     } else {
-      layoutDialogSwipe(&bmp_icon_question, _("Cancel"), _("Confirm"), NULL,
-                        NULL, _("Do you really want to"),
-                        _("set a new wipe code?"), NULL, NULL, NULL);
+      layoutDialogSwipe(&bmp_icon_question, __("Cancel"), __("Confirm"), NULL,
+                        NULL, __("Do you really want to"),
+                        __("set a new wipe code?"), NULL, NULL, NULL);
     }
   }
   if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
@@ -325,11 +325,11 @@ void fsm_msgChangeWipeCode(const ChangeWipeCode *msg) {
 
   if (protectChangeWipeCode(removal)) {
     if (removal) {
-      fsm_sendSuccess(_("Wipe code removed"));
+      fsm_sendSuccess("Wipe code removed");
     } else if (has_wipe_code) {
-      fsm_sendSuccess(_("Wipe code changed"));
+      fsm_sendSuccess("Wipe code changed");
     } else {
-      fsm_sendSuccess(_("Wipe code set"));
+      fsm_sendSuccess("Wipe code set");
     }
   }
 
@@ -339,9 +339,9 @@ void fsm_msgChangeWipeCode(const ChangeWipeCode *msg) {
 void fsm_msgWipeDevice(const WipeDevice *msg) {
   (void)msg;
 #if DEBUG_LINK
-  layoutDialogSwipe(&bmp_icon_question, _("Cancel"), _("Confirm"), NULL,
-                    _("Do you really want to"), _("wipe the device?"), NULL,
-                    _("All data will be lost."), NULL, NULL);
+  layoutDialogSwipe(&bmp_icon_question, __("Cancel"), __("Confirm"), NULL,
+                    __("Do you really want to"), __("wipe the device?"), NULL,
+                    __("All data will be lost."), NULL, NULL);
   if (!protectButton(ButtonRequestType_ButtonRequest_WipeDevice, false)) {
     fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
     layoutHome();
@@ -351,7 +351,7 @@ void fsm_msgWipeDevice(const WipeDevice *msg) {
   // the following does not work on Mac anyway :-/ Linux/Windows are fine, so it
   // is not needed usbReconnect(); // force re-enumeration because of the serial
   // number change
-  fsm_sendSuccess(_("Device wiped"));
+  fsm_sendSuccess("Device wiped");
   layoutHome();
 #else
   uint8_t key = KEY_NULL;
@@ -371,10 +371,10 @@ void fsm_msgWipeDevice(const WipeDevice *msg) {
   }
 #endif
   layoutDialogAdapterEx(
-      _("Erase Device"), &bmp_bottom_left_delete, _("Back"),
-      &bmp_bottom_right_confirm, _("Reset "),
-      _("Are you sure to reset this \ndevice? This action can not be undo!"),
-      NULL, NULL, NULL, NULL);
+      _(T__ERASE_DEVICE), &bmp_bottom_left_delete, __("Back"),
+      &bmp_bottom_right_confirm, __("Reset "),
+      _(C__ARE_YOU_SURE_TO_RESET_THIS_DEVICE_THIS_ACTION_CANNOT_BE_UNDO), NULL,
+      NULL, NULL, NULL);
   key = protectWaitKey(0, 1);
   if (key != KEY_CONFIRM) {
     i2c_set_wait(false);
@@ -389,16 +389,17 @@ void fsm_msgWipeDevice(const WipeDevice *msg) {
   if (ui_language_bak) {
     ui_language = ui_language_bak;
   }
-  layoutDialogAdapterEx(
-      _("Reset Complete"), NULL, NULL, &bmp_bottom_right_confirm, _("Reset "),
-      _("The device is reset, restart now."), NULL, NULL, NULL, NULL);
+  layoutDialogAdapterEx(_(C__RESET_COMPLETE_EXCLAM), NULL, NULL,
+                        &bmp_bottom_right_confirm, _(B__RESET),
+                        _(C__DEVICE_RESET_COMPLETE_RESTART_NOW_EXCLAM), NULL,
+                        NULL, NULL, NULL);
   protectWaitKey(0, 0);
 
   // the following does not work on Mac anyway :-/ Linux/Windows are fine, so it
   // is not needed usbReconnect(); // force re-enumeration because of the serial
   // number change
   i2c_set_wait(false);
-  fsm_sendSuccess(_("Device wiped"));
+  fsm_sendSuccess("Device wiped");
   layoutHome();
 #if !EMULATOR && !DEBUG_LINK
   // svc_system_reset();
@@ -413,8 +414,8 @@ void fsm_msgGetEntropy(const GetEntropy *msg) {
 #if !DEBUG_RNG
   layoutDialogCenterAdapterV2(NULL, &bmp_icon_warning, &bmp_bottom_left_close,
                               &bmp_bottom_right_confirm, NULL, NULL,
-                              _("Do you really want to"), _("send entropy?"),
-                              NULL, NULL, NULL);
+                              "Do you really want to", "send entropy?", NULL,
+                              NULL, NULL);
   if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
     fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
     layoutHome();
@@ -432,7 +433,7 @@ void fsm_msgGetEntropy(const GetEntropy *msg) {
 #else
   if (!se_random_encrypted(resp->entropy.bytes, len)) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Failed to generate entropy"));
+                    "Failed to generate entropy");
     layoutHome();
     return;
   }
@@ -448,10 +449,10 @@ void fsm_msgLoadDevice(const LoadDevice *msg) {
 
   CHECK_NOT_INITIALIZED
 
-  layoutDialogSwipe(&bmp_icon_question, _("Cancel"), _("I take the risk"), NULL,
-                    _("Loading private seed"), _("is not recommended."),
-                    _("Continue only if you"), _("know what you are"),
-                    _("doing!"), NULL);
+  layoutDialogSwipe(&bmp_icon_question, __("Cancel"), __("I take the risk"),
+                    NULL, __("Loading private seed"), __("is not recommended."),
+                    __("Continue only if you"), __("know what you are"),
+                    __("doing!"), NULL);
   if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
     fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
     layoutHome();
@@ -461,14 +462,14 @@ void fsm_msgLoadDevice(const LoadDevice *msg) {
   if (msg->mnemonics_count && !(msg->has_skip_checksum && msg->skip_checksum)) {
     if (!mnemonic_check(msg->mnemonics[0])) {
       fsm_sendFailure(FailureType_Failure_DataError,
-                      _("Mnemonic with wrong checksum provided"));
+                      "Mnemonic with wrong checksum provided");
       layoutHome();
       return;
     }
   }
 
   config_loadDevice(msg);
-  fsm_sendSuccess(_("Device loaded"));
+  fsm_sendSuccess("Device loaded");
   layoutHome();
 }
 
@@ -480,7 +481,7 @@ void fsm_msgResetDevice(const ResetDevice *msg) {
 
   CHECK_PARAM(!msg->has_strength || msg->strength == 128 ||
                   msg->strength == 192 || msg->strength == 256,
-              _("Invalid seed strength"));
+              "Invalid seed strength");
 
   reset_init(msg->has_display_random && msg->display_random,
              msg->has_strength ? msg->strength : 128,
@@ -508,7 +509,7 @@ void fsm_msgBackupDevice(const BackupDevice *msg) {
   config_getNeedsBackup(&needs_backup);
   if (!needs_backup) {
     fsm_sendFailure(FailureType_Failure_UnexpectedMessage,
-                    _("Seed already backed up"));
+                    "Seed already backed up");
     return;
   }
 
@@ -529,7 +530,7 @@ void fsm_msgLockDevice(const LockDevice *msg) {
   (void)msg;
   config_lockDevice();
   layoutScreensaver();
-  fsm_sendSuccess(_("Session cleared"));
+  fsm_sendSuccess("Session cleared");
 }
 
 bool fsm_getLang(const ApplySettings *msg) {
@@ -542,19 +543,36 @@ bool fsm_getLang(const ApplySettings *msg) {
 void fsm_msgEndSession(const EndSession *msg) {
   (void)msg;
   session_endCurrentSession();
-  fsm_sendSuccess(_("Session ended"));
+  fsm_sendSuccess("Session ended");
 }
 
+#if 0
+static int countlines(char *text) {
+  int lines=0;
+  while (*text) {
+    if ((uint8_t)*text < 0x80) {
+      if (*text == '\n') lines++;
+      text++;
+    } else {
+      text += HZ_CODE_LEN;
+    }
+  }
+  return lines+1;
+}
+#endif
+
 void fsm_msgApplySettings(const ApplySettings *msg) {
-  CHECK_PARAM(
-      !msg->has_passphrase_always_on_device,
-      _("This firmware is incapable of passphrase entry on the device."));
+  // test
+
+  return;
+  CHECK_PARAM(!msg->has_passphrase_always_on_device,
+              "This firmware is incapable of passphrase entry on the device.");
 
   CHECK_PARAM(msg->has_label || msg->has_language || msg->has_use_passphrase ||
                   msg->has_homescreen || msg->has_auto_lock_delay_ms ||
                   msg->has_safety_checks || msg->has_use_ble ||
                   msg->has_is_bixinapp,
-              _("No setting provided"));
+              "No setting provided");
 
   if (!msg->has_is_bixinapp) CHECK_PIN
 
@@ -571,13 +589,8 @@ void fsm_msgApplySettings(const ApplySettings *msg) {
 
   if (msg->has_label) {
     char label[72] = {0};
-    if (ui_language == 1) {
-      snprintf(label, 72, "%s \"%s\"吗?",
-               _("Are you sure to change the label to"), msg->label);
-    } else {
-      snprintf(label, 72, "%s \"%s\"?",
-               _("Are you sure to change the label to"), msg->label);
-    }
+    snprintf(label, 72, "%s", _(C__CHANGE_THE_LABEL_TO_QUOTE_STR));
+    str_replace(label, "{}", msg->label);
     layoutDialogCenterAdapterV2("Change Label", NULL, &bmp_bottom_left_close,
                                 &bmp_bottom_right_confirm, NULL, NULL,
                                 (const char *)label, NULL, NULL, NULL, NULL);
@@ -589,8 +602,8 @@ void fsm_msgApplySettings(const ApplySettings *msg) {
   }
   if (msg->has_language) {
     layoutDialogCenterAdapterV2(
-        _("Language"), NULL, &bmp_bottom_left_close, &bmp_bottom_right_confirm,
-        NULL, NULL, _("Do you really want to"), _("change language to"),
+        _(M__LANGUAGE), NULL, &bmp_bottom_left_close, &bmp_bottom_right_confirm,
+        NULL, NULL, __("Do you really want to"), __("change language to"),
         (fsm_getLang(msg) ? "中文" : "English"), "?", NULL);
     if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
       fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
@@ -603,12 +616,12 @@ void fsm_msgApplySettings(const ApplySettings *msg) {
       layoutDialogCenterAdapterV2(
           NULL, &bmp_icon_warning, &bmp_bottom_left_close,
           &bmp_bottom_right_confirm, NULL, NULL, NULL, NULL, NULL, NULL,
-          _("Do you want to enable\npassphrase protection?"));
+          _(C__DO_YOU_WANT_TO_ENABLE_PASSPHRASE_ENCRYPTION));
     } else {
       layoutDialogCenterAdapterV2(
           NULL, &bmp_icon_warning, &bmp_bottom_left_close,
           &bmp_bottom_right_confirm, NULL, NULL, NULL, NULL, NULL, NULL,
-          _("Do you want to disable\npassphrase protection?"));
+          _(C__DO_YOU_WANT_TO_DISABLE_PASSPHRASE_ENCRYPTION));
     }
     if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
       fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
@@ -620,7 +633,7 @@ void fsm_msgApplySettings(const ApplySettings *msg) {
     layoutDialogCenterAdapterV2(NULL, &bmp_icon_warning, &bmp_bottom_left_close,
                                 &bmp_bottom_right_confirm, NULL, NULL, NULL,
                                 NULL, NULL, NULL,
-                                _("Do you want to change the\nhome screen?"));
+                                _(C__DO_YOU_WANT_TO_CHANGE_THE_HOMESCREEN));
     if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
       fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
       layoutHome();
@@ -631,13 +644,13 @@ void fsm_msgApplySettings(const ApplySettings *msg) {
   if (msg->has_auto_lock_delay_ms) {
     if (msg->auto_lock_delay_ms < MIN_AUTOLOCK_DELAY_MS) {
       fsm_sendFailure(FailureType_Failure_ProcessError,
-                      _("Auto-lock delay too short"));
+                      "Auto-lock delay too short");
       layoutHome();
       return;
     }
     if (msg->auto_lock_delay_ms > MAX_AUTOLOCK_DELAY_MS) {
       fsm_sendFailure(FailureType_Failure_ProcessError,
-                      _("Auto-lock delay too long"));
+                      "Auto-lock delay too long");
       layoutHome();
       return;
     }
@@ -654,7 +667,7 @@ void fsm_msgApplySettings(const ApplySettings *msg) {
     layoutDialogCenterAdapterV2(
         NULL, &bmp_icon_warning, &bmp_bottom_left_close,
         &bmp_bottom_right_confirm, NULL, NULL, NULL, NULL, NULL, NULL,
-        _("Do you really want to \nchange fastpay settings?"));
+        __("Do you really want to \nchange fastpay settings?"));
     if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
       fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
       layoutHome();
@@ -664,8 +677,8 @@ void fsm_msgApplySettings(const ApplySettings *msg) {
   if (msg->has_use_ble) {
     layoutDialogCenterAdapterV2(
         NULL, &bmp_icon_warning, &bmp_bottom_left_close,
-        &bmp_bottom_right_confirm, NULL, NULL, _("Do you really want to"),
-        _("change bluetooth"), _("status always?"), NULL, NULL);
+        &bmp_bottom_right_confirm, NULL, NULL, __("Do you really want to"),
+        __("change bluetooth"), __("status always?"), NULL, NULL);
     if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
       fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
       layoutHome();
@@ -673,7 +686,7 @@ void fsm_msgApplySettings(const ApplySettings *msg) {
     }
   }
   if ((msg->has_use_se) && (config_isInitialized())) {
-    fsm_sendSuccess(_("Can't change se setting after device initialized"));
+    fsm_sendSuccess("Can't change se setting after device initialized");
     layoutHome();
     return;
   }
@@ -687,7 +700,7 @@ void fsm_msgApplySettings(const ApplySettings *msg) {
       }
     } else {
       fsm_sendFailure(FailureType_Failure_ProcessError,
-                      _("Unsupported safety-checks setting"));
+                      "Unsupported safety-checks setting");
       layoutHome();
       return;
     }
@@ -719,7 +732,7 @@ void fsm_msgApplySettings(const ApplySettings *msg) {
   if (msg->has_safety_checks) {
     config_setSafetyCheckLevel(msg->safety_checks);
   }
-  fsm_sendSuccess(_("Settings applied"));
+  fsm_sendSuccess("Settings applied");
   layoutHome();
 }
 
@@ -727,7 +740,7 @@ void fsm_msgApplyFlags(const ApplyFlags *msg) {
   CHECK_PIN
 
   config_applyFlags(msg->flags);
-  fsm_sendSuccess(_("Flags applied"));
+  fsm_sendSuccess("Flags applied");
 }
 
 void fsm_msgRecoveryDevice(const RecoveryDevice *msg) {
@@ -741,12 +754,12 @@ void fsm_msgRecoveryDevice(const RecoveryDevice *msg) {
     CHECK_PARAM(!msg->has_passphrase_protection && !msg->has_pin_protection &&
                     !msg->has_language && !msg->has_label &&
                     !msg->has_u2f_counter,
-                _("Forbidden field set in dry-run"))
+                "Forbidden field set in dry-run")
   }
 
   CHECK_PARAM(!msg->has_word_count || msg->word_count == 12 ||
                   msg->word_count == 18 || msg->word_count == 24,
-              _("Invalid word count"));
+              "Invalid word count");
 
   recovery_init(msg->has_word_count ? msg->word_count : 12,
                 msg->has_passphrase_protection && msg->passphrase_protection,
@@ -769,7 +782,7 @@ void fsm_msgSetU2FCounter(const SetU2FCounter *msg) {
 
   layoutDialogCenterAdapterV2(NULL, &bmp_icon_question, &bmp_bottom_left_close,
                               &bmp_bottom_right_confirm, NULL, NULL,
-                              _("Do you want to set"), _("the U2F counter?"),
+                              __("Do you want to set"), __("the U2F counter?"),
                               NULL, NULL, NULL);
   if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
     fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
@@ -777,7 +790,7 @@ void fsm_msgSetU2FCounter(const SetU2FCounter *msg) {
     return;
   }
   config_setU2FCounter(msg->u2f_counter);
-  fsm_sendSuccess(_("U2F counter set"));
+  fsm_sendSuccess("U2F counter set");
   layoutHome();
 }
 
@@ -786,8 +799,8 @@ void fsm_msgGetNextU2FCounter() {
 
   layoutDialogCenterAdapterV2(NULL, &bmp_icon_question, &bmp_bottom_left_close,
                               &bmp_bottom_right_confirm, NULL, NULL,
-                              _("Do you want to"), _("increase and retrieve"),
-                              _("the U2F counter?"), NULL, NULL);
+                              __("Do you want to"), __("increase and retrieve"),
+                              __("the U2F counter?"), NULL, NULL);
   if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
     fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
     layoutHome();
@@ -802,12 +815,12 @@ void fsm_msgGetNextU2FCounter() {
 }
 
 static void progress_callback(uint32_t iter, uint32_t total) {
-  layoutProgressAdapter(_("Please wait"), 1000 * iter / total);
+  layoutProgressAdapter(_(C__PLEASE_WAIT), 1000 * iter / total);
 }
 
 void fsm_msgGetFirmwareHash(const GetFirmwareHash *msg) {
   RESP_INIT(FirmwareHash);
-  layoutProgressSwipe(_("Please wait"), 0);
+  layoutProgressSwipe(_(C__PLEASE_WAIT), 0);
   if (memory_firmware_hash(msg->challenge.bytes, msg->challenge.size,
                            progress_callback, resp->hash.bytes) != 0) {
     fsm_sendFailure(FailureType_Failure_FirmwareError, NULL);
@@ -835,10 +848,10 @@ void fsm_msgBixinReboot(const BixinReboot *msg) {
 
 #if !EMULATOR
   if (sys_usbState() == false && battery_cap < 2) {
-    layoutDialogCenterAdapterEx(
-        &bmp_icon_warning, NULL, &bmp_bottom_right_confirm, NULL,
-        _("Low Battery!Use cable or"), _("Charge to 25% before"),
-        _("updating the bootloader"), NULL);
+    layoutDialogCenterAdapterV2(
+        NULL, &bmp_icon_warning, NULL, &bmp_bottom_right_confirm, NULL, NULL,
+        NULL, NULL, NULL, NULL,
+        _(C__LOW_BATTERY_EXCLAM_CHARGE_TO_25_PERCENTS_BEFORE_UPDATING_THE_BOOTLOADER));
     while (1) {
       uint8_t key = keyScan();
       if (key == KEY_CONFIRM) {
@@ -853,17 +866,17 @@ void fsm_msgBixinReboot(const BixinReboot *msg) {
   }
 #endif
 
-  layoutDialogCenterAdapterV2(NULL, &bmp_icon_warning, &bmp_bottom_left_close,
-                              &bmp_bottom_right_confirm, NULL, NULL,
-                              _("Do you want to restart"),
-                              _("device in update mode?"), NULL, NULL, NULL);
+  layoutDialogCenterAdapterV2(
+      NULL, &bmp_icon_warning, &bmp_bottom_left_close,
+      &bmp_bottom_right_confirm, NULL, NULL, NULL, NULL, NULL, NULL,
+      _(C__DO_YOU_WANT_TO_RESTART_DEVICE_IN_UPDATE_MODE));
   if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
     fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
     layoutHome();
     return;
   }
   CHECK_PIN_UNCACHED
-  fsm_sendSuccess(_("reboot start"));
+  fsm_sendSuccess("reboot start");
   usbFlush(500);  // send response before reboot
 #if !EMULATOR
   svc_reboot_to_bootloader();
@@ -888,9 +901,14 @@ void fsm_msgBixinVerifyDeviceRequest(const BixinVerifyDeviceRequest *msg) {
   if (config_hasPin()) {
     CHECK_PIN
   }
-
-  layoutDialogSwipe(NULL, _("Cancel"), _("Confirm"), _("SECURITY CHECK"), NULL,
-                    _("Check this device with\nOneKey secure server?"), NULL,
+#if EMULATOR
+  fsm_sendFailure(FailureType_Failure_UnexpectedMessage, NULL);
+  layoutHome();
+  return;
+#else
+  layoutDialogSwipe(NULL, __("Cancel"), __("Confirm"),
+                    _(C__SECURITY_CHECK_UPPERCASE), NULL,
+                    _(C__CHECK_THIS_DEVICE_WITH_ONEKEY_SECURE_SERVER), NULL,
                     NULL, NULL, NULL);
   if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
     fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
@@ -912,5 +930,6 @@ void fsm_msgBixinVerifyDeviceRequest(const BixinVerifyDeviceRequest *msg) {
   }
   msg_write(MessageType_MessageType_BixinVerifyDeviceAck, resp);
   layoutHome();
+#endif
   return;
 }

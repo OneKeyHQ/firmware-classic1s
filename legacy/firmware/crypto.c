@@ -847,12 +847,13 @@ bool change_output_to_input_script_type(OutputScriptType output_script_type,
 }
 
 void slip21_from_seed(const uint8_t *seed, int seed_len, Slip21Node *out) {
-  // hmac_sha512((uint8_t *)"Symmetric key seed", 18, seed, seed_len,
-  // out->data);
-
+#if EMULATOR
+  hmac_sha512((uint8_t *)"Symmetric key seed", 18, seed, seed_len, out->data);
+#else
   (void)seed;
   (void)seed_len;
   se_slip21_node(out->data);
+#endif
 }
 
 void slip21_derive_path(Slip21Node *inout, const uint8_t *label,
