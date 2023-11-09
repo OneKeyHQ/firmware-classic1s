@@ -140,6 +140,9 @@ message Features {
     optional string build_id = 518;
     optional uint32 battery_level = 520;
     optional string product = 521;
+
+    optional string se_build_id = 530;
+    optional bytes se_hash = 531;
 }
 
 /**

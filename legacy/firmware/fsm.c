@@ -595,8 +595,8 @@ void fsm_postMsgCleanup(MessageType message_type) {
 bool fsm_layoutPathWarning(uint32_t address_n_count,
                            const uint32_t *address_n) {
   char desc[128] = {0};
-  strcat(desc, _(C__STR_IS_A_NON_STANDARD_PATH_USE_THIS_PATH_QUES));
-  str_replace(desc, "{}", address_n_str(address_n, address_n_count, false));
+  strlcpy(desc, _(C__STR_IS_A_NON_STANDARD_PATH_USE_THIS_PATH_QUES), 120);
+  bracket_replace(desc, address_n_str(address_n, address_n_count, false));
   layoutDialogAdapterEx(_(T__CHECK_PATH), &bmp_bottom_left_close, NULL,
                         &bmp_bottom_right_confirm, NULL, desc, NULL, NULL, NULL,
                         NULL);

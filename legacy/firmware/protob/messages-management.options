@@ -13,6 +13,8 @@ Features.session_id                     max_size:32
 Features.ble_name                       max_size:32
 Features.ble_ver                        max_size:16
 Features.se_ver                         max_size:16
+Features.se_build_id                    max_size:8
+Features.se_hash                        max_size:32
 Features.onekey_version                 max_size:16
 Features.onekey_serial                  max_size:32
 Features.bootloader_version             max_size:8

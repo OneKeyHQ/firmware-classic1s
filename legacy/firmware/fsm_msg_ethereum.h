@@ -228,12 +228,12 @@ void fsm_msgEthereumGetAddress(const EthereumGetAddress *msg) {
   if (msg->has_show_display && msg->show_display) {
     char desc[257] = {0};
     const char *chain_name = NULL;
-    strlcpy(desc, _(I__ADDRESS_COLON), sizeof(desc));
+    strlcpy(desc, _(T__CHAIN_STR_ADDRESS), sizeof(desc));
     if (strlen(network->name) == 0) {
       ASSIGN_ETHEREUM_NAME(chain_name, network->chain_id)
-      snprintf(desc, 257, "%s %s", chain_name, _(I__ADDRESS_COLON));
+      bracket_replace(desc, chain_name);
     } else {
-      snprintf(desc, 257, "%s %s", network->name, _(I__ADDRESS_COLON));
+      bracket_replace(desc, network->name);
     }
 
     if (!fsm_layoutAddress(resp->address, NULL, desc, false, 0, msg->address_n,

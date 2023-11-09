@@ -91,22 +91,28 @@ uint32_t version_string_to_int(const char *version_str) {
   return version;
 }
 
-bool str_replace(char *orig, const char *sub, const char *with) {
-  if (NULL == orig || NULL == orig || NULL == orig) {
-    return false;
-  }
-  int len = strlen(orig);
-  int len1 = strlen(sub);
-  int len2 = strlen(with);
-  char *dst = NULL;
-  char *src = NULL;
-  char *q = strstr(orig, sub);
-  if (!q) return false;
-  src = q + len1;
-  dst = q + len2;
-  memcpy(dst, src, orig + strlen(orig) - src);
-  memcpy(q, with, len2);
-  orig[len + len2 - len1] = '\0';
+extern int utf8_get_size(const uint8_t ch);
+bool bracket_replace(char *orig, const char *with) {
+  int steps = 0;
+  int with_len = strlen(with), orig_len = strlen(orig), len = 0;
+  char *p = orig;
+  char tmp[256] = {0};
 
+  while (*p) {
+    if ((uint8_t)*p < 0x80) {
+      if ((*p == '{') && (p[1] == '}')) {
+        len = strlen(p + 2) + 1;
+        memcpy(tmp, p + 2, len);
+        memcpy(p, with, with_len);
+        memcpy(p + with_len, tmp, len);
+        orig[orig_len - 2 + with_len] = '\0';
+        break;
+      }
+      p++;
+    } else {
+      steps = utf8_get_size(*p);
+      p += steps;
+    }
+  }
   return true;
 }

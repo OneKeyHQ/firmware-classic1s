@@ -90,7 +90,6 @@ CFLAGS   += $(OPTFLAGS) \
             $(FPUFLAGS) \
             $(CONFFLAG) \
             -DSTM32F4 \
-            -DRAND_PLATFORM_INDEPENDENT=1 \
             -DDEBUG_LINK=$(DEBUG_LINK) \
             -DDEBUG_LOG=$(DEBUG_LOG) \
             -I$(TOOLCHAIN_DIR)/include \

@@ -123,8 +123,13 @@ void nexa_sign_sighash(HDNode *node, const uint8_t *raw_message,
   hasher_Final(&ctx, digest);
 
   // schnorr sign
+#if EMULATOR
   if (schnorr_sign_digest(&secp256k1, node->private_key, digest, signature) !=
       0) {
+#else
+  int ret = hdnode_bch_sign_digest(node, digest, signature);
+  if (ret != 0) {
+#endif
     fsm_sendFailure(FailureType_Failure_ProcessError, "Signing failed");
     nexa_signing_abort();
     return;

@@ -185,7 +185,8 @@ void fsm_msgEthereumGetAddressOneKey(const EthereumGetAddressOneKey *msg) {
     } else {
       ASSIGN_ETHEREUM_NAME(chain_name, 0);  // unknown chain
     }
-    snprintf(desc, 32, "%s %s", chain_name, _(I__ADDRESS_COLON));
+    strlcpy(desc, _(T__CHAIN_STR_ADDRESS), sizeof(desc));
+    bracket_replace(desc, chain_name);
     if (!fsm_layoutAddress(resp->address, NULL, desc, false, 0, msg->address_n,
                            msg->address_n_count, true, NULL, 0, 0, NULL)) {
       return;

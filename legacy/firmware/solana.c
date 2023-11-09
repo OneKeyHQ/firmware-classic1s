@@ -94,7 +94,7 @@ void solana_sign_tx(const SolanaSignTx *msg, const HDNode *node,
   uint8_t steps_list[MAX_TRANSACTION_SUMMARY_ITEMS];
   char title_str[65] = {0};
   snprintf(title_str, 65, "%s", _(T__STR_CHAIN_TRANSACTION));
-  str_replace(title_str, "{}", "Solana");
+  bracket_replace(title_str, "Solana");
   if (transaction_summary_finalize(summary_step_kinds, &num_summary_steps) ==
       0) {
     for (size_t i = 0; i < num_summary_steps; i++) {
@@ -132,11 +132,11 @@ void solana_sign_tx(const SolanaSignTx *msg, const HDNode *node,
 
         steps_list[steps++] = i;
 
-        layoutDialogAdapterEx(title_str, &bmp_bottom_left_close, NULL,
-                              i < num_summary_steps - 1
-                                  ? &bmp_bottom_right_arrow
-                                  : &bmp_bottom_right_confirm,
-                              NULL, NULL, desc, text, NULL, NULL);
+        layoutDialogAdapterEx(
+            title_str, &bmp_bottom_left_close, NULL,
+            i < num_summary_steps - 1 ? &bmp_bottom_right_arrow
+                                      : &bmp_bottom_right_confirm,
+            NULL, NULL, gettext_from_en(desc), text, NULL, NULL);
 
         uint8_t key;
       button_scan:

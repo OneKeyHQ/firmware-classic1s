@@ -301,9 +301,8 @@ void fsm_msgGetAddress(const GetAddress *msg) {
       multisig_index =
           cryptoMultisigPubkeyIndex(coin, &(msg->multisig), node->public_key);
     } else {
-      strcat(desc, coin->coin_name);
-      strcat(desc, " ");
-      strlcpy(desc + strlen(desc), _(I__ADDRESS_COLON), sizeof(desc));
+      strlcpy(desc, _(T__CHAIN_STR_ADDRESS), sizeof(desc));
+      bracket_replace(desc, coin->coin_name);
     }
 
     uint32_t multisig_xpub_magic = coin->xpub_magic;

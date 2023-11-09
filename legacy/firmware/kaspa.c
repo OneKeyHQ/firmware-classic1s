@@ -125,8 +125,7 @@ void kaspa_sign_sighash(HDNode *node, const uint8_t *raw_message,
 #if EMULATOR
     tx_sign_bip340(node->private_key, schnorr_digest, signature, signature_len);
 #else
-    uint8_t sig[64];
-    int ret = hdnode_bip340_sign_digest(node, schnorr_digest, sig);
+    int ret = hdnode_bip340_sign_digest(node, schnorr_digest, signature);
     if (ret != 0) {
       fsm_sendFailure(FailureType_Failure_ProcessError, "Signing failed");
       kaspa_signing_abort();

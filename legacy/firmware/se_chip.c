@@ -361,7 +361,7 @@ secbool se_get_sn(char **serial) {
 }
 
 char *se_get_version(void) {
-  uint8_t get_ver[5] = {0x00, 0xf7, 0x00, 00, 0x00};
+  uint8_t get_ver[5] = {0x00, 0xf7, 0x00, 0x00, 0x00};
   static char ver[8] = {0};
   uint16_t ver_len = sizeof(ver);
 
@@ -370,6 +370,31 @@ char *se_get_version(void) {
   }
 
   return ver;
+}
+
+char *se_get_build_id(void) {
+  uint8_t get_build_id[5] = {0x00, 0xf7, 0x00, 0x01, 0x00};
+  static char build_id[8] = {0};
+  uint16_t len = sizeof(build_id);
+
+  if (!thd89_transmit(get_build_id, sizeof(get_build_id), (uint8_t *)build_id,
+                      &len)) {
+    return NULL;
+  }
+
+  return build_id;
+}
+
+char *se_get_hash(void) {
+  uint8_t get_hash[5] = {0x00, 0xf7, 0x00, 0x02, 0x00};
+  static char hash[32] = {0};
+  uint16_t len = 32;
+
+  if (!thd89_transmit(get_hash, sizeof(get_hash), (uint8_t *)hash, &len)) {
+    return NULL;
+  }
+
+  return hash;
 }
 
 secbool se_get_pubkey(uint8_t *public_key) {
@@ -1013,7 +1038,7 @@ secbool se_gen_session_seed(const char *passphrase, bool cardano) {
     }
     while (percent != 100) {
       if (ui_callback) {
-        ui_callback(__("gen master seed"), percent * 10);
+        ui_callback(_(C__GENERATE_MASTER_SEED_ETC), percent * 10);
       }
       if (!session_generate_seed_percent(&percent)) {
         return secfalse;
@@ -1077,6 +1102,18 @@ int se_bip340_sign_digest(const uint8_t *digest, uint8_t sig[64]) {
   uint8_t resp[64];
   uint16_t resp_len = sizeof(resp);
   if (!se_transmit_mac(SE_INS_SIGN, 0x00, 0x07, (uint8_t *)digest, 32, resp,
+                       &resp_len)) {
+    return -1;
+  }
+  if (resp_len != 64) return -1;
+  memcpy(sig, resp, resp_len);
+  return 0;
+}
+
+int se_bch_sign_digest(const uint8_t *digest, uint8_t sig[64]) {
+  uint8_t resp[64];
+  uint16_t resp_len = sizeof(resp);
+  if (!se_transmit_mac(SE_INS_SIGN, 0x00, 0x09, (uint8_t *)digest, 32, resp,
                        &resp_len)) {
     return -1;
   }
@@ -1326,6 +1363,12 @@ int hdnode_bip340_sign_digest(const HDNode *node, const uint8_t *digest,
   return se_bip340_sign_digest(digest, sig) == 0 ? 0 : 1;
 }
 
+int hdnode_bch_sign_digest(const HDNode *node, const uint8_t *digest,
+                           uint8_t sig[64]) {
+  (void)node;
+  return se_bch_sign_digest(digest, sig) == 0 ? 0 : 1;
+}
+
 int hdnode_bip340_get_shared_key(const HDNode *node,
                                  const uint8_t *peer_public_key,
                                  uint8_t session_key[65]) {
@@ -1345,7 +1388,6 @@ bool se_isFactoryMode(void) {
   // if (!se_get_sn(&serial)) {
   //   return true;
   // }
-  // return false;
   uint8_t cmd[5] = {0x00, 0xf8, 0x04, 0x00, 0x00};
   uint8_t flag = 0xff;
   uint16_t len = sizeof(flag);

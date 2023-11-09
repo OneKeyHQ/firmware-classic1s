@@ -221,7 +221,7 @@ refresh_menu:
       memcpy(token_val + strlen(token_val), " FIL", 5);
     }
     layoutHeader(tx_msg[0]);
-    oledDrawStringAdapter(0, y, desc, FONT_STANDARD);
+    oledDrawStringAdapter(0, y, gettext_from_en(desc), FONT_STANDARD);
     oledDrawStringAdapter(0, y + 10, token_val, FONT_STANDARD);
     if (index == 0) {
       layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);

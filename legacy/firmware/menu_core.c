@@ -45,7 +45,7 @@ void menu_display(struct menu *menu) {
   if (menu->items[menu->current].name2) {
     if (0 == memcmp(menu->items[menu->current].name2, "minutes", 7)) {
       strlcpy(desc, _(O__STR_MINUTES), 64);
-      str_replace(desc, "{}", menu->items[menu->current].name);
+      bracket_replace(desc, menu->items[menu->current].name);
     } else {
       strcat(desc, " ");
       strcat(desc, _gettext(menu->items[menu->current].name2));
@@ -61,7 +61,7 @@ void menu_display(struct menu *menu) {
     if (menu->items[menu->current - 1].name2) {
       if (0 == memcmp(menu->items[menu->current - 1].name2, "minutes", 7)) {
         strlcpy(previous_desc, _(O__STR_MINUTES), 64);
-        str_replace(previous_desc, "{}", menu->items[menu->current - 1].name);
+        bracket_replace(previous_desc, menu->items[menu->current - 1].name);
       } else {
         strcat(previous_desc, " ");
         strcat(previous_desc, _gettext(menu->items[menu->current - 1].name2));
@@ -73,8 +73,7 @@ void menu_display(struct menu *menu) {
     if (menu->items[menu->current - 2].name2) {
       if (0 == memcmp(menu->items[menu->current - 2].name2, "minutes", 7)) {
         strlcpy(pre_previous_desc, _(O__STR_MINUTES), 64);
-        str_replace(pre_previous_desc, "{}",
-                    menu->items[menu->current - 2].name);
+        bracket_replace(pre_previous_desc, menu->items[menu->current - 2].name);
       } else {
         strcat(pre_previous_desc, " ");
         strcat(pre_previous_desc,
@@ -88,8 +87,8 @@ void menu_display(struct menu *menu) {
     if (menu->items[menu->current - 3].name2) {
       if (0 == memcmp(menu->items[menu->current - 3].name2, "minutes", 7)) {
         strlcpy(pre_pre_previous_desc, _(O__STR_MINUTES), 64);
-        str_replace(pre_pre_previous_desc, "{}",
-                    menu->items[menu->current - 3].name);
+        bracket_replace(pre_pre_previous_desc,
+                        menu->items[menu->current - 3].name);
       } else {
         strcat(pre_pre_previous_desc, " ");
         strcat(pre_pre_previous_desc,
@@ -102,7 +101,7 @@ void menu_display(struct menu *menu) {
     if (menu->items[menu->current + 1].name2) {
       if (0 == memcmp(menu->items[menu->current + 1].name2, "minutes", 7)) {
         strlcpy(next_desc, _(O__STR_MINUTES), 64);
-        str_replace(next_desc, "{}", menu->items[menu->current + 1].name);
+        bracket_replace(next_desc, menu->items[menu->current + 1].name);
       } else {
         strcat(next_desc, " ");
         strcat(next_desc, _gettext(menu->items[menu->current + 1].name2));
@@ -114,7 +113,7 @@ void menu_display(struct menu *menu) {
     if (menu->items[menu->current + 2].name2) {
       if (0 == memcmp(menu->items[menu->current + 2].name2, "minutes", 7)) {
         strlcpy(next_next_desc, _(O__STR_MINUTES), 64);
-        str_replace(next_next_desc, "{}", menu->items[menu->current + 2].name);
+        bracket_replace(next_next_desc, menu->items[menu->current + 2].name);
       } else {
         strcat(next_next_desc, " ");
         strcat(next_next_desc, _gettext(menu->items[menu->current + 2].name2));
@@ -126,8 +125,8 @@ void menu_display(struct menu *menu) {
     if (menu->items[menu->current + 3].name2) {
       if (0 == memcmp(menu->items[menu->current + 3].name2, "minutes", 7)) {
         strlcpy(next_next_next_desc, _(O__STR_MINUTES), 64);
-        str_replace(next_next_next_desc, "{}",
-                    menu->items[menu->current + 3].name);
+        bracket_replace(next_next_next_desc,
+                        menu->items[menu->current + 3].name);
       } else {
         strcat(next_next_next_desc, " ");
         strcat(next_next_next_desc,

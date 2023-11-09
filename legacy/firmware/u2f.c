@@ -494,8 +494,10 @@ void u2fhid_msg(const APDU *a, uint32_t len) {
     return;
   }
 
+#if !EMULATOR
   uint8_t buffer[1024 + 64];
   uint16_t resp_len = sizeof(buffer);
+#endif
 
   switch (a->ins) {
     case U2F_REGISTER:

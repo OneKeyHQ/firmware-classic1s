@@ -305,4 +305,8 @@ const char *languages_en[] = {
     "Do you want to verify\nthis message?",
     "Do you really want to\nchange bluetooth status?",
     "Do you really want to change language to {}?",
+    "Authenticity Check",
+    "Unknown",
+    "Speed up charging with\n5V and 200mA+ charge\nheads!",
+    "Generate master seed...",
 };

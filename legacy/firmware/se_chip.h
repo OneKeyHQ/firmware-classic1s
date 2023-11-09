@@ -36,6 +36,8 @@ secbool se_reset_storage(void);
 secbool se_set_sn(const char *serial, uint8_t len);
 secbool se_get_sn(char **serial);
 char *se_get_version(void);
+char *se_get_build_id(void);
+char *se_get_hash(void);
 secbool se_isInitialized(void);
 secbool se_hasPin(void);
 secbool se_setPin(const char *pin);
@@ -103,6 +105,8 @@ int se_get_shared_key(const char *curve, const uint8_t *peer_public_key,
 secbool se_derive_tweak_private_keys(const uint8_t *root_hash);
 int se_bip340_sign_digest(const uint8_t *digest, uint8_t sig[64]);
 
+int se_bch_sign_digest(const uint8_t *digest, uint8_t sig[64]);
+
 int se_aes256_encrypt(const uint8_t *data, uint16_t data_len, const uint8_t *iv,
                       uint8_t *value, uint16_t value_len, uint8_t *out);
 int se_aes256_decrypt(const uint8_t *data, uint16_t data_len, const uint8_t *iv,
@@ -131,6 +135,8 @@ bool se_disableFactoryMode(void);
 #define se_transmit(...) 0
 #define se_get_sn(...) false
 #define se_get_version(...) "1.1.0.0"
+#define se_get_build_id(...) "xxxxxxx"
+#define se_get_hash(...) "00000000000000000000000000000000"
 #define se_backup(...) false
 #define se_restore(...) false
 #define se_verify(...) false

@@ -2593,6 +2593,8 @@ if TYPE_CHECKING:
         build_id: "str | None"
         battery_level: "int | None"
         product: "str | None"
+        se_build_id: "str | None"
+        se_hash: "bytes | None"
 
         def __init__(
             self,
@@ -2651,6 +2653,8 @@ if TYPE_CHECKING:
             build_id: "str | None" = None,
             battery_level: "int | None" = None,
             product: "str | None" = None,
+            se_build_id: "str | None" = None,
+            se_hash: "bytes | None" = None,
         ) -> None:
             pass
 
