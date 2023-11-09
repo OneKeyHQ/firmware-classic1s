@@ -1090,9 +1090,10 @@ retry:
   if (strncmp(new_pin, pin, sizeof(new_pin)) != 0) {
     memzero(old_pin, sizeof(old_pin));
     memzero(new_pin, sizeof(new_pin));
-    layoutDialogCenterAdapter(&bmp_icon_error, NULL, NULL,
-                              &bmp_bottom_right_retry, NULL, NULL, NULL, NULL,
-                              NULL, _(C__VERIFYING_ETC), NULL, NULL);
+    layoutDialogCenterAdapterV2(
+        NULL, &bmp_icon_error, NULL, &bmp_bottom_right_retry, NULL, NULL, NULL,
+        NULL, NULL, NULL, _(C__PIN_NOT_MATCH_EXCLAM_TRY_AGAIN));
+
     while (1) {
       key = protectWaitKey(0, 1);
       if (key == KEY_CONFIRM) {
@@ -1170,14 +1171,14 @@ bool protectPinCheck(bool retry) {
 
   uint32_t fails = config_getPinFails();
   if (fails == 1) {
-    str_replace(desc, "{}", "9");
+    bracket_replace(desc, "9");
     layoutDialogCenterAdapterV2(
         NULL, &bmp_icon_warning, NULL,
         retry ? &bmp_bottom_right_retry : &bmp_bottom_right_confirm, NULL, NULL,
         NULL, NULL, NULL, NULL, desc);
   } else if (fails > 1 && fails < 10) {
     uint2str(10 - fails, times_str);
-    str_replace(desc, "{}", times_str);
+    bracket_replace(desc, times_str);
     layoutDialogCenterAdapterV2(
         NULL, &bmp_icon_warning, NULL,
         retry ? &bmp_bottom_right_retry : &bmp_bottom_right_confirm, NULL, NULL,
@@ -1211,7 +1212,7 @@ bool protectPinCheck(bool retry) {
     snprintf(desc, 64, "%s",
              _(C__CAUTION_DEVICE_WILL_BE_RESET_AFTER_STR_MORE_TIME_WRONG));
     uint2str(10 - fails, times_str);
-    str_replace(desc, "{}", times_str);
+    bracket_replace(desc, times_str);
     layoutDialogCenterAdapterV2(NULL, &bmp_icon_info, NULL,
                                 &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL,
                                 NULL, NULL, desc);
@@ -1244,6 +1245,7 @@ void enter_sleep(void) {
   sleep_count++;
   if (sleep_count == 1) {
     timer_sleep_start_reset();
+    config_getAutoLockDelayMs();  // Cached
     register_timer("poweroff", timer1s, auto_poweroff_timer);
     layoutBack = layoutLast;
     oledBufferLoad(oled_prev);

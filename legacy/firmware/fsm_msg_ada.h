@@ -76,14 +76,16 @@ void fsm_msgCardanoGetAddress(CardanoGetAddress *msg) {
     return;
   }
   if (msg->has_show_display && msg->show_display) {
-    char desc[20] = {0};
-    char addr_type[32] = {0};
-    snprintf(desc, 20, "Cardano %s", _(I__ADDRESS_COLON));
+    char desc[64] = {0};
+    char addr_type[64] = {0};
+    strlcpy(desc, _(T__CHAIN_STR_ADDRESS), sizeof(desc));
+    strlcpy(addr_type, _(T__CHAIN_STR_ADDRESS), sizeof(addr_type));
+    bracket_replace(desc, "Cardano");
     if (msg->address_parameters.address_type == CardanoAddressType_BASE) {
-      snprintf(addr_type, 32, "Base %s", _(I__ADDRESS_COLON));
+      bracket_replace(addr_type, "Base");
     } else if (msg->address_parameters.address_type ==
                CardanoAddressType_REWARD) {
-      snprintf(addr_type, 32, "Reward %s", _(I__ADDRESS_COLON));
+      bracket_replace(addr_type, "Reward");
     }
     if (msg->address_parameters.address_n_count > 0) {
       if (!fsm_layoutAddress(resp->address, addr_type, desc, false, 0,

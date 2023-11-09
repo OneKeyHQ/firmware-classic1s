@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
@@ -24,4 +25,22 @@ char *gettextX(int msgid) {
   }
 
   return (char *)languages_en[msgid];
+}
+
+extern bool is_valid_ascii(const uint8_t *data, uint32_t size);
+const char *gettext_from_en(char *en_str) {
+  int msgid = -1;
+  size_t len = strlen(en_str);
+  if (!is_valid_ascii((uint8_t *)en_str, len)) {
+    return en_str;
+  }
+  for (int i = 0; i < I18N_LANGUAGE_ITEMS; i++) {
+    if ((0 == strncmp(en_str, languages_en[i], len)) &&
+        (len == strlen(languages_en[i]))) {
+      msgid = i;
+      break;
+    }
+  }
+  if (msgid < 0) return en_str;
+  return _(msgid);
 }

@@ -28,10 +28,8 @@ void fsm_msgFilecoinGetAddress(const FilecoinGetAddress *msg) {
   if (!node) return;
 
   uint8_t pk[65] = {0};
-  /* get uncompressed public key */
-  if (ecdsa_get_public_key65(node->curve->params, node->private_key, pk) != 0) {
-    return;
-  }
+  ecdsa_uncompress_pubkey(node->curve->params, node->public_key, pk);
+
   if (msg->has_testnet && msg->testnet) {
     filecoin_testnet = true;
   } else {
@@ -39,8 +37,9 @@ void fsm_msgFilecoinGetAddress(const FilecoinGetAddress *msg) {
   }
   if (!get_filecoin_addr(pk, resp)) return;
   if (msg->has_show_display && msg->show_display) {
-    char desc[20] = {0};
-    snprintf(desc, 20, "%s %s", "Filecoin", _(I__ADDRESS_COLON));
+    char desc[64] = {0};
+    strlcpy(desc, _(T__CHAIN_STR_ADDRESS), sizeof(desc));
+    bracket_replace(desc, "Filecoin");
     if (!fsm_layoutAddress(resp->address, NULL, desc, false, 0, msg->address_n,
                            msg->address_n_count, true, NULL, 0, 0, NULL)) {
       return;

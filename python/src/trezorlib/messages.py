@@ -3811,6 +3811,8 @@ class Features(protobuf.MessageType):
         518: protobuf.Field("build_id", "string", repeated=False, required=False, default=None),
         520: protobuf.Field("battery_level", "uint32", repeated=False, required=False, default=None),
         521: protobuf.Field("product", "string", repeated=False, required=False, default=None),
+        530: protobuf.Field("se_build_id", "string", repeated=False, required=False, default=None),
+        531: protobuf.Field("se_hash", "bytes", repeated=False, required=False, default=None),
     }
 
     def __init__(
@@ -3871,6 +3873,8 @@ class Features(protobuf.MessageType):
         build_id: Optional["str"] = None,
         battery_level: Optional["int"] = None,
         product: Optional["str"] = None,
+        se_build_id: Optional["str"] = None,
+        se_hash: Optional["bytes"] = None,
     ) -> None:
         self.capabilities: Sequence["Capability"] = capabilities if capabilities is not None else []
         self.major_version = major_version
@@ -3927,6 +3931,8 @@ class Features(protobuf.MessageType):
         self.build_id = build_id
         self.battery_level = battery_level
         self.product = product
+        self.se_build_id = se_build_id
+        self.se_hash = se_hash
 
 
 class LockDevice(protobuf.MessageType):

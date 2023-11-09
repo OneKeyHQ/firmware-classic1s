@@ -276,7 +276,6 @@ if not utils.BITCOIN_ONLY:
     BixinOutMessageSE = 904
     BixinVerifyDeviceRequest = 909
     BixinVerifyDeviceAck = 910
-    BixinLoadDevice = 913
     BixinPinInputOnDevice = 10000
     EthereumSignMessageEIP712 = 10200
     GetPublicKeyMultiple = 10210

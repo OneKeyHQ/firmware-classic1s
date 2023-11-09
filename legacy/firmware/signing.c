@@ -3266,10 +3266,13 @@ static bool signing_sign_legacy_input(void) {
   // Compute the digest and generate signature.
   uint8_t hash[32] = {0};
   tx_hash_final(&ti, hash, false);
-  resp.has_serialized = true;
   if (!signing_sign_ecdsa(&input, hash)) return false;
-  resp.serialized.serialized_tx.size =
-      tx_serialize_input(&to, &input, resp.serialized.serialized_tx.bytes);
+  if (serialize) {
+    resp.has_serialized = true;
+    resp.serialized.has_serialized_tx = true;
+    resp.serialized.serialized_tx.size =
+        tx_serialize_input(&to, &input, resp.serialized.serialized_tx.bytes);
+  }
   return true;
 }
 

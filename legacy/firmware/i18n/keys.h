@@ -641,7 +641,7 @@
 // Enter new wipe code
 #define C__ENTER_NEW_WIPE_CODE 300
 // Data Transfer Mode, use a charger if you wanna fast charging
-#define C__DATA_TRANSFER_MODE_ USE_A_CHARGER_IF_YOU_WANNA_FASTER_CHARGING 301
+#define C__DATA_TRANSFER_MODE_USE_A_CHARGER_IF_YOU_WANNA_FASTER_CHARGING 301
 // word
 #define O__WORD 302
 // Do you want to verify this message?
@@ -650,4 +650,12 @@
 #define C__DO_YOU_REALLY_WANT_TO_CHANGE_BLUETOOTH_STATUS_QUES 304
 // Do you really want to change language to {}?
 #define C__DO_YOU_REALLY_WANT_TO_CHANGE_LANGUAGE_TO_STR_QUES 305
+// Authenticity Check
+#define T__AUTHENTICITY_CHECK 306
+// Unknown
+#define I__UNKNOWN 307
+// Speed up charging with 5V and 200mA+ charge heads!
+#define C__SPEED_UP_CHARGING_WITH_5V_AND_200MA_CHARGE_HEAD_EXCLAM 308
+// Generate master seed...
+#define C__GENERATE_MASTER_SEED_ETC 309
 #endif

@@ -24,6 +24,7 @@
 
 char* gettext(const char* msgid);
 char* gettextX(int msgid);
+const char* gettext_from_en(char* en_str);
 
 #define _(X) gettextX(X)
 #define __(X) gettext(X)

@@ -136,11 +136,7 @@ static secbool sleepDelayMsCached = secfalse;
 static uint32_t autoLockDelayMs = autoLockDelayMsDefault;
 static uint32_t autoSleepDelayMs = sleepDelayMsDefault;
 
-#if DEBUG_LINK
 static SafetyCheckLevel safetyCheckLevel = SafetyCheckLevel_Strict;
-#else
-static SafetyCheckLevel safetyCheckLevel = SafetyCheckLevel_PromptAlways;
-#endif
 
 static const uint32_t CONFIG_VERSION = 11;
 
@@ -633,11 +629,7 @@ void config_wipe(void) {
   random_buffer((uint8_t *)config_uuid, sizeof(config_uuid));
   data2hex((const uint8_t *)config_uuid, sizeof(config_uuid), config_uuid_str);
   autoLockDelayMsCached = secfalse;
-#if DEBUG_LINK
   safetyCheckLevel = SafetyCheckLevel_Strict;
-#else
-  safetyCheckLevel = SafetyCheckLevel_PromptAlways;
-#endif
   config_set_bytes(KEY_UUID, (uint8_t *)config_uuid, sizeof(config_uuid));
   config_set_uint32(KEY_VERSION, CONFIG_VERSION);
   session_clear(false);
@@ -680,13 +672,8 @@ void config_setIsBixinAPP(void) { g_bIsBixinAPP = true; }
 uint32_t config_getPinFails(void) { return se_pinFailedCounter(); }
 
 bool config_getCoinSwitch(CoinSwitch loc) {
-  uint32_t coin_switch = 0;
-  if (sectrue == config_get_uint32(KEY_COIN_FUNCTION_SWITCH, &coin_switch)) {
-    if (coin_switch & loc) {
-      return true;
-    }
-  }
-  return false;
+  (void)loc;
+  return true;
 }
 
 void config_setCoinSwitch(CoinSwitch loc, bool flag) {

@@ -62,7 +62,7 @@ void data2hexaddr(const uint8_t *data, uint32_t len, char *str);
 void uint2str(uint32_t num, char *str);
 uint32_t version_string_to_int(const char *version_str);
 
-bool str_replace(char *orig, const char *sub, const char *with);
+bool bracket_replace(char *orig, const char *with);
 
 // defined in startup.s (or setup.c for emulator)
 extern void __attribute__((noreturn)) shutdown(void);

@@ -46,9 +46,9 @@ void fsm_msgNexaGetAddress(const NexaGetAddress *msg) {
   nexa_get_address(node->public_key, 33, msg->prefix, resp->address);
 
   if (msg->has_show_display && msg->show_display) {
-    char desc[16] = {0};
-    strcat(desc, "Nexa");
-    strcat(desc, _(I__ADDRESS_COLON));
+    char desc[64] = {0};
+    strlcpy(desc, _(T__CHAIN_STR_ADDRESS), sizeof(desc));
+    bracket_replace(desc, "Nexa");
     if (!fsm_layoutAddress(resp->address, NULL, desc, false, 0, msg->address_n,
                            msg->address_n_count, true, NULL, 0, 0, NULL)) {
       return;

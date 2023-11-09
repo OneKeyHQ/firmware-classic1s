@@ -33,8 +33,9 @@ void fsm_msgAlgorandGetAddress(AlgorandGetAddress *msg) {
   algorand_get_address_from_public_key(node->public_key + 1, resp->address);
 
   if (msg->has_show_display && msg->show_display) {
-    char desc[20] = {0};
-    snprintf(desc, 20, "%s %s", "Algorand", _(I__ADDRESS_COLON));
+    char desc[64] = {0};
+    strlcpy(desc, _(T__CHAIN_STR_ADDRESS), sizeof(desc));
+    bracket_replace(desc, "Algorand");
     if (!fsm_layoutAddress(resp->address, NULL, desc, false, 0, msg->address_n,
                            msg->address_n_count, true, NULL, 0, 0, NULL)) {
       return;

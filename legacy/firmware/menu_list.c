@@ -320,11 +320,11 @@ refresh_menu:
     }
     strcat(desc, _(C__ENTER_YOUR_STR_WORDS_RECOVERY_PHRASE_IN_ORDER));
     if (word_count == 12) {
-      str_replace(desc, "{}", "12");
+      bracket_replace(desc, "12");
     } else if (word_count == 18) {
-      str_replace(desc, "{}", "18");
+      bracket_replace(desc, "18");
     } else if (word_count == 24) {
-      str_replace(desc, "{}", "24");
+      bracket_replace(desc, "24");
     } else {
       return;
     }

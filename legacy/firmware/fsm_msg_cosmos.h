@@ -46,15 +46,14 @@ void fsm_msgCosmosGetAddress(CosmosGetAddress *msg) {
   }
 
   if (msg->has_show_display && msg->show_display) {
-    char desc[32] = {0};
+    char desc[64] = {0};
     const CosmosNetworkType *n = cosmosnetworkByHrp(msg->hrp);
+    strlcpy(desc, _(T__CHAIN_STR_ADDRESS), sizeof(desc));
     if (n) {
-      strcat(desc, n->chain_name);
+      bracket_replace(desc, n->chain_name);
     } else {
-      strcat(desc, "Cosmos");
+      bracket_replace(desc, "Cosmos");
     }
-    strcat(desc, " ");
-    strcat(desc, _(I__ADDRESS_COLON));
     if (!fsm_layoutAddress(resp->address, NULL, desc, false, 0, msg->address_n,
                            msg->address_n_count, true, NULL, 0, 0, NULL)) {
       return;

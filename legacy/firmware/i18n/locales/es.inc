@@ -33,7 +33,7 @@ const char *languages_es[] = {
     "¡El PIN no coincide!\nInténtalo de nuevo",
     "El PIN ha sido configurado",
     "¡Felicidades!",
-    "¡Billetera lista! Descarga\napps OneKey y disfruta\ncon OneKey Classic",
+    "Billetera lista! Descarga\napps OneKey y disfruta\ncon OneKey Classic",
     "Descargar OneKey Apps",
     "Descarga las apps\nde OneKey en:\nonekey.so/download",
     "Soporte",
@@ -305,4 +305,8 @@ const char *languages_es[] = {
     "¿Quieres verificar este\nmensaje?",
     "¿Quieres cambiar el\nestado del bluetooth?",
     "¿Realmente quieres\ncambiar el idioma a\n{}?",
+    "Verificación Auténtica",
+    "Desconocido",
+    "¡Aumente la velocidad de\ncarga con cabezales de\ncarga de 5V y 200mA+!",
+    "Generar semilla maestra...",
 };

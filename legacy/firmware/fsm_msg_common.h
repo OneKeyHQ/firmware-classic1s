@@ -27,7 +27,9 @@
 extern char bootloader_version[8];
 
 bool get_features(Features *resp) {
-  char *sn_version = NULL;
+  char *se_version = NULL;
+  char *se_build_id = NULL;
+  char *se_hash = NULL;
   char *serial = NULL;
   resp->has_fw_vendor = true;
   resp->has_vendor = true;
@@ -124,10 +126,21 @@ bool get_features(Features *resp) {
   }
   resp->has_se_enable = true;
   resp->se_enable = config_getWhetherUseSE();
-  sn_version = se_get_version();
-  if (sn_version) {
+  se_version = se_get_version();
+  if (se_version) {
     resp->has_se_ver = true;
-    memcpy(resp->se_ver, sn_version, strlen(sn_version));
+    memcpy(resp->se_ver, se_version, strlen(se_version));
+  }
+  se_build_id = se_get_build_id();
+  if (se_build_id) {
+    resp->has_se_build_id = true;
+    memcpy(resp->se_build_id, se_build_id, strlen(se_build_id));
+  }
+  se_hash = se_get_hash();
+  if (se_hash) {
+    resp->has_se_hash = true;
+    memcpy(resp->se_hash.bytes, se_hash, 32);
+    resp->se_hash.size = 32;
   }
 
   resp->has_onekey_version = true;
@@ -562,9 +575,6 @@ static int countlines(char *text) {
 #endif
 
 void fsm_msgApplySettings(const ApplySettings *msg) {
-  // test
-
-  return;
   CHECK_PARAM(!msg->has_passphrase_always_on_device,
               "This firmware is incapable of passphrase entry on the device.");
 
@@ -590,7 +600,7 @@ void fsm_msgApplySettings(const ApplySettings *msg) {
   if (msg->has_label) {
     char label[72] = {0};
     snprintf(label, 72, "%s", _(C__CHANGE_THE_LABEL_TO_QUOTE_STR));
-    str_replace(label, "{}", msg->label);
+    bracket_replace(label, msg->label);
     layoutDialogCenterAdapterV2("Change Label", NULL, &bmp_bottom_left_close,
                                 &bmp_bottom_right_confirm, NULL, NULL,
                                 (const char *)label, NULL, NULL, NULL, NULL);
@@ -906,10 +916,10 @@ void fsm_msgBixinVerifyDeviceRequest(const BixinVerifyDeviceRequest *msg) {
   layoutHome();
   return;
 #else
-  layoutDialogSwipe(NULL, __("Cancel"), __("Confirm"),
-                    _(C__SECURITY_CHECK_UPPERCASE), NULL,
-                    _(C__CHECK_THIS_DEVICE_WITH_ONEKEY_SECURE_SERVER), NULL,
-                    NULL, NULL, NULL);
+  layoutDialogCenterAdapterV2(
+      _(T__AUTHENTICITY_CHECK), NULL, &bmp_bottom_left_close,
+      &bmp_bottom_right_confirm, NULL, NULL, NULL, NULL, NULL, NULL,
+      _(C__CHECK_THIS_DEVICE_WITH_ONEKEY_SECURE_SERVER));
   if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
     fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
     layoutHome();

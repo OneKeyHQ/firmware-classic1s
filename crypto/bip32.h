@@ -142,6 +142,8 @@ int hdnode_sign_digest(const HDNode *node, const uint8_t *digest, uint8_t *sig,
 #endif
 int hdnode_bip340_sign_digest(const HDNode *node, const uint8_t *digest,
                               uint8_t sig[64]);
+int hdnode_bch_sign_digest(const HDNode *node, const uint8_t *digest,
+                           uint8_t sig[64]);
 
 int hdnode_get_shared_key(const HDNode *node, const uint8_t *peer_public_key,
                           uint8_t *session_key, int *result_size);

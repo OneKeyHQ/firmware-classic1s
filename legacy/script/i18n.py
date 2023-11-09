@@ -3,9 +3,7 @@ import os
 import lokalise
 
 LOKALISE_PROJECT_ID = "372193756406ee669eacc1.76289155"
-BASE_PATH = os.path.join(
-    os.path.dirname(__file__), "..", "firmware/i18n/"
-)
+BASE_PATH = os.path.join(os.path.dirname(__file__), "..", "firmware/i18n/")
 SUPPORTED_LANGS = ("en", "zh_CN", "zh_TW", "ja", "es")
 CHARS_NORMAL = set()
 CHARS_TITLE = set()
@@ -24,7 +22,7 @@ LANG_MAP = {
 def write_keys(parsed):
     content = []
     for key in parsed:
-        en_text = key["translations"]["en"].replace("\\n", ' ')
+        en_text = key["translations"]["en"].replace("\\n", " ")
         content += [
             f"// {wrapped}"
             for wrapped in [
@@ -32,7 +30,7 @@ def write_keys(parsed):
             ]
         ]
         for key_name in key["key_names"]:
-            text = key_name.upper().replace(':', '_')
+            text = key_name.upper().replace(":", "_")
             content.append(f"#define {text} {key['position']}")
     with open(f"{BASE_PATH}/keys.h", "w") as f:
         f.write("#ifndef I18N_KEY_H\n")

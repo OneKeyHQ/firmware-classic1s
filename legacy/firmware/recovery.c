@@ -716,13 +716,13 @@ refresh_menu:
   memzero(desc, sizeof(desc));
   strcat(desc, _(T__WORDLIST_BRACKET_STR_BRACKET));
   if (index == 0) {
-    str_replace(desc, "{}", "1-6");
+    bracket_replace(desc, "1-6");
   } else if (index == 1) {
-    str_replace(desc, "{}", "7-12");
+    bracket_replace(desc, "7-12");
   } else if (index == 2) {
-    str_replace(desc, "{}", "13-18");
+    bracket_replace(desc, "13-18");
   } else {
-    str_replace(desc, "{}", "19-24");
+    bracket_replace(desc, "19-24");
   }
   if (index == pages - 1) {
     layoutWords(
@@ -792,7 +792,7 @@ refresh_menu:
   memzero(desc, sizeof(desc));
   strcat(desc, _(T__ENTER_WORD_SHARP_STR));
   uint2str(word_index + 1, num_str);
-  str_replace(desc, "{}", num_str);
+  bracket_replace(desc, num_str);
 
   memzero(letter_list, sizeof(letter_list));
   letter_count = mnemonic_next_letter_with_prefix(words[word_index], prefix_len,
@@ -916,7 +916,7 @@ select_mnemonic_count:
   memzero(desc, sizeof(desc));
   strcat(desc, _(C__ENTER_YOUR_STR_WORDS_RECOVERY_PHRASE_IN_ORDER));
   uint2str(word_count, num_str);
-  str_replace(desc, "{}", num_str);
+  bracket_replace(desc, num_str);
 
   layoutDialogCenterAdapterV2(_(T__ENTER_RECOVERY_PHRASE), NULL,
                               &bmp_bottom_left_arrow, &bmp_bottom_right_arrow,
@@ -940,7 +940,7 @@ select_mnemonic_count:
       desc,
       _(C__THE_NEXT_SCREEN_WILL_START_DISPLAY_THE_STR_WORDS_YOU_JUST_ENTERED));
   uint2str(word_count, num_str);
-  str_replace(desc, "{}", num_str);
+  bracket_replace(desc, num_str);
 check_words_again:
   layoutDialogCenterAdapterV2(_(T__REVIEW_WORDLIST), NULL,
                               &bmp_bottom_left_close, &bmp_bottom_right_arrow,

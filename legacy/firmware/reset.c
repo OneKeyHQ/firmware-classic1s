@@ -287,7 +287,7 @@ refresh_menu:
   memzero(desc, sizeof(desc));
   strcat(desc, _(T__CHECK_WORD_SHARP_STR));
   uint2str(index + 1, num_str);
-  str_replace(desc, "{}", num_str);
+  bracket_replace(desc, num_str);
   selected = mnemonic_find_word(words[index]);
   words_order[0] = selected;
   do {
@@ -345,7 +345,7 @@ select_word:
 
   layoutDialogCenterAdapterV2(NULL, &bmp_icon_ok, NULL, &bmp_bottom_right_arrow,
                               NULL, NULL, NULL, NULL, NULL, NULL,
-                              _(C__AWESOME_EXCLAM_YOUR_WALLET_IS_RESTORED));
+                              _(C__AWESOME_EXCLAM_YOUR_BACKUP_IS_COMPLETE));
 
   while (1) {
     key = protectWaitKey(0, 1);
@@ -406,13 +406,13 @@ refresh_menu:
     memzero(desc, sizeof(desc));
     strcat(desc, _(T__RECOVERY_PHRASE_BRACKET_STR_BRACKET));
     if (index == 0) {
-      str_replace(desc, "{}", "1-6");
+      bracket_replace(desc, "1-6");
     } else if (index == 1) {
-      str_replace(desc, "{}", "7-12");
+      bracket_replace(desc, "7-12");
     } else if (index == 2) {
-      str_replace(desc, "{}", "13-18");
+      bracket_replace(desc, "13-18");
     } else {
-      str_replace(desc, "{}", "19-24");
+      bracket_replace(desc, "19-24");
     }
     if (index == pages - 1) {
       layoutWords(desc, &bmp_bottom_middle_arrow_up,
@@ -472,7 +472,7 @@ bool writedown_mnemonic(const char *mnemonic, uint32_t count) {
   char num_str[8] = "";
   strcat(desc, _(C__NEXT_CHECK_THE_WRITTEN_STR_WORDS_AGAIN));
   uint2str(count, num_str);
-  str_replace(desc, "{}", num_str);
+  bracket_replace(desc, num_str);
 write_mnemonic:
   if (scroll_mnemonic(_(O__WORD), mnemonic, 0)) {
   check_words_again:
@@ -572,7 +572,7 @@ select_mnemonic_count:
       desc,
       _(C__THE_NEXT_SCREEN_WILL_START_DISPLAY_STR_WORDS_CALLED_RECOVERY_PHRASE_WRITE_IT_DOWN_ON_SHEET_IN_ORDER));
   uint2str(words_count, num_buf);
-  str_replace(desc, "{}", num_buf);
+  bracket_replace(desc, num_buf);
   layoutDialogCenterAdapterV2(_(T__BACK_UP_RECOVERY_PHRASE), NULL,
                               &bmp_bottom_left_arrow, &bmp_bottom_right_arrow,
                               NULL, NULL, NULL, NULL, NULL, NULL, desc);

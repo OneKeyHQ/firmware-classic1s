@@ -194,14 +194,14 @@ void layoutDialogSwipeWrapping(const BITMAP *icon, const char *btnNo,
 }
 
 const char **format_tx_message(const char *chain_name) {
-  static char str[2][64 + 1];
+  static char str[2][128 + 1];
 
   memzero(str, sizeof(str));
-  snprintf(str[0], 65, "%s", _(T__STR_CHAIN_TRANSACTION));
-  str_replace(str[0], "{}", chain_name);
-  snprintf(str[1], 65, "%s",
+  snprintf(str[0], 128, "%s", _(T__STR_CHAIN_TRANSACTION));
+  bracket_replace(str[0], chain_name);
+  snprintf(str[1], 128, "%s",
            _(C__DO_YOU_WANT_TO_SIGN_THIS_CHAIN_STR_TRANSACTION_QUES));
-  str_replace(str[1], "{}", chain_name);
+  bracket_replace(str[1], chain_name);
 
   static const char *ret[2] = {str[0], str[1]};
   return ret;
@@ -339,14 +339,14 @@ void disLongPressBleTips(void) {
   change_ble_sta_flag = 0;
 }
 void disPcConnectTips(void) {
-  oledDrawStringCenter(60, 20, "Data Transfer Mode,", FONT_STANDARD);
-  oledDrawStringCenter(60, 30, "use a charger if you ", FONT_STANDARD);
-  oledDrawStringCenter(60, 40, "wanna faster charging.", FONT_STANDARD);
+  layoutDialogCenterAdapterV2(
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+      _(C__DATA_TRANSFER_MODE_USE_A_CHARGER_IF_YOU_WANNA_FASTER_CHARGING));
 }
 void disPowerChargeTips(void) {
-  oledDrawStringCenter(60, 20, "Speed up charging with ", FONT_STANDARD);
-  oledDrawStringCenter(60, 30, "5V and 200mA+ ", FONT_STANDARD);
-  oledDrawStringCenter(60, 40, "charge heads!", FONT_STANDARD);
+  layoutDialogCenterAdapterV2(
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+      _(C__SPEED_UP_CHARGING_WITH_5V_AND_200MA_CHARGE_HEAD_EXCLAM));
 }
 void disUsbConnectTips(void) {
   oledClear();
@@ -869,7 +869,7 @@ bool layoutConfirmOutput(const CoinInfo *coin, AmountUnit amount_unit,
   int index = 0;
   uint8_t key = KEY_NULL;
   uint8_t pages = 2;
-  char title[32] = {0};
+  char title[65] = {0};
   char str_out[32 + 3] = {0};
   char desc[32] = {0};
 
@@ -879,8 +879,8 @@ bool layoutConfirmOutput(const CoinInfo *coin, AmountUnit amount_unit,
   resp.code = ButtonRequestType_ButtonRequest_SignTx;
   msg_write(MessageType_MessageType_ButtonRequest, &resp);
 
-  snprintf(title, 32, "%s", _(T__STR_CHAIN_TRANSACTION));
-  str_replace(title, "{}", coin->coin_name);
+  snprintf(title, 65, "%s", _(T__STR_CHAIN_TRANSACTION));
+  bracket_replace(title, coin->coin_name);
   strcat(desc, _(I__AMOUNT_COLON));
 
   format_coin_amount(out->amount, NULL, coin, amount_unit, str_out,
@@ -1075,7 +1075,7 @@ bool layoutConfirmTx(const CoinInfo *coin, AmountUnit amount_unit,
   char desc[32] = {0};
 
   snprintf(title, 32, "%s", _(T__STR_CHAIN_TRANSACTION));
-  str_replace(title, "{}", coin->coin_name);
+  bracket_replace(title, coin->coin_name);
 
   formatAmountDifference(coin, amount_unit, total_in, change_out, str_out,
                          sizeof(str_out));
@@ -1567,7 +1567,7 @@ bool layoutXPUB(const char *coin_name, const char *xpub,
     max_sub_index = 1;
   }
   strcat(title, _(T__CHAIN_STR_PUBLIC_KEY));
-  str_replace(title, "{}", coin_name);
+  bracket_replace(title, coin_name);
 
   ButtonRequest resp = {0};
   memzero(&resp, sizeof(ButtonRequest));
@@ -3511,12 +3511,13 @@ bool layoutEraseDevice(void) {
   uint8_t key = KEY_NULL;
   char title[64] = {0};
   strlcpy(title, _(T__WARNING_EXCLAM_BRACKET_STR_BRACKET), 64);
-  str_replace(title, "{}", "1/2");
+  bracket_replace(title, "1/2");
   key = layoutPagination(
       title,
       _(C__THIS_WILL_ERASE_ALL_DATA_STORED_ON_SE_AND_INTERNAL_STORAGE_INCLUDING_PRIVATE_KEYS_AND_SETTINGS));
   if (key == KEY_CANCEL) return false;
-  str_replace(title, "1/2", "2/2");
+  strlcpy(title, _(T__WARNING_EXCLAM_BRACKET_STR_BRACKET), 64);
+  bracket_replace(title, "2/2");
   key = layoutPagination(
       title,
       _(C__RECOVERY_PHRASE_IS_THE_ONLY_WAY_TO_RESTORE_THE_PRIVATE_KEYS_THAT_OWN_YOUR_ASSETS_MAKE_SURE_YOU_STILL_HAVE_BACKUP_OF_CURRENT_WALLET));
@@ -3923,12 +3924,12 @@ bool layoutTransactionSign(const char *chain_name, uint64_t chain_id,
     strcat(title, _(T__NFT_TRANSFER));
   } else {
     snprintf(title, 64, "%s", _(T__STR_CHAIN_TRANSACTION));
-    str_replace(title, "{}", chain_name);
+    bracket_replace(title, chain_name);
   }
   strcat(title_data, _(T__VIEW_DATA_BRACKET_STR));
   uint2str(len, bytes_buf);
   strcat(bytes_buf, " bytes");
-  str_replace(title_data, "{}", bytes_buf);
+  bracket_replace(title_data, bytes_buf);
 
   if (len > 0) max_index++;
   if (key1) max_index++;
@@ -3951,7 +3952,7 @@ refresh_menu:
     sub_index = 0;
     char warning[64] = {0};
     snprintf(warning, 64, "%s", _(C__UNKNOWN_EVM_CHAIN_THE_CHAIN_ID_IS_STR));
-    str_replace(warning, "{}", chain_id_str);
+    bracket_replace(warning, chain_id_str);
     layoutDialogCenterAdapterV2(NULL, &bmp_icon_warning, &bmp_bottom_left_close,
                                 &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL,
                                 NULL, NULL, warning);
@@ -4253,12 +4254,12 @@ bool layoutTransactionSignEVM(const char *chain_name, uint64_t chain_id,
     is_nft_transfer = true;
   } else {
     snprintf(title, 64, "%s", _(T__STR_CHAIN_TRANSACTION));
-    str_replace(title, "{}", chain_name);
+    bracket_replace(title, chain_name);
   }
   strcat(title_data, _(T__VIEW_DATA_BRACKET_STR));
   uint2str(len, bytes_buf);
   strcat(bytes_buf, " bytes");
-  str_replace(title_data, "{}", bytes_buf);
+  bracket_replace(title_data, bytes_buf);
 
   if (len > 0) max_index++;
   if (key1) detail_total_index++;
@@ -4285,7 +4286,7 @@ refresh_menu:
     is_nft_page = false;
     char warning[64] = {0};
     snprintf(warning, 64, "%s", _(C__UNKNOWN_EVM_CHAIN_THE_CHAIN_ID_IS_STR));
-    str_replace(warning, "{}", chain_id_str);
+    bracket_replace(warning, chain_id_str);
     layoutDialogCenterAdapterV2(NULL, &bmp_icon_warning, &bmp_bottom_left_close,
                                 &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL,
                                 NULL, NULL, warning);
@@ -4297,7 +4298,6 @@ refresh_menu:
     layoutHeader(title);
     memset(desc, 0, 64);
     strcat(desc, _(I__AMOUNT_COLON));
-    strcat(desc, ":");
     if (is_nft_transfer) {
       is_nft_page = true;
       if (0 == nft_index) {
@@ -4619,7 +4619,7 @@ bool layoutBlindSign(const char *chain_name, bool is_contract,
   strcat(title_data, _(T__VIEW_DATA_BRACKET_STR));
   uint2str(len, bytes_buf);
   strcat(bytes_buf, " bytes");
-  str_replace(title_data, "{}", bytes_buf);
+  bracket_replace(title_data, bytes_buf);
 
   ButtonRequest resp = {0};
   memzero(&resp, sizeof(ButtonRequest));
@@ -4648,7 +4648,7 @@ refresh_layout:
       oledDrawStringAdapter(0, 13 + 10, contract_address, FONT_STANDARD);
     } else {
       oledDrawStringAdapter(0, 13, _(I__FORMAT_COLON), FONT_STANDARD);
-      oledDrawStringAdapter(0, 13 + 10, "Unknown", FONT_STANDARD);
+      oledDrawStringAdapter(0, 13 + 10, _(I__UNKNOWN), FONT_STANDARD);
     }
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
@@ -4897,10 +4897,10 @@ bool layoutSignMessage(const char *chain_name, bool verify, const char *signer,
     strcat(title_tx, _(C__DO_YOU_WANT_TO_VERIFY_THIS_MESSAGE_QUES));
   } else {
     snprintf(title, 64, "%s", _(T__CHAIN_STR_MESSAGE));
-    str_replace(title, "{}", chain_name);
+    bracket_replace(title, chain_name);
     snprintf(title_tx, 64, "%s",
              _(C__DO_YOU_WANT_TO_SIGN_THIS_CHAIN_STR_TRANSACTION_QUES));
-    str_replace(title_tx, "{}", chain_name);
+    bracket_replace(title_tx, chain_name);
   }
 
   ButtonRequest resp = {0};
@@ -5132,10 +5132,10 @@ bool layoutSignHash(const char *chain_name, bool verify, const char *signer,
     strcat(title_tx, _(C__DO_YOU_WANT_TO_VERIFY_THIS_MESSAGE_QUES));
   } else {
     snprintf(title, 64, "%s", _(T__CHAIN_STR_MESSAGE));
-    str_replace(title, "{}", chain_name);
+    bracket_replace(title, chain_name);
     snprintf(title_tx, 64, "%s",
              _(C__DO_YOU_WANT_TO_SIGN_THIS_CHAIN_STR_TRANSACTION_QUES));
-    str_replace(title_tx, "{}", chain_name);
+    bracket_replace(title_tx, chain_name);
   }
 
   ButtonRequest resp = {0};
