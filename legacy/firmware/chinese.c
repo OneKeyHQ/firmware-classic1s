@@ -154,7 +154,7 @@ void oledDrawStringEx(int x, int y, const char *text, uint8_t font) {
       }
       if (y > OLED_HEIGHT) y = 0;
       l = oledDrawCharEx(x, y, text, font);
-      if (is_symbols((uint8_t *)text, steps)) x += 1;
+      if (is_symbols((uint8_t *)text, steps)) x += 1+3;
       text += steps;
       x += l;
     }

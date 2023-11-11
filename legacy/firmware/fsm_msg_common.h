@@ -66,9 +66,9 @@ bool get_features(Features *resp) {
   memcpy(resp->revision.bytes, SCM_REVISION, len);
   resp->revision.size = len;
 #endif
-  resp->has_bootloader_hash = true;
-  resp->bootloader_hash.size =
-      memory_bootloader_hash(resp->bootloader_hash.bytes);
+  resp->has_onekey_boot_hash = true;
+  resp->onekey_boot_hash.size =
+      memory_bootloader_hash(resp->onekey_boot_hash.bytes);
 
   resp->has_language =
       config_getLanguage(resp->language, sizeof(resp->language));
@@ -124,28 +124,35 @@ bool get_features(Features *resp) {
     resp->has_ble_enable = true;
     resp->ble_enable = ble_get_switch();
   }
+
+  resp->has_onekey_device_type = true;
+  resp->onekey_device_type = OneKeyDeviceType_CLASSIC1S;
+  resp->has_onekey_se_type = true;
+  resp->onekey_se_type = OneKeySeType_THD89;
   resp->has_se_enable = true;
   resp->se_enable = config_getWhetherUseSE();
   se_version = se_get_version();
   if (se_version) {
     resp->has_se_ver = true;
     memcpy(resp->se_ver, se_version, strlen(se_version));
+    resp->has_onekey_se_version = true;
+    memcpy(resp->onekey_se_version, se_version, strlen(se_version));
   }
   se_build_id = se_get_build_id();
   if (se_build_id) {
-    resp->has_se_build_id = true;
-    memcpy(resp->se_build_id, se_build_id, strlen(se_build_id));
+    resp->has_onekey_se_build_id = true;
+    memcpy(resp->onekey_se_build_id, se_build_id, strlen(se_build_id));
   }
   se_hash = se_get_hash();
   if (se_hash) {
-    resp->has_se_hash = true;
-    memcpy(resp->se_hash.bytes, se_hash, 32);
-    resp->se_hash.size = 32;
+    resp->has_onekey_se_hash = true;
+    memcpy(resp->onekey_se_hash.bytes, se_hash, 32);
+    resp->onekey_se_hash.size = 32;
   }
 
-  resp->has_onekey_version = true;
-
-  strlcpy(resp->onekey_version, ONEKEY_VERSION, sizeof(resp->onekey_version));
+  resp->has_onekey_firmware_version = true;
+  strlcpy(resp->onekey_firmware_version, ONEKEY_VERSION,
+          sizeof(resp->onekey_firmware_version));
   if (se_get_sn(&serial)) {
     if ((uint8_t)serial[0] == 0xff && (uint8_t)serial[1] == 0xff) {
       resp->has_onekey_serial = false;
@@ -155,12 +162,15 @@ bool get_features(Features *resp) {
     }
   }
 #ifdef BUILD_ID
-  resp->has_build_id = true;
-  strlcpy(resp->build_id, BUILD_ID, sizeof(resp->build_id));
+  resp->has_onekey_firmware_build_id = true;
+  strlcpy(resp->onekey_firmware_build_id, BUILD_ID, sizeof(resp->onekey_firmware_build_id));
+  resp->has_onekey_firmware_hash = true;
+  memcpy(resp->onekey_firmware_hash.bytes, get_firmware_hash(hdr), 32);
+  resp->onekey_firmware_hash.size = 32;
 #endif
 #if !EMULATOR
-  resp->has_bootloader_version = true;
-  strlcpy(resp->bootloader_version, bootloader_version,
+  resp->has_onekey_boot_version = true;
+  strlcpy(resp->onekey_boot_version, bootloader_version,
           sizeof(resp->bootloader_version));
 #endif
 

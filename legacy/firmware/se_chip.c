@@ -1022,7 +1022,7 @@ secbool se_gen_session_seed(const char *passphrase, bool cardano) {
     }
     while (percent != 100) {
       if (ui_callback) {
-        ui_callback(__("gen cardano seed"), percent * 10);
+        ui_callback(_(C__GENERATE_CARDANO_SEED_ETC), percent * 10);
       }
       if (!session_generate_seed_percent(&percent)) {
         return secfalse;

@@ -309,4 +309,8 @@ const char *languages_en[] = {
     "Unknown",
     "Speed up charging with\n5V and 200mA+ charge\nheads!",
     "Generate master seed...",
+    "On",
+    "Off",
+    "Chain Name:",
+    "Generate cardano seed...",
 };

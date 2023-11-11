@@ -578,6 +578,8 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
                                 ((new_version & 0xFF000000) >> 24);
                   if (new_version > current_version) {
                     se_isUpdate = sectrue;
+                  } else {
+                    se_isUpdate = sectrue;
                   }
                 } else {
                   se_isUpdate = sectrue;

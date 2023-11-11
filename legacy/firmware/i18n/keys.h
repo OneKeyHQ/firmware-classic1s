@@ -658,4 +658,12 @@
 #define C__SPEED_UP_CHARGING_WITH_5V_AND_200MA_CHARGE_HEAD_EXCLAM 308
 // Generate master seed...
 #define C__GENERATE_MASTER_SEED_ETC 309
+// On
+#define O__ON 310
+// Off
+#define O__OFF 311
+// Chain Name:
+#define I__CHAIN_NAME_COLON 312
+// Generate cardano seed...
+#define C__GENERATE_CARDANO_SEED_ETC 313
 #endif

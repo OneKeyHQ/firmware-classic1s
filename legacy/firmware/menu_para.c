@@ -61,8 +61,8 @@ char* menu_para_trezor_comp_mode_state(void) {
 
 char* menu_para_safety_checks_state(void) {
   SafetyCheckLevel safetyCheckLevel = config_getSafetyCheckLevel();
-  if (safetyCheckLevel == SafetyCheckLevel_Strict) return _(O__ENABLED);
-  return _(O__DISABLED);
+  if (safetyCheckLevel == SafetyCheckLevel_Strict) return _(O__ON);
+  return _(O__OFF);
 }
 
 int menu_para_ble_index(void) { return ble_get_switch() ? 0 : 1; }

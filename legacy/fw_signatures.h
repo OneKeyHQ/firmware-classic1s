@@ -61,16 +61,17 @@ typedef struct {
       uint8_t sigindex2;
       uint8_t sigindex3;
       uint8_t sigindex4;
-      uint8_t __reserved2[155];
+      uint8_t __reserved2[151];
     } signatures_4;
     struct {
       uint8_t sigindex1;
       uint8_t sigindex2;
       uint8_t sigindex3;
-      uint8_t __reserved2[220];
+      uint8_t __reserved2[216];
     } signatures_3;
   };
 
+  uint32_t onekey_version;
   uint8_t __sigmask;
   uint8_t __sig[64];
 } __attribute__((packed)) image_header;
@@ -144,6 +145,8 @@ int signatures_match(const image_header *hdr, uint8_t store_fingerprint[32]);
  * @return SIG_OK or SIG_FAIL
  */
 int check_firmware_hashes(const image_header *hdr);
+
+uint8_t* get_firmware_hash(const image_header *hdr);
 
 /**
  * Check that block of memory is zeroed. Not constant-time.

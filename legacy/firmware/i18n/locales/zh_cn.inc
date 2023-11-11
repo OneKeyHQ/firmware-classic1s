@@ -37,7 +37,7 @@ const char *languages_zh_cn[] = {
     "下载 OneKey 应用",
     "下载 OneKey app 请前往：\nonekey.so/download",
     "用户支持",
-    "还有其他问题？请前往帮助中心寻求解答：\nhelp.onekey.so",
+    "还有其他问题？请前往帮助\n中心寻求解答：\nhelp.onekey.so",
     "设置完成！",
     "OneKey Classic 设置成功，\n即将回到系统主屏幕",
     "输入助记词来恢复您曾使用\n过的钱包",
@@ -309,4 +309,8 @@ const char *languages_zh_cn[] = {
     "未知",
     "使用 5V 和 200mA+ 充电头\n来加快充电速度！",
     "正在生成助记词…",
+    "开启",
+    "關閉",
+    "链名称：",
+    "正在生成 Cardano 密钥…",
 };
