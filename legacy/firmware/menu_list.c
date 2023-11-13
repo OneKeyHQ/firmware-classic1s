@@ -459,8 +459,8 @@ void menu_set_safety_checks(int index) {
 }
 
 static struct menu_item safety_checks_set_menu_items[] = {
-    {"Enable", NULL, true, menu_set_safety_checks, NULL, true, NULL},
-    {"Disable", NULL, true, menu_set_safety_checks, NULL, true, NULL}};
+    {"On", NULL, true, menu_set_safety_checks, NULL, true, NULL},
+    {"Off", NULL, true, menu_set_safety_checks, NULL, true, NULL}};
 
 static struct menu safety_checks_set_menu = {
     .start = 0,

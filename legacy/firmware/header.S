@@ -33,6 +33,10 @@ g_header:
     .byte 0                          // sigindex2
     .byte 0                          // sigindex3
     .byte 0                          // sigindex4
-    . = . + 155                      // reserved
+    . = . + 151                      // reserved
+    .byte ONEKEY_VER_MAJOR           // onekey major
+    .byte ONEKEY_VER_MINOR           // onekey minor
+    .byte ONEKEY_VER_PATCH           // onekey patch
+    .byte 0                          //
     . = . + 65                       // reserved
 g_header_end:

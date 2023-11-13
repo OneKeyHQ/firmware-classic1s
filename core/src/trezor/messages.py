@@ -50,6 +50,8 @@ if TYPE_CHECKING:
     from trezor.enums import NEMModificationType  # noqa: F401
     from trezor.enums import NEMMosaicLevy  # noqa: F401
     from trezor.enums import NEMSupplyChangeType  # noqa: F401
+    from trezor.enums import OneKeyDeviceType  # noqa: F401
+    from trezor.enums import OneKeySeType  # noqa: F401
     from trezor.enums import OutputScriptType  # noqa: F401
     from trezor.enums import PinMatrixRequestType  # noqa: F401
     from trezor.enums import RecoveryDeviceType  # noqa: F401
@@ -2595,6 +2597,19 @@ if TYPE_CHECKING:
         product: "str | None"
         se_build_id: "str | None"
         se_hash: "bytes | None"
+        onekey_device_type: "OneKeyDeviceType | None"
+        onekey_se_type: "OneKeySeType | None"
+        onekey_board_version: "str | None"
+        onekey_board_hash: "bytes | None"
+        onekey_boot_version: "str | None"
+        onekey_boot_hash: "bytes | None"
+        onekey_se_version: "str | None"
+        onekey_se_hash: "bytes | None"
+        onekey_se_build_id: "str | None"
+        onekey_firmware_version: "str | None"
+        onekey_firmware_hash: "bytes | None"
+        onekey_firmware_build_id: "str | None"
+        onekey_serial_no: "str | None"
 
         def __init__(
             self,
@@ -2655,6 +2670,19 @@ if TYPE_CHECKING:
             product: "str | None" = None,
             se_build_id: "str | None" = None,
             se_hash: "bytes | None" = None,
+            onekey_device_type: "OneKeyDeviceType | None" = None,
+            onekey_se_type: "OneKeySeType | None" = None,
+            onekey_board_version: "str | None" = None,
+            onekey_board_hash: "bytes | None" = None,
+            onekey_boot_version: "str | None" = None,
+            onekey_boot_hash: "bytes | None" = None,
+            onekey_se_version: "str | None" = None,
+            onekey_se_hash: "bytes | None" = None,
+            onekey_se_build_id: "str | None" = None,
+            onekey_firmware_version: "str | None" = None,
+            onekey_firmware_hash: "bytes | None" = None,
+            onekey_firmware_build_id: "str | None" = None,
+            onekey_serial_no: "str | None" = None,
         ) -> None:
             pass
 

@@ -177,3 +177,28 @@ char *se_get_version(void) {
 
   return ver;
 }
+
+char *se_get_build_id(void) {
+  uint8_t get_build_id[5] = {0x00, 0xf7, 0x00, 0x01, 0x00};
+  static char build_id[8] = {0};
+  uint16_t len = 8;
+
+  if (!thd89_transmit(get_build_id, sizeof(get_build_id), (uint8_t *)build_id,
+                      &len)) {
+    return NULL;
+  }
+
+  return build_id;
+}
+
+char *se_get_hash(void) {
+  uint8_t get_hash[5] = {0x00, 0xf7, 0x00, 0x02, 0x00};
+  static char hash[32] = {0};
+  uint16_t len = 32;
+
+  if (!thd89_transmit(get_hash, sizeof(get_hash), (uint8_t *)hash, &len)) {
+    return NULL;
+  }
+
+  return hash;
+}
