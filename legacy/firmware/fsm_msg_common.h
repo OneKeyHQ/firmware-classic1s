@@ -150,6 +150,8 @@ bool get_features(Features *resp) {
     resp->onekey_se_hash.size = 32;
   }
 
+  resp->has_onekey_version = true;
+  strlcpy(resp->onekey_version, ONEKEY_VERSION, sizeof(resp->onekey_version));
   resp->has_onekey_firmware_version = true;
   strlcpy(resp->onekey_firmware_version, ONEKEY_VERSION,
           sizeof(resp->onekey_firmware_version));
