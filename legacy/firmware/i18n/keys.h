@@ -666,4 +666,12 @@
 #define I__CHAIN_NAME_COLON 312
 // Generate cardano seed...
 #define C__GENERATE_CARDANO_SEED_ETC 313
+// Fee Payer:
+#define I__FEE_PAYER_COLON 314
+// Unrecognized:
+#define I__UNRECOGNIZED_COLON 315
+// Message Hash:
+#define I__MESSAGE_HASH_COLON 316
+// format
+#define I__FORMAT 317
 #endif

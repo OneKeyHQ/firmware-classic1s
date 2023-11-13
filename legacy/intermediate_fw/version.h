@@ -10,4 +10,3 @@
 #define ONEKEY_VER_MAJOR 3
 #define ONEKEY_VER_MINOR 99
 #define ONEKEY_VER_PATCH 99
-

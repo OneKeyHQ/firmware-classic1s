@@ -2609,6 +2609,7 @@ if TYPE_CHECKING:
         onekey_firmware_version: "str | None"
         onekey_firmware_hash: "bytes | None"
         onekey_firmware_build_id: "str | None"
+        onekey_serial_no: "str | None"
 
         def __init__(
             self,
@@ -2681,6 +2682,7 @@ if TYPE_CHECKING:
             onekey_firmware_version: "str | None" = None,
             onekey_firmware_hash: "bytes | None" = None,
             onekey_firmware_build_id: "str | None" = None,
+            onekey_serial_no: "str | None" = None,
         ) -> None:
             pass
 

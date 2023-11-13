@@ -156,22 +156,26 @@ bool get_features(Features *resp) {
   if (se_get_sn(&serial)) {
     if ((uint8_t)serial[0] == 0xff && (uint8_t)serial[1] == 0xff) {
       resp->has_onekey_serial = false;
+      resp->has_onekey_serial_no = false;
     } else {
       resp->has_onekey_serial = true;
+      resp->has_onekey_serial_no = true;
       strlcpy(resp->onekey_serial, serial, sizeof(resp->onekey_serial));
+      strlcpy(resp->onekey_serial_no, serial, sizeof(resp->onekey_serial_no));
     }
   }
 #ifdef BUILD_ID
   resp->has_onekey_firmware_build_id = true;
-  strlcpy(resp->onekey_firmware_build_id, BUILD_ID, sizeof(resp->onekey_firmware_build_id));
-  resp->has_onekey_firmware_hash = true;
-  memcpy(resp->onekey_firmware_hash.bytes, get_firmware_hash(hdr), 32);
-  resp->onekey_firmware_hash.size = 32;
+  strlcpy(resp->onekey_firmware_build_id, BUILD_ID,
+          sizeof(resp->onekey_firmware_build_id));
 #endif
 #if !EMULATOR
   resp->has_onekey_boot_version = true;
   strlcpy(resp->onekey_boot_version, bootloader_version,
           sizeof(resp->bootloader_version));
+  resp->has_onekey_firmware_hash = true;
+  memcpy(resp->onekey_firmware_hash.bytes, get_firmware_hash(hdr), 32);
+  resp->onekey_firmware_hash.size = 32;
 #endif
 
   resp->has_coin_switch = true;
@@ -611,7 +615,8 @@ void fsm_msgApplySettings(const ApplySettings *msg) {
     char label[72] = {0};
     snprintf(label, 72, "%s", _(C__CHANGE_THE_LABEL_TO_QUOTE_STR));
     bracket_replace(label, msg->label);
-    layoutDialogCenterAdapterV2("Change Label", NULL, &bmp_bottom_left_close,
+    layoutDialogCenterAdapterV2(_(T__CHANGE_LABEL), NULL,
+                                &bmp_bottom_left_close,
                                 &bmp_bottom_right_confirm, NULL, NULL,
                                 (const char *)label, NULL, NULL, NULL, NULL);
     if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {

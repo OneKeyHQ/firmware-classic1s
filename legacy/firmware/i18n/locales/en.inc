@@ -151,7 +151,7 @@ const char *languages_en[] = {
     "Change Homescreen",
     "Do you want to change\nthe homescreen?",
     "Change Label",
-    "Change the label to:\n\"{}\"",
+    "Change the label to: \"{}\"",
     "Change Auto-Lock Time",
     "Do you want to change\nauto-lock time to\n{}?",
     "App Name:",
@@ -313,4 +313,8 @@ const char *languages_en[] = {
     "Off",
     "Chain Name:",
     "Generate cardano seed...",
+    "Fee payer:",
+    "Unrecognized:",
+    "Message Hash:",
+    "format",
 };

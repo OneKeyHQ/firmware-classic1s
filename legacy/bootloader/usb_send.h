@@ -203,7 +203,6 @@ static void send_msg_features(usbd_device *dev) {
     + boot_version_len + boot_hash_len + firmware_version_len + firmware_hash_len,
   };
 
-
   // clang-format on
 
   uint32_t offset = 0;
@@ -251,11 +250,11 @@ static void send_msg_features(usbd_device *dev) {
 
   send_response(dev, response);
   response[63] = '?';
-  send_response(dev, response+63);
+  send_response(dev, response + 63);
   response[126] = '?';
-  send_response(dev, response+126);
+  send_response(dev, response + 126);
   response[189] = '?';
-  send_response(dev, response+189);
+  send_response(dev, response + 189);
 }
 
 static void send_msg_buttonrequest_firmwarecheck(usbd_device *dev) {

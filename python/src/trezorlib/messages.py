@@ -3838,6 +3838,7 @@ class Features(protobuf.MessageType):
         609: protobuf.Field("onekey_firmware_version", "string", repeated=False, required=False, default=None),
         610: protobuf.Field("onekey_firmware_hash", "bytes", repeated=False, required=False, default=None),
         611: protobuf.Field("onekey_firmware_build_id", "string", repeated=False, required=False, default=None),
+        612: protobuf.Field("onekey_serial_no", "string", repeated=False, required=False, default=None),
     }
 
     def __init__(
@@ -3912,6 +3913,7 @@ class Features(protobuf.MessageType):
         onekey_firmware_version: Optional["str"] = None,
         onekey_firmware_hash: Optional["bytes"] = None,
         onekey_firmware_build_id: Optional["str"] = None,
+        onekey_serial_no: Optional["str"] = None,
     ) -> None:
         self.capabilities: Sequence["Capability"] = capabilities if capabilities is not None else []
         self.major_version = major_version
@@ -3982,6 +3984,7 @@ class Features(protobuf.MessageType):
         self.onekey_firmware_version = onekey_firmware_version
         self.onekey_firmware_hash = onekey_firmware_hash
         self.onekey_firmware_build_id = onekey_firmware_build_id
+        self.onekey_serial_no = onekey_serial_no
 
 
 class LockDevice(protobuf.MessageType):
