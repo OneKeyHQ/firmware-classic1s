@@ -674,4 +674,28 @@
 #define I__MESSAGE_HASH_COLON 316
 // format
 #define I__FORMAT 317
+// The following transaction output contains tokens
+#define T__THE_FOLLOWING_TX_OUTPUT_CONTAINS_TOKEN 318
+// Asset Fingerprint:
+#define I__ASSET_FINGERPRINT_COLON 319
+// Token Amount:
+#define I__TOKEN_AMOUNT_COLON 320
+// Account:
+#define I__ACCOUNT_COLON 321
+// Pool Registration
+#define T__POOL_REGISTRATION 322
+// Note:
+#define I__NOTE_COLON 323
+// Asset ID:
+#define I__ASSET_ID_COLON 324
+// Asset Close:
+#define I__ASSET_CLOSE_COLON 325
+// Asset Account:
+#define I__ASSET_ACCOUNT_COLON 326
+// Freeze Flag:
+#define I__FREEZE_FLAG_COLON 327
+// Close To:
+#define I__CLOSE_TO_COLON 328
+// Asset Destination:
+#define I__ASSET_DESTINATION_COLON 329
 #endif

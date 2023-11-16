@@ -687,6 +687,7 @@ static void _layout_home(bool update_menu) {
     oledClear_ex();
   } else {
     layoutSwipe();
+    layoutStatusLogoEx(true, false);
   }
   layoutLast = layoutHome;
 
@@ -2281,6 +2282,21 @@ _layout:
   return key;
 }
 
+void layoutTxConfirmPage(const char *data) {
+  char line[64] = {0};
+  int rows = countlines((char *)data);
+  int p1 = line_index((char *)data, 1);
+  int p2 = line_index((char *)data, 2);
+  memcpy(line, data, p1);
+  oledDrawStringCenterAdapter(OLED_WIDTH / 2, 13 + 8, line, FONT_STANDARD);
+  memcpy(line, data + p1 + 1, p2 - p1);
+  oledDrawStringCenterAdapter(OLED_WIDTH / 2, 13 + 10 + 8, line, FONT_STANDARD);
+  if (rows > 2) {
+    oledDrawStringCenterAdapter(OLED_WIDTH / 2, 13 + 20 + 8, data + p2 + 1,
+                                FONT_STANDARD);
+  }
+}
+
 bool layoutConfirmSafetyChecks(SafetyCheckLevel safety_ckeck_level) {
   uint8_t key = KEY_NULL;
   ButtonRequest resp = {0};
@@ -3565,16 +3581,16 @@ bool layoutInputDirection(int direction) {
       oledDrawBitmap(71, 28, &bmp_icon_down);
       break;
     case 2:
-      oledDrawBitmap(93, 17, &bmp_icon_up);
-      oledDrawBitmap(73, 28, &bmp_icon_down);
+      oledDrawBitmap(95, 17, &bmp_icon_up);
+      oledDrawBitmap(75, 28, &bmp_icon_down);
       break;
     case 3:
       if (direction) {
         oledDrawBitmap(11, 22, &bmp_icon_up);
-        oledDrawBitmap(49, 32, &bmp_icon_down);
+        oledDrawBitmap(50, 32, &bmp_icon_down);
       } else {
         oledDrawBitmap(12, 22, &bmp_icon_up);
-        oledDrawBitmap(62, 31, &bmp_icon_down);
+        oledDrawBitmap(63, 32, &bmp_icon_down);
       }
       break;
     case 4:
@@ -4117,7 +4133,7 @@ refresh_menu:
   } else if (max_index - 1 == index) {
     sub_index = 0;
     layoutHeader(_(T__SIGN_TRANSACTION));
-    oledDrawStringAdapter(0, y, tx_msg[1], FONT_STANDARD);
+    layoutTxConfirmPage(tx_msg[1]);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_confirm);
   } else {  // key*
@@ -4481,7 +4497,7 @@ refresh_menu:
     is_details_page = false;
     is_nft_page = false;
     layoutHeader(_(T__SIGN_TRANSACTION));
-    oledDrawStringAdapter(0, y, tx_msg[1], FONT_STANDARD);
+    layoutTxConfirmPage(tx_msg[1]);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_confirm);
   } else {  // key*
@@ -4757,7 +4773,7 @@ refresh_layout:
   } else if (max_index - 1 == index) {
     is_details_page = false;
     layoutHeader(_(T__SIGN_TRANSACTION));
-    oledDrawStringAdapter(0, 13, tx_msg[1], FONT_STANDARD);
+    layoutTxConfirmPage(tx_msg[1]);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_confirm);
   } else {

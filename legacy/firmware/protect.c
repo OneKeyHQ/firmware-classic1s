@@ -1305,7 +1305,6 @@ void enter_sleep(void) {
     oledBufferRestore(oled_prev);
     oledRefresh();
     device_sleep_state = SLEEP_NONE;
-    hide_icons(false);
     return;
   }
 }

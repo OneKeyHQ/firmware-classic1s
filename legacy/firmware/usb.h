@@ -25,6 +25,7 @@
 void usbInit(void);
 void usbPoll(void);
 void usbReconnect(void);
+void usbDisconnect(void);
 
 /*
  * Setting this value to 1 will limit the protobuf messages `usbPoll` and

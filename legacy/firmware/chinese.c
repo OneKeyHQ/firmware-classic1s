@@ -69,6 +69,17 @@ static int oledDrawCharEx(int x, int y, const char *c, uint8_t font) {
   return char_width;
 }
 
+static bool is_symbols(uint8_t *c, int steps) {
+  const char *symbols[] = {"。", "，", "？", "！", "、", "：", "”", "“"};
+  for (uint8_t i = 0; i < 8; i++) {
+    if (memcmp(c, (uint8_t *)symbols[i], steps) == 0) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 int oledStringWidthEx(const char *text, uint8_t font) {
   if (!text) return 0;
   int steps = 0;
@@ -95,21 +106,11 @@ int oledStringWidthEx(const char *text, uint8_t font) {
       } else {
         l += font_get_width((uint8_t *)text) + ((font & FONT_DOUBLE) ? 1 : 0);
       }
+      if (is_symbols((uint8_t *)text, steps)) l += 2;
       text += steps;
     }
   }
   return l;
-}
-
-static bool is_symbols(uint8_t *c, int steps) {
-  const char *symbols[] = {"。", "，", "？", "！", "、", "：", "”", "“"};
-  for (uint8_t i = 0; i < 8; i++) {
-    if (memcmp(c, (uint8_t *)symbols[i], steps) == 0) {
-      return true;
-    }
-  }
-
-  return false;
 }
 
 void oledDrawStringEx(int x, int y, const char *text, uint8_t font) {
@@ -154,7 +155,7 @@ void oledDrawStringEx(int x, int y, const char *text, uint8_t font) {
       }
       if (y > OLED_HEIGHT) y = 0;
       l = oledDrawCharEx(x, y, text, font);
-      if (is_symbols((uint8_t *)text, steps)) x += 1 + 3;
+      if (is_symbols((uint8_t *)text, steps)) x += 2;
       text += steps;
       x += l;
     }

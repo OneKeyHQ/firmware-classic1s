@@ -586,7 +586,7 @@ refresh_menu:
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
   } else if (max_index == index) {
     layoutHeader(_(T__SIGN_TRANSACTION));
-    oledDrawStringAdapter(0, 13, tx_msg[1], FONT_STANDARD);
+    layoutTxConfirmPage(tx_msg[1]);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_confirm);
   } else if (index == 2) {
@@ -903,8 +903,8 @@ bool tron_sign_tx(TronSignTx *msg, const char *owner_address,
       amount = msg->contract.transfer_contract.amount;
     }
     if (msg->contract.transfer_contract.has_to_address) {
-      memcpy(to_str, msg->contract.transfer_contract.to_address,
-             strlen(msg->contract.transfer_contract.to_address));
+      strlcpy(to_str, msg->contract.transfer_contract.to_address,
+              sizeof(to_str));
     }
   } else if (msg->contract.has_trigger_smart_contract) {
     if (!msg->contract.trigger_smart_contract.has_data) {

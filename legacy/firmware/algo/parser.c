@@ -74,7 +74,7 @@ static parser_error_t parser_printTxType(const parser_context_t *ctx,
                                          char *outVal, uint16_t outValLen,
                                          uint8_t *pageCount) {
   *pageCount = 1;
-  snprintf(outKey, outKeyLen, "Txn type");
+  snprintf(outKey, outKeyLen, "Type");
 
   switch (ctx->parser_tx_obj->type) {
     case TX_PAYMENT:

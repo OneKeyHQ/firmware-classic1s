@@ -270,8 +270,8 @@ static bool recovery_done(void) {
     memzero(new_mnemonic, sizeof(new_mnemonic));
     if (recovery_byself) {
       layoutDialogCenterAdapterV2(
-          NULL, &bmp_icon_ok, NULL, &bmp_bottom_right_arrow, NULL, NULL, NULL,
-          NULL, NULL, NULL,
+          NULL, &bmp_icon_error, NULL, &bmp_bottom_right_retry, NULL, NULL,
+          NULL, NULL, NULL, NULL,
           _(C__INVALID_RECOVERY_PHRASE_EXCLAM_CHECK_AND_TRY_AGAIN));
       while (1) {
         key = protectWaitKey(0, 1);
@@ -284,8 +284,8 @@ static bool recovery_done(void) {
         session_clear(true);
       } else {
         layoutDialogCenterAdapterV2(
-            NULL, &bmp_icon_ok, NULL, &bmp_bottom_right_arrow, NULL, NULL, NULL,
-            NULL, NULL, NULL,
+            NULL, &bmp_icon_error, NULL, &bmp_bottom_right_retry, NULL, NULL,
+            NULL, NULL, NULL, NULL,
             _(C__INVALID_RECOVERY_PHRASE_EXCLAM_CHECK_AND_TRY_AGAIN));
         protectButton(ButtonRequestType_ButtonRequest_Other, true);
       }
@@ -971,8 +971,10 @@ check_word:
         NULL, NULL, NULL,
         _(C__INVALID_RECOVERY_PHRASE_EXCLAM_CHECK_AND_TRY_AGAIN));
     while (1) {
-      key = protectWaitKey(0, 1);
+      key = protectWaitKey(120 * timer1s, 1);
       if (key == KEY_CONFIRM) {
+        break;
+      } else {
         break;
       }
     }

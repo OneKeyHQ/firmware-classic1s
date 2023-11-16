@@ -745,6 +745,7 @@ void fsm_msgApplySettings(const ApplySettings *msg) {
   }
   if (msg->has_homescreen) {
     config_setHomescreen(msg->homescreen.bytes, msg->homescreen.size);
+    layoutStatusLogoEx(true, false);
   }
   if (msg->has_auto_lock_delay_ms) {
     config_setSleepDelayMs(msg->auto_lock_delay_ms);
@@ -906,6 +907,7 @@ void fsm_msgBixinReboot(const BixinReboot *msg) {
   fsm_sendSuccess("reboot start");
   usbFlush(500);  // send response before reboot
 #if !EMULATOR
+  usbDisconnect();
   svc_reboot_to_bootloader();
 #endif
 }

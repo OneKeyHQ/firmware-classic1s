@@ -461,9 +461,8 @@ static bool layoutOutput(const CardanoTxOutput *output) {
     if (output->asset_groups_count > 0) {
       oledClear();
       layoutHeader(tx_msg[0]);
-      oledDrawStringAdapter(
-          0, 13, __("The following transaction output contains tokens."),
-          FONT_STANDARD);
+      oledDrawStringAdapter(0, 13, _(T__THE_FOLLOWING_TX_OUTPUT_CONTAINS_TOKEN),
+                            FONT_STANDARD);
       layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
       layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
       oledRefresh();
@@ -607,7 +606,7 @@ static bool layoutFinal(void) {
 
   oledClear();
   layoutHeader(_(T__SIGN_TRANSACTION));
-  oledDrawStringAdapter(0, 13, tx_msg[1], FONT_STANDARD);
+  layoutTxConfirmPage(tx_msg[1]);
   layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
   layoutButtonYesAdapter(NULL, &bmp_bottom_right_confirm);
   oledRefresh();
@@ -767,14 +766,14 @@ refresh_layout:
   layoutHeader(tx_msg[0]);
 
   if (0 == index) {
-    oledDrawStringAdapter(0, 13, __("Asset Fingerprint:"), FONT_STANDARD);
+    oledDrawStringAdapter(0, 13, _(I__ASSET_FINGERPRINT_COLON), FONT_STANDARD);
     oledDrawStringAdapter(0, 13 + 10, fingerprint, FONT_STANDARD);
-    oledDrawStringAdapter(0, 13 + 30, __("Token Amount:"), FONT_STANDARD);
+    oledDrawStringAdapter(0, 13 + 30, _(I__TOKEN_AMOUNT_COLON), FONT_STANDARD);
     oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8,
                    &bmp_bottom_middle_arrow_down);
   } else {
     oledDrawStringAdapter(0, 13, fingerprint, FONT_STANDARD);
-    oledDrawStringAdapter(0, 13 + 20, __("Token Amount:"), FONT_STANDARD);
+    oledDrawStringAdapter(0, 13 + 20, _(I__TOKEN_AMOUNT_COLON), FONT_STANDARD);
     oledDrawStringAdapter(0, 13 + 30, amount, FONT_STANDARD);
     oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8,
                    &bmp_bottom_middle_arrow_up);
@@ -867,7 +866,7 @@ static bool layoutCertificate(const CardanoTxCertificate *cert) {
     oledDrawStringAdapter(0, 13 + 10, _(I__STAKE_DELEGATION_COLON),
                           FONT_STANDARD);
   } else if (cert->type == CardanoCertificateType_STAKE_POOL_REGISTRATION) {
-    oledDrawStringAdapter(0, 13 + 10, __("Pool registration"), FONT_STANDARD);
+    oledDrawStringAdapter(0, 13 + 10, _(T__POOL_REGISTRATION), FONT_STANDARD);
   }
 
   layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
@@ -887,7 +886,7 @@ static bool layoutCertificate(const CardanoTxCertificate *cert) {
   if (cert->path_count > 0) {
     oledClear();
     layoutHeader(tx_msg[0]);
-    oledDrawStringAdapter(0, 13, __("Account:"), FONT_STANDARD);
+    oledDrawStringAdapter(0, 13, _(I__ACCOUNT_COLON), FONT_STANDARD);
     oledDrawString(0, 13 + 10,
                    address_n_str(cert->path, cert->path_count, true),
                    FONT_STANDARD);
