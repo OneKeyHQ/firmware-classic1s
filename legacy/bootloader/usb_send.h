@@ -192,15 +192,16 @@ static void send_msg_features(usbd_device *dev) {
     firmware_hash_len=3;
   }
 
+  int len =  sizeof(feature_bytes) + (firmware_present ? sizeof(version_bytes) : 0) + sizeof(battery_level)
+    + sizeof(product) + sizeof(onekey_device_type) + sizeof(onekey_se_type) + se_ver_len + se_build_id_len + se_hash_len
+    + boot_version_len + boot_hash_len + firmware_version_len + firmware_hash_len;
   uint8_t header_bytes[] = {
     // header
     '?', '#', '#',
     // msg_id
     0x00, 0x11,
     // msg_size
-    0x00, 0x00, 0x00, sizeof(feature_bytes) + (firmware_present ? sizeof(version_bytes) : 0) + sizeof(battery_level)
-    + sizeof(product) + sizeof(onekey_device_type) + sizeof(onekey_se_type) + se_ver_len + se_build_id_len + se_hash_len
-    + boot_version_len + boot_hash_len + firmware_version_len + firmware_hash_len,
+    0x00, 0x00, 0x00, len,
   };
 
   // clang-format on
@@ -248,13 +249,25 @@ static void send_msg_features(usbd_device *dev) {
 
   memcpy(response + offset, firmware_hash, firmware_hash_len);
 
-  send_response(dev, response);
-  response[63] = '?';
-  send_response(dev, response + 63);
-  response[126] = '?';
-  send_response(dev, response + 126);
-  response[189] = '?';
-  send_response(dev, response + 189);
+  const uint8_t *pkg = response;
+  uint8_t packet_num = 0;
+  uint8_t packet_len = 0;
+  while (len) {
+    if (packet_num == 0) {
+      send_response(dev, (uint8_t *)pkg);
+      len -= 64;
+      pkg += 64;
+    } else {
+      memzero(packet_buf, sizeof(packet_buf));
+      packet_buf[0] = '?';
+      packet_len = len > 63 ? 63 : len;
+      memcpy(packet_buf + 1, pkg, packet_len);
+      pkg += packet_len;
+      len -= packet_len;
+      send_response(dev, packet_buf);
+    }
+    packet_num++;
+  }
 }
 
 static void send_msg_buttonrequest_firmwarecheck(usbd_device *dev) {

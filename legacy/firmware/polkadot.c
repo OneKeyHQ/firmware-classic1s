@@ -78,7 +78,7 @@ refresh_menu:
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
   } else if (max_index == index) {
     layoutHeader(_(T__SIGN_TRANSACTION));
-    oledDrawStringAdapter(0, y, tx_msg[1], FONT_STANDARD);
+    layoutTxConfirmPage(tx_msg[1]);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_confirm);
   } else {

@@ -299,6 +299,7 @@ bool layoutSignHash(const char *chain_name, bool verify, const char *signer,
                     const char *domain_hash, const char *message_hash,
                     const char *tips);
 bool layoutPaginated(const char *title, const uint8_t *data, uint16_t len);
+void layoutTxConfirmPage(const char *data);
 
 void onboarding(uint8_t key);
 void hide_icons(bool hide);

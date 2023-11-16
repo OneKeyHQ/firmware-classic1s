@@ -185,6 +185,7 @@ int main(void) {
 #endif
   }
 
+  se_get_state(&se_state);
   layoutBootHome();
   bootloader_loop();
 

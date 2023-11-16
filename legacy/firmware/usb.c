@@ -544,6 +544,12 @@ void usbReconnect(void) {
   }
 }
 
+void usbDisconnect(void) {
+  if (usbd_dev != NULL) {
+    usbd_disconnect(usbd_dev, 1);
+  }
+}
+
 char usbTiny(char set) {
   char old = tiny;
   tiny = set;
