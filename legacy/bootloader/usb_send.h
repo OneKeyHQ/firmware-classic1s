@@ -249,12 +249,17 @@ static void send_msg_features(usbd_device *dev) {
 
   memcpy(response + offset, firmware_hash, firmware_hash_len);
 
+  uint8_t bt_pkg[256] = {0};
   const uint8_t *pkg = response;
   uint8_t packet_num = 0;
   uint8_t packet_len = 0;
   while (len) {
     if (packet_num == 0) {
-      send_response(dev, (uint8_t *)pkg);
+      if (!dev) {
+        memcpy(bt_pkg, pkg, 64);
+      } else {
+        send_response(dev, (uint8_t *)pkg);
+      }
       len -= 64;
       pkg += 64;
     } else {
@@ -264,9 +269,17 @@ static void send_msg_features(usbd_device *dev) {
       memcpy(packet_buf + 1, pkg, packet_len);
       pkg += packet_len;
       len -= packet_len;
-      send_response(dev, packet_buf);
+      if (!dev) {
+        memcpy(bt_pkg + 64 * packet_num, packet_buf, 64);
+      } else {
+        send_response(dev, packet_buf);
+      }
     }
     packet_num++;
+  }
+  if (!dev) {
+    memcpy(i2c_data_out, bt_pkg, 64 * packet_num);
+    i2c_slave_send_ex(64 * packet_num);
   }
 }
 
