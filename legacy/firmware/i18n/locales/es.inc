@@ -17,7 +17,7 @@ const char *languages_es[] = {
     "A continuación, revisa las\npalabras escritas 18 de\nnuevo",
     "¿Abortar Backup?",
     "¿Estás seguro de abortar\neste proceso? Todo el\nprogreso se perderá",
-    "Frase Recuperación ({})",
+    "Recovery Phrase ({})",
     "Veríf Frase Recuperación",
     "A continuación, sigue la\nguía y revisa las palabras\nuna por una",
     "Verificar Palabra #{}",

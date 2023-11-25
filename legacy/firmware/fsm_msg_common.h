@@ -745,7 +745,6 @@ void fsm_msgApplySettings(const ApplySettings *msg) {
   }
   if (msg->has_homescreen) {
     config_setHomescreen(msg->homescreen.bytes, msg->homescreen.size);
-    layoutStatusLogoEx(true, false);
   }
   if (msg->has_auto_lock_delay_ms) {
     config_setSleepDelayMs(msg->auto_lock_delay_ms);
@@ -762,6 +761,11 @@ void fsm_msgApplySettings(const ApplySettings *msg) {
   }
   fsm_sendSuccess("Settings applied");
   layoutHome();
+#if !EMULATOR
+  if (msg->has_homescreen) {
+    layoutStatusLogoEx(true, true);
+  }
+#endif
 }
 
 void fsm_msgApplyFlags(const ApplyFlags *msg) {

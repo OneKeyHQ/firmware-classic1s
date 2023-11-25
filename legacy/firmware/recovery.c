@@ -185,7 +185,7 @@ extern bool generate_seed_steps(void);
 /* Called when the last word was entered.
  * Check mnemonic and send success/failure.
  */
-static bool recovery_done(void) {
+static bool recovery_done(bool gohome) {
   bool success = false;
   uint8_t key;
   char new_mnemonic[MAX_MNEMONIC_LEN + 1] = {0};
@@ -234,7 +234,7 @@ static bool recovery_done(void) {
           }
         } else {
           layoutDialogCenterAdapterV2(
-              NULL, &bmp_icon_ok, NULL, &bmp_bottom_right_arrow, NULL, NULL,
+              NULL, &bmp_icon_error, NULL, &bmp_bottom_right_arrow, NULL, NULL,
               NULL, NULL, NULL, NULL,
               _(C__RECOVERY_PHRASE_IS_VALID_BUT_DOES_NOT_MATCH_CHECK_AND_TRY_AGAIN));
           while (1) {
@@ -255,7 +255,7 @@ static bool recovery_done(void) {
               "The seed is valid and matches the one in the device");
         } else {
           layoutDialogCenterAdapterV2(
-              NULL, &bmp_icon_ok, NULL, &bmp_bottom_right_arrow, NULL, NULL,
+              NULL, &bmp_icon_error, NULL, &bmp_bottom_right_arrow, NULL, NULL,
               NULL, NULL, NULL, NULL,
               _(C__RECOVERY_PHRASE_IS_VALID_BUT_DOES_NOT_MATCH_CHECK_AND_TRY_AGAIN));
           protectButton(ButtonRequestType_ButtonRequest_Other, true);
@@ -296,7 +296,9 @@ static bool recovery_done(void) {
   memzero(words, sizeof(words));
   word_pincode = 0;
   recovery_mode = RECOVERY_NONE;
-  layoutHome();
+  if (gohome) {
+    layoutHome();
+  }
 
   return success;
 }
@@ -510,7 +512,7 @@ static void recovery_digit(const char digit) {
     word_pincode = 0;
     strlcpy(words[widx], mnemonic_get_word(idx), sizeof(words[widx]));
     if (widx + 1 == word_count) {
-      recovery_done();
+      recovery_done(true);
       return;
     }
     /* next word */
@@ -621,7 +623,7 @@ static void recovery_scrambledword(const char *word) {
   }
 
   if (word_index + 1 == 24) {  // last one
-    recovery_done();
+    recovery_done(true);
   } else {
     word_index++;
     next_word();
@@ -996,7 +998,7 @@ check_word:
     goto_check(check_word);
   }
 
-  recovery_done();
+  recovery_done(false);
 
   recovery_byself = false;
   return true;
@@ -1025,7 +1027,7 @@ bool verify_words(uint32_t count) {
   if (!input_words()) {
     return false;
   }
-  recovery_done();
+  recovery_done(true);
   recovery_byself = false;
   return true;
 }
