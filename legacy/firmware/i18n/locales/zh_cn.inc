@@ -1,7 +1,7 @@
 const char *languages_zh_cn[] = {
     "感谢使用 OneKey！",
     "快速上手",
-    "接下来，请按照屏幕上\n的说明完成开始设置您的\nOneKey Classic",
+    "接下来，请按照屏幕上\n的说明开始设置您的\nOneKey Classic",
     "开始设置",
     "创建新钱包",
     "导入钱包",
@@ -310,7 +310,7 @@ const char *languages_zh_cn[] = {
     "使用 5V 和 200mA+ 充电头\n来加快充电速度！",
     "正在生成助记词…",
     "开启",
-    "關閉",
+    "关闭",
     "链名称：",
     "正在生成 Cardano 密钥…",
     "交易费支付方：",

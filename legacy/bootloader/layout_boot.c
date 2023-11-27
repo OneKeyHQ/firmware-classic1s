@@ -22,6 +22,7 @@ void layoutBootHome(void) {
     layoutFillBleName(7);
     oledRefresh();
   }
+  if (ble_passkey_state()) return;
   // 1000 ms refresh
   if ((timer_ms() - system_millis_logo_refresh) >= 1000) {
 #if !EMULATOR

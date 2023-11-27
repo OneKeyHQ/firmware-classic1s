@@ -777,9 +777,14 @@ uint8_t protectWaitKey(uint32_t time_out, uint8_t mode) {
   timer_out_set(timer_out_oper, time_out);
   while (1) {
     if (layoutEnterSleep(1) && (layoutLast != layoutScreensaver)) {
-      key = KEY_NULL;
-      protectAbortedBySleep = true;
-      break;
+      if (layoutLast == onboarding) {
+        timer_sleep_start_reset();
+        unregister_timer("poweroff");
+      } else {
+        key = KEY_NULL;
+        protectAbortedBySleep = true;
+        break;
+      }
     }
     usbPoll();
 #if !EMULATOR
@@ -1213,7 +1218,7 @@ bool protectPinCheck(bool retry) {
              _(C__CAUTION_DEVICE_WILL_BE_RESET_AFTER_STR_MORE_TIME_WRONG));
     uint2str(10 - fails, times_str);
     bracket_replace(desc, times_str);
-    layoutDialogCenterAdapterV2(NULL, &bmp_icon_info, NULL,
+    layoutDialogCenterAdapterV2(NULL, &bmp_icon_warning, NULL,
                                 &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL,
                                 NULL, NULL, desc);
     protectWaitKey(0, 0);

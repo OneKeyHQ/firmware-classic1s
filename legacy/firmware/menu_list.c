@@ -13,6 +13,7 @@
 #include "reset.h"
 #include "supervise.h"
 #include "timer.h"
+#include "usb.h"
 #include "util.h"
 
 bool exitBlindSignByInitialize;
@@ -53,6 +54,7 @@ void menu_erase_device(int index) {
     }
   }
 #if !EMULATOR
+  usbDisconnect();
   svc_system_reset();
 #endif
 }
@@ -298,7 +300,7 @@ static struct menu settings_menu = {
 
 void menu_check_all_words(int index) {
   (void)index;
-  char desc[64] = "";
+  char desc[128] = "";
   uint8_t key = KEY_NULL;
   uint32_t word_count = 0;
 
@@ -314,11 +316,11 @@ refresh_menu:
 
   if (protectPinOnDevice(false, true)) {
     memset(desc, 0, sizeof(desc));
-
     if (!protectSelectMnemonicNumber(&word_count, true)) {
       goto refresh_menu;
     }
-    strcat(desc, _(C__ENTER_YOUR_STR_WORDS_RECOVERY_PHRASE_IN_ORDER));
+    strlcpy(desc, _(C__ENTER_YOUR_STR_WORDS_RECOVERY_PHRASE_IN_ORDER),
+            sizeof(desc) - 1);
     if (word_count == 12) {
       bracket_replace(desc, "12");
     } else if (word_count == 18) {

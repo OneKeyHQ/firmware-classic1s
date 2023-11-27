@@ -446,6 +446,19 @@ uint8_t layoutStatusLogoEx(bool need_fresh, bool force_fresh) {
 
 #endif
 
+static void drawScrollbar(int pages, int index) {
+  int i, bar_start = 12, bar_end = 52;
+  int bar_heght = 40 - 2 * (pages - 1);
+  for (i = bar_start; i < bar_end; i += 2) {  // 40 pixel
+    oledDrawPixel(OLED_WIDTH - 1, i);
+  }
+  for (i = bar_start + 2 * ((int)index);
+       i < (bar_start + bar_heght + 2 * ((int)index)) - 1; i++) {
+    oledDrawPixel(OLED_WIDTH - 1, i);
+    oledDrawPixel(OLED_WIDTH - 2, i);
+  }
+}
+
 void layout_language_set(uint8_t key) {
   static int index = 0;
 
@@ -481,46 +494,89 @@ void layout_language_set(uint8_t key) {
   }
 }
 
-static void layoutWelcome(void) {
+static void layoutWelcome(int index) {
   char h[64] = "";
   char line1[64] = "", line2[64] = "";
-  int line1_len = 0, line2_len = 0, x = 0, offset = 0;
+  int line1_len = 0, line2_len = 0, x = 0, offset = 0, l = 0;
+  char index_str[16] = "";
 
   oledClear_ex();
   layoutHeader(_(T__WELCOME_TO_ONEKEY_EXCLAM));
 
-  snprintf(line1, 64, "%s", _(C__PRESS_BACK_KEY_TO_GO_BACK));
-  snprintf(line2, 64, "%s", _(C__PRESS_POWER_KEY_TO_CONTINUE));
-  line1_len = strlen(_(C__PRESS_BACK_KEY_TO_GO_BACK));
-  line2_len = strlen(_(C__PRESS_POWER_KEY_TO_CONTINUE));
+  if (0 == index) {
+    snprintf(line1, 64, "%s", _(C__PRESS_BACK_KEY_TO_GO_BACK));
+    snprintf(line2, 64, "%s", _(C__PRESS_POWER_KEY_TO_CONTINUE));
+    line1_len = strlen(_(C__PRESS_BACK_KEY_TO_GO_BACK));
+    line2_len = strlen(_(C__PRESS_POWER_KEY_TO_CONTINUE));
 
-  if (line1_len > line2_len) {
-    oledDrawStringCenterAdapter(OLED_WIDTH / 2, 20, line1, FONT_STANDARD);
-    x = oledDrawStringCenterAdapterX(OLED_WIDTH / 2, 20, line1, FONT_STANDARD);
-    oledDrawStringAdapter(x, 34, line2, FONT_STANDARD);
-    char *str = strstr(line1, " ");
-    memcpy(h, line1, str - line1);
-    offset = x + oledStringWidthAdapter(h, FONT_STANDARD);
+    if (line1_len > line2_len) {
+      oledDrawStringCenterAdapter(OLED_WIDTH / 2, 20, line1, FONT_STANDARD);
+      x = oledDrawStringCenterAdapterX(OLED_WIDTH / 2, 20, line1,
+                                       FONT_STANDARD);
+      oledDrawStringAdapter(x, 34, line2, FONT_STANDARD);
+      char *str = strstr(line1, " ");
+      memcpy(h, line1, str - line1);
+      offset = x + oledStringWidthAdapter(h, FONT_STANDARD);
+    } else {
+      x = oledDrawStringCenterAdapterX(OLED_WIDTH / 2, 20, line2,
+                                       FONT_STANDARD);
+      oledDrawStringAdapter(x, 20, line1, FONT_STANDARD);
+      oledDrawStringCenterAdapter(OLED_WIDTH / 2, 34, line2, FONT_STANDARD);
+      char *str = strstr(line2, " ");
+      memcpy(h, line2, str - line2);
+      offset = x + oledStringWidthAdapter(h, FONT_STANDARD);
+    }
+
+    if (ui_language == 0) {
+      oledDrawBitmap(offset, 19, &bmp_icon_exit);
+      oledDrawBitmap(offset, 33, &bmp_icon_enter);
+    } else {
+      oledDrawBitmap(offset, 20, &bmp_icon_exit);
+      oledDrawBitmap(offset, 34, &bmp_icon_enter);
+    }
+
+    oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8,
+                   &bmp_bottom_middle_arrow_down);
+    oledDrawBitmap(0, OLED_HEIGHT - 11, &bmp_bottom_left_arrow);
+    oledDrawBitmap(OLED_WIDTH - 16, OLED_HEIGHT - 11, &bmp_bottom_right_arrow);
   } else {
-    x = oledDrawStringCenterAdapterX(OLED_WIDTH / 2, 20, line2, FONT_STANDARD);
-    oledDrawStringAdapter(x, 20, line1, FONT_STANDARD);
-    oledDrawStringCenterAdapter(OLED_WIDTH / 2, 34, line2, FONT_STANDARD);
-    char *str = strstr(line2, " ");
-    memcpy(h, line2, str - line2);
-    offset = x + oledStringWidthAdapter(h, FONT_STANDARD);
+    // index
+    uint2str(index, index_str);
+    strcat(index_str + strlen(index_str), "/");
+    uint2str(4, index_str + strlen(index_str));
+    l = oledStringWidthAdapter(index_str, FONT_SMALL);
+    oledDrawStringAdapter(OLED_WIDTH / 2 - l / 2, OLED_HEIGHT - 8, index_str,
+                          FONT_SMALL);
+    if (1 == index) {
+      oledDrawBitmap((OLED_WIDTH - bmp_Icon_fc.width) / 2, 8, &bmp_Icon_fc);
+      oledDrawStringCenterAdapter(OLED_WIDTH / 2, 44, "FCC ID: 2BB8VC1",
+                                  FONT_STANDARD);
+      layoutHeader(_(T__WELCOME_TO_ONEKEY_EXCLAM));
+      oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8,
+                     &bmp_bottom_middle_arrow_down);
+      oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8,
+                     &bmp_bottom_middle_arrow_up);
+    } else if (2 == index) {
+      oledDrawBitmap((OLED_WIDTH - bmp_Icon_bc.width) / 2, 13, &bmp_anatel);
+      oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8,
+                     &bmp_bottom_middle_arrow_down);
+      oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8,
+                     &bmp_bottom_middle_arrow_up);
+    } else if (3 == index) {
+      oledDrawBitmap((OLED_WIDTH - bmp_Icon_bc.width) / 2, 13, &bmp_Icon_bc);
+      oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8,
+                     &bmp_bottom_middle_arrow_down);
+      oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8,
+                     &bmp_bottom_middle_arrow_up);
+    } else if (4 == index) {
+      oledDrawBitmap(20, 13, &bmp_Icon_ce);
+      oledDrawBitmap(72, 13, &bmp_Icon_weee);
+      oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8,
+                     &bmp_bottom_middle_arrow_up);
+    }
+    drawScrollbar(4, index - 1);
+    oledDrawBitmap(OLED_WIDTH - 16, OLED_HEIGHT - 11, &bmp_bottom_right_arrow);
   }
-
-  if (ui_language == 0) {
-    oledDrawBitmap(offset, 19, &bmp_icon_exit);
-    oledDrawBitmap(offset, 33, &bmp_icon_enter);
-  } else {
-    oledDrawBitmap(offset, 20, &bmp_icon_exit);
-    oledDrawBitmap(offset, 34, &bmp_icon_enter);
-  }
-
-  oledDrawBitmap(0, OLED_HEIGHT - 11, &bmp_bottom_left_arrow);
-  oledDrawBitmap(OLED_WIDTH - 16, OLED_HEIGHT - 11, &bmp_bottom_right_arrow);
-
   oledRefresh();
 }
 
@@ -552,7 +608,7 @@ static int setup_wallet(uint8_t key) {
 
 void onboarding(uint8_t key) {
   int x, l, pages = 5, line_num = 0;
-  static int index = 0;
+  static int index = 0, welcome_index = 0;
   static int type = 0;
   layoutLast = onboarding;
 
@@ -561,7 +617,7 @@ void onboarding(uint8_t key) {
       layout_language_set(key);
       break;
     case 1:
-      layoutWelcome();
+      layoutWelcome(welcome_index);
       break;
     case 2:
       layoutDialogCenterAdapterV2(
@@ -590,6 +646,7 @@ void onboarding(uint8_t key) {
         recovery_on_device();
       }
       if (config_isInitialized()) {
+        layoutLast = onboarding;
       done1:
         layoutDialogCenterAdapterV2(
             _(T__CONGRATULATIONS_EXCLAM), NULL, NULL, &bmp_bottom_right_arrow,
@@ -664,18 +721,30 @@ void onboarding(uint8_t key) {
 
   switch (key) {
     case KEY_UP:
+      if ((index == 1) && (welcome_index > 0)) {  // welcome
+        welcome_index--;
+      }
       break;
     case KEY_DOWN:
+      if ((index == 1) && (welcome_index < 4)) {  // welcome
+        welcome_index++;
+      }
       break;
     case KEY_CONFIRM:
+      if ((index == 1) && (welcome_index != 0) && (welcome_index < 4)) {
+        welcome_index++;
+        break;
+      }
       if (index < pages - 1) {
         index++;
       }
       break;
     case KEY_CANCEL:
+      if ((index == 1) && (welcome_index != 0)) break;
       if (index > 0) {
         index--;
       }
+      welcome_index = 0;
       break;
     default:
       break;
@@ -687,7 +756,6 @@ static void _layout_home(bool update_menu) {
     oledClear_ex();
   } else {
     layoutSwipe();
-    layoutStatusLogoEx(true, false);
   }
   layoutLast = layoutHome;
 
@@ -1321,19 +1389,6 @@ void layoutResetWord(const char *word, int pass, int word_pos, bool last) {
   }
 
   oledRefresh();
-}
-
-static void drawScrollbar(int pages, int index) {
-  int i, bar_start = 12, bar_end = 52;
-  int bar_heght = 40 - 2 * (pages - 1);
-  for (i = bar_start; i < bar_end; i += 2) {  // 40 pixel
-    oledDrawPixel(OLED_WIDTH - 1, i);
-  }
-  for (i = bar_start + 2 * ((int)index);
-       i < (bar_start + bar_heght + 2 * ((int)index)) - 1; i++) {
-    oledDrawPixel(OLED_WIDTH - 1, i);
-    oledDrawPixel(OLED_WIDTH - 2, i);
-  }
 }
 
 #define QR_MAX_VERSION 9
@@ -2905,9 +2960,10 @@ void layoutInputMethod(uint8_t index) {
   layoutItemsSelectAdapterEx(
       &bmp_bottom_middle_arrow_up, &bmp_bottom_middle_arrow_down,
       &bmp_bottom_left_close, &bmp_bottom_right_confirm, __("Cancel"),
-      __("Confirm"), index + 1, 4, inputTitle[index], input[index],
-      input[index], NULL, NULL, index > 0 ? input[index - 1] : NULL,
-      index > 1 ? input[index - 2] : NULL, index > 2 ? input[index - 3] : NULL,
+      __("Confirm"), index + 1, 4, gettext_from_en(inputTitle[index]),
+      input[index], input[index], NULL, NULL,
+      index > 0 ? input[index - 1] : NULL, index > 1 ? input[index - 2] : NULL,
+      index > 2 ? input[index - 3] : NULL,
       index < 4 - 1 ? input[index + 1] : NULL,
       index < 4 - 2 ? input[index + 2] : NULL,
       index < 4 - 3 ? input[index + 3] : NULL, true, true);
@@ -3781,7 +3837,7 @@ refresh_menu:
   // index
   uint2str(index + 1, index_str);
   strcat(index_str + strlen(index_str), "/");
-  uint2str(3, index_str + strlen(index_str));
+  uint2str(4, index_str + strlen(index_str));
   l = oledStringWidthAdapter(index_str, FONT_SMALL);
   oledDrawStringAdapter(OLED_WIDTH / 2 - l / 2, OLED_HEIGHT - 8, index_str,
                         FONT_SMALL);
@@ -3793,9 +3849,12 @@ refresh_menu:
                                   FONT_STANDARD);
       break;
     case 1:
-      oledDrawBitmap((OLED_WIDTH - bmp_Icon_bc.width) / 2, 12, &bmp_Icon_bc);
+      oledDrawBitmap((OLED_WIDTH - bmp_Icon_bc.width) / 2, 12, &bmp_anatel);
       break;
     case 2:
+      oledDrawBitmap((OLED_WIDTH - bmp_Icon_bc.width) / 2, 12, &bmp_Icon_bc);
+      break;
+    case 3:
       oledDrawBitmap(20, 12, &bmp_Icon_ce);
       oledDrawBitmap(72, 12, &bmp_Icon_weee);
       break;
@@ -3806,7 +3865,7 @@ refresh_menu:
   if (index == 0) {
     oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8,
                    &bmp_bottom_middle_arrow_down);
-  } else if (index == 2) {
+  } else if (index == 3) {
     oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8,
                    &bmp_bottom_middle_arrow_up);
   } else {
@@ -3821,7 +3880,7 @@ refresh_menu:
   // scrollbar
   // drawScrollbar(3, index);
   int i, bar_start = 12 - 3, bar_end = 52;
-  int bar_heght = 44 - 2 * (3 - 1);
+  int bar_heght = 44 - 2 * (4 - 1);
   for (i = bar_start; i < bar_end; i += 2) {
     oledDrawPixel(OLED_WIDTH - 1, i);
   }
@@ -3840,7 +3899,7 @@ refresh_menu:
       }
       goto refresh_menu;
     case KEY_DOWN:
-      if (index < 2) {
+      if (index < 3) {
         index++;
       }
       goto refresh_menu;
