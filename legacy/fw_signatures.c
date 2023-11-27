@@ -286,3 +286,26 @@ uint8_t *get_firmware_hash(const image_header *hdr) {
 
   return onekey_firmware_hash;
 }
+
+bool load_thd89_image_header(const uint8_t *const data, const uint32_t magic,
+                             image_header *const hdr) {
+  memcpy(&hdr->magic, data, 4);
+  if (hdr->magic != magic) return false;
+
+  memcpy(&hdr->hdrlen, data + 4, 4);
+  // if (hdr->hdrlen != IMAGE_HEADER_SIZE) return secfalse;
+
+  memcpy(&hdr->expiry, data + 8, 4);
+  // TODO: expiry mechanism needs to be ironed out before production or those
+  // devices won't accept expiring bootloaders (due to boardloader write
+  // protection).
+  // if (hdr->expiry != 0) return secfalse;
+
+  memcpy(&hdr->codelen, data + 12, 4);
+
+  memcpy(hdr->hashes, data + 32, 512);
+
+  memcpy(hdr->sig1, data + 32 + 512, 64);
+
+  return true;
+}

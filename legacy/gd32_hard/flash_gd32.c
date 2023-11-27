@@ -184,3 +184,17 @@ secbool flash_write_word_item(uint32_t offset, uint32_t data) {
 
   return sectrue;
 }
+
+secbool flash_write_word_item_ex(uint32_t offset, uint32_t data) {
+
+  if (FMC_READY != fmc_word_program(offset, data)) {
+    return secfalse;
+  }
+
+
+  return sectrue;
+}
+
+void flash_unlock_ex(void) { fmc_unlock(); }
+
+void flash_lock_ex(void) { fmc_lock(); }

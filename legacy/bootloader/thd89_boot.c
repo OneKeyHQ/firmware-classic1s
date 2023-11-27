@@ -132,7 +132,7 @@ bool se_verify_firmware(uint8_t *header, uint32_t header_len) {
 bool se_check_firmware(void) { return se_update(3, NULL, 0); }
 
 bool se_update_firmware(uint8_t *data, uint32_t data_len,
-                        void (*ui_callback)(int progress)) {
+                        void (*ui_callback)(const char *msg, int progress)) {
   uint32_t offset_len = 0;
   while (data_len) {
     uint32_t packet_len = data_len > 512 ? 512 : data_len;
@@ -143,7 +143,8 @@ bool se_update_firmware(uint8_t *data, uint32_t data_len,
     data_len -= packet_len;
     offset_len += packet_len;
     if (ui_callback) {
-      ui_callback(1000 * offset_len / (offset_len + data_len));
+      ui_callback("Installing se...",
+                  1000 * offset_len / (offset_len + data_len));
     }
   }
 

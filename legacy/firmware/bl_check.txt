@@ -1,1 +1,2 @@
 dfcea3d8cc46e4ecc9c8f68cae6137a1373ddd17588df734bd8ec9111a402bc6 2.0.5 shipped with fw 3.5.0
+c9e2305fb3146dbcf22cd871f458af6d6bee97374d3d1352838e90ea2798a2e2 2.0.6 shipped with fw 3.5.0
