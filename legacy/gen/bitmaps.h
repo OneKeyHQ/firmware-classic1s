@@ -12,6 +12,7 @@ extern const BITMAP bmp_Icon_bc;
 extern const BITMAP bmp_Icon_ce;
 extern const BITMAP bmp_Icon_fc;
 extern const BITMAP bmp_Icon_weee;
+extern const BITMAP bmp_anatel;
 extern const BITMAP bmp_arrow_down_w5;
 extern const BITMAP bmp_arrow_up_w5;
 extern const BITMAP bmp_boot_icon;
