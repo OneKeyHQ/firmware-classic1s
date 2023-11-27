@@ -93,6 +93,8 @@ static void send_msg_features(usbd_device *dev) {
 
   if(battery_cap==0xff){
     battery_level[2]=0x0f;
+  }else{
+    battery_level[2]=battery_cap;
   }
 
   uint8_t product[]={

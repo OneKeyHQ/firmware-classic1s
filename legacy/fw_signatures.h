@@ -157,4 +157,7 @@ uint8_t *get_firmware_hash(const image_header *hdr);
  */
 int mem_is_empty(const uint8_t *src, uint32_t len);
 
+bool load_thd89_image_header(const uint8_t *const data, const uint32_t magic,
+                             image_header *const hdr);
+
 #endif
