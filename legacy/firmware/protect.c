@@ -1126,7 +1126,6 @@ retry:
           break;
         }
       }
-      layoutHome();
     }
   }
   return ret;
@@ -1170,9 +1169,9 @@ refresh_menu:
 }
 
 bool protectPinCheck(bool retry) {
-  char desc[64] = "";
+  char desc[128] = "";
   char times_str[3] = {0};
-  snprintf(desc, 64, "%s", _(C__INCORRECT_PIN_STR_ATTEMPT_LEFT_TRY_AGAIN));
+  snprintf(desc, 128, "%s", _(C__INCORRECT_PIN_STR_ATTEMPT_LEFT_TRY_AGAIN));
 
   uint32_t fails = config_getPinFails();
   if (fails == 1) {
@@ -1212,9 +1211,9 @@ bool protectPinCheck(bool retry) {
   protectWaitKey(0, 0);
 
   if (fails >= 5) {
-    memset(desc, 0, 64);
+    memset(desc, 0, 128);
     memset(times_str, 0, 3);
-    snprintf(desc, 64, "%s",
+    snprintf(desc, 128, "%s",
              _(C__CAUTION_DEVICE_WILL_BE_RESET_AFTER_STR_MORE_TIME_WRONG));
     uint2str(10 - fails, times_str);
     bracket_replace(desc, times_str);

@@ -610,7 +610,12 @@ void onboarding(uint8_t key) {
   int x, l, pages = 5, line_num = 0;
   static int index = 0, welcome_index = 0;
   static int type = 0;
+  static bool get_ble_name = true;
   layoutLast = onboarding;
+  if (get_ble_name) {
+    getBleDevInformation();
+    get_ble_name = false;
+  }
 
   switch (index) {
     case 0:
