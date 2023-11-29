@@ -186,11 +186,9 @@ secbool flash_write_word_item(uint32_t offset, uint32_t data) {
 }
 
 secbool flash_write_word_item_ex(uint32_t offset, uint32_t data) {
-
   if (FMC_READY != fmc_word_program(offset, data)) {
     return secfalse;
   }
-
 
   return sectrue;
 }
