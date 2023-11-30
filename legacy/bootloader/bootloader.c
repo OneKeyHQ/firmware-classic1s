@@ -186,6 +186,7 @@ int main(void) {
   }
 
   se_get_state(&se_state);
+  gd32_flash_init();
   layoutBootHome();
   bootloader_loop();
 

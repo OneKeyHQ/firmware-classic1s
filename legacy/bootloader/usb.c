@@ -26,6 +26,7 @@
 #include "ble.h"
 #include "bootloader.h"
 #include "buttons.h"
+#include "common.h"
 #include "ecdsa.h"
 #include "fw_signatures.h"
 #include "layout.h"
@@ -497,9 +498,13 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
             FW_CHUNK[(flash_pos % FW_CHUNK_SIZE) / 4] = w;
             flash_enter();
             if (UPDATE_ST == update_mode) {
-              flash_write_word_item_ex(FLASH_FWHEADER_START + flash_pos, w);
+              ensure(
+                  flash_write_word_item_ex(FLASH_FWHEADER_START + flash_pos, w),
+                  "flash write error");
             } else {
-              flash_write_word_item_ex(FLASH_BLE_SE_ADDR_START + flash_pos, w);
+              ensure(flash_write_word_item_ex(
+                         FLASH_BLE_SE_ADDR_START + flash_pos, w),
+                     "flash write error");
             }
             flash_exit();
           } else {  // se firmware update

@@ -25,6 +25,8 @@
 #include "memory.h"
 #include "supervise.h"
 
+static uint8_t gd32_sector_map[FLASH_SECTOR_COUNT];
+
 static const uint32_t FLASH_SECTOR_TABLE[FLASH_SECTOR_COUNT + 1] = {
     // BANK0 size 1MB
     [0] = 0x08000000,   // - 0x08003FFF |  16 KiB
@@ -48,7 +50,15 @@ static const uint32_t FLASH_SECTOR_TABLE[FLASH_SECTOR_COUNT + 1] = {
     [17] = 0x08120000,  // - 0x0803FFFF | 128 KiB
     [18] = 0x08140000,  // - 0x0805FFFF | 128 KiB
     [19] = 0x08160000,  // - 0x0805FFFF | 128 KiB
-    [20] = 0x08300000,  // last element - not a valid sector
+    [20] = 0x08180000,  // - 0x0805FFFF | 128 KiB
+    [21] = 0x081A0000,  // - 0x0805FFFF | 128 KiB
+    [22] = 0x081C0000,  // - 0x0805FFFF | 128 KiB
+    [23] = 0x081E0000,  // - 0x0805FFFF | 128 KiB
+    [24] = 0x08200000,  // - 0x0805FFFF | 256 KiB
+    [25] = 0x08240000,  // - 0x0805FFFF | 256 KiB
+    [26] = 0x08280000,  // - 0x0805FFFF | 256 KiB
+    [27] = 0x082C0000,  // - 0x0805FFFF | 256 KiB
+    [28] = 0x08300000,  // last element - not a valid sector
 };
 
 secbool flash_check_success(uint32_t status) {
@@ -56,7 +66,36 @@ secbool flash_check_success(uint32_t status) {
   return sectrue;
 }
 
-void flash_init(void) {}
+void gd32_flash_init(void) {
+  gd32_sector_map[0] = CTL_SECTOR_NUMBER_0;
+  gd32_sector_map[1] = CTL_SECTOR_NUMBER_1;
+  gd32_sector_map[2] = CTL_SECTOR_NUMBER_2;
+  gd32_sector_map[3] = CTL_SECTOR_NUMBER_3;
+  gd32_sector_map[4] = CTL_SECTOR_NUMBER_4;
+  gd32_sector_map[5] = CTL_SECTOR_NUMBER_5;
+  gd32_sector_map[6] = CTL_SECTOR_NUMBER_6;
+  gd32_sector_map[7] = CTL_SECTOR_NUMBER_7;
+  gd32_sector_map[8] = CTL_SECTOR_NUMBER_8;
+  gd32_sector_map[9] = CTL_SECTOR_NUMBER_9;
+  gd32_sector_map[10] = CTL_SECTOR_NUMBER_10;
+  gd32_sector_map[11] = CTL_SECTOR_NUMBER_11;
+  gd32_sector_map[12] = CTL_SECTOR_NUMBER_12;
+  gd32_sector_map[13] = CTL_SECTOR_NUMBER_13;
+  gd32_sector_map[14] = CTL_SECTOR_NUMBER_14;
+  gd32_sector_map[15] = CTL_SECTOR_NUMBER_15;
+  gd32_sector_map[16] = CTL_SECTOR_NUMBER_16;
+  gd32_sector_map[17] = CTL_SECTOR_NUMBER_17;
+  gd32_sector_map[18] = CTL_SECTOR_NUMBER_18;
+  gd32_sector_map[19] = CTL_SECTOR_NUMBER_19;
+  gd32_sector_map[20] = CTL_SECTOR_NUMBER_20;
+  gd32_sector_map[21] = CTL_SECTOR_NUMBER_21;
+  gd32_sector_map[22] = CTL_SECTOR_NUMBER_22;
+  gd32_sector_map[23] = CTL_SECTOR_NUMBER_23;
+  gd32_sector_map[24] = CTL_SECTOR_NUMBER_24;
+  gd32_sector_map[25] = CTL_SECTOR_NUMBER_25;
+  gd32_sector_map[26] = CTL_SECTOR_NUMBER_26;
+  gd32_sector_map[27] = CTL_SECTOR_NUMBER_27;
+}
 
 secbool flash_unlock_write(void) { return sectrue; }
 
@@ -95,7 +134,7 @@ secbool flash_erase(uint8_t sector) {
   fmc_flag_clear(FMC_FLAG_END | FMC_FLAG_OPERR | FMC_FLAG_WPERR |
                  FMC_FLAG_PGMERR | FMC_FLAG_PGSERR);
   /* wait the erase operation complete*/
-  if (FMC_READY != fmc_sector_erase(CTL_SN(sector))) {
+  if (FMC_READY != fmc_sector_erase(gd32_sector_map[sector])) {
     return secfalse;
   }
   /* lock the flash program erase controller */
@@ -186,7 +225,15 @@ secbool flash_write_word_item(uint32_t offset, uint32_t data) {
 }
 
 secbool flash_write_word_item_ex(uint32_t offset, uint32_t data) {
+  if (offset % 4 != 0) {
+    return secfalse;
+  }
+
   if (FMC_READY != fmc_word_program(offset, data)) {
+    return secfalse;
+  }
+
+  if (*(uint32_t *)offset != data) {
     return secfalse;
   }
 
