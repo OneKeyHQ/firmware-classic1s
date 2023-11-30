@@ -46,6 +46,7 @@ uint8_t *flash_read_bytes(uint32_t addr);
 secbool flash_erase(uint8_t sector);
 secbool flash_write_word_item(uint32_t offset, uint32_t data);
 secbool flash_write_word_item_ex(uint32_t offset, uint32_t data);
+void gd32_flash_init(void);
 
 void flash_unlock_ex(void);
 void flash_lock_ex(void);

@@ -39,6 +39,8 @@ trans_fifo i2c_fifo_out = {.p_buf = i2c_data_out,
                            .write_pos = 0,
                            .lock_pos = 0};
 
+#define I2C_IRQ_FLAG (I2C_CR2_ITEVTEN | I2C_CR2_ITBUFEN | I2C_CR2_ITERREN)
+
 void i2c_slave_init_irq(void) {
   rcc_periph_clock_enable(RCC_I2C2);
   rcc_periph_clock_enable(RCC_GPIOB);
@@ -59,8 +61,7 @@ void i2c_slave_init_irq(void) {
   i2c_enable_ack(I2C2);
 
   // use interrupt
-  i2c_enable_interrupt(I2C2,
-                       I2C_CR2_ITBUFEN | I2C_CR2_ITEVTEN | I2C_CR2_ITERREN);
+  i2c_enable_interrupt(I2C2, I2C_IRQ_FLAG);
 
   // I2C_CR1(I2C2) |= I2C_CR1_NOSTRETCH;
   i2c_peripheral_enable(I2C2);
@@ -106,29 +107,45 @@ static void i2c_delay(void) {
   while (i--)
     ;
 }
-
-extern uint32_t flash_pos;
 void i2c2_ev_isr() {
-  uint32_t sr1, sr2;
+  volatile uint32_t sr1, sr2;
   static uint8_t dir = 0;  // 0-receive 1-send
   sr1 = I2C_SR1(I2C2);
+  if (sr1 & I2C_SR1_AF) {  // EV4
+    I2C_SR1(I2C2) &= ~I2C_SR1_AF;
+    return;
+  }
   if (sr1 & I2C_SR1_ADDR) {  // EV1
     sr2 = I2C_SR2(I2C2);     // clear flag
     dir = sr2 & I2C_SR2_TRA;
   }
-  if (sr1 & I2C_SR1_RxNE) {  // EV2
-    if (!fifo_put_no_overflow(&i2c_fifo_in, i2c_get_data(I2C2))) {
-      layoutError("buffer overflow", "i2c receive");
+  if (dir == 0) {
+    i2c_disable_interrupt(I2C2, I2C_IRQ_FLAG);
+    while (1) {
+      sr1 = I2C_SR1(I2C2);
+      if (sr1 & I2C_SR1_STOPF) {
+        I2C_CR1(I2C2) |= I2C_CR1_PE;
+        fifo_lockpos_set(&i2c_fifo_in);
+        i2c_recv_done = true;
+        i2c_data_outlen = 0;  // discard former response
+        SET_COMBUS_LOW();
+        i2c_enable_interrupt(I2C2, I2C_IRQ_FLAG);
+        return;
+      }
+      if (sr1 & I2C_SR1_RxNE) {  // EV2
+        if (!fifo_put_no_overflow(&i2c_fifo_in, i2c_get_data(I2C2))) {
+          layoutError("buffer overflow", "i2c receive");
+        }
+      }
+
+      if (sr1 & I2C_SR1_AF) {  // EV4
+        I2C_SR1(I2C2) &= ~I2C_SR1_AF;
+      }
     }
-  }
-  if (dir & I2C_SR2_TRA) {
-    if (sr1 & I2C_SR1_TxE) {  // EV3 ev3-1
+  } else {
+    if ((sr1 & I2C_SR1_TxE) && !(sr1 & I2C_SR1_AF)) {  // EV3 ev3-1
       if (i2c_data_outlen > 0) {
         i2c_send_data(I2C2, i2c_data_out[i2c_data_out_pos++]);
-        do {
-          i2c_delay();
-          sr1 = I2C_SR1(I2C2);
-        } while ((!(sr1 & I2C_SR1_BTF)) && (!((sr1 & I2C_SR1_AF))));
         i2c_data_outlen--;
         if (i2c_data_outlen == 0) {
           SET_COMBUS_LOW();
@@ -136,23 +153,11 @@ void i2c2_ev_isr() {
       } else {
         i2c_send_data(I2C2, '#');
       }
-    } else if (sr1 & I2C_SR1_BTF) {
-      i2c_send_data(I2C2, i2c_data_out[i2c_data_out_pos++]);
-      i2c_data_outlen--;
-      if (i2c_data_outlen == 0) {
-        SET_COMBUS_LOW();
-      }
+      do {
+        i2c_delay();
+        sr1 = I2C_SR1(I2C2);
+      } while ((!(sr1 & I2C_SR1_BTF)) && (!((sr1 & I2C_SR1_AF))));
     }
-  }
-  if (sr1 & I2C_SR1_STOPF) {  // EV4
-    I2C_CR1(I2C2) |= I2C_CR1_PE;
-    fifo_lockpos_set(&i2c_fifo_in);
-    i2c_recv_done = true;
-    i2c_data_outlen = 0;  // discard former response
-    SET_COMBUS_LOW();
-  }
-  if (sr1 & I2C_SR1_AF) {  // EV4
-    I2C_SR1(I2C2) &= ~I2C_SR1_AF;
   }
 }
 void i2c2_er_isr(void) {}

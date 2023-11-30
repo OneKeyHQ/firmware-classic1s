@@ -25,6 +25,7 @@
 #include <libopencm3/stm32/rng.h>
 #include <libopencm3/stm32/spi.h>
 
+#include "flash.h"
 #include "layout.h"
 #include "memory.h"
 #include "mi2c.h"
@@ -198,6 +199,7 @@ void setupApp(void) {
 
   // change oled refresh frequency
   oledUpdateClk();
+  gd32_flash_init();
 }
 
 void mpu_config_off(void) {
