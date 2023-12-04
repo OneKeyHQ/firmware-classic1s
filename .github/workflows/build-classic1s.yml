@@ -1,4 +1,4 @@
-name: "build-classic2"
+name: "build-classic1s"
 
 on:
   schedule:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-classic2:
+  build-classic1s:
     runs-on: ubuntu-20.04
 
     steps:
@@ -27,7 +27,7 @@ jobs:
           echo "FIRMWARE_VERSION=$FIRMWARE_VERSION" >> $GITHUB_ENV
           echo "ARTIFACTS_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"" >> $GITHUB_ENV
 
-      - name: "Build classic2 firmware"
+      - name: "Build classic1S firmware"
         run: |
           sh <(curl -L https://nixos.org/nix/install) --no-daemon
           . $HOME/.nix-profile/etc/profile.d/nix.sh
@@ -45,7 +45,7 @@ jobs:
       - name: "Upload Artifacts"
         uses: actions/upload-artifact@v3
         with:
-          name: firmware-classic2-${{ github.sha }}
+          name: firmware-classic1s-${{ github.sha }}
           path: |
             ./legacy/firmware/classic*Stable*.bin
             ./legacy/bootloader/bootloader*Stable*.bin
@@ -57,8 +57,8 @@ jobs:
         uses: onekeyhq/actions/notice-slack-app-update@main
         with:
           web-hook-url: ${{ secrets.SLACK_DEV_RELEASE_WEBHOOK }}
-          artifact-type: CLASSIC-FIRMWARE-2
-          artifact-name: Classic-Hardware-Firmware-2
+          artifact-type: CLASSIC-FIRMWARE-1S
+          artifact-name: Classic-Hardware-Firmware-1S
           artifact-bundle-id: 'so.onekey.firmware.classic2'
           artifact-version-name: '${{ env.FIRMWARE_VERSION }}'
           artifact-version-code: '${{ env.SHORT_HASH }}-${{ env.BUILD_DATE }}'
