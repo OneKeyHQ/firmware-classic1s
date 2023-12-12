@@ -558,6 +558,8 @@ static void layoutWelcome(int index) {
                      &bmp_bottom_middle_arrow_up);
     } else if (2 == index) {
       oledDrawBitmap((OLED_WIDTH - bmp_Icon_bc.width) / 2, 13, &bmp_anatel);
+      oledDrawStringCenterAdapter(OLED_WIDTH / 2, 46, "22316-23-16343",
+                                  FONT_STANDARD);
       oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8,
                      &bmp_bottom_middle_arrow_down);
       oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8,
@@ -3854,7 +3856,9 @@ refresh_menu:
                                   FONT_STANDARD);
       break;
     case 1:
-      oledDrawBitmap((OLED_WIDTH - bmp_Icon_bc.width) / 2, 12, &bmp_anatel);
+      oledDrawBitmap((OLED_WIDTH - bmp_Icon_bc.width) / 2, 13, &bmp_anatel);
+      oledDrawStringCenterAdapter(OLED_WIDTH / 2, 46, "22316-23-16343",
+                                  FONT_STANDARD);
       break;
     case 2:
       oledDrawBitmap((OLED_WIDTH - bmp_Icon_bc.width) / 2, 12, &bmp_Icon_bc);
