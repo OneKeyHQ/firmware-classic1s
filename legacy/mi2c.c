@@ -1,8 +1,10 @@
+#include <stdint.h>
+#include <string.h>
+
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/i2c.h>
 #include <libopencm3/stm32/rcc.h>
-#include <stdint.h>
-#include <string.h>
+#include <vendor/libopencm3/include/libopencmsis/core_cm3.h>
 
 #include "common.h"
 #include "compatible.h"
@@ -59,7 +61,7 @@ static int bMI2CDRV_ReadBytes(uint32_t i2c, uint8_t *res, uint16_t *pusOutLen) {
       usTimeout = 0;
       i2c_retry_cnts++;
       i2c_send_stop(i2c);  // it will release i2c bus
-      hal_delay(2);
+      delay_ms(2);
       continue;
     }
     /* Clearing ADDR condition sequence. */
@@ -248,7 +250,9 @@ void vMI2CDRV_Init(void) {
  */
 bool bMI2CDRV_ReceiveData(uint8_t *pucStr, uint16_t *pusRevLen) {
   int ret = 0;
+  __disable_irq();
   ret = bMI2CDRV_ReadBytes(MI2CX, pucStr, pusRevLen);
+  __enable_irq();
   if (ret < 0) {
     ensure(secfalse, "i2c read error");
   } else if (ret == 1) {
@@ -264,10 +268,11 @@ bool bMI2CDRV_SendData(uint8_t *pucStr, uint16_t usStrLen) {
   if (usStrLen > (MI2C_BUF_MAX_LEN - 3)) {
     usStrLen = MI2C_BUF_MAX_LEN - 3;
   }
-
+  __disable_irq();
   if (!bMI2CDRV_WriteBytes(MI2CX, pucStr, usStrLen)) {
     ensure(secfalse, "i2c write error");
   }
+  __enable_irq();
   return true;
 }
 
