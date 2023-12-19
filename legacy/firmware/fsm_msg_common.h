@@ -45,7 +45,8 @@ bool get_features(Features *resp) {
     strlcpy(resp->fw_vendor, "UNSAFE, DO NOT USE!", sizeof(resp->fw_vendor));
   }
   bool trezor_comp_mode = false;
-  if (config_getTrezorCompMode(&trezor_comp_mode)) {
+  config_getTrezorCompMode(&trezor_comp_mode);
+  if (trezor_comp_mode) {
     strlcpy(resp->vendor, "trezor.io", sizeof(resp->vendor));
   } else {
     strlcpy(resp->vendor, "onekey.so", sizeof(resp->vendor));
@@ -505,6 +506,8 @@ void fsm_msgLoadDevice(const LoadDevice *msg) {
 #endif
 
 void fsm_msgResetDevice(const ResetDevice *msg) {
+  fsm_sendFailure(FailureType_Failure_DataError, "unsupport");
+  return;
   // CHECK_PIN
   CHECK_NOT_INITIALIZED
 
@@ -776,6 +779,8 @@ void fsm_msgApplyFlags(const ApplyFlags *msg) {
 }
 
 void fsm_msgRecoveryDevice(const RecoveryDevice *msg) {
+  fsm_sendFailure(FailureType_Failure_DataError, "unsupport");
+  return;
   // CHECK_PIN_UNCACHED
 
   const bool dry_run = msg->has_dry_run ? msg->dry_run : false;
