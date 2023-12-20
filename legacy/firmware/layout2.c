@@ -543,7 +543,7 @@ static void layoutWelcome(int index) {
     // index
     uint2str(index, index_str);
     strcat(index_str + strlen(index_str), "/");
-    uint2str(4, index_str + strlen(index_str));
+    uint2str(7, index_str + strlen(index_str));
     l = oledStringWidthAdapter(index_str, FONT_SMALL);
     oledDrawStringAdapter(OLED_WIDTH / 2 - l / 2, OLED_HEIGHT - 8, index_str,
                           FONT_SMALL);
@@ -575,8 +575,41 @@ static void layoutWelcome(int index) {
       oledDrawBitmap(72, 13, &bmp_Icon_weee);
       oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8,
                      &bmp_bottom_middle_arrow_up);
+    } else if (5 == index) {
+      oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8,
+                     &bmp_bottom_middle_arrow_down);
+      oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8,
+                     &bmp_bottom_middle_arrow_up);
+      oledDrawStringAdapter(0, 16, _(I__PRODUCT_NAME_UPPERCASE_COLON),
+                            FONT_STANDARD);
+      oledDrawStringAdapter(0, 25, "OneKey Classic", FONT_STANDARD);
+      oledDrawStringAdapter(0, 34, _(I__MODEL_UPPERCASE_COLON), FONT_STANDARD);
+      oledDrawStringAdapter(0, 43, "C1", FONT_STANDARD);
+    } else if (6 == index) {
+      oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8,
+                     &bmp_bottom_middle_arrow_down);
+      oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8,
+                     &bmp_bottom_middle_arrow_up);
+      oledDrawStringAdapter(0, 16, _(I__BRAND_NAME_UPPERCASE_COLON),
+                            FONT_STANDARD);
+      oledDrawStringAdapter(0, 25, "OneKey", FONT_STANDARD);
+      oledDrawStringAdapter(0, 34, _(I__COUNTRY_OF_ORIGIN_UPPERCASE_COLON),
+                            FONT_STANDARD);
+      oledDrawStringAdapter(0, 43, "Made in China", FONT_STANDARD);
+    } else if (7 == index) {
+      char *se_sn = NULL;
+      se_get_sn(&se_sn);
+
+      oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8,
+                     &bmp_bottom_middle_arrow_up);
+      oledDrawStringAdapter(0, 16, _(I__SERIAL_NUMBER_UPPERCASE_COLON),
+                            FONT_STANDARD);
+      oledDrawStringAdapter(0, 25, se_sn, FONT_STANDARD);
+      oledDrawStringAdapter(0, 34, _(I__CERTIFICATION_NUMBER_UPPERCASE_COLON),
+                            FONT_STANDARD);
+      oledDrawStringAdapter(0, 43, "22316-23-16343", FONT_STANDARD);
     }
-    drawScrollbar(4, index - 1);
+    drawScrollbar(7, index - 1);
     oledDrawBitmap(OLED_WIDTH - 16, OLED_HEIGHT - 11, &bmp_bottom_right_arrow);
   }
   oledRefresh();
@@ -733,12 +766,12 @@ void onboarding(uint8_t key) {
       }
       break;
     case KEY_DOWN:
-      if ((index == 1) && (welcome_index < 4)) {  // welcome
+      if ((index == 1) && (welcome_index < 7)) {  // welcome
         welcome_index++;
       }
       break;
     case KEY_CONFIRM:
-      if ((index == 1) && (welcome_index != 0) && (welcome_index < 4)) {
+      if ((index == 1) && (welcome_index != 0) && (welcome_index < 7)) {
         welcome_index++;
         break;
       }

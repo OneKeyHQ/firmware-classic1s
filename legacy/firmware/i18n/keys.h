@@ -630,7 +630,7 @@
 #define C__CHECK_THIS_DEVICE_WITH_ONEKEY_SECURE_SERVER 294
 // The signature is valid
 #define C__THE_SIGNATURE_IS_VALID 295
-// Decrypt message
+// Decrypt Message
 #define T__DECRYPT_MESSAGE 296
 // Confirm address?
 #define T__CONFIRM_ADDRESS_QUES 297
@@ -666,7 +666,7 @@
 #define I__CHAIN_NAME_COLON 312
 // Generate cardano seed...
 #define C__GENERATE_CARDANO_SEED_ETC 313
-// Fee Payer:
+// Fee payer:
 #define I__FEE_PAYER_COLON 314
 // Unrecognized:
 #define I__UNRECOGNIZED_COLON 315
@@ -698,4 +698,18 @@
 #define I__CLOSE_TO_COLON 328
 // Asset Destination:
 #define I__ASSET_DESTINATION_COLON 329
+// Encrypt {} Message
+#define T__ENCRYPT_CHAIN_STR_MESSAGE 330
+// Encrypt Message
+#define T__ENCRYPT_MESSAGE 331
+// Decrypt {} Message
+#define T__DECRYPT_CHAIN_STR_MESSAGE 332
+// PRODUCT NAME:
+#define I__PRODUCT_NAME_UPPERCASE_COLON 333
+// BRAND NAME:
+#define I__BRAND_NAME_UPPERCASE_COLON 334
+// COUNTRY OF ORIGIN:
+#define I__COUNTRY_OF_ORIGIN_UPPERCASE_COLON 335
+// CERTIFICATION NUMBER:
+#define I__CERTIFICATION_NUMBER_UPPERCASE_COLON 336
 #endif
