@@ -37,19 +37,19 @@ static int known_bootloader(int r, const uint8_t *hash) {
   // BEGIN AUTO-GENERATED QA BOOTLOADER ENTRIES (bl_check_qa.txt)
   if (0 ==
       memcmp(hash,
-             "\x8a\x4e\xf9\x74\x03\xd0\x27\x56\xd9\xa5\x52\xaf\xf7\x3f\xcc\x82"
-             "\xf2\xc6\xeb\x90\x08\x91\xdb\x5f\x17\x86\x15\x5c\x3c\xbc\xf8\x3e",
-             32)) {
-    memcpy(bootloader_version, "2.0.5", strlen("2.0.5"));
-    return 1;  // 2.0.5 shipped with fw 3.5.0
-  }
-  if (0 ==
-      memcmp(hash,
              "\x80\xb8\x22\xf4\xd4\x08\x80\xfc\x90\x22\xc8\xe1\xb6\x75\x5b\xb0"
              "\x59\x51\x5b\x3b\x0b\x54\x61\x04\xbd\x37\xe3\xf1\x46\x06\x3a\xb2",
              32)) {
     memcpy(bootloader_version, "2.0.6", strlen("2.0.6"));
     return 1;  // 2.0.6 shipped with fw 3.5.0
+  }
+  if (0 ==
+      memcmp(hash,
+             "\xf1\xd1\x84\xfe\x18\xf4\x06\xa3\x8e\xde\xc9\x82\x9b\x98\x1d\x56"
+             "\xcd\x71\xca\x3d\x7b\x71\x69\xd1\xe4\xf8\x8a\x8c\x5a\x64\x3a\xc1",
+             32)) {
+    memcpy(bootloader_version, "2.0.7", strlen("2.0.7"));
+    return 1;  // 2.0.7 shipped with fw 3.5.0
   }
   // END AUTO-GENERATED QA BOOTLOADER ENTRIES (bl_check_qa.txt)
 
@@ -63,19 +63,19 @@ static int known_bootloader(int r, const uint8_t *hash) {
   // BEGIN AUTO-GENERATED BOOTLOADER ENTRIES (bl_check.txt)
   if (0 ==
       memcmp(hash,
-             "\xdf\xce\xa3\xd8\xcc\x46\xe4\xec\xc9\xc8\xf6\x8c\xae\x61\x37\xa1"
-             "\x37\x3d\xdd\x17\x58\x8d\xf7\x34\xbd\x8e\xc9\x11\x1a\x40\x2b\xc6",
-             32)) {
-    memcpy(bootloader_version, "2.0.5", strlen("2.0.5"));
-    return 1;  // 2.0.5 shipped with fw 3.5.0
-  }
-  if (0 ==
-      memcmp(hash,
              "\xe4\xcf\xb4\x81\x66\x77\xc5\x65\xca\x73\x62\xf5\xf0\x13\x20\x95"
              "\x09\xc3\xb0\x8c\x71\x24\x27\x42\x0f\xc3\xac\xbc\xbb\xd8\xed\x5c",
              32)) {
     memcpy(bootloader_version, "2.0.6", strlen("2.0.6"));
     return 1;  // 2.0.6 shipped with fw 3.5.0
+  }
+  if (0 ==
+      memcmp(hash,
+             "\x45\xe1\x1f\x4d\x7d\x74\xf7\xc9\xaa\xa6\x71\xf5\x36\xe2\xc8\xd4"
+             "\x8f\x5b\x1d\xa4\x71\x65\x78\x13\x6d\x6f\x68\x00\x6f\x9e\xd1\xcc",
+             32)) {
+    memcpy(bootloader_version, "2.0.7", strlen("2.0.7"));
+    return 1;  // 2.0.7 shipped with fw 3.5.0
   }
   // END AUTO-GENERATED BOOTLOADER ENTRIES (bl_check.txt)
   return 0;
