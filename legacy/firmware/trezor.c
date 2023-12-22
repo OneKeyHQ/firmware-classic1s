@@ -178,10 +178,10 @@ int main(void) {
                                    // unpredictable stack protection checks
   oledInit();
 #else
+  setupApp();
 #if !FIRMWARE_QA
   check_and_replace_bootloader(true);
 #endif
-  setupApp();
   ble_reset();
 #if !EMULATOR
   register_timer("button", timer1s / 2, buttonsTimer);
