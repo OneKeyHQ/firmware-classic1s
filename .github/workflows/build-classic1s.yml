@@ -38,7 +38,7 @@ jobs:
           mkdir -p qa && cp ./legacy/firmware/classic*Stable*.qa.signed.bin qa
           nix-shell --run "poetry run ./legacy/script/setup"
           nix-shell --run "export PRODUCTION=0 BOOTLOADER_QA=1 && poetry run ./legacy/script/cibuild"
-          cp ./legacy/bootloader/bootloader*Stable*.bin qa
+          cp ./legacy/bootloader/classic1s_bootloader*Stable*.bin qa
           nix-shell --run "poetry run ./legacy/script/setup"
           nix-shell --run "poetry run ./legacy/script/cibuild"
 
