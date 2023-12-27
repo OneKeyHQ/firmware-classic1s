@@ -732,7 +732,7 @@ secbool se_get_needs_backup(bool *needs_backup) {
   if (!se_transmit_mac(0xE2, 0x00, 0x04, NULL, 0, &needs_backup_buf, &len)) {
     return secfalse;
   }
-  *needs_backup = needs_backup_buf == 0 ? false : true;
+  *needs_backup = needs_backup_buf == 1 ? true : false;
 
   return sectrue;
 }
