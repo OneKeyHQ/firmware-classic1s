@@ -582,7 +582,7 @@ static void layoutWelcome(int index) {
                      &bmp_bottom_middle_arrow_up);
       oledDrawStringAdapter(0, 16, _(I__PRODUCT_NAME_UPPERCASE_COLON),
                             FONT_STANDARD);
-      oledDrawStringAdapter(0, 25, "OneKey Classic", FONT_STANDARD);
+      oledDrawStringAdapter(0, 25, "OneKey Classic 1S", FONT_STANDARD);
       oledDrawStringAdapter(0, 34, _(I__MODEL_UPPERCASE_COLON), FONT_STANDARD);
       oledDrawStringAdapter(0, 43, "C1", FONT_STANDARD);
     } else if (6 == index) {
@@ -3733,7 +3733,7 @@ refresh_menu:
 
       oledDrawStringAdapter(0, y, _(I__MODEL_UPPERCASE_COLON), FONT_STANDARD);
       y += font->pixel + 1;
-      oledDrawStringAdapter(0, y, "OneKey Classic 1s", FONT_STANDARD);
+      oledDrawStringAdapter(0, y, "OneKey Classic 1S", FONT_STANDARD);
       y += font->pixel + 4;
 
       oledDrawStringAdapter(0, y, _(I__BLUETOOTH_NAME_UPPERCASE_COLON),
