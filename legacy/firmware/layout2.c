@@ -3733,7 +3733,7 @@ refresh_menu:
 
       oledDrawStringAdapter(0, y, _(I__MODEL_UPPERCASE_COLON), FONT_STANDARD);
       y += font->pixel + 1;
-      oledDrawStringAdapter(0, y, "OneKey Classic", FONT_STANDARD);
+      oledDrawStringAdapter(0, y, "OneKey Classic 1s", FONT_STANDARD);
       y += font->pixel + 4;
 
       oledDrawStringAdapter(0, y, _(I__BLUETOOTH_NAME_UPPERCASE_COLON),

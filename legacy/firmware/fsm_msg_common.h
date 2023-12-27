@@ -80,11 +80,11 @@ bool get_features(Features *resp) {
   resp->has_unlocked = true;
   resp->unlocked = session_isUnlocked();
   resp->has_needs_backup = true;
-  config_getNeedsBackup(&(resp->needs_backup));
+  resp->needs_backup = false;
   resp->has_unfinished_backup = true;
-  config_getUnfinishedBackup(&(resp->unfinished_backup));
+  resp->unfinished_backup = false;
   resp->has_no_backup = true;
-  config_getNoBackup(&(resp->no_backup));
+  resp->no_backup = false;
   resp->has_flags = config_getFlags(&(resp->flags));
   resp->has_model = true;
   strlcpy(resp->model, "1", sizeof(resp->model));
