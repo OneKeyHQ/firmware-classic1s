@@ -374,11 +374,11 @@ bool config_genSessionSeed(void) {
 
 bool config_getLabel(char *dest, uint16_t dest_size) {
   if (secfalse == config_get_string(KEY_LABEL, dest, &dest_size)) {
-    memcpy(dest, "OneKey Classic", 15 /*strlen("OneKey Classic") + 1*/);
+    memcpy(dest, "OneKey Classic 1S", 18 /*strlen("OneKey Classic 1S") + 1*/);
   } else {
     int len = strlen(dest);
     if (0 == len) {
-      memcpy(dest, "OneKey Classic", 15);
+      memcpy(dest, "OneKey Classic 1S", 18);
     }
   }
   return true;
