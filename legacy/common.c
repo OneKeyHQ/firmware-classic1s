@@ -77,6 +77,7 @@ __fatal_error(const char *expr, const char *msg, const char *file, int line_num,
   oledDrawString(0, y, "Contact Onekey support.", FONT_STANDARD);
   oledRefresh();
 
+  hal_delay(1000);
   shutdown();
 }
 

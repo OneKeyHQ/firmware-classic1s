@@ -43,6 +43,7 @@
 #include "ble.h"
 #include "otp.h"
 #include "se_chip.h"
+#include "secp256k1.h"
 #include "sys.h"
 #endif
 #ifdef USE_SECP256K1_ZKP
@@ -183,6 +184,49 @@ static void set_thd89_session_key(void) {
 #endif
 }
 
+static void verify_ble_firmware(void) {
+  char *ble_ver = NULL;
+  uint8_t pubkey[65], rand_buffer[16], digest[32], sign[64];
+  uint8_t key;
+  layoutDialogCenterAdapterEx(NULL, NULL, NULL, NULL, NULL, NULL,
+                              "Verify BLE firmware...", NULL);
+
+  if (!flash_otp_is_locked(FLASH_OTP_BLOCK_BLE_PUBLIC_KEY1) ||
+      !flash_otp_is_locked(FLASH_OTP_BLOCK_BLE_PUBLIC_KEY2)) {
+    ensure(ble_get_version(&ble_ver) ? sectrue : secfalse, NULL);
+    if (memcmp(ble_ver, "1.5.0", 5) < 0) {
+      layoutDialogCenterAdapterEx(NULL, NULL, NULL, NULL, NULL,
+                                  "Please update BLE", NULL, NULL);
+      while (1) {
+        key = keyScan();
+        if (key == KEY_CONFIRM) {
+          return;
+        }
+      }
+    }
+    ensure(ble_get_pubkey(pubkey) ? sectrue : secfalse, NULL);
+    flash_otp_write(FLASH_OTP_BLOCK_BLE_PUBLIC_KEY1, 0, pubkey,
+                    FLASH_OTP_BLOCK_SIZE);
+    flash_otp_write(FLASH_OTP_BLOCK_BLE_PUBLIC_KEY2, 0, pubkey + 32,
+                    FLASH_OTP_BLOCK_SIZE);
+    flash_otp_lock(FLASH_OTP_BLOCK_BLE_PUBLIC_KEY1);
+    flash_otp_lock(FLASH_OTP_BLOCK_BLE_PUBLIC_KEY2);
+  } else {
+    flash_otp_read(FLASH_OTP_BLOCK_BLE_PUBLIC_KEY1, 0, pubkey + 1,
+                   FLASH_OTP_BLOCK_SIZE);
+    flash_otp_read(FLASH_OTP_BLOCK_BLE_PUBLIC_KEY2, 0, pubkey + 33,
+                   FLASH_OTP_BLOCK_SIZE);
+    pubkey[0] = 0x04;
+  }
+  random_buffer(rand_buffer, 16);
+  ensure(ble_sign_msg(rand_buffer, 16, sign) ? sectrue : secfalse, NULL);
+  sha256_Raw(rand_buffer, 16, digest);
+
+  ensure(ecdsa_verify_digest(&secp256k1, pubkey, sign, digest) == 0 ? sectrue
+                                                                    : secfalse,
+         NULL);
+}
+
 int main(void) {
 #ifndef APPVER
   setup();
@@ -218,7 +262,7 @@ int main(void) {
     cpu_mode = UNPRIVILEGED;
     collect_hw_entropy(false);
   }
-
+  verify_ble_firmware();
   set_thd89_session_key();
 
 #ifdef USE_SECP256K1_ZKP

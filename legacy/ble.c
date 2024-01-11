@@ -13,6 +13,8 @@ static bool ble_connect = false;
 static bool ble_switch = false;
 static bool get_ble_switch = false;
 static bool passkey_state = false;
+static int ble_request_state = -1;
+static uint8_t ble_response_buf[64];
 static char ble_name[BLE_NAME_LEN + 1] = {0};
 static char ble_ver[6] = {0};
 
@@ -72,6 +74,67 @@ void change_ble_sta(uint8_t mode) {
   }
 }
 
+bool ble_get_pubkey(uint8_t *pubkey) {
+  uint8_t cmd[64] = {0};
+  uint8_t counter = 0;
+  cmd[0] = BLE_CMD_DEVICE_PUBKEY;
+  ble_cmd_packet(cmd, 0x01);
+  ble_request_state = -1;
+  while (ble_request_state == -1) {
+    counter++;
+    delay_ms(5);
+    if (counter > 200) {
+      return false;
+    }
+  }
+  if (ble_request_state != 0) {
+    return false;
+  }
+  memcpy(pubkey, ble_response_buf, 64);
+  memset(ble_response_buf, 0x00, 64);
+  return true;
+}
+
+bool ble_sign_msg(uint8_t *msg, uint32_t msg_len, uint8_t *sign) {
+  uint8_t cmd[64] = {0};
+  uint8_t counter = 0;
+  cmd[0] = BLE_CMD_DEVICE_SIGN;
+  memcpy(cmd + 1, msg, msg_len);
+  ble_cmd_packet(cmd, msg_len + 1);
+  ble_request_state = -1;
+  while (ble_request_state == -1) {
+    counter++;
+    delay_ms(5);
+    if (counter > 200) {
+      return false;
+    }
+  }
+  if (ble_request_state != 0) {
+    return false;
+  }
+  memcpy(sign, ble_response_buf, 64);
+  memset(ble_response_buf, 0x00, 64);
+  return true;
+}
+
+bool ble_get_version(char **ver) {
+  if (get_ble_ver) {
+    *ver = ble_ver;
+    return true;
+  }
+  ble_request_info(BLE_CMD_VER);
+  uint8_t counter = 0;
+  while (!get_ble_ver) {
+    counter++;
+    delay_ms(5);
+    if (counter > 200) {
+      return false;
+    }
+  }
+  *ver = ble_ver;
+  return true;
+}
+
 bool ble_connect_state(void) { return ble_connect; }
 bool ble_name_state(void) { return get_ble_name; }
 bool ble_ver_state(void) { return get_ble_ver; }
@@ -86,8 +149,9 @@ bool ble_passkey_state(void) { return passkey_state; }
 
 void ble_reset(void) {
   ble_power_off();
-  delay_ms(100);
+  delay_ms(10);
   ble_power_on();
+  delay_ms(200);
 }
 
 void ble_update_poll(void) {
@@ -118,7 +182,7 @@ void ble_update_poll(void) {
 
 void ble_uart_poll(void) {
   static uint8_t read_status = UARTSTATE_IDLE;
-  static uint8_t buf[32] = {0};
+  static uint8_t buf[128] = {0};
   uint8_t passkey[17] = {0};
   static uint8_t index = 0;
   volatile uint8_t xor ;
@@ -232,6 +296,22 @@ void ble_uart_poll(void) {
         }
         passkey_state = false;
         layoutRefreshSet(true);
+        break;
+      case BLE_CMD_DEVICE_PUBKEY:
+        if (ble_usart_msg.cmd_len == 1) {
+          ble_request_state = ble_usart_msg.cmd_vale[0];
+        } else if (ble_usart_msg.cmd_len == 64) {
+          ble_request_state = 0;
+          memcpy(ble_response_buf, ble_usart_msg.cmd_vale, 64);
+        }
+        break;
+      case BLE_CMD_DEVICE_SIGN:
+        if (ble_usart_msg.cmd_len == 1) {
+          ble_request_state = ble_usart_msg.cmd_vale[0];
+        } else if (ble_usart_msg.cmd_len == 64) {
+          ble_request_state = 0;
+          memcpy(ble_response_buf, ble_usart_msg.cmd_vale, 64);
+        }
         break;
       default:
         break;
