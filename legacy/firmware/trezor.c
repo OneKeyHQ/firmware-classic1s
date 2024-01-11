@@ -168,6 +168,18 @@ static void set_thd89_session_key(void) {
     flash_otp_lock(FLASH_OTP_BLOCK_THD89_SESSION_KEY);
   }
 
+  if (!flash_otp_is_locked(FLASH_OTP_BLOCK_THD89_PUBLIC_KEY1) ||
+      !flash_otp_is_locked(FLASH_OTP_BLOCK_THD89_PUBLIC_KEY2)) {
+    uint8_t pubkey[64] = {0};
+    ensure(se_get_ecdh_pubkey(pubkey), NULL);
+    flash_otp_write(FLASH_OTP_BLOCK_THD89_PUBLIC_KEY1, 0, pubkey,
+                    FLASH_OTP_BLOCK_SIZE);
+    flash_otp_write(FLASH_OTP_BLOCK_THD89_PUBLIC_KEY2, 0, pubkey + 32,
+                    FLASH_OTP_BLOCK_SIZE);
+    flash_otp_lock(FLASH_OTP_BLOCK_THD89_PUBLIC_KEY1);
+    flash_otp_lock(FLASH_OTP_BLOCK_THD89_PUBLIC_KEY2);
+  }
+
 #endif
 }
 

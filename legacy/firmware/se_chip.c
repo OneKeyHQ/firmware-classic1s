@@ -132,7 +132,7 @@ secbool se_transmit_mac(uint8_t ins, uint8_t p1, uint8_t p2, uint8_t *data,
   APDU_P2 = p2;
   APDU_P3 = 0x00;
 
-  if (!se_get_rand(iv_random, 16)) {
+  if (!se_random_encrypted_ex(iv_random, 16)) {
     return secfalse;
   }
 
@@ -235,7 +235,107 @@ secbool se_random_encrypted(uint8_t *rand, uint16_t len) {
   return sectrue;
 }
 
+secbool se_random_encrypted_ex(uint8_t *rand, uint16_t len) {
+  uint16_t recv_len = SE_BUF_MAX_LEN;
+  uint8_t cmd[7] = {0xa4, 0x84, 0x00, 0x00, 0x02};
+  uint8_t mac[4];
+  uint8_t pad_len;
+  cmd[5] = (len >> 8) & 0xff;
+  cmd[6] = len & 0xff;
+  if (!thd89_transmit(cmd, sizeof(cmd), se_recv_buffer, &recv_len)) {
+    return secfalse;
+  }
+
+  if (recv_len) {
+    if ((recv_len - 4) % AES_BLOCK_SIZE) {
+      return secfalse;
+    }
+
+    cal_mac(se_recv_buffer, recv_len - 4, mac);
+    if (memcmp(mac, se_recv_buffer + recv_len - 4, 4) != 0) {
+      return secfalse;
+    }
+
+    recv_len -= 4;
+
+    aes_decrypt_ctx dtxe;
+    aes_decrypt_key128(se_session_key, &dtxe);
+    aes_ecb_decrypt(se_recv_buffer, se_recv_buffer, recv_len, &dtxe);
+    pad_len = 1;
+    for (uint8_t i = 0; i < 16; i++) {
+      if (se_recv_buffer[recv_len - 1 - i] == 0x80) {
+        break;
+      } else if (se_recv_buffer[recv_len - 1 - i] == 0x00) {
+        pad_len++;
+      } else {
+        return secfalse;
+      }
+    }
+    recv_len -= pad_len;
+
+    if (recv_len != len) {
+      return secfalse;
+    }
+  }
+
+  memcpy(rand, se_recv_buffer, recv_len);
+
+  return sectrue;
+}
+
 secbool se_sync_session_key(void) {
+  uint8_t pubkey[65], session_tmp[65];
+  uint8_t prikey_tmp[32], pubkey_tmp[65];
+  uint8_t r1[16], r2[16], r2_enc[16];
+  uint8_t digest[32];
+  uint16_t recv_len = 64;
+  aes_encrypt_ctx en_ctxe;
+
+  uart_printf("se_sync_session_key\r\n");
+
+  pubkey[0] = 0x04;
+  flash_otp_read(FLASH_OTP_BLOCK_THD89_PUBLIC_KEY1, 0, pubkey + 1, 32);
+  flash_otp_read(FLASH_OTP_BLOCK_THD89_PUBLIC_KEY2, 0, pubkey + 33, 32);
+
+  random_buffer(r1, 16);
+  // get random from se
+  se_get_rand(r2, 16);
+
+  random_buffer(prikey_tmp, sizeof(prikey_tmp));
+  ecdsa_get_public_key65(&secp256k1, prikey_tmp, pubkey_tmp);
+
+  if (ecdh_multiply(&secp256k1, prikey_tmp, pubkey, session_tmp) != 0) {
+    uart_printf("ecdh_multiply failed\r\n");
+    return secfalse;
+  }
+
+  memcpy(se_session_key, session_tmp + 1, 16);
+
+  aes_init();
+  aes_encrypt_key128(se_session_key, &en_ctxe);
+  aes_ecb_encrypt(r2, r2_enc, sizeof(r2), &en_ctxe);
+
+  uint8_t sync_cmd[5 + 16 + 16 + 64] = {0x00, 0xfa, 0x00, 0x00, 0x60};
+  uint8_t signature[64];
+
+  memcpy(sync_cmd + 5, r1, 16);
+  memcpy(sync_cmd + 5 + 16, r2_enc, 16);
+  memcpy(sync_cmd + 5 + 32, pubkey_tmp + 1, 64);
+  if (!thd89_transmit(sync_cmd, sizeof(sync_cmd), signature, &recv_len)) {
+    return secfalse;
+  }
+  if (recv_len != 64) {
+    return secfalse;
+  }
+  sha256_Raw(r1, 16, digest);
+  if (ecdsa_verify_digest(&secp256k1, pubkey, signature, digest) != 0) {
+    return secfalse;
+  }
+  se_session_init = true;
+  return sectrue;
+}
+
+secbool se_sync_session_key_old(void) {
   uint8_t r1[16], r2[16], r3[32];
   uint8_t default_key[16] = {0xff};
 
@@ -401,6 +501,12 @@ secbool se_get_pubkey(uint8_t *public_key) {
   uint8_t cmd[5] = {0x00, 0xF5, 0x00, 0x01, 0x00};
   uint16_t resp_len = 64;
   return thd89_transmit(cmd, sizeof(cmd), public_key, &resp_len);
+}
+
+secbool se_get_ecdh_pubkey(uint8_t *key) {
+  uint8_t cmd[6] = {0x00, 0xF5, 0x00, 0x05, 0x01, 0x01};
+  uint16_t resp_len = 64;
+  return thd89_transmit(cmd, sizeof(cmd), key, &resp_len);
 }
 
 secbool se_write_certificate(const uint8_t *cert, uint16_t len) {
