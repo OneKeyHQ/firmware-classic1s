@@ -48,7 +48,7 @@ jobs:
           name: firmware-classic1s-${{ github.sha }}
           path: |
             ./legacy/firmware/classic*Stable*.bin
-            ./legacy/bootloader/bootloader*Stable*.bin
+            ./legacy/bootloader/classic1s_bootloader*Stable*.bin
             ./legacy/bootloader0/bootloader0.bin
             ./legacy/intermediate_fw/classic*.bin
             ./qa
