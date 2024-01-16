@@ -24,7 +24,9 @@ enum {
   BLE_CMD_BATTERY = 0x05,
   BLE_CMD_VER = 0x06,
   BLE_CMD_ONOFF_BLE = 0x07,
-  BLE_CMD_DFU_STA = 0x0A
+  BLE_CMD_DFU_STA = 0x0A,
+  BLE_CMD_DEVICE_PUBKEY = 0x0B,
+  BLE_CMD_DEVICE_SIGN = 0x0C
 };
 
 bool ble_connect_state(void);
@@ -33,6 +35,10 @@ void ble_ctl_onoff(void);
 void ble_reset(void);
 void ble_uart_poll(void);
 void ble_update_poll(void);
+
+bool ble_get_pubkey(uint8_t *pubkey);
+bool ble_sign_msg(uint8_t *msg, uint32_t msg_len, uint8_t *sign);
+bool ble_get_version(char **ver);
 
 #if !EMULATOR
 bool ble_is_enable(void);

@@ -60,7 +60,7 @@ def convert(imgfile, outfile):
             cur = ""
             cur1 = ""
             while img.pixel(x, y) is not None:
-                val_tmp = "".join(img.pixel(x, y + j) for j in range(11))
+                # val_tmp = "".join(img.pixel(x, y + j) for j in range(11))
                 val = "".join(img.pixel(x, y + j) for j in range(8))
                 val1 = "".join(img.pixel(x, y + j + 8) for j in range(3))
                 x += 1
