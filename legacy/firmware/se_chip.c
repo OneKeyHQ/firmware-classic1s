@@ -291,8 +291,6 @@ secbool se_sync_session_key(void) {
   uint16_t recv_len = 64;
   aes_encrypt_ctx en_ctxe;
 
-  uart_printf("se_sync_session_key\r\n");
-
   pubkey[0] = 0x04;
   flash_otp_read(FLASH_OTP_BLOCK_THD89_PUBLIC_KEY1, 0, pubkey + 1, 32);
   flash_otp_read(FLASH_OTP_BLOCK_THD89_PUBLIC_KEY2, 0, pubkey + 33, 32);
@@ -305,7 +303,6 @@ secbool se_sync_session_key(void) {
   ecdsa_get_public_key65(&secp256k1, prikey_tmp, pubkey_tmp);
 
   if (ecdh_multiply(&secp256k1, prikey_tmp, pubkey, session_tmp) != 0) {
-    uart_printf("ecdh_multiply failed\r\n");
     return secfalse;
   }
 
