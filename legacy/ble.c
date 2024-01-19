@@ -78,14 +78,16 @@ bool ble_get_pubkey(uint8_t *pubkey) {
   uint8_t cmd[64] = {0};
   uint8_t counter = 0;
   cmd[0] = BLE_CMD_DEVICE_PUBKEY;
-  ble_cmd_packet(cmd, 0x01);
+  cmd[1] = BLE_PBUKEY_GET;
+  ble_cmd_packet(cmd, 2);
   ble_request_state = -1;
   while (ble_request_state == -1) {
     counter++;
-    delay_ms(5);
-    if (counter > 200) {
+    delay_ms(100);
+    if (counter > 20) {
       return false;
     }
+    ble_cmd_packet(cmd, 2);
   }
   if (ble_request_state != 0) {
     return false;
@@ -94,6 +96,29 @@ bool ble_get_pubkey(uint8_t *pubkey) {
   memset(ble_response_buf, 0x00, 64);
   return true;
 }
+
+bool ble_lock_pubkey(void) {
+  uint8_t cmd[64] = {0};
+  uint8_t counter = 0;
+  cmd[0] = BLE_CMD_DEVICE_PUBKEY;
+  cmd[1] = BLE_PBUKEY_LOCK;
+  ble_cmd_packet(cmd, 2);
+  ble_request_state = -1;
+  while (ble_request_state == -1) {
+    counter++;
+    delay_ms(100);
+    if (counter > 20) {
+      return false;
+    }
+    ble_cmd_packet(cmd, 2);
+  }
+  if (ble_request_state != 0) {
+    return false;
+  }
+  return true;
+}
+
+int ble_get_error(void) { return ble_request_state; }
 
 bool ble_sign_msg(uint8_t *msg, uint32_t msg_len, uint8_t *sign) {
   uint8_t cmd[64] = {0};
@@ -104,10 +129,11 @@ bool ble_sign_msg(uint8_t *msg, uint32_t msg_len, uint8_t *sign) {
   ble_request_state = -1;
   while (ble_request_state == -1) {
     counter++;
-    delay_ms(5);
-    if (counter > 200) {
+    delay_ms(200);
+    if (counter > 10) {
       return false;
     }
+    ble_cmd_packet(cmd, msg_len + 1);
   }
   if (ble_request_state != 0) {
     return false;
@@ -126,10 +152,11 @@ bool ble_get_version(char **ver) {
   uint8_t counter = 0;
   while (!get_ble_ver) {
     counter++;
-    delay_ms(5);
-    if (counter > 200) {
+    delay_ms(100);
+    if (counter > 20) {
       return false;
     }
+    ble_request_info(BLE_CMD_VER);
   }
   *ver = ble_ver;
   return true;

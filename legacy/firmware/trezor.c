@@ -160,19 +160,20 @@ static void collect_hw_entropy(bool privileged) {
 static void set_thd89_session_key(void) {
 #if !EMULATOR
   // set entropy in the OTP randomness block
-  if (!flash_otp_is_locked(FLASH_OTP_BLOCK_THD89_SESSION_KEY)) {
-    uint8_t entropy[FLASH_OTP_BLOCK_SIZE] = {0};
-    random_buffer(entropy, FLASH_OTP_BLOCK_SIZE);
-    ensure(se_set_session_key(entropy), NULL);
-    flash_otp_write(FLASH_OTP_BLOCK_THD89_SESSION_KEY, 0, entropy,
-                    FLASH_OTP_BLOCK_SIZE);
-    flash_otp_lock(FLASH_OTP_BLOCK_THD89_SESSION_KEY);
-  }
+  // if (!flash_otp_is_locked(FLASH_OTP_BLOCK_THD89_SESSION_KEY)) {
+  //   uint8_t entropy[FLASH_OTP_BLOCK_SIZE] = {0};
+  //   random_buffer(entropy, FLASH_OTP_BLOCK_SIZE);
+  //   ensure(se_set_session_key(entropy), NULL);
+  //   flash_otp_write(FLASH_OTP_BLOCK_THD89_SESSION_KEY, 0, entropy,
+  //                   FLASH_OTP_BLOCK_SIZE);
+  //   flash_otp_lock(FLASH_OTP_BLOCK_THD89_SESSION_KEY);
+  // }
 
   if (!flash_otp_is_locked(FLASH_OTP_BLOCK_THD89_PUBLIC_KEY1) ||
       !flash_otp_is_locked(FLASH_OTP_BLOCK_THD89_PUBLIC_KEY2)) {
     uint8_t pubkey[64] = {0};
     ensure(se_get_ecdh_pubkey(pubkey), NULL);
+    ensure(se_lock_ecdh_pubkey(), NULL);
     flash_otp_write(FLASH_OTP_BLOCK_THD89_PUBLIC_KEY1, 0, pubkey,
                     FLASH_OTP_BLOCK_SIZE);
     flash_otp_write(FLASH_OTP_BLOCK_THD89_PUBLIC_KEY2, 0, pubkey + 32,
@@ -191,10 +192,11 @@ static void verify_ble_firmware(void) {
   layoutDialogCenterAdapterEx(NULL, NULL, NULL, NULL, NULL, NULL,
                               "Verify BLE firmware...", NULL);
 
+  ensure(ble_get_version(&ble_ver) ? sectrue : secfalse, NULL);
   if (!flash_otp_is_locked(FLASH_OTP_BLOCK_BLE_PUBLIC_KEY1) ||
       !flash_otp_is_locked(FLASH_OTP_BLOCK_BLE_PUBLIC_KEY2)) {
     ensure(ble_get_version(&ble_ver) ? sectrue : secfalse, NULL);
-    if (memcmp(ble_ver, "1.5.0", 5) < 0) {
+    if (memcmp(ble_ver, "1.5.1", 5) < 0) {
       layoutDialogCenterAdapterEx(NULL, NULL, NULL, NULL, NULL,
                                   "Please update BLE", NULL, NULL);
       while (1) {
@@ -205,6 +207,8 @@ static void verify_ble_firmware(void) {
       }
     }
     ensure(ble_get_pubkey(pubkey) ? sectrue : secfalse, NULL);
+    ensure(ble_lock_pubkey() ? sectrue : secfalse, NULL);
+
     flash_otp_write(FLASH_OTP_BLOCK_BLE_PUBLIC_KEY1, 0, pubkey,
                     FLASH_OTP_BLOCK_SIZE);
     flash_otp_write(FLASH_OTP_BLOCK_BLE_PUBLIC_KEY2, 0, pubkey + 32,
@@ -238,7 +242,7 @@ int main(void) {
 #if !FIRMWARE_QA
   check_and_replace_bootloader(true);
 #endif
-  ble_reset();
+  // ble_reset();
 #if !EMULATOR
   register_timer("button", timer1s / 2, buttonsTimer);
   register_timer("button_long", timer1s / 5, longPressTimer);
@@ -249,11 +253,13 @@ int main(void) {
 #endif
 
   drbg_init();
+  timer_init();
+  set_thd89_session_key();
+  verify_ble_firmware();
 
   if (!is_mode_unprivileged()) {
     cpu_mode = PRIVILEGED;
     collect_hw_entropy(true);
-    timer_init();
 #ifdef APPVER
     // enable MPU (Memory Protection Unit)
     mpu_config_firmware();
@@ -262,8 +268,6 @@ int main(void) {
     cpu_mode = UNPRIVILEGED;
     collect_hw_entropy(false);
   }
-  verify_ble_firmware();
-  set_thd89_session_key();
 
 #ifdef USE_SECP256K1_ZKP
   ensure(sectrue * (zkp_context_init() == 0), NULL);

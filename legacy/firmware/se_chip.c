@@ -506,6 +506,11 @@ secbool se_get_ecdh_pubkey(uint8_t *key) {
   return thd89_transmit(cmd, sizeof(cmd), key, &resp_len);
 }
 
+secbool se_lock_ecdh_pubkey(void) {
+  uint8_t cmd[6] = {0x00, 0xF5, 0x00, 0x05, 0x01, 0x02};
+  return thd89_transmit(cmd, sizeof(cmd), NULL, NULL);
+}
+
 secbool se_write_certificate(const uint8_t *cert, uint16_t len) {
   uint8_t cmd[1024] = {0x00, 0xF6, 0x00, 0x01, 0x00};
   uint16_t cmd_len = 0;
