@@ -29,6 +29,8 @@ enum {
   BLE_CMD_DEVICE_SIGN = 0x0C
 };
 
+enum { BLE_PBUKEY_GET = 0x00, BLE_PBUKEY_LOCK = 0x01 };
+
 bool ble_connect_state(void);
 void ble_request_info(uint8_t type);
 void ble_ctl_onoff(void);
@@ -36,7 +38,9 @@ void ble_reset(void);
 void ble_uart_poll(void);
 void ble_update_poll(void);
 
+int ble_get_error(void);
 bool ble_get_pubkey(uint8_t *pubkey);
+bool ble_lock_pubkey(void);
 bool ble_sign_msg(uint8_t *msg, uint32_t msg_len, uint8_t *sign);
 bool ble_get_version(char **ver);
 
