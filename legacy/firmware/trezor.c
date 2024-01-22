@@ -189,13 +189,9 @@ static void verify_ble_firmware(void) {
   char *ble_ver = NULL;
   uint8_t pubkey[65], rand_buffer[16], digest[32], sign[64];
   uint8_t key;
-  layoutDialogCenterAdapterEx(NULL, NULL, NULL, NULL, NULL, NULL,
-                              "Verify BLE firmware...", NULL);
-
   ensure(ble_get_version(&ble_ver) ? sectrue : secfalse, NULL);
   if (!flash_otp_is_locked(FLASH_OTP_BLOCK_BLE_PUBLIC_KEY1) ||
       !flash_otp_is_locked(FLASH_OTP_BLOCK_BLE_PUBLIC_KEY2)) {
-    ensure(ble_get_version(&ble_ver) ? sectrue : secfalse, NULL);
     if (memcmp(ble_ver, "1.5.1", 5) < 0) {
       layoutDialogCenterAdapterEx(NULL, NULL, NULL, NULL, NULL,
                                   "Please update BLE", NULL, NULL);
