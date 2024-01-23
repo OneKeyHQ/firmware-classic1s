@@ -76,13 +76,9 @@ static void xor_cal(uint8_t *data1, uint8_t *data2, uint16_t len,
 
 void se_set_ui_callback(UI_WAIT_CALLBACK callback) { ui_callback = callback; }
 
-secbool se_get_rand(uint8_t *rand, uint8_t rand_len) {
+secbool se_get_rand(uint8_t *rand, uint16_t rand_len) {
   uint8_t rand_cmd[7] = {0x00, 0x84, 0x00, 0x00, 0x02};
   uint16_t resp_len = rand_len;
-
-  if (rand_len > 0x20) {
-    return secfalse;
-  }
 
   rand_cmd[5] = (rand_len >> 8) & 0xff;
   rand_cmd[6] = rand_len & 0xff;
