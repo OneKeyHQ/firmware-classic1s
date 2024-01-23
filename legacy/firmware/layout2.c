@@ -265,6 +265,10 @@ void getBleDevInformation(void) {
     ble_request_info(BLE_CMD_BATTERY);
     delay_ms(5);
   }
+  if (!ble_switch_state()) {
+    ble_request_switch_state();
+    delay_ms(5);
+  }
 }
 
 uint8_t refreshBleIcon(bool force_flag) {

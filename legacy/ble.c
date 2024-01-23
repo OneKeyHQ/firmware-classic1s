@@ -55,6 +55,14 @@ void ble_request_info(uint8_t type) {
   ble_cmd_packet(cmd, 3);
 }
 
+void ble_request_switch_state(void) {
+  uint8_t cmd[64] = {0};
+  cmd[0] = BLE_CMD_ONOFF_BLE;
+  cmd[1] = 0x01;
+  cmd[2] = 0x07;
+  ble_cmd_packet(cmd, 3);
+}
+
 void ble_ctl_onoff(void) {
   uint8_t cmd[64] = {0};
   cmd[0] = BLE_CMD_ONOFF_BLE;
