@@ -54,6 +54,7 @@ char *ble_get_ver(void);
 bool ble_switch_state(void);
 void ble_set_switch(bool flag);
 bool ble_get_switch(void);
+void ble_request_switch_state(void);
 void change_ble_sta(uint8_t mode);
 bool ble_passkey_state(void);
 #else
