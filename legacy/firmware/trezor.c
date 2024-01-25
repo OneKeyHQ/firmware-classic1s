@@ -202,12 +202,12 @@ static void verify_ble_firmware(void) {
         }
       }
     }
-    ensure(ble_get_pubkey(pubkey) ? sectrue : secfalse, NULL);
+    ensure(ble_get_pubkey(pubkey + 1) ? sectrue : secfalse, NULL);
     ensure(ble_lock_pubkey() ? sectrue : secfalse, NULL);
 
-    flash_otp_write(FLASH_OTP_BLOCK_BLE_PUBLIC_KEY1, 0, pubkey,
+    flash_otp_write(FLASH_OTP_BLOCK_BLE_PUBLIC_KEY1, 0, pubkey + 1,
                     FLASH_OTP_BLOCK_SIZE);
-    flash_otp_write(FLASH_OTP_BLOCK_BLE_PUBLIC_KEY2, 0, pubkey + 32,
+    flash_otp_write(FLASH_OTP_BLOCK_BLE_PUBLIC_KEY2, 0, pubkey + 33,
                     FLASH_OTP_BLOCK_SIZE);
     flash_otp_lock(FLASH_OTP_BLOCK_BLE_PUBLIC_KEY1);
     flash_otp_lock(FLASH_OTP_BLOCK_BLE_PUBLIC_KEY2);
@@ -216,8 +216,8 @@ static void verify_ble_firmware(void) {
                    FLASH_OTP_BLOCK_SIZE);
     flash_otp_read(FLASH_OTP_BLOCK_BLE_PUBLIC_KEY2, 0, pubkey + 33,
                    FLASH_OTP_BLOCK_SIZE);
-    pubkey[0] = 0x04;
   }
+  pubkey[0] = 0x04;
   random_buffer(rand_buffer, 16);
   ensure(ble_sign_msg(rand_buffer, 16, sign) ? sectrue : secfalse, NULL);
   sha256_Raw(rand_buffer, 16, digest);
