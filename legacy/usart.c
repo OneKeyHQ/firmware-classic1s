@@ -30,6 +30,10 @@
 #include "compatible.h"
 #include "usart.h"
 
+// 500ms
+#define USART_TIMEOUT 10000
+#define UART_PACKET_MAX_LEN 128
+
 #if (_SUPPORT_DEBUG_UART_)
 
 #include <ctype.h>
@@ -169,8 +173,74 @@ bool ble_read_byte(uint8_t *buf) {
   return false;
 }
 
+static uint8_t calXor(uint8_t *buf, uint32_t len) {
+  uint8_t tmp = 0;
+  uint32_t i;
+  for (i = 0; i < len; i++) {
+    tmp ^= buf[i];
+  }
+  return tmp;
+}
+
+static bool usart_read_bytes(uint8_t *buf, uint32_t len, uint32_t timeout) {
+  for (uint32_t i = 0; i < len; i++) {
+    while (usart_get_flag(BLE_UART, USART_SR_RXNE) == 0) {
+      timeout--;
+      if (timeout == 0) {
+        return false;
+      }
+    }
+    buf[i] = usart_recv(BLE_UART) & 0xff;
+    timeout = USART_TIMEOUT;
+  }
+  return true;
+}
+
+extern trans_fifo ble_update_fifo;
+
+static bool usart_rev_package(uint8_t *buf) {
+  uint8_t len = 0;
+  uint8_t *p_buf = buf;
+  if (!usart_read_bytes(p_buf, 2, USART_TIMEOUT)) {
+    return false;
+  }
+  if (p_buf[0] == 0x0B && p_buf[1] <= 100) {
+    if (!fifo_write_no_overflow(&ble_update_fifo, p_buf, 2)) {
+    }
+    return false;
+  }
+  if (p_buf[0] != 0x5A || p_buf[1] != 0xA5) {
+    return false;
+  }
+  p_buf += 2;
+  if (!usart_read_bytes(p_buf, 2, USART_TIMEOUT)) {
+    return false;
+  }
+
+  len = (p_buf[0] << 8) + p_buf[1];
+  if (len > UART_PACKET_MAX_LEN - 5) {
+    return false;
+  }
+  p_buf += 2;
+  if (!usart_read_bytes(p_buf, len - 1, USART_TIMEOUT)) {
+    return false;
+  }
+  p_buf += len - 1;
+  if (!usart_read_bytes(p_buf, 1, USART_TIMEOUT)) {
+    return false;
+  }
+  uint8_t xor = calXor(buf, len + 3);
+  if (xor != *p_buf) {
+    return false;
+  }
+  return true;
+}
+
 void usart2_isr(void) {
+  uint8_t uart_buf[UART_PACKET_MAX_LEN] = {0};
   if (usart_get_flag(BLE_UART, USART_SR_RXNE) != 0) {
-    ble_uart_poll();
+    if (usart_rev_package(uart_buf)) {
+      ble_uart_poll(uart_buf);
+    }
   }
 }
