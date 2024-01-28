@@ -35,7 +35,7 @@ bool ble_connect_state(void);
 void ble_request_info(uint8_t type);
 void ble_ctl_onoff(void);
 void ble_reset(void);
-void ble_uart_poll(void);
+void ble_uart_poll(uint8_t *buf);
 void ble_update_poll(void);
 
 int ble_get_error(void);
