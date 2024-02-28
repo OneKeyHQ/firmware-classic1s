@@ -353,6 +353,10 @@ if TYPE_CHECKING:
         NexaSignedTx = 11403
         NexaTxInputRequest = 11404
         NexaTxInputAck = 11405
+        NervosGetAddress = 11701
+        NervosAddress = 11702
+        NervosSignTx = 11703
+        NervosSignedTx = 11704
         DeviceEraseSector = 10026
 
     class FailureType(IntEnum):
