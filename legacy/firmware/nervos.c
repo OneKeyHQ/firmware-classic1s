@@ -316,7 +316,6 @@ void send_signature(void) {
   blake2b_Update(&S, global_hash_output, 32);
   uint8_t buffer[8];
   size_t buffer_len = 0;
-  debugInt(witness_buffer_len_nervos);
 
   extend_uint64(buffer, &buffer_len, witness_buffer_len_nervos);
   blake2b_Update(&S, buffer, 8);
