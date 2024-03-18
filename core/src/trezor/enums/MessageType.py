@@ -336,3 +336,5 @@ if not utils.BITCOIN_ONLY:
     NervosAddress = 11702
     NervosSignTx = 11703
     NervosSignedTx = 11704
+    NervosTxRequest = 11705
+    NervosTxAck = 11706

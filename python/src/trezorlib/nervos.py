@@ -33,12 +33,34 @@ def get_address(
     network: str,
     show_display: bool = False,
 ) -> "MessageType":
-    res =  client.call(
-        messages.NervosGetAddress(address_n=address_n, network=network, show_display=show_display)
+    res = client.call(
+        messages.NervosGetAddress(
+            address_n=address_n, network=network, show_display=show_display
+        )
     )
     return res
 
-@expect(messages.NervosSignedTx)
-def sign_tx(client: "TrezorClient", address_n: "Address", rawtx: str,witness_buffer: str,network: str):
 
-    return client.call(messages.NervosSignTx(address_n=address_n,  raw_message=rawtx,witness_buffer = witness_buffer, network=network))
+@expect(messages.NervosSignedTx)
+def sign_tx(
+    client: "TrezorClient",
+    address_n: "Address",
+    rawtx: bytes,
+    witness_buffer: bytes,
+    network: str,
+    data_length: int,
+):
+    resp = client.call(
+        messages.NervosSignTx(
+            address_n=address_n,
+            data_initial_chunk=rawtx,
+            witness_buffer=witness_buffer,
+            network=network,
+            data_length=data_length,
+        )
+    )
+    while isinstance(resp, messages.NervosTxRequest):
+        print("ack request")
+        data_chunk = bytes.fromhex("0000000000")
+        resp = client.call(messages.NervosTxAck(data_chunk=data_chunk))
+    return resp
