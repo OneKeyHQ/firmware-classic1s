@@ -141,6 +141,7 @@ OBJS += cbor.o
 OBJS += sui.o
 OBJS += kaspa.o
 OBJS += nexa.o
+OBJS += nervos.o
 endif
 
 OBJS += debug.o
@@ -242,6 +243,7 @@ OBJS += protob/messages-cardano.pb.o
 OBJS += protob/messages-sui.pb.o
 OBJS += protob/messages-kaspa.pb.o
 OBJS += protob/messages-nexa.pb.o
+OBJS += protob/messages-nervos.pb.o
 endif
 
 OPTFLAGS ?= -Os

@@ -36,6 +36,7 @@
 #include "messages-management.pb.h"
 #include "messages-near.pb.h"
 #include "messages-nem.pb.h"
+#include "messages-nervos.pb.h"
 #include "messages-nexa.pb.h"
 #include "messages-polkadot.pb.h"
 #include "messages-ripple.pb.h"
@@ -298,5 +299,10 @@ void fsm_msgKaspaTxInputAck(const KaspaTxInputAck *msg);
 void fsm_msgNexaGetAddress(const NexaGetAddress *msg);
 void fsm_msgNexaSignTx(const NexaSignTx *msg);
 void fsm_msgNexaTxInputAck(const NexaTxInputAck *msg);
+
+// nervos
+void fsm_msgNervosGetAddress(const NervosGetAddress *msg);
+void fsm_msgNervosSignTx(const NervosSignTx *msg);
+void fsm_msgNervosTxAck(const NervosTxAck *msg);
 
 #endif
