@@ -712,4 +712,18 @@
 #define I__COUNTRY_OF_ORIGIN_UPPERCASE_COLON 335
 // CERTIFICATION NUMBER:
 #define I__CERTIFICATION_NUMBER_UPPERCASE_COLON 336
+// LNURL Authorization
+#define T__LNURL_AUTHORIZATION 337
+// Domain:
+#define I__DOMAIN_COLON 338
+// Data:
+#define I__DATA_COLON 339
+// Approve Request
+#define T__APPROVE_REQUEST 340
+// Do you want to approve LNURL Auth request?
+#define C__DO_YOU_WANT_TO_APPROVE_LNURL_AUTH_REQUEST_QUES 341
+// Do you want to encrypt\{} message?
+#define C__DO_YOU_WANT_TO_ENCRYPT_CHAIN_STR_MESSAGE_QUES 342
+// Do you want to decrypt {} message?
+#define C__DO_YOU_WANT_TO_DECRYPT_CHAIN_STR_MESSAGE_QUES 343
 #endif

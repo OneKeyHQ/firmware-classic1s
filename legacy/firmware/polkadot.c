@@ -40,7 +40,7 @@ void polkadot_get_address_from_public_key(const uint8_t *public_key,
   crypto_SS58EncodePubkey((uint8_t *)address, 64, addressType, public_key);
 }
 
-static bool layoutPolkadotSign(void) {
+static bool layoutPolkadotSign(char *signer) {
   bool result = false;
   int index = 1;
   int y = 0;
@@ -60,7 +60,7 @@ static bool layoutPolkadotSign(void) {
   msg_write(MessageType_MessageType_ButtonRequest, &resp);
 
   polkadot_tx_getNumItems(&numItems);
-  max_index = numItems;
+  max_index = numItems + 1;
 refresh_menu:
   oledClear();
   y = 13;
@@ -75,6 +75,12 @@ refresh_menu:
     oledDrawStringAdapter(0, y, gettext_from_en(desc), FONT_STANDARD);
     oledDrawStringAdapter(0, y + 10, token_val, FONT_STANDARD);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
+    layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
+  } else if ((max_index - 1) == index) {
+    layoutHeader(tx_msg[0]);
+    oledDrawStringAdapter(0, y, _(I__SIGNED_BY_COLON), FONT_STANDARD);
+    oledDrawStringAdapter(0, y + 10, signer, FONT_STANDARD);
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
   } else if (max_index == index) {
     layoutHeader(_(T__SIGN_TRANSACTION));
@@ -133,6 +139,10 @@ static bool get_signer_address(const PolkadotSignTx *msg, const HDNode *node,
     addressType = 5;
   } else if (!strncmp(msg->network, "westend", 7)) {
     addressType = 42;
+  } else if (!strncmp(msg->network, "joystream", 9)) {
+    addressType = 126;
+  } else if (!strncmp(msg->network, "manta", 5)) {
+    addressType = 77;
   } else {
     return false;
   }
@@ -165,7 +175,7 @@ bool polkadot_sign_tx(const PolkadotSignTx *msg, const HDNode *node,
     layoutHome();
     return false;
   } else {
-    if (!layoutPolkadotSign()) {
+    if (!layoutPolkadotSign(signer)) {
       fsm_sendFailure(FailureType_Failure_ActionCancelled, "Signing cancelled");
       layoutHome();
       return false;
