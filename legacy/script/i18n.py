@@ -4,7 +4,7 @@ import lokalise
 
 LOKALISE_PROJECT_ID = "372193756406ee669eacc1.76289155"
 BASE_PATH = os.path.join(os.path.dirname(__file__), "..", "firmware/i18n/")
-SUPPORTED_LANGS = ("en", "zh_CN", "zh_TW", "ja", "es")
+SUPPORTED_LANGS = ("en", "zh_CN", "zh_TW", "ja", "es", "pt_BR")
 CHARS_NORMAL = set()
 CHARS_TITLE = set()
 CHARS_SUBTITLE = set()
@@ -15,6 +15,7 @@ LANG_MAP = {
     'en': 'English',
     'ja': 'Japanese',
     'es': 'Spanish',
+    'pt_BR': 'Portuguese',
 }
 """
 

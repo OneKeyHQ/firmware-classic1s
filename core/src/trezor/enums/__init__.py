@@ -337,6 +337,8 @@ if TYPE_CHECKING:
         SuiSignedTx = 11103
         SuiSignMessage = 11104
         SuiMessageSignature = 11105
+        SuiTxRequest = 11106
+        SuiTxAck = 11107
         FilecoinGetAddress = 11200
         FilecoinAddress = 11201
         FilecoinSignTx = 11202
@@ -353,6 +355,18 @@ if TYPE_CHECKING:
         NexaSignedTx = 11403
         NexaTxInputRequest = 11404
         NexaTxInputAck = 11405
+        NostrGetPublicKey = 11500
+        NostrPublicKey = 11501
+        NostrSignEvent = 11502
+        NostrSignedEvent = 11503
+        NostrEncryptMessage = 11504
+        NostrEncryptedMessage = 11505
+        NostrDecryptMessage = 11506
+        NostrDecryptedMessage = 11507
+        NostrSignSchnorr = 11508
+        NostrSignedSchnorr = 11509
+        LnurlAuth = 11600
+        LnurlAuthResp = 11601
         NervosGetAddress = 11701
         NervosAddress = 11702
         NervosSignTx = 11703

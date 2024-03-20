@@ -17,16 +17,20 @@
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __SUI_H__
-#define __SUI_H__
+#ifndef __NOSTR_H__
+#define __NOSTR_H__
 #include <stdint.h>
 #include "bip32.h"
-#include "messages-sui.pb.h"
+#include "messages-nostr.pb.h"
 
-void sui_get_address_from_public_key(const uint8_t *public_key, char *address);
-void sui_sign_tx(const SuiSignTx *msg, const HDNode *node, SuiSignedTx *resp);
-void sui_message_sign(const SuiSignMessage *msg, const HDNode *node,
-                      SuiMessageSignature *resp);
-void sui_signing_init(const SuiSignTx *msg, const HDNode *node);
-void sui_signing_txack(SuiTxAck *msg);
-#endif  // __SUI_H__
+int nostr_get_pubkey(char *address, const uint8_t *public_key);
+bool nostr_sign_event(const NostrSignEvent *msg, const HDNode *node,
+                      NostrSignedEvent *resp);
+bool nostr_encrypt_message(NostrEncryptMessage *msg, const HDNode *node,
+                           NostrEncryptedMessage *resp);
+bool nostr_decrypt_message(NostrDecryptMessage *msg, const HDNode *node,
+                           NostrDecryptedMessage *resp);
+bool nostr_sign_schnorr(const NostrSignSchnorr *msg, const HDNode *node,
+                        NostrSignedSchnorr *resp);
+
+#endif  // __NOSTR_H__
