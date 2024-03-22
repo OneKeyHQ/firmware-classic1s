@@ -41,6 +41,10 @@ jobs:
           cp ./legacy/bootloader/classic1s_bootloader*Stable*.bin qa
           nix-shell --run "poetry run ./legacy/script/setup"
           nix-shell --run "poetry run ./legacy/script/cibuild"
+          ./legacy/script/hash.py -t bootloader -f legacy/bootloader/classic1s_bootloader*Stable*.bin > legacy/bootloader/hash.txt
+          ./legacy/script/hash.py -t bootloader -f legacy/firmware/classic*Stable*.bin > legacy/firmware/hash.txt
+          ./legacy/script/hash.py -t bootloader -f qa/classic1s_bootloader*Stable*.bin > qa/hash.txt
+          ./legacy/script/hash.py -t firmware -f qa/classic*Stable*.bin >> qa/hash.txt
 
       - name: "Upload Artifacts"
         uses: actions/upload-artifact@v3
@@ -48,22 +52,10 @@ jobs:
           name: firmware-classic1s-${{ github.sha }}
           path: |
             ./legacy/firmware/classic*Stable*.bin
+            ./legacy/firmware/hash.txt
             ./legacy/bootloader/classic1s_bootloader*Stable*.bin
+            ./legacy/bootloader/hash.txt
             ./legacy/bootloader0/bootloader0.bin
             ./legacy/intermediate_fw/classic*.bin
             ./qa
 
-      - name: "Notify to Slack"
-        uses: onekeyhq/actions/notice-slack-app-update@main
-        with:
-          web-hook-url: ${{ secrets.SLACK_DEV_RELEASE_WEBHOOK }}
-          artifact-type: CLASSIC-FIRMWARE-1S
-          artifact-name: Classic-Hardware-Firmware-1S
-          artifact-bundle-id: 'so.onekey.firmware.classic2'
-          artifact-version-name: '${{ env.FIRMWARE_VERSION }}'
-          artifact-version-code: '${{ env.SHORT_HASH }}-${{ env.BUILD_DATE }}'
-          artifact-download-url: '${{ env.ARTIFACTS_URL }}'
-          change-log: 'firmware@${{ env.FIRMWARE_VERSION }} / boot@${{ env.BOOT_VERSION }}'
-          custom-issue-url: ''
-          custom-message-title: ''
-          custom-message-payload: ''

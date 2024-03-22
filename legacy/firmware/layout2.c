@@ -56,6 +56,7 @@
 #include "sys.h"
 #include "timer.h"
 #include "util.h"
+#include "fw_signatures.h"
 
 /* Display info timeout */
 uint32_t system_millis_display_info_start = 0;
@@ -267,6 +268,14 @@ void getBleDevInformation(void) {
   }
   if (!ble_switch_state()) {
     ble_request_switch_state();
+    delay_ms(5);
+  }
+  if (!ble_build_id_state()) {
+    ble_request_info(BLE_CMD_BUILD_ID);
+    delay_ms(5);
+  }
+  if (!ble_hash_state()) {
+    ble_request_info(BLE_CMD_HASH);
     delay_ms(5);
   }
 }
@@ -3697,6 +3706,14 @@ bool layoutInputDirection(int direction) {
       oledDrawBitmap(65, 23, &bmp_icon_up);
       oledDrawBitmap(6, 42, &bmp_icon_down);
       break;
+    case 5:
+      oledDrawBitmap(36, 23, &bmp_icon_up);
+      if (direction) {
+        oledDrawBitmap(70, 32, &bmp_icon_down);
+      } else {
+        oledDrawBitmap(66, 32, &bmp_icon_down);
+      }
+      break;
     default:
       break;
   }
@@ -3713,12 +3730,40 @@ bool layoutInputDirection(int direction) {
 void layoutDeviceParameters(int num) {
   (void)num;
   const struct font_desc *font = find_cur_font();
-  char *se_version = NULL;
   char *se_sn = NULL;
   int y = 0, l;
   int index = 0;
   uint8_t key = KEY_NULL;
   char index_str[16] = "";
+  char firmware_ver[32] = "";
+  char se_ver[32] = "";
+  char bt_ver[32] = "";
+  char boot_version[32] = "";
+  uint8_t hash[32] = {0};
+  char hash_str[8] = {0};
+  const image_header *hdr = (const image_header *)FLASH_PTR(
+      FLASH_FWHEADER_START);  // allow both v2 and v3 signatures
+
+  data2hexaddr(get_firmware_hash(hdr), 4, hash_str);
+  hash_str[7] = 0;
+  snprintf(firmware_ver, 32, "%s[%s-%s]", ONEKEY_VERSION, BUILD_ID + strlen(BUILD_ID) - 7, hash_str);
+
+  data2hexaddr((uint8_t *)se_get_hash(), 4, hash_str);
+  hash_str[7] = 0;
+  snprintf(se_ver, 32, "%s[%s-%s]", se_get_version(), se_get_build_id(), hash_str);
+
+  memory_bootloader_hash(hash);
+  data2hexaddr(hash, 4, hash_str);
+  hash_str[7] = 0;
+  snprintf(boot_version, 32, "%s[%s]", bootloader_version, hash_str);
+
+  if (ble_build_id_state() && ble_hash_state()) {
+    data2hexaddr((uint8_t *)ble_get_hash(), 4, hash_str);
+    hash_str[7] = 0;
+    snprintf(bt_ver, 32, "%s[%s-%s]", ble_get_ver(), ble_get_build_id(), hash_str);
+  } else {
+    snprintf(bt_ver, 32, "%s", ble_get_ver());
+  }
 
 refresh_menu:
   y = 9;
@@ -3751,28 +3796,27 @@ refresh_menu:
       oledDrawStringAdapter(0, y, _(I__FIRMWARE_UPPERCASE_COLON),
                             FONT_STANDARD);
       y += font->pixel + 1;
-      oledDrawStringAdapter(0, y, ONEKEY_VERSION, FONT_STANDARD);
+      oledDrawStringAdapter(0, y, firmware_ver, FONT_STANDARD);
       y += font->pixel + 4;
 
       oledDrawStringAdapter(0, y, _(I__BLUETOOTH_UPPERCASE_COLON),
                             FONT_STANDARD);
       y += font->pixel + 1;
-      oledDrawStringAdapter(0, y, ble_get_ver(), FONT_STANDARD);
+      oledDrawStringAdapter(0, y, bt_ver, FONT_STANDARD);
       break;
 
     case 2:
-      se_version = se_get_version();
       oledDrawStringAdapter(0, y, _(I__SE_VERSION_UPPERCASE_COLON),
                             FONT_STANDARD);
       y += font->pixel + 1;
-      oledDrawStringAdapter(0, y, se_version, FONT_STANDARD);
+      oledDrawStringAdapter(0, y, se_ver, FONT_STANDARD);
       y += font->pixel + 4;
 
 #if !EMULATOR
       oledDrawStringAdapter(0, y, _(I__BOOTLOADER_UPPERCASE_COLON),
                             FONT_STANDARD);
       y += font->pixel + 1;
-      oledDrawStringAdapter(0, y, bootloader_version, FONT_STANDARD);
+      oledDrawStringAdapter(0, y, boot_version, FONT_STANDARD);
       y += font->pixel + 1;
 #endif
       break;
@@ -3784,13 +3828,6 @@ refresh_menu:
 
       se_get_sn(&se_sn);
       oledDrawStringAdapter(0, y, se_sn, FONT_STANDARD);
-
-      y += font->pixel + 4;
-      oledDrawStringAdapter(0, y, _(I__BUILD_ID_UPPERCASE_COLON),
-                            FONT_STANDARD);
-      y += font->pixel + 1;
-      oledDrawStringAdapter(0, y, BUILD_ID + strlen(BUILD_ID) - 7,
-                            FONT_STANDARD);
       break;
     case 4:
       oledDrawStringAdapter(0, y, _(I__DEVICE_ID_UPPERCASE_COLON),

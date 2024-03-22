@@ -125,6 +125,15 @@ bool get_features(Features *resp) {
     resp->has_ble_enable = true;
     resp->ble_enable = ble_get_switch();
   }
+  if (ble_build_id_state()) {
+    resp->has_onekey_ble_build_id = true;
+    strlcpy(resp->onekey_ble_build_id, ble_get_build_id(), sizeof(resp->onekey_ble_build_id));
+  }
+  if (ble_hash_state()) {
+    resp->has_onekey_ble_hash = true;
+    memcpy(resp->onekey_ble_hash.bytes, ble_get_hash(), 32);
+    resp->onekey_ble_hash.size = 32;
+  }
 
   resp->has_onekey_device_type = true;
   resp->onekey_device_type = OneKeyDeviceType_CLASSIC1S;

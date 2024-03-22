@@ -184,7 +184,8 @@ static struct menu_item language_set_menu_items[] = {
     {"中文 (简体)", NULL, true, menu_para_set_language, NULL, true, NULL},
     {"中文 (繁體)", NULL, true, menu_para_set_language, NULL, true, NULL},
     {"日本語", NULL, true, menu_para_set_language, NULL, true, NULL},
-    {"Español", NULL, true, menu_para_set_language, NULL, true, NULL}};
+    {"Español", NULL, true, menu_para_set_language, NULL, true, NULL},
+    {"Português", NULL, true, menu_para_set_language, NULL, true, NULL}};
 
 static struct menu language_set_menu = {
     .start = 0,
