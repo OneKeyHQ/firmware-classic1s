@@ -41,6 +41,10 @@ jobs:
           cp ./legacy/bootloader/classic1s_bootloader*Stable*.bin qa
           nix-shell --run "poetry run ./legacy/script/setup"
           nix-shell --run "poetry run ./legacy/script/cibuild"
+          ./legacy/script/hash.py -t bootloader -f legacy/bootloader/classic1s_bootloader*Stable*.bin > legacy/bootloader/hash.txt
+          ./legacy/script/hash.py -t firmware -f legacy/firmware/classic*Stable*.bin > legacy/firmware/hash.txt
+          ./legacy/script/hash.py -t bootloader -f qa/classic1s_bootloader*Stable*.bin > qa/hash.txt
+          ./legacy/script/hash.py -t firmware -f qa/classic*Stable*.bin >> qa/hash.txt
 
       - name: "Upload Artifacts"
         uses: actions/upload-artifact@v3
@@ -48,7 +52,9 @@ jobs:
           name: firmware-classic1s-${{ github.sha }}
           path: |
             ./legacy/firmware/classic*Stable*.bin
+            ./legacy/firmware/hash.txt
             ./legacy/bootloader/classic1s_bootloader*Stable*.bin
+            ./legacy/bootloader/hash.txt
             ./legacy/bootloader0/bootloader0.bin
             ./legacy/intermediate_fw/classic*.bin
             ./qa

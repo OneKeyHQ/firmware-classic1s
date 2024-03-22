@@ -26,7 +26,9 @@ enum {
   BLE_CMD_ONOFF_BLE = 0x07,
   BLE_CMD_DFU_STA = 0x0A,
   BLE_CMD_DEVICE_PUBKEY = 0x0B,
-  BLE_CMD_DEVICE_SIGN = 0x0C
+  BLE_CMD_DEVICE_SIGN = 0x0C,
+  BLE_CMD_BUILD_ID = 0x0D,
+  BLE_CMD_HASH = 0x0E
 };
 
 enum { BLE_PBUKEY_GET = 0x00, BLE_PBUKEY_LOCK = 0x01 };
@@ -48,9 +50,13 @@ bool ble_get_version(char **ver);
 bool ble_is_enable(void);
 bool ble_name_state(void);
 bool ble_ver_state(void);
+bool ble_build_id_state(void);
+bool ble_hash_state(void);
 bool ble_battery_state(void);
 char *ble_get_name(void);
 char *ble_get_ver(void);
+char *ble_get_build_id(void);
+uint8_t *ble_get_hash(void);
 bool ble_switch_state(void);
 void ble_set_switch(bool flag);
 bool ble_get_switch(void);
