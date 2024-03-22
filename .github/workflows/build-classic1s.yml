@@ -44,7 +44,7 @@ jobs:
           ./legacy/script/hash.py -t bootloader -f legacy/bootloader/classic1s_bootloader*Stable*.bin > legacy/bootloader/hash.txt
           ./legacy/script/hash.py -t firmware -f legacy/firmware/classic*Stable*.bin > legacy/firmware/hash.txt
           ./legacy/script/hash.py -t bootloader -f qa/classic1s_bootloader*Stable*.bin > qa/hash.txt
-          ./legacy/script/hash.py -t firmware -f qa/classic*Stable*.bin >> qa/hash.txt
+          ./legacy/script/hash.py -t firmware -f qa/classic1s.*Stable*.bin >> qa/hash.txt
 
       - name: "Upload Artifacts"
         uses: actions/upload-artifact@v3
