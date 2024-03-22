@@ -9,6 +9,8 @@ static usart_msg ble_usart_msg;
 static bool get_ble_name = false;
 static bool get_ble_ver = false;
 static bool get_ble_battery = false;
+static bool get_ble_build_id = false;
+static bool get_ble_hash = false;
 static bool ble_connect = false;
 static bool ble_switch = false;
 static bool get_ble_switch = false;
@@ -17,6 +19,8 @@ static int ble_request_state = -1;
 static uint8_t ble_response_buf[64];
 static char ble_name[BLE_NAME_LEN + 1] = {0};
 static char ble_ver[6] = {0};
+static char ble_build_id[7] = {0};
+static uint8_t ble_hash[512] = {0};
 
 static uint8_t ble_update_buffer[256] = {0};
 
@@ -175,8 +179,12 @@ bool ble_name_state(void) { return get_ble_name; }
 bool ble_ver_state(void) { return get_ble_ver; }
 bool ble_battery_state(void) { return get_ble_battery; }
 bool ble_switch_state(void) { return get_ble_switch; }
+bool ble_build_id_state(void) { return get_ble_build_id; }
+bool ble_hash_state(void) { return get_ble_hash; }
 char *ble_get_name(void) { return ble_name; }
 char *ble_get_ver(void) { return ble_ver; }
+char *ble_get_build_id(void) { return ble_build_id; }
+uint8_t *ble_get_hash(void) { return ble_hash; }
 
 void ble_set_switch(bool flag) { ble_switch = flag; }
 bool ble_get_switch(void) { return ble_switch; }
@@ -293,6 +301,18 @@ void ble_uart_poll(uint8_t *buf) {
       } else if (ble_usart_msg.cmd_len == 64) {
         ble_request_state = 0;
         memcpy(ble_response_buf, ble_usart_msg.cmd_vale, 64);
+      }
+      break;
+    case BLE_CMD_BUILD_ID:
+      if (ble_usart_msg.cmd_len == 7) {
+        memcpy(ble_build_id, ble_usart_msg.cmd_vale, 7);
+        get_ble_build_id = true;
+      }
+      break;
+    case BLE_CMD_HASH:
+      if (ble_usart_msg.cmd_len == 32) {
+        memcpy(ble_hash, ble_usart_msg.cmd_vale, 32);
+        get_ble_hash = true;
       }
       break;
     default:
