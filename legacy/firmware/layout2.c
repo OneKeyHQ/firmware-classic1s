@@ -35,6 +35,7 @@
 #include "crypto.h"
 #include "font.h"
 #include "font_ex.h"
+#include "fw_signatures.h"
 #include "gettext.h"
 #include "i18n/i18n.h"
 #include "layout2.h"
@@ -56,7 +57,6 @@
 #include "sys.h"
 #include "timer.h"
 #include "util.h"
-#include "fw_signatures.h"
 
 /* Display info timeout */
 uint32_t system_millis_display_info_start = 0;
@@ -3746,11 +3746,13 @@ void layoutDeviceParameters(int num) {
 
   data2hexaddr(get_firmware_hash(hdr), 4, hash_str);
   hash_str[7] = 0;
-  snprintf(firmware_ver, 32, "%s[%s-%s]", ONEKEY_VERSION, BUILD_ID + strlen(BUILD_ID) - 7, hash_str);
+  snprintf(firmware_ver, 32, "%s[%s-%s]", ONEKEY_VERSION,
+           BUILD_ID + strlen(BUILD_ID) - 7, hash_str);
 
   data2hexaddr((uint8_t *)se_get_hash(), 4, hash_str);
   hash_str[7] = 0;
-  snprintf(se_ver, 32, "%s[%s-%s]", se_get_version(), se_get_build_id(), hash_str);
+  snprintf(se_ver, 32, "%s[%s-%s]", se_get_version(), se_get_build_id(),
+           hash_str);
 
   memory_bootloader_hash(hash);
   data2hexaddr(hash, 4, hash_str);
@@ -3760,7 +3762,8 @@ void layoutDeviceParameters(int num) {
   if (ble_build_id_state() && ble_hash_state()) {
     data2hexaddr((uint8_t *)ble_get_hash(), 4, hash_str);
     hash_str[7] = 0;
-    snprintf(bt_ver, 32, "%s[%s-%s]", ble_get_ver(), ble_get_build_id(), hash_str);
+    snprintf(bt_ver, 32, "%s[%s-%s]", ble_get_ver(), ble_get_build_id(),
+             hash_str);
   } else {
     snprintf(bt_ver, 32, "%s", ble_get_ver());
   }
@@ -4061,6 +4064,10 @@ bool layoutTransactionSign(const char *chain_name, uint64_t chain_id,
   int data_rowcount = len % 10 ? len / 10 + 1 : len / 10;
   uint32_t rowlen = 21;
   const char **str;
+  int to_str_rowcount = strlen(to_str) / rowlen;
+  int signer_rowcount = strlen(signer) / rowlen;
+  if (strlen(to_str) / rowlen) to_str_rowcount++;
+  if (strlen(signer) / rowlen) signer_rowcount++;
   if (token_id) {
     tokenid_len = strlen(token_id);
     token_id_rowcount = tokenid_len / rowlen + 1;
@@ -4189,22 +4196,74 @@ refresh_menu:
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
   } else if ((has_chain_id == false && 1 == index && token_id == NULL) ||
              (has_chain_id == true && 2 == index && token_id == NULL)) {  // To
-    sub_index = 0;
     layoutHeader(title);
     oledDrawStringAdapter(0, y, _(I__SEND_TO_COLON), FONT_STANDARD);
-    oledDrawStringAdapter(0, y + 10, to_str, FONT_STANDARD);
+    if (to_str_rowcount > 3) {
+      str = split_message((const uint8_t *)to_str, strlen(to_str), rowlen);
+      if (sub_index == 0) {
+        oledDrawStringAdapter(0, y + 1 * 10, str[0], FONT_STANDARD);
+        oledDrawStringAdapter(0, y + 2 * 10, str[1], FONT_STANDARD);
+        oledDrawStringAdapter(0, y + 3 * 10, str[2], FONT_STANDARD);
+        oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8,
+                       &bmp_bottom_middle_arrow_down);
+      } else {
+        oledDrawStringAdapter(0, y + 1 * 10, str[sub_index], FONT_STANDARD);
+        oledDrawStringAdapter(0, y + 2 * 10, str[sub_index + 1], FONT_STANDARD);
+        oledDrawStringAdapter(0, y + 3 * 10, str[sub_index + 2], FONT_STANDARD);
+        if (sub_index == to_str_rowcount - 3) {
+          oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8,
+                         &bmp_bottom_middle_arrow_up);
+        } else {
+          oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8,
+                         &bmp_bottom_middle_arrow_up);
+          oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8,
+                         &bmp_bottom_middle_arrow_down);
+        }
+      }
+      drawScrollbar(to_str_rowcount - 2, sub_index);
+    } else {
+      sub_index = 0;
+      oledDrawStringAdapter(0, y + 10, to_str, FONT_STANDARD);
+    }
+
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
   } else if ((has_chain_id == false &&
               ((2 == index && token_id == NULL) || (4 == index && token_id))) ||
              (has_chain_id == true && ((3 == index && token_id == NULL) ||
                                        (5 == index && token_id)))) {  // From
-    sub_index = 0;
     layoutHeader(title);
     memset(desc, 0, 64);
     strcat(desc, _(I__FROM_COLON));
     oledDrawStringAdapter(0, y, desc, FONT_STANDARD);
-    oledDrawStringAdapter(0, y + 10, signer, FONT_STANDARD);
+    if (signer_rowcount > 3) {
+      str = split_message((const uint8_t *)signer, strlen(signer), rowlen);
+      if (sub_index == 0) {
+        oledDrawStringAdapter(0, y + 1 * 10, str[0], FONT_STANDARD);
+        oledDrawStringAdapter(0, y + 2 * 10, str[1], FONT_STANDARD);
+        oledDrawStringAdapter(0, y + 3 * 10, str[2], FONT_STANDARD);
+        oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8,
+                       &bmp_bottom_middle_arrow_down);
+      } else {
+        oledDrawStringAdapter(0, y + 1 * 10, str[sub_index], FONT_STANDARD);
+        oledDrawStringAdapter(0, y + 2 * 10, str[sub_index + 1], FONT_STANDARD);
+        oledDrawStringAdapter(0, y + 3 * 10, str[sub_index + 2], FONT_STANDARD);
+        if (sub_index == signer_rowcount - 3) {
+          oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8,
+                         &bmp_bottom_middle_arrow_up);
+        } else {
+          oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8,
+                         &bmp_bottom_middle_arrow_up);
+          oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8,
+                         &bmp_bottom_middle_arrow_down);
+        }
+      }
+      drawScrollbar(signer_rowcount - 2, sub_index);
+    } else {
+      sub_index = 0;
+      oledDrawStringAdapter(0, y + 10, signer, FONT_STANDARD);
+    }
+
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
   } else if ((has_chain_id == false &&
@@ -4339,6 +4398,19 @@ refresh_menu:
            sub_index < token_id_rowcount - 3)) {  // token_id
         sub_index++;
       }
+      if ((has_chain_id == false && 1 == index && token_id == NULL &&
+           sub_index < to_str_rowcount - 3) ||
+          (has_chain_id == true && 2 == index && token_id == NULL &&
+           sub_index < to_str_rowcount - 3)) {  // To
+        sub_index++;
+      }
+      if ((has_chain_id == false && sub_index < signer_rowcount - 3 &&
+           ((2 == index && token_id == NULL) || (4 == index && token_id))) ||
+          (has_chain_id == true && sub_index < signer_rowcount - 3 &&
+           ((3 == index && token_id == NULL) ||
+            (5 == index && token_id)))) {  // From
+        sub_index++;
+      }
       goto refresh_menu;
     case KEY_CONFIRM:
       if (index == max_index - 1) {
@@ -4348,6 +4420,7 @@ refresh_menu:
       if (index < max_index) {
         index++;
       }
+      sub_index = 0;
       goto refresh_menu;
     case KEY_CANCEL:
       if ((0 == index) || (index == max_index - 1)) {
@@ -4357,6 +4430,7 @@ refresh_menu:
       if (index > 0) {
         index--;
       }
+      sub_index = 0;
       goto refresh_menu;
     default:
       break;
