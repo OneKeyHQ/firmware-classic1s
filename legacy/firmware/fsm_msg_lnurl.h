@@ -77,7 +77,7 @@ void fsm_msgLnurlAuth(const LnurlAuth *msg) {
     uint8_t v;
     uint8_t sig[65] = {0};
     if (hdnode_sign_digest(node, msg->data.bytes, sig, &v,
-                         ethereum_is_canonic) != 0) {
+                           ethereum_is_canonic) != 0) {
       fsm_sendFailure(FailureType_Failure_ProcessError, "Signing failed");
       return;
     }

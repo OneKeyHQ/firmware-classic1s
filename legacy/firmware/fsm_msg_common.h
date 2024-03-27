@@ -127,7 +127,8 @@ bool get_features(Features *resp) {
   }
   if (ble_build_id_state()) {
     resp->has_onekey_ble_build_id = true;
-    strlcpy(resp->onekey_ble_build_id, ble_get_build_id(), sizeof(resp->onekey_ble_build_id));
+    strlcpy(resp->onekey_ble_build_id, ble_get_build_id(),
+            sizeof(resp->onekey_ble_build_id));
   }
   if (ble_hash_state()) {
     resp->has_onekey_ble_hash = true;
