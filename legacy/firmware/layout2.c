@@ -3661,9 +3661,9 @@ bool layoutInputDirection(int direction) {
 
   oledClear_ex();
   if (direction) {
-    strcat(title, _(O__REVERSE));
+    strcat(title, _(T__REVERSE_INPUT_DIRECTION));
   } else {
-    strcat(title, _(O__DEFAULT));
+    strcat(title, _(T__DEFAULT_INPUT_DIRECTION));
   }
   strcat(title, _(T__INPUT_DIRECTION));
   layoutHeader(title);

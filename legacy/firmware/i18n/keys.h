@@ -28,8 +28,7 @@
 #define T__BACK_UP_RECOVERY_PHRASE 11
 // The next screen will start display {} words called Recovery Phrase. Write it
 // down on sheet in order
-#define C__THE_NEXT_SCREEN_WILL_START_DISPLAY_STR_WORDS_CALLED_RECOVERY_PHRASE_WRITE_IT_DOWN_ON_SHEET_IN_ORDER \
-  12
+#define C__THE_NEXT_SCREEN_WILL_START_DISPLAY_STR_WORDS_CALLED_RECOVERY_PHRASE_WRITE_IT_DOWN_ON_SHEET_IN_ORDER 12
 // Word #{}
 #define T__WORD_SHARP_STR 13
 // Check Words Again
@@ -57,8 +56,7 @@
 #define T__ALMOST_DONW_EXCLAM 24
 // Recovery phrase is the only way to recover your assets. So keep it in a safe
 // place
-#define C__RECOVERY_PHRASE_IS_THE_ONLY_WAY_TO_RECOVER_YOUR_ASSETS_SO_KEEP_IT_IN_A_SAFE_PLACE \
-  25
+#define C__RECOVERY_PHRASE_IS_THE_ONLY_WAY_TO_RECOVER_YOUR_ASSETS_SO_KEEP_IT_IN_A_SAFE_PLACE 25
 // Set PIN
 #define T__SET_PIN 26
 // Set a 4 to 9-digits PIN to protect your wallet
@@ -76,8 +74,7 @@
 // Congratulations!
 #define T__CONGRATULATIONS_EXCLAM 33
 // Wallet is ready! Download OneKey apps and have fun with your OneKey Classic
-#define C__WALLET_IS_READY_EXCLAM_DOWNLOAD_ONEKEY_APPS_AND_HAVE_FUN_WITH_YOUR_ONEKEY_CLASSIC \
-  34
+#define C__WALLET_IS_READY_EXCLAM_DOWNLOAD_ONEKEY_APPS_AND_HAVE_FUN_WITH_YOUR_ONEKEY_CLASSIC 34
 // Download OneKey Apps
 #define T__DOWNLOAD_ONEKEY_APPS 35
 // Download OneKey apps at: onekey.so/download
@@ -85,8 +82,7 @@
 // Support
 #define T__SUPPORT 37
 // Any questions? Visit Help Center for solutions: help.onekey.so
-#define C__ANY_QUESTIONS_QUES_VISIT_HELP_CENTER_FOR_SOLUTIONS_COLON_HELP_ONEKEY_SO \
-  38
+#define C__ANY_QUESTIONS_QUES_VISIT_HELP_CENTER_FOR_SOLUTIONS_COLON_HELP_ONEKEY_SO 38
 // Done!
 #define T__DONE_EXCLAM 39
 // OneKey Classic is set up, it will back to home screen
@@ -209,8 +205,7 @@
 #define C__PIN_CHANGED 93
 // Check your Recovery Phrase backup, make sure it is exactly the same as the o
 // ne stored on device
-#define C__CHECK_YOUR_RECOVERY_PHRASE_BACKUP_MAKE_SURE_IT_IS_EXACTLY_THE_SAME_AS_THE_ONE_STORED_ON_DEVICE \
-  94
+#define C__CHECK_YOUR_RECOVERY_PHRASE_BACKUP_MAKE_SURE_IT_IS_EXACTLY_THE_SAME_AS_THE_ONE_STORED_ON_DEVICE 94
 // Recovery phrase is valid but NOT MATCH. Check and try again
 #define C__RECOVERY_PHRASE_IS_VALID_BUT_DOES_NOT_MATCH_CHECK_AND_TRY_AGAIN 95
 // Recovery phrase matched! Your backup is correct
@@ -225,12 +220,10 @@
 #define T__WARNING_EXCLAM_BRACKET_STR_BRACKET 100
 // This will permanently erase all data stored on Secure Element (SE) and inter
 // nal storage, including private keys and settings
-#define C__THIS_WILL_ERASE_ALL_DATA_STORED_ON_SE_AND_INTERNAL_STORAGE_INCLUDING_PRIVATE_KEYS_AND_SETTINGS \
-  101
+#define C__THIS_WILL_ERASE_ALL_DATA_STORED_ON_SE_AND_INTERNAL_STORAGE_INCLUDING_PRIVATE_KEYS_AND_SETTINGS 101
 // Recovery Phrase is the only way to restore the private keys that own your as
 // sets. Make sure you still have a backup of current wallet
-#define C__RECOVERY_PHRASE_IS_THE_ONLY_WAY_TO_RESTORE_THE_PRIVATE_KEYS_THAT_OWN_YOUR_ASSETS_MAKE_SURE_YOU_STILL_HAVE_BACKUP_OF_CURRENT_WALLET \
-  102
+#define C__RECOVERY_PHRASE_IS_THE_ONLY_WAY_TO_RESTORE_THE_PRIVATE_KEYS_THAT_OWN_YOUR_ASSETS_MAKE_SURE_YOU_STILL_HAVE_BACKUP_OF_CURRENT_WALLET 102
 // Erase Device
 #define T__ERASE_DEVICE 103
 // Are you sure to reset this device? This action can not be undo!
@@ -272,8 +265,7 @@
 #define T__DISABLE_TREZOR_COMPAT 121
 // This will prevent you from using third-party wallet clients and websites whi
 // ch only support Trezor
-#define C__THIS_WILL_PREVENT_YOU_FROM_USING_THIRD_PARTY_WALLET_CLIENT_AND_WEBSITES_WHICH_ONLY_SUPPORT_TREZOR \
-  122
+#define C__THIS_WILL_PREVENT_YOU_FROM_USING_THIRD_PARTY_WALLET_CLIENT_AND_WEBSITES_WHICH_ONLY_SUPPORT_TREZOR 122
 // It will take effect after device restart
 #define C__IT_WILL_TAKE_EFFECT_AFTER_DEVICE_RESTART 123
 // WARNING! Do not change this setting if you not sure
@@ -285,13 +277,11 @@
 // After enable Safety- Checks, it will protect you from non-standard (non- BIP
 // -44 compliant) address derivation, performing potentially risky transactions
 // , or unexpected high fees
-#define C__AFTER_ENABLE_SAFETY_CHECK_IT_WILL_PROTECT_YOU_FROM_NON_BIP44_COMPLIANT_ADDRESS_DIRIVATION_OR_PERFORMING_POTENTIALLY_RISKY_TX_OR_UNEXPECTED_HIGH_FEES \
-  127
+#define C__AFTER_ENABLE_SAFETY_CHECK_IT_WILL_PROTECT_YOU_FROM_NON_BIP44_COMPLIANT_ADDRESS_DIRIVATION_OR_PERFORMING_POTENTIALLY_RISKY_TX_OR_UNEXPECTED_HIGH_FEES 127
 // Are you sure to enable Safety-Checks?
 #define C__ARE_YOU_SURE_TO_ENABLE_SAFETY_CHECKS_QUES 128
 // It will temporarily allow you to perform some actions with potentially risky
-#define C__IT_WILL_TEMPORARILY_ALLOW_YOU_TO_PERFORM_SOME_ACTIONS_WITH_POTENTIALLY_RISKY \
-  129
+#define C__IT_WILL_TEMPORARILY_ALLOW_YOU_TO_PERFORM_SOME_ACTIONS_WITH_POTENTIALLY_RISKY 129
 // Are you sure to temporarily disable Safety-Checks?
 #define C__ARE_YOU_SURE_TO_TEMPORARILY_DISABLE_SAFETY_CHECKS_QUES 130
 // Enter PIN
@@ -549,12 +539,10 @@
 #define I__MULTI_SEND_COLON 256
 // When entering PIN, click the "        " button to decrease, and click the "
 // " button to increase
-#define C__WHEN_ENTERING_PIN_CLICK_THE_UP_BTN_TO_DECREASE_AND_CLICK_THE_DOWN_BTN_TO_INCREASE \
-  257
+#define C__WHEN_ENTERING_PIN_CLICK_THE_UP_BTN_TO_DECREASE_AND_CLICK_THE_DOWN_BTN_TO_INCREASE 257
 // When entering PIN, click the "        " button to increase, click the "
 // " button to decrease
-#define C__WHEN_ENTERING_PIN_CLICK_THE_UP_BTN_TO_INCREASE_CLICK_THE_DOWN_BTN_TO_DECREASE \
-  258
+#define C__WHEN_ENTERING_PIN_CLICK_THE_UP_BTN_TO_INCREASE_CLICK_THE_DOWN_BTN_TO_DECREASE 258
 // Update Transaction
 #define T__UPDATE_TRANSACTION 259
 // Transaction ID:
@@ -622,8 +610,7 @@
 // Please wait
 #define C__PLEASE_WAIT 291
 // Low Battery! Charge to 25% before updating the bootloader
-#define C__LOW_BATTERY_EXCLAM_CHARGE_TO_25_PERCENTS_BEFORE_UPDATING_THE_BOOTLOADER \
-  292
+#define C__LOW_BATTERY_EXCLAM_CHARGE_TO_25_PERCENTS_BEFORE_UPDATING_THE_BOOTLOADER 292
 // SECURITY CHECK
 #define C__SECURITY_CHECK_UPPERCASE 293
 // Check this device with OneKey secure server
