@@ -1,3 +1,4 @@
+// clang-format off
 #ifndef I18N_KEY_H
 #define I18N_KEY_H
 // Welcome to OneKey!
@@ -714,3 +715,4 @@
 // Do you want to decrypt {} message?
 #define C__DO_YOU_WANT_TO_DECRYPT_CHAIN_STR_MESSAGE_QUES 343
 #endif
+// clang-format on

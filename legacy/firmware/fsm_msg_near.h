@@ -16,21 +16,17 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
-
+#undef COIN_TYPE
+#define COIN_TYPE 397
 void fsm_msgNearGetAddress(NearGetAddress *msg) {
   CHECK_INITIALIZED
 
+  CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,
+                                    COIN_TYPE, ED25519_NAME, true),
+              "Invalid path");
   CHECK_PIN
 
   RESP_INIT(NearAddress);
-
-  // m/44h/397h/0h
-  if ((msg->address_n_count != 3) || (msg->address_n[0] != 0x8000002c) ||
-      (msg->address_n[1] != 0x8000018d)) {
-    fsm_sendFailure(FailureType_Failure_ProcessError, "Invalid Path");
-    layoutHome();
-    return;
-  }
 
   HDNode *node = fsm_getDerivedNode(ED25519_NAME, msg->address_n,
                                     msg->address_n_count, NULL);
@@ -57,18 +53,12 @@ void fsm_msgNearGetAddress(NearGetAddress *msg) {
 
 void fsm_msgNearSignTx(const NearSignTx *msg) {
   CHECK_INITIALIZED
-
+  CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,
+                                    COIN_TYPE, ED25519_NAME, true),
+              "Invalid path");
   CHECK_PIN
 
   RESP_INIT(NearSignedTx);
-
-  // m/44h/397h/0h
-  if ((msg->address_n_count != 3) || (msg->address_n[0] != 0x8000002c) ||
-      (msg->address_n[1] != 0x8000018d)) {
-    fsm_sendFailure(FailureType_Failure_ProcessError, "Invalid Path");
-    layoutHome();
-    return;
-  }
 
   HDNode *node = fsm_getDerivedNode(ED25519_NAME, msg->address_n,
                                     msg->address_n_count, NULL);

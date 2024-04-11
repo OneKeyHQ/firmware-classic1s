@@ -17,9 +17,13 @@
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#undef COIN_TYPE
+#define COIN_TYPE 1237
 void fsm_msgNostrGetPublicKey(const NostrGetPublicKey *msg) {
   CHECK_INITIALIZED
-
+  CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,
+                                    COIN_TYPE, SECP256K1_NAME, true),
+              "Invalid path");
   CHECK_PIN
 
   RESP_INIT(NostrPublicKey);
@@ -60,7 +64,9 @@ void fsm_msgNostrGetPublicKey(const NostrGetPublicKey *msg) {
 
 void fsm_msgNostrSignEvent(const NostrSignEvent *msg) {
   CHECK_INITIALIZED
-
+  CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,
+                                    COIN_TYPE, SECP256K1_NAME, true),
+              "Invalid path");
   CHECK_PIN
 
   RESP_INIT(NostrSignedEvent);
@@ -86,7 +92,9 @@ void fsm_msgNostrSignEvent(const NostrSignEvent *msg) {
 
 void fsm_msgNostrEncryptMessage(NostrEncryptMessage *msg) {
   CHECK_INITIALIZED
-
+  CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,
+                                    COIN_TYPE, SECP256K1_NAME, true),
+              "Invalid path");
   CHECK_PIN
 
   RESP_INIT(NostrEncryptedMessage);
@@ -112,7 +120,9 @@ void fsm_msgNostrEncryptMessage(NostrEncryptMessage *msg) {
 
 void fsm_msgNostrDecryptMessage(NostrDecryptMessage *msg) {
   CHECK_INITIALIZED
-
+  CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,
+                                    COIN_TYPE, SECP256K1_NAME, true),
+              "Invalid path");
   CHECK_PIN
 
   RESP_INIT(NostrDecryptedMessage);
@@ -138,7 +148,9 @@ void fsm_msgNostrDecryptMessage(NostrDecryptMessage *msg) {
 
 void fsm_msgNostrSignSchnorr(const NostrSignSchnorr *msg) {
   CHECK_INITIALIZED
-
+  CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,
+                                    COIN_TYPE, SECP256K1_NAME, true),
+              "Invalid path");
   CHECK_PIN
 
   RESP_INIT(NostrSignedSchnorr);
