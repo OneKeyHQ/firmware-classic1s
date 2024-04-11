@@ -1478,8 +1478,8 @@ bool ada_sign_messages(const HDNode *node, CardanoSignMessage *msg,
 #if EMULATOR
   ed25519_sign(sig_structure, sig_structure_index, node->private_key, sig);
 #else
-  if (!hdnode_sign(node, sig_structure, sig_structure_index, 0, sig, NULL,
-                   NULL)) {
+  if (hdnode_sign(node, sig_structure, sig_structure_index, 0, sig, NULL,
+                  NULL) != 0) {
     return false;
   }
 #endif
