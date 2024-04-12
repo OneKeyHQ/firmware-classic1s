@@ -34,10 +34,12 @@ def write_keys(parsed):
             text = key_name.upper().replace(":", "_")
             content.append(f"#define {text} {key['position']}")
     with open(f"{BASE_PATH}/keys.h", "w") as f:
+        f.write("// clang-format off\n")
         f.write("#ifndef I18N_KEY_H\n")
         f.write("#define I18N_KEY_H\n")
         f.write("\n".join(content) + "\n")
         f.write("#endif\n")
+        f.write("// clang-format on\n")
 
 
 def write_lang(parsed, lang_iso):

@@ -16,12 +16,16 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
+#undef COIN_TYPE
+#define COIN_TYPE 1815
 
 void fsm_msgCardanoGetPublicKey(CardanoGetPublicKey *msg) {
   RESP_INIT(CardanoPublicKey);
 
   CHECK_INITIALIZED
-
+  CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,
+                                    COIN_TYPE, ED25519_CARDANO_NAME, false),
+              "Invalid path");
   CHECK_PIN
 
   if (msg->derivation_type != CardanoDerivationType_ICARUS) {
@@ -60,7 +64,10 @@ void fsm_msgCardanoGetAddress(CardanoGetAddress *msg) {
   RESP_INIT(CardanoAddress);
 
   CHECK_INITIALIZED
-
+  CHECK_PARAM(fsm_common_path_check(msg->address_parameters.address_n,
+                                    msg->address_parameters.address_n_count,
+                                    COIN_TYPE, ED25519_CARDANO_NAME, false),
+              "Invalid path");
   CHECK_PIN
 
   if (msg->derivation_type != CardanoDerivationType_ICARUS) {
@@ -120,6 +127,9 @@ void fsm_msgCardanoTxWitnessRequest(CardanoTxWitnessRequest *msg) {
 void fsm_msgCardanoTxHostAck(void) { cardano_txack(); }
 
 void fsm_msgCardanoSignTxInit(CardanoSignTxInit *msg) {
+  CHECK_INITIALIZED
+
+  CHECK_PIN
   if (!_processs_tx_init(msg)) {
     layoutHome();
   }
@@ -212,6 +222,9 @@ void fsm_msgCardanoSignMessage(CardanoSignMessage *msg) {
 
   CHECK_INITIALIZED
 
+  CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,
+                                    COIN_TYPE, ED25519_CARDANO_NAME, false),
+              "Invalid path");
   CHECK_PIN
 
   if ((msg->network_id != 0) && (msg->network_id != 1)) {
