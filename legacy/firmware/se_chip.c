@@ -1391,20 +1391,19 @@ int hdnode_sign(const HDNode *node, const uint8_t *msg, uint32_t msg_len,
     return hdnode_sign_digest(node, hash, sig, pby, is_canonical);
   } else {
     if (node->curve == &ed25519_info || node->curve == &ed25519_polkadot_info) {
-      se_ed25519_sign(msg, msg_len, sig);
+      return se_ed25519_sign(msg, msg_len, sig);
     } else if (node->curve == &ed25519_sha3_info) {
       // ed25519_sign_sha3(msg, msg_len, sig);
       return -1;
 #if USE_KECCAK
     } else if (node->curve == &ed25519_keccak_info) {
-      se_ed25519_sign_keccak(msg, msg_len, sig);
+      return se_ed25519_sign_keccak(msg, msg_len, sig);
 #endif
     } else if (node->curve == &ed25519_cardano_info) {
-      se_ed25519_sign_ext(msg, msg_len, sig);
+      return se_ed25519_sign_ext(msg, msg_len, sig);
     } else {
       return 1;  // unknown or unsupported curve
     }
-    return 0;
   }
   return -1;
 }

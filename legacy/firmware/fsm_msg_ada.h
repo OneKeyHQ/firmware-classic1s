@@ -61,15 +61,28 @@ void fsm_msgCardanoGetPublicKey(CardanoGetPublicKey *msg) {
 }
 
 void fsm_msgCardanoGetAddress(CardanoGetAddress *msg) {
-  RESP_INIT(CardanoAddress);
-
   CHECK_INITIALIZED
-  CHECK_PARAM(fsm_common_path_check(msg->address_parameters.address_n,
-                                    msg->address_parameters.address_n_count,
-                                    COIN_TYPE, ED25519_CARDANO_NAME, false),
-              "Invalid path");
+
+  CHECK_PARAM((msg->address_parameters.address_n_count != 0 ||
+               msg->address_parameters.address_n_staking_count != 0),
+              "Invalid path params");
+  if (msg->address_parameters.address_n_count > 0) {
+    CHECK_PARAM(fsm_common_path_check(msg->address_parameters.address_n,
+                                      msg->address_parameters.address_n_count,
+                                      COIN_TYPE, ED25519_CARDANO_NAME, false),
+                "Invalid path");
+  }
+  if (msg->address_parameters.address_n_staking_count > 0) {
+    CHECK_PARAM(
+        fsm_common_path_check(msg->address_parameters.address_n_staking,
+                              msg->address_parameters.address_n_staking_count,
+                              COIN_TYPE, ED25519_CARDANO_NAME, false),
+        "Invalid path");
+  }
+
   CHECK_PIN
 
+  RESP_INIT(CardanoAddress);
   if (msg->derivation_type != CardanoDerivationType_ICARUS) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
                     "Only support ICARUS scheme");
@@ -235,9 +248,10 @@ void fsm_msgCardanoSignMessage(CardanoSignMessage *msg) {
   uint32_t fingerprint;
   bool res = deriveCardanoIcaruNode(&node, msg->address_n, msg->address_n_count,
                                     &fingerprint);
-  if (!res) return;
 
-  if (!ada_sign_messages(&node, msg, resp)) {
+  if (!res || !ada_sign_messages(&node, msg, resp)) {
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Signing failed");
+    layoutHome();
     return;
   }
 
