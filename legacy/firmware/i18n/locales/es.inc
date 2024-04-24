@@ -191,7 +191,7 @@ const char *languages_es[] = {
     "Dirección:",
     "Sendero:",
     "Verificar Sendero",
-    "{}\nes una ruta no estándar.\n¿Usar esta ruta?",
+    "{} es una ruta no estándar. ¿Usar esta ruta?",
     "Dirección no estándar",
     "Dirección Multisig ({})",
     "xPub #{} ({}):",
