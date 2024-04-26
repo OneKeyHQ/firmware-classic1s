@@ -524,13 +524,14 @@ void u2fhid_msg(const APDU *a, uint32_t len) {
       break;
     default:
 #if !EMULATOR
-
       if (!thd89_transmit((uint8_t *)&(a->cla), len, buffer, &resp_len)) {
-        send_u2f_error(U2F_SW_INS_NOT_SUPPORTED);
+        send_u2f_error(thd89_last_error());
       }
-      buffer[resp_len] = U2F_SW_NO_ERROR >> 8 & 0xFF;
-      buffer[resp_len + 1] = U2F_SW_NO_ERROR & 0xFF;
-      send_u2f_msg(buffer, resp_len + 2);
+      else{
+        buffer[resp_len] = U2F_SW_NO_ERROR >> 8 & 0xFF;
+        buffer[resp_len + 1] = U2F_SW_NO_ERROR & 0xFF;
+        send_u2f_msg(buffer, resp_len + 2);
+      }
 #endif
       break;
   }
