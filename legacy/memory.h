@@ -104,6 +104,7 @@ extern uint8_t *emulator_flash_base;
 #define FLASH_BLE_MAX_LEN (0x40000)
 
 void memory_protect(void);
+uint8_t memory_protect_state(void);
 void memory_write_lock(void);
 void memory_write_unlock(void);
 int memory_bootloader_hash(uint8_t *hash);

@@ -488,6 +488,15 @@ void gd32_checkEleConnection(void) {
   vButton_Lcd_Test();
 }
 
+void get_device_state(void) {
+  uint8_t resp[4];
+  resp[0] = memory_protect_state() == 0xCC ? 1 : 0;
+  resp[1] = se_isFactoryMode() ? 0 : 1;
+  resp[2] = U2F_SW_NO_ERROR >> 8 & 0xFF;
+  resp[3] = U2F_SW_NO_ERROR & 0xFF;
+  send_u2f_msg(resp, 4);
+}
+
 void u2fhid_msg(const APDU *a, uint32_t len) {
   if (a->cla != 0 && a->cla != 0x80) {
     send_u2f_error(U2F_SW_CLA_NOT_SUPPORTED);
@@ -521,6 +530,9 @@ void u2fhid_msg(const APDU *a, uint32_t len) {
       break;
     case CHECK_ELECONNECT:  // smt factory check device connection
       gd32_checkEleConnection();
+      break;
+    case DEVICE_STATE:
+      get_device_state();
       break;
     default:
 #if !EMULATOR
