@@ -117,7 +117,7 @@ static void send_signature(void) {
   blake2b_Final(&hash_ctx, digest, 32);
 
 #if EMULATOR
-  ed25519_sign(digest, 32, node->private_key, tx.signature.bytes);
+  ed25519_sign(digest, 32, node_cache.private_key, tx.signature.bytes);
 #else
   hdnode_sign(&node_cache, digest, 32, 0, tx.signature.bytes, NULL, NULL);
 #endif

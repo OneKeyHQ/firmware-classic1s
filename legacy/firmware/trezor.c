@@ -184,12 +184,17 @@ static void set_thd89_session_key(void) {
 
 #endif
 }
-
+#if !EMULATOR
 static void verify_ble_firmware(void) {
-  char *ble_ver = NULL;
+
   uint8_t pubkey[65], rand_buffer[16], digest[32], sign[64];
   uint8_t key;
+#if !EMULATOR
+  char *ble_ver = NULL;
   ensure(ble_get_version(&ble_ver) ? sectrue : secfalse, NULL);
+#else
+  char ble_ver[5] = "1.5.1";
+#endif
   if (!flash_otp_is_locked(FLASH_OTP_BLOCK_BLE_PUBLIC_KEY1) ||
       !flash_otp_is_locked(FLASH_OTP_BLOCK_BLE_PUBLIC_KEY2)) {
     if (memcmp(ble_ver, "1.5.1", 5) < 0) {
@@ -226,7 +231,7 @@ static void verify_ble_firmware(void) {
                                                                     : secfalse,
          NULL);
 }
-
+#endif
 int main(void) {
 #ifndef APPVER
   setup();
@@ -251,8 +256,9 @@ int main(void) {
   drbg_init();
   timer_init();
   set_thd89_session_key();
+#if !EMULATOR
   verify_ble_firmware();
-
+#endif
   if (!is_mode_unprivileged()) {
     cpu_mode = PRIVILEGED;
     collect_hw_entropy(true);

@@ -146,7 +146,12 @@ bool nostr_sign_event(const NostrSignEvent *msg, const HDNode *node,
 
   data2hexaddr(hash, 32, id);
 
+#if EMULATOR
+  int ret = 0;
+#else
   int ret = hdnode_bip340_sign_digest_internal(node, hash, signature);
+#endif
+
   if (ret != 0) {
     fsm_sendFailure(FailureType_Failure_ProcessError, "Signing failed");
     return false;
@@ -179,7 +184,11 @@ bool nostr_encrypt_message(NostrEncryptMessage *msg, const HDNode *node,
   }
 
   hex2data(msg->pubkey, pk + 1, &pk_len);
+#if EMULATOR
+  bool res = 0;
+#else
   bool res = hdnode_bip340_get_shared_key_ln(node, pk, shared_secret) == 0;
+#endif
   if (!res) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
                     "Failed to derive shared secret.");
@@ -244,7 +253,13 @@ bool nostr_decrypt_message(NostrDecryptMessage *msg, const HDNode *node,
 
   pk[0] = 0x02;
   hex2data(msg->pubkey, pk + 1, &pk_len);
+
+#if EMULATOR
+  int res = 0;
+#else
   bool res = hdnode_bip340_get_shared_key_ln(node, pk, shared_secret) == 0;
+#endif
+
   if (!res) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
                     "Failed to derive shared secret.");
@@ -310,8 +325,13 @@ bool nostr_sign_schnorr(const NostrSignSchnorr *msg, const HDNode *node,
     return false;
   }
 
+#if EMULATOR
+  int ret = 0;
+#else
   int ret =
       hdnode_bip340_sign_digest_internal(node, hash, resp->signature.bytes);
+#endif
+
   if (ret != 0) {
     fsm_sendFailure(FailureType_Failure_ProcessError, "Signing failed");
     return false;
