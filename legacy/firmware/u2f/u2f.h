@@ -78,6 +78,9 @@ typedef struct __attribute__((packed)) {
 //smt factory inspect 
 #define CHECK_ELECONNECT          0x36
 
+//device state
+#define DEVICE_STATE          0x37
+
 
 // U2F_CMD_REGISTER command defines
 #define U2F_REGISTER_ID         0x05    // Version 2 registration identifier

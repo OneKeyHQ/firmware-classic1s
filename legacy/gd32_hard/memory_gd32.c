@@ -34,6 +34,8 @@ void memory_protect(void) {
   fmc_lock();
 }
 
+uint8_t memory_protect_state(void) { return (FMC_OBCTL0 >> 8) & 0xff; }
+
 void memory_write_lock(void) {
   uint32_t option_byte0 = FMC_OBCTL0;
 
