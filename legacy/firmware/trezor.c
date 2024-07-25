@@ -186,7 +186,6 @@ static void set_thd89_session_key(void) {
 }
 #if !EMULATOR
 static void verify_ble_firmware(void) {
-
   uint8_t pubkey[65], rand_buffer[16], digest[32], sign[64];
   uint8_t key;
 #if !EMULATOR

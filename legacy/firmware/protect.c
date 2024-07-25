@@ -778,10 +778,10 @@ uint8_t protectWaitKey(uint32_t time_out, uint8_t mode) {
   while (1) {
     if (layoutEnterSleep(1) && (layoutLast != layoutScreensaver)) {
       if (layoutLast == onboarding) {
-        #if !EMULATOR
+#if !EMULATOR
         timer_sleep_start_reset();
         unregister_timer("poweroff");
-        #endif
+#endif
       } else {
         key = KEY_NULL;
         protectAbortedBySleep = true;
