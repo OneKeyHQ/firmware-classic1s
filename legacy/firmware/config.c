@@ -557,7 +557,7 @@ bool config_getFlags(uint32_t *flags) {
 
 uint32_t config_nextU2FCounter(void) {
   uint32_t u2fcounter = 0;
-  se_get_u2f_counter(&u2fcounter);
+  se_get_u2f_next_counter(&u2fcounter);
   return u2fcounter;
 }
 

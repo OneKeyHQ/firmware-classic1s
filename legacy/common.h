@@ -44,7 +44,6 @@ extern uint8_t ui_language;
 extern bool g_bIsBixinAPP;
 extern uint32_t g_uiFastPayFlag;
 extern uint8_t g_uchash_mode;
-extern uint8_t g_ucSignU2F;
 
 void __attribute__((noreturn))
 __fatal_error(const char *expr, const char *msg, const char *file, int line,

@@ -133,8 +133,7 @@ static int bMI2CDRV_ReadBytes(uint32_t i2c, uint8_t *res, uint16_t *pusOutLen) {
   if ((0x90 != ucSW[0]) || (0x00 != ucSW[1])) {
     if (ucSW[0] == 0x6c || ucSW[0] == 0x90) {  // for se generate seed not first
                                                // generate will return 0x90xx
-      res[0] = ucSW[1];
-      *pusOutLen = 1;
+      *pusOutLen = 0;
     } else {
       *pusOutLen = usRealLen - 2;
     }

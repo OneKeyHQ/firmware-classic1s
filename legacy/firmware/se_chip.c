@@ -40,6 +40,21 @@
 #define SE_INS_COINJOIN 0xEC
 #define SE_INS_HASHR 0xED
 #define SE_INS_HASHRAM 0xEE
+#define SE_INS_FIDO 0xF9
+
+typedef enum {
+  SE_FIDO_GEN_SEED = 0x00,
+  SE_FIDO_U2F_REGISTER,
+  SE_FIDO_U2F_GEN_HANDLE,
+  SE_FIDO_U2F_VALIDATE_HANDLE,
+  SE_FIDO_U2F_AUTHENTICATE,
+  SE_FIDO_GET_COUNTER,
+  SE_FIDO_NEXT_COUNTER,
+  SE_FIDO_SET_COUNTER,
+  SE_FIDO_DERIVE_NODE,
+  SE_FIDO_NODE_SIGN,
+  SE_FIDO_ATT_SIGN,
+} SE_FIDO_P2;
 
 #define SESSION_KEYLEN (16)
 
@@ -65,6 +80,15 @@ static uint16_t se_recv_len;
 
 static UI_WAIT_CALLBACK ui_callback = NULL;
 
+typedef struct {
+  bool se_init_state_cache;
+  bool se_init_state;
+  bool se_pin_unlocked_state_cache;
+  bool se_pin_unlocked_state;
+} se_state_cache_t;
+
+se_state_cache_t se_state_cache = {0};
+
 static void xor_cal(uint8_t *data1, uint8_t *data2, uint16_t len,
                     uint8_t * xor) {
   uint16_t i;
@@ -75,6 +99,7 @@ static void xor_cal(uint8_t *data1, uint8_t *data2, uint16_t len,
 }
 
 void se_set_ui_callback(UI_WAIT_CALLBACK callback) { ui_callback = callback; }
+UI_WAIT_CALLBACK se_get_ui_callback(void) { return ui_callback; }
 
 secbool se_get_rand(uint8_t *rand, uint16_t rand_len) {
   uint8_t rand_cmd[7] = {0x00, 0x84, 0x00, 0x00, 0x02};
@@ -420,7 +445,7 @@ secbool se_reset_storage(void) {
   if (!se_session_init) {
     ensure(se_sync_session_key(), "se sync session key failed");
   }
-
+  se_state_cache.se_init_state_cache = false;
   if (!se_transmit_mac(0xE1, 0x00, 0x00, rand, sizeof(rand), NULL, NULL)) {
     return secfalse;
   }
@@ -579,13 +604,18 @@ secbool se_set_session_key(const uint8_t *session_key) {
 }
 
 secbool se_isInitialized(void) {
+  if (se_state_cache.se_init_state_cache) {
+    return se_state_cache.se_init_state ? sectrue : secfalse;
+  }
   uint8_t cmd[5] = {0x00, 0xf8, 0x00, 00, 0x00};
   uint8_t init = 0xff;
   uint16_t len = sizeof(init);
   if (!thd89_transmit(cmd, sizeof(cmd), &init, &len)) {
     return secfalse;
   }
-  return sectrue * (init == 0x55);
+  se_state_cache.se_init_state = (init == 0x55);
+  se_state_cache.se_init_state_cache = true;
+  return se_state_cache.se_init_state ? sectrue : secfalse;
 }
 
 secbool se_hasPin(void) {
@@ -605,12 +635,13 @@ secbool se_verifyPin(const char *pin) {
 
   pin_buf[0] = strlen(pin);
   memcpy(pin_buf + 1, pin, strlen(pin));
-
+  se_state_cache.se_pin_unlocked_state_cache = false;
   if (!se_transmit_mac(SE_INS_PIN, 0x00, 0x03, pin_buf, pin_buf[0] + 1, NULL,
                        NULL)) {
     memset(pin_buf, 0, sizeof(pin_buf));
     return secfalse;
   }
+
   memset(pin_buf, 0, sizeof(pin_buf));
   return sectrue;
 }
@@ -620,7 +651,7 @@ secbool se_setPin(const char *pin) {
 
   pin_buf[0] = strlen(pin);
   memcpy(pin_buf + 1, pin, strlen(pin));
-
+  se_state_cache.se_pin_unlocked_state_cache = false;
   if (!se_transmit_mac(SE_INS_PIN, 0x00, 0x01, pin_buf, pin_buf[0] + 1, NULL,
                        NULL)) {
     memset(pin_buf, 0, sizeof(pin_buf));
@@ -637,7 +668,7 @@ secbool se_changePin(const char *oldpin, const char *newpin) {
   memcpy(pin_buff + 1, (uint8_t *)oldpin, strlen(oldpin));
   pin_buff[strlen(oldpin) + 1] = strlen(newpin);
   memcpy(pin_buff + strlen(oldpin) + 2, (uint8_t *)newpin, strlen(newpin));
-
+  se_state_cache.se_pin_unlocked_state_cache = false;
   if (!se_transmit_mac(SE_INS_PIN, 0x00, 0x02, pin_buff,
                        strlen(oldpin) + strlen(newpin) + 2, NULL, NULL)) {
     memset(pin_buff, 0, sizeof(pin_buff));
@@ -669,6 +700,7 @@ secbool se_getRetryTimes(uint8_t *ptimes) {
 
 secbool se_clearSecsta(void) {
   uint16_t recv_len = 0;
+  se_state_cache.se_pin_unlocked_state_cache = false;
   if (!se_transmit_mac(SE_INS_PIN, 0x00, 0x06, NULL, 0, NULL, &recv_len)) {
     return secfalse;
   }
@@ -676,6 +708,9 @@ secbool se_clearSecsta(void) {
 }
 
 secbool se_getSecsta(void) {
+  if (se_state_cache.se_pin_unlocked_state_cache) {
+    return se_state_cache.se_pin_unlocked_state ? sectrue : secfalse;
+  }
   uint8_t cur_secsta = 0xff;
   uint16_t recv_len = sizeof(cur_secsta);
   if (!se_transmit_mac(SE_INS_PIN, 0x00, 0x04, NULL, 0, &cur_secsta,
@@ -683,20 +718,35 @@ secbool se_getSecsta(void) {
     return secfalse;
   }
   // 0x55 is verified pin 0x00 is not verified pin
-  return sectrue * (cur_secsta == 0x55);
+  se_state_cache.se_pin_unlocked_state = (cur_secsta == 0x55);
+  se_state_cache.se_pin_unlocked_state_cache = true;
+  return se_state_cache.se_pin_unlocked_state ? sectrue : secfalse;
 }
 
 secbool se_set_u2f_counter(uint32_t u2fcounter) {
-  (void)u2fcounter;
+  uint8_t cmd[9] = {0x00, SE_INS_FIDO, 0x00, SE_FIDO_SET_COUNTER, 0x04};
+  uint16_t recv_len = 0;
+
+  memcpy(cmd + 5, &u2fcounter, 4);
+
+  if (!thd89_transmit(cmd, sizeof(cmd), NULL, &recv_len)) {
+    return secfalse;
+  }
+
   return sectrue;
 }
 
-secbool se_get_u2f_counter(uint32_t *u2fcounter) {
-  (void)u2fcounter;
+secbool se_get_u2f_next_counter(uint32_t *u2fcounter) {
+  uint8_t cmd[5] = {0x00, SE_INS_FIDO, 0x00, SE_FIDO_NEXT_COUNTER, 0x00};
+  uint16_t recv_len = 4;
+  if (!thd89_transmit(cmd, sizeof(cmd), (uint8_t *)u2fcounter, &recv_len)) {
+    return secfalse;
+  }
   return sectrue;
 }
 
 secbool se_set_mnemonic(const char *mnemonic, uint16_t len) {
+  se_state_cache.se_init_state_cache = false;
   return se_transmit_mac(0xE2, 0x00, 0x00, (uint8_t *)mnemonic, len, NULL,
                          NULL);
 }
@@ -1054,10 +1104,10 @@ secbool session_generate_cardano_seed(const char *passphrase,
 
 secbool session_generate_seed_percent(uint8_t *percent) {
   uint8_t cmd[5] = {0x80, SE_INS_SESSION, 0x00, 0x08, 0x00};
-  uint16_t recv_len;
+  uint16_t recv_len = 0;
   uint16_t sw1sw2;
 
-  if (!thd89_transmit(cmd, sizeof(cmd), percent, &recv_len)) {
+  if (!thd89_transmit(cmd, sizeof(cmd), NULL, &recv_len)) {
     sw1sw2 = thd89_last_error();
     if ((sw1sw2 & 0xff00) == 0x6c00) {
       *percent = sw1sw2 & 0xff;
@@ -1522,4 +1572,83 @@ bool se_disableFactoryMode(void) {
   return true;
 }
 
+secbool se_gen_root_node(uint8_t *percent) {
+  uint8_t cmd[5] = {0x00, 0xf9, 0x00, 0x00, 0x00};
+  uint16_t recv_len = 0;
+  uint16_t sw1sw2;
+
+  if (!thd89_transmit(cmd, sizeof(cmd), NULL, &recv_len)) {
+    sw1sw2 = thd89_last_error();
+    if ((sw1sw2 & 0xff00) == 0x6c00) {
+      *percent = sw1sw2 & 0xff;
+      *percent = *percent == 100 ? 99 : *percent;
+      return sectrue;
+    }
+    return secfalse;
+  }
+  *percent = 100;
+  return sectrue;
+}
+
+secbool se_u2f_register(const uint8_t app_id[32], const uint8_t challenge[32],
+                        uint8_t key_handle[64], uint8_t pub_key[65],
+                        uint8_t sign[64]) {
+  uint8_t cmd[128] = {0x00, SE_INS_FIDO, 0x00, SE_FIDO_U2F_REGISTER};
+  uint8_t recv[256];
+  uint16_t recv_len = sizeof(recv);
+  memcpy(cmd + 5, app_id, 32);
+  memcpy(cmd + 5 + 32, challenge, 32);
+
+  cmd[4] = 64;
+  if (!thd89_transmit(cmd, 5 + 64, (uint8_t *)recv, &recv_len)) {
+    return secfalse;
+  }
+
+  // key_handle 64 public key 65 sign 64
+  if (recv_len != 193) {
+    return secfalse;
+  }
+  memcpy(key_handle, recv, 64);
+  memcpy(pub_key, recv + 64, 65);
+  memcpy(sign, recv + 64 + 65, 64);
+  return sectrue;
+}
+
+secbool se_u2f_validate_handle(const uint8_t app_id[32],
+                               const uint8_t key_handle[64]) {
+  uint8_t cmd[128] = {0x00, SE_INS_FIDO, 0x00, SE_FIDO_U2F_VALIDATE_HANDLE};
+  memcpy(cmd + 5, app_id, 32);
+  memcpy(cmd + 5 + 32, key_handle, 64);
+
+  cmd[4] = 96;
+  if (!thd89_transmit(cmd, 5 + 96, NULL, NULL)) {
+    return secfalse;
+  }
+  return sectrue;
+}
+
+secbool se_u2f_authenticate(const uint8_t app_id[32],
+                            const uint8_t key_handle[64],
+                            const uint8_t challenge[32], uint8_t *u2f_counter,
+                            uint8_t sign[64]) {
+  uint8_t cmd[256] = {0x00, SE_INS_FIDO, 0x00, SE_FIDO_U2F_AUTHENTICATE};
+  uint8_t recv[128];
+  uint16_t recv_len = sizeof(recv);
+  memcpy(cmd + 5, app_id, 32);
+  memcpy(cmd + 5 + 32, key_handle, 64);
+  memcpy(cmd + 5 + 32 + 64, challenge, 32);
+
+  cmd[4] = 128;
+  if (!thd89_transmit(cmd, 5 + 128, (uint8_t *)recv, &recv_len)) {
+    return secfalse;
+  }
+
+  // counter 4 sign 64
+  if (recv_len != 68) {
+    return secfalse;
+  }
+  memcpy(u2f_counter, recv, 4);
+  memcpy(sign, recv + 4, 64);
+  return sectrue;
+}
 #endif

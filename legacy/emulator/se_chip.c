@@ -37,7 +37,7 @@ bool se_getSecsta(void) { return false; }
 bool se_isFactoryMode(void) { return false; }
 bool se_isLifecyComSta(void) { return false; }
 bool se_set_u2f_counter(uint32_t u2fcounter) { return false; }
-bool se_get_u2f_counter(uint32_t *u2fcounter) { return false; }
+bool se_get_u2f_next_counter(uint32_t *u2fcounter) { return false; }
 bool se_setSeed(uint8_t *preCnts, uint8_t mode) { return false; }
 bool se_setMinisec(uint8_t *preCnts, uint8_t mode) { return false; }
 bool se_get_entropy(uint8_t entroy[32]) { return false; }
