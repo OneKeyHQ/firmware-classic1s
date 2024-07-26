@@ -191,7 +191,7 @@ const char *languages_en[] = {
     "Address:",
     "Path:",
     "Check Path",
-    "{}\nis a non-standard path.\nUse this path?",
+    "{} is a non-standard path. Use this path?",
     "Non-standard Address",
     "Multisig Address ({})",
     "xPub #{} ({}):",

@@ -665,9 +665,9 @@ void onboarding(uint8_t key) {
   static bool get_ble_name = true;
   layoutLast = onboarding;
   if (get_ble_name) {
-    #if !EMULATOR
+#if !EMULATOR
     getBleDevInformation();
-    #endif
+#endif
     get_ble_name = false;
   }
 
@@ -1781,12 +1781,8 @@ uint8_t layoutXPUBMultisig(const char *header, const char *xpub, int xpub_index,
 
   layoutLast = layoutXPUBMultisig;
   char desc[32] = {0};
-  if (ours) {
-    snprintf(desc, 32, "xPub #%d (%s)", xpub_index + 1, _(C__COSIGNER));
-  } else {
-    snprintf(desc, 32, "xPub #%d (%s)", xpub_index + 1, _(C__MINE));
-  }
-
+  snprintf(desc, 32, "xPub #%d (%s)", xpub_index + 1,
+           ours ? _(C__MINE) : _(C__COSIGNER));
   if (rowcount > 3) {
     const char **str = split_message((const uint8_t *)xpub, xpublen, rowlen);
 
@@ -2411,13 +2407,16 @@ void layoutTxConfirmPage(const char *data) {
   }
 }
 
-bool layoutConfirmSafetyChecks(SafetyCheckLevel safety_ckeck_level) {
+bool layoutConfirmSafetyChecks(SafetyCheckLevel safety_ckeck_level,
+                               bool interactive) {
   uint8_t key = KEY_NULL;
-  ButtonRequest resp = {0};
-  memzero(&resp, sizeof(ButtonRequest));
-  resp.has_code = true;
-  resp.code = ButtonRequestType_ButtonRequest_ProtectCall;
-  msg_write(MessageType_MessageType_ButtonRequest, &resp);
+  if (interactive) {
+    ButtonRequest resp = {0};
+    memzero(&resp, sizeof(ButtonRequest));
+    resp.has_code = true;
+    resp.code = ButtonRequestType_ButtonRequest_ProtectCall;
+    msg_write(MessageType_MessageType_ButtonRequest, &resp);
+  }
   if (safety_ckeck_level == SafetyCheckLevel_Strict) {
     // Disallow unsafe actions. This is the default.
     key = layoutPagination(
@@ -4517,6 +4516,9 @@ bool layoutTransactionSignEVM(const char *chain_name, uint64_t chain_id,
   resp.has_code = true;
   resp.code = ButtonRequestType_ButtonRequest_SignTx;
   msg_write(MessageType_MessageType_ButtonRequest, &resp);
+#if !EMULATOR
+  enableLongPress(true);
+#endif
 
 refresh_menu:
   layoutSwipe();
@@ -4655,8 +4657,8 @@ refresh_menu:
     oledDrawStringAdapter(0, y + 10, signer, FONT_STANDARD);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
-  } else if ((has_chain_id == false && 3 == index && len > 0) ||
-             (has_chain_id == true && 4 == index && len > 0)) {  // data
+  } else if ((has_chain_id == false && 4 == index && len > 0) ||
+             (has_chain_id == true && 5 == index && len > 0)) {  // data
     layoutHeader(title_data);
     is_details_page = false;
     is_nft_page = false;
@@ -4778,6 +4780,16 @@ refresh_menu:
   oledRefresh();
 
   key = protectWaitKey(0, 0);
+#if !EMULATOR
+  if (isLongPress(KEY_UP_OR_DOWN) && getLongPressStatus()) {
+    if (isLongPress(KEY_UP)) {
+      key = KEY_UP;
+    } else if (isLongPress(KEY_DOWN)) {
+      key = KEY_DOWN;
+    }
+    delay_ms(75);
+  }
+#endif
   switch (key) {
     case KEY_UP:
       if (sub_index > 0) {
@@ -4791,9 +4803,9 @@ refresh_menu:
       }
       goto refresh_menu;
     case KEY_DOWN:
-      if ((has_chain_id == false && len > 0 && index == 3 &&
+      if ((has_chain_id == false && len > 0 && index == 4 &&
            sub_index < data_rowcount - 4) ||
-          (has_chain_id == true && len > 0 && index == 4 &&
+          (has_chain_id == true && len > 0 && index == 5 &&
            sub_index < data_rowcount - 4)) {
         sub_index++;
       }
@@ -4829,7 +4841,9 @@ refresh_menu:
     default:
       break;
   }
-
+#if !EMULATOR
+  enableLongPress(false);
+#endif
   return result;
 }
 

@@ -205,6 +205,7 @@ refresh_menu:
       if (index < max_index) {
         index++;
       }
+      sub_index = 0;
       goto refresh_menu;
     case KEY_CANCEL:
       if (0 == index || max_index == index) {
@@ -214,6 +215,7 @@ refresh_menu:
       if (index > 0) {
         index--;
       }
+      sub_index = 0;
       goto refresh_menu;
     default:
       break;

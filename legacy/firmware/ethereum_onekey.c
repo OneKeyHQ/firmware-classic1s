@@ -418,32 +418,21 @@ static bool layoutEthereumConfirmTx(
                                       value2, key3, value3, NULL, NULL);
     }
   } else if (token == NULL) {
-    if (!is_eip1559 && data_total > 0) {
-      return layoutBlindSign(chain_name, true, to_str, signer,
-                             params->data_initial_chunk_bytes, data_total,
-                             _(I__ETH_MAXIMUM_FEE_COLON), gas_value, NULL, NULL,
-                             NULL, NULL);
-    } else if (is_eip1559 && data_total > 0) {
-      return layoutBlindSign(chain_name, true, to_str, signer,
-                             params->data_initial_chunk_bytes, data_total, key1,
-                             value1, key2, value2, key3, value3);
+    bn_add(&total, &val);
+    bn_add(&total, &gas);
+    ethereumFormatAmount(&val, NULL, amount, sizeof(amount));
+    ethereumFormatAmount(&total, NULL, total_amount, sizeof(total_amount));
+    if (!is_eip1559) {
+      return layoutTransactionSignEVM(
+          chain_name, params->chain_id, false, amount, to_str, signer, NULL,
+          NULL, params->data_initial_chunk_bytes, data_total,
+          _(I__ETH_MAXIMUM_FEE_COLON), gas_value, _(I__TOTAL_AMOUNT_COLON),
+          total_amount, NULL, NULL, NULL, NULL);
     } else {
-      bn_add(&total, &val);
-      bn_add(&total, &gas);
-      ethereumFormatAmount(&val, NULL, amount, sizeof(amount));
-      ethereumFormatAmount(&total, NULL, total_amount, sizeof(total_amount));
-      if (!is_eip1559) {
-        return layoutTransactionSignEVM(
-            chain_name, params->chain_id, false, amount, to_str, signer, NULL,
-            NULL, params->data_initial_chunk_bytes, data_total,
-            _(I__ETH_MAXIMUM_FEE_COLON), gas_value, _(I__TOTAL_AMOUNT_COLON),
-            total_amount, NULL, NULL, NULL, NULL);
-      } else {
-        return layoutTransactionSignEVM(
-            chain_name, params->chain_id, false, amount, to_str, signer, NULL,
-            NULL, params->data_initial_chunk_bytes, data_total, key1, value1,
-            key2, value2, key3, value3, _(I__TOTAL_AMOUNT_COLON), total_amount);
-      }
+      return layoutTransactionSignEVM(
+          chain_name, params->chain_id, false, amount, to_str, signer, NULL,
+          NULL, params->data_initial_chunk_bytes, data_total, key1, value1,
+          key2, value2, key3, value3, _(I__TOTAL_AMOUNT_COLON), total_amount);
     }
   } else {
     ethereumFormatAmount(&val, token, amount, sizeof(amount));
@@ -1051,42 +1040,6 @@ void ethereum_message_sign_onekey(const EthereumSignMessageOneKey *msg,
   resp->signature.bytes[64] = 27 + v;
   resp->signature.size = 65;
   msg_write(MessageType_MessageType_EthereumMessageSignatureOneKey, resp);
-}
-
-void ethereum_message_sign_eip712_onekey(const EthereumSignMessageEIP712 *msg,
-                                         const HDNode *node,
-                                         EthereumMessageSignature *resp) {
-  uint8_t pubkeyhash[20] = {0};
-  if (!hdnode_get_ethereum_pubkeyhash(node, pubkeyhash)) {
-    return;
-  }
-
-  // ethereum_address_checksum adds trailing zero
-  ethereum_address_checksum(pubkeyhash, resp->address, false, 0);
-
-  uint8_t hash[32] = {0};
-  struct SHA3_CTX ctx = {0};
-
-  sha3_256_Init(&ctx);
-  sha3_Update(&ctx, (const uint8_t *)"\x19\x01", 2);  // EIP712 magic
-  sha3_Update(&ctx, msg->domain_hash.bytes, msg->domain_hash.size);
-  sha3_Update(&ctx, msg->message_hash.bytes, msg->message_hash.size);
-  keccak_Final(&ctx, hash);
-
-  uint8_t v = 0;
-#if EMULATOR
-  if (ecdsa_sign_digest(&secp256k1, node->private_key, hash,
-                        resp->signature.bytes, &v, ethereum_is_canonic) != 0) {
-#else
-  if (hdnode_sign_digest(node, hash, resp->signature.bytes, &v,
-                         ethereum_is_canonic) != 0) {
-#endif
-    fsm_sendFailure(FailureType_Failure_ProcessError, "Signing failed");
-    return;
-  }
-  resp->signature.bytes[64] = 27 + v;
-  resp->signature.size = 65;
-  msg_write(MessageType_MessageType_EthereumMessageSignature, resp);
 }
 
 int ethereum_message_verify_onekey(const EthereumVerifyMessageOneKey *msg) {

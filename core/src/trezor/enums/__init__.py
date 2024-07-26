@@ -298,7 +298,7 @@ if TYPE_CHECKING:
         BixinBackupDevice = 914
         BixinBackupDeviceAck = 915
         BixinPinInputOnDevice = 10000
-        EthereumSignMessageEIP712 = 10200
+        Deprecated_EthereumSignMessageEIP712 = 10200
         GetPublicKeyMultiple = 10210
         PublicKeyMultiple = 10211
         ConfluxGetAddress = 10112
