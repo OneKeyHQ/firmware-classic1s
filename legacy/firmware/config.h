@@ -20,11 +20,46 @@
 #ifndef __CONFIG_H__
 #define __CONFIG_H__
 
+#if EMULATOR
+#include "config_emu.h"
+#else
+
 #include "bip32.h"
 #include "messages-bitcoin.pb.h"
 #include "messages-common.pb.h"
 #include "messages-management.pb.h"
-#include "messages.pb.h"
+
+#define STORAGE_FIELD(TYPE, NAME) \
+  bool has_##NAME;                \
+  TYPE NAME;
+
+#define STORAGE_STRING(NAME, SIZE) \
+  bool has_##NAME;                 \
+  char NAME[SIZE];
+
+#define STORAGE_BYTES(NAME, SIZE) \
+  bool has_##NAME;                \
+  struct {                        \
+    uint32_t size;                \
+    uint8_t bytes[SIZE];          \
+  } NAME;
+
+#define STORAGE_BOOL(NAME) STORAGE_FIELD(bool, NAME)
+#define STORAGE_NODE(NAME) STORAGE_FIELD(StorageHDNode, NAME)
+#define STORAGE_UINT32(NAME) STORAGE_FIELD(uint32_t, NAME)
+
+typedef struct {
+  uint32_t depth;
+  uint32_t fingerprint;
+  uint32_t child_num;
+  struct {
+    uint32_t size;
+    uint8_t bytes[32];
+  } chain_code;
+
+  STORAGE_BYTES(private_key, 32);
+  STORAGE_BYTES(public_key, 33);
+} StorageHDNode;
 
 typedef enum {
   COIN_SWITCH_ETH_EIP712 = 0x01,
@@ -40,8 +75,6 @@ typedef enum {
 #define HOMESCREEN_SIZE 1024
 #define UUID_SIZE 12
 #define SE_SESSION_KEY 16
-#define SE_SESSION_SEED 0x5a
-#define SE_SESSION_MINISECRET 0xfe
 #define BUILD_ID_MAX_LEN 64
 
 #if DEBUG_LINK
@@ -57,8 +90,6 @@ void session_endCurrentSession(void);
 void config_lockDevice(void);
 
 void config_loadDevice(const LoadDevice *msg);
-bool config_loadDevice_ex(const BixinLoadDevice *msg);
-
 
 bool config_setCoinJoinAuthorization(const AuthorizeCoinJoin *authorization);
 MessageType config_getAuthorizationType(void);
@@ -81,6 +112,7 @@ uint8_t *session_startSession(const uint8_t *received_session_id);
 bool config_genSessionSeed(void);
 bool config_setMnemonic(const char *mnemonic, bool import);
 bool config_containsMnemonic(const char *mnemonic);
+bool config_getMnemonic(char *dest, uint16_t dest_size);
 
 bool config_setPin(const char *pin);
 bool config_verifyPin(const char *pin);
@@ -89,7 +121,6 @@ bool config_changePin(const char *old_pin, const char *new_pin);
 bool config_unlock(const char *pin);
 
 bool session_isUnlocked(void);
-bool session_isProtectUnlocked(void);
 bool config_hasWipeCode(void);
 bool config_changeWipeCode(const char *pin, const char *wipe_code);
 
@@ -101,8 +132,6 @@ bool config_isInitialized(void);
 bool config_getImported(bool *imported);
 void config_setImported(bool imported);
 
-bool config_getMnemonicsImported(void);
-
 bool config_getNeedsBackup(bool *needs_backup);
 void config_setNeedsBackup(bool needs_backup);
 
@@ -110,7 +139,7 @@ bool config_getUnfinishedBackup(bool *unfinished_backup);
 void config_setUnfinishedBackup(bool unfinished_backup);
 
 bool config_getNoBackup(bool *no_backup);
-// void config_setNoBackup(void);
+void config_setNoBackup(void);
 
 void config_applyFlags(uint32_t flags);
 bool config_getFlags(uint32_t *flags);
@@ -125,14 +154,6 @@ SafetyCheckLevel config_getSafetyCheckLevel(void);
 void config_setSafetyCheckLevel(SafetyCheckLevel safety_check_level);
 
 void config_wipe(void);
-void config_setFastPayPinFlag(bool flag);
-bool config_getFastPayPinFlag(void);
-void config_setFastPayConfirmFlag(bool flag);
-bool config_getFastPayConfirmFlag(void);
-void config_setFastPayMoneyLimt(uint64_t MoneyLimt);
-uint64_t config_getFastPayMoneyLimt(void);
-void config_setFastPayTimes(uint32_t times);
-uint32_t config_getFastPayTimes(void);
 
 void config_setBleTrans(bool mode);
 
@@ -159,6 +180,20 @@ bool config_getTrezorCompMode(bool *trezor_comp_mode);
 bool config_getDeriveCardano(void);
 void config_setDeriveCardano(bool on);
 
+bool config_hasUsblock(void);
+void config_setUsblock(bool lock);
+bool config_getUsblock(bool *lock, bool mode);
+
+void config_setInputDirection(bool dir);
+bool config_getInputDirection(bool *dir);
+
 extern char config_uuid_str[2 * UUID_SIZE + 1];
 
+#if DEBUG_LINK
+bool config_setDebugPin(const char *pin);
+bool config_getPin(char *dest, uint16_t dest_size);
+bool config_getMnemonicBytes(uint8_t *dest, uint16_t *real_size);
+#endif
+
+#endif  // EMULATOR
 #endif

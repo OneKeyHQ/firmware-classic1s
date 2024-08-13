@@ -100,32 +100,35 @@ refresh_menu:
     }
   }
   memset(desc, 0, 64);
-  strcat(desc, _(token_key));
+  strcat(desc, token_key);
   strcat(desc, ":");
+
   if (index == 0) {
     sub_index = 0;
     layoutHeader(tx_msg[0]);
-    oledDrawStringAdapter(0, y, desc, FONT_STANDARD);
+    oledDrawStringAdapter(0, y, gettext_from_en(desc), FONT_STANDARD);
     oledDrawStringAdapter(0, y + 10, token_val, FONT_STANDARD);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
   } else if (max_index == index) {
-    layoutHeader(_("Sign Transaction"));
-    oledDrawStringAdapter(0, 13, tx_msg[1], FONT_STANDARD);
+    layoutHeader(_(T__SIGN_TRANSACTION));
+    layoutTxConfirmPage(tx_msg[1]);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_confirm);
   } else {
     layoutHeader(tx_msg[0]);
     if (1 == pageCount) {
-      oledDrawStringAdapter(0, y, desc, FONT_STANDARD);
-      if (oledStringWidthAdapter(desc, FONT_STANDARD) > (OLED_WIDTH - 3)) {
+      oledDrawStringAdapter(0, y, gettext_from_en(desc), FONT_STANDARD);
+      if (oledStringWidthAdapter(gettext_from_en(desc), FONT_STANDARD) >
+          (OLED_WIDTH - 3)) {
         oledDrawStringAdapter(0, y + 20, token_val, FONT_STANDARD);
       } else {
         oledDrawStringAdapter(0, y + 10, token_val, FONT_STANDARD);
       }
     } else {
       int lines = 3;
-      if (oledStringWidthAdapter(desc, FONT_STANDARD) > (OLED_WIDTH - 3)) {
+      if (oledStringWidthAdapter(gettext_from_en(desc), FONT_STANDARD) >
+          (OLED_WIDTH - 3)) {
         lines--;
       }
 
@@ -134,7 +137,7 @@ refresh_menu:
       max_page_count++;
       if (0 == sub_index) {
         if (3 == lines) {
-          oledDrawStringAdapter(0, y, desc, FONT_STANDARD);
+          oledDrawStringAdapter(0, y, gettext_from_en(desc), FONT_STANDARD);
           cosmos_parser_getItem(ctx, index, token_key, sizeof(token_key),
                                 token_val, 20, 0, &pageCount);
           oledDrawStringAdapter(0, y + 10, token_val, FONT_STANDARD);
@@ -145,7 +148,7 @@ refresh_menu:
                                 token_val, 20, 2, &pageCount);
           oledDrawStringAdapter(0, y + 30, token_val, FONT_STANDARD);
         } else {
-          oledDrawStringAdapter(0, y, desc, FONT_STANDARD);
+          oledDrawStringAdapter(0, y, gettext_from_en(desc), FONT_STANDARD);
           cosmos_parser_getItem(ctx, index, token_key, sizeof(token_key),
                                 token_val, 20, 0, &pageCount);
           oledDrawStringAdapter(0, y + 20, token_val, FONT_STANDARD);
@@ -202,6 +205,7 @@ refresh_menu:
       if (index < max_index) {
         index++;
       }
+      sub_index = 0;
       goto refresh_menu;
     case KEY_CANCEL:
       if (0 == index || max_index == index) {
@@ -211,6 +215,7 @@ refresh_menu:
       if (index > 0) {
         index--;
       }
+      sub_index = 0;
       goto refresh_menu;
     default:
       break;
@@ -254,9 +259,14 @@ bool cosmos_sign_tx(const CosmosSignTx *msg, const HDNode *node,
 
   // sign tx hash
   uint8_t v;
+#if EMULATOR
+  if (ecdsa_sign_digest(&secp256k1, node->private_key, hash,
+                        resp->signature.bytes, &v, ethereum_is_canonic) != 0) {
+#else
   if (hdnode_sign_digest(node, hash, resp->signature.bytes, &v,
                          ethereum_is_canonic) != 0) {
-    fsm_sendFailure(FailureType_Failure_ProcessError, _("Signing failed"));
+#endif
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Signing failed");
     layoutHome();
     return false;
   }

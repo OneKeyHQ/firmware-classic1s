@@ -24,26 +24,44 @@ enum {
   BLE_CMD_BATTERY = 0x05,
   BLE_CMD_VER = 0x06,
   BLE_CMD_ONOFF_BLE = 0x07,
-  BLE_CMD_DFU_STA = 0x0A
+  BLE_CMD_DFU_STA = 0x0A,
+  BLE_CMD_DEVICE_PUBKEY = 0x0B,
+  BLE_CMD_DEVICE_SIGN = 0x0C,
+  BLE_CMD_BUILD_ID = 0x0D,
+  BLE_CMD_HASH = 0x0E
 };
+
+enum { BLE_PBUKEY_GET = 0x00, BLE_PBUKEY_LOCK = 0x01 };
 
 bool ble_connect_state(void);
 void ble_request_info(uint8_t type);
 void ble_ctl_onoff(void);
 void ble_reset(void);
-void ble_uart_poll(void);
+void ble_uart_poll(uint8_t *buf);
 void ble_update_poll(void);
 
+int ble_get_error(void);
+bool ble_get_pubkey(uint8_t *pubkey);
+bool ble_lock_pubkey(void);
+bool ble_sign_msg(uint8_t *msg, uint32_t msg_len, uint8_t *sign);
+bool ble_get_version(char **ver);
+
 #if !EMULATOR
+
 bool ble_is_enable(void);
 bool ble_name_state(void);
 bool ble_ver_state(void);
+bool ble_build_id_state(void);
+bool ble_hash_state(void);
 bool ble_battery_state(void);
 char *ble_get_name(void);
 char *ble_get_ver(void);
+char *ble_get_build_id(void);
+uint8_t *ble_get_hash(void);
 bool ble_switch_state(void);
 void ble_set_switch(bool flag);
 bool ble_get_switch(void);
+void ble_request_switch_state(void);
 void change_ble_sta(uint8_t mode);
 bool ble_passkey_state(void);
 #else
@@ -55,6 +73,12 @@ bool ble_passkey_state(void);
 #define ble_set_switch(...)
 #define ble_get_switch(...) false
 #define change_ble_sta(...)
+
+#define ble_get_build_id(void) "1234567"
+#define ble_get_hash(void) "6551e797240051925b8a62615f4c8baa"
+#define ble_build_id_state(...) false
+#define ble_hash_state(...) false
+
 #endif
 
 #endif

@@ -193,15 +193,15 @@ refresh_menu:
   oledClear();
   y = 13;
   if (index == max_index) {
-    layoutHeader(_("Sign Transaction"));
-    oledDrawStringAdapter(0, y, tx_msg[1], FONT_STANDARD);
+    layoutHeader(_(T__SIGN_TRANSACTION));
+    layoutTxConfirmPage(tx_msg[1]);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_confirm);
   } else {
     fil_tx_getItem(index, token_key, sizeof(token_key), token_val,
                    sizeof(token_val), 0, &pageCount);
     memset(desc, 0, 64);
-    strcat(desc, _(token_key));
+    strcat(desc, token_key);
     strcat(desc, ":");
     if ((0 == index) || (4 == index) || (5 == index)) {
       p = strchr(token_val, '.');
@@ -221,7 +221,7 @@ refresh_menu:
       memcpy(token_val + strlen(token_val), " FIL", 5);
     }
     layoutHeader(tx_msg[0]);
-    oledDrawStringAdapter(0, y, desc, FONT_STANDARD);
+    oledDrawStringAdapter(0, y, gettext_from_en(desc), FONT_STANDARD);
     oledDrawStringAdapter(0, y + 10, token_val, FONT_STANDARD);
     if (index == 0) {
       layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
@@ -292,9 +292,14 @@ bool filecoin_sign_tx(const FilecoinSignTx *msg, const HDNode *node,
   data2hexaddr(message_digest, 32, buf);
 
   uint8_t v;
+#if EMULATOR
+  if (ecdsa_sign_digest(&secp256k1, node->private_key, message_digest,
+                        resp->signature.bytes, &v, ethereum_is_canonic) != 0) {
+#else
   if (hdnode_sign_digest(node, message_digest, resp->signature.bytes, &v,
                          ethereum_is_canonic) != 0) {
-    fsm_sendFailure(FailureType_Failure_ProcessError, _("Signing failed"));
+#endif
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Signing failed");
     return false;
   }
   resp->signature.bytes[64] = v;

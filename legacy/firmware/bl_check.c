@@ -17,9 +17,9 @@
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <libopencm3/stm32/flash.h>
 #include <stdint.h>
 #include <string.h>
+#include "../flash.h"
 #include "bl_data.h"
 #include "ble.h"
 #include "buttons.h"
@@ -34,72 +34,30 @@ char bootloader_version[8] = {0};
 #if BOOTLOADER_QA
 static int known_bootloader(int r, const uint8_t *hash) {
   if (r != 32) return 0;
-  if (0 ==
-      memcmp(hash,
-             "\xe5\x83\x74\x1b\xb0\x53\xf2\x29\x29\xf5\x6c\x6f\xaf\xff\xea\xe9"
-             "\xae\x96\x16\x67\xbf\xa5\xf2\x1b\x3d\x51\x8d\xc5\x52\x71\x59\x99",
-             32)) {
-    memcpy(bootloader_version, "1.8.3", strlen("1.8.3"));
-    return 1;  // 1.8.3
-  }
-
-  if (0 ==
-      memcmp(hash,
-             "\xb5\x32\xd7\x5a\x3c\x38\x5d\x73\xba\x58\xb8\x29\x91\xe8\x36\xd1"
-             "\x26\xea\xb4\x5b\xb3\x87\x10\x0b\xc6\xb4\xf7\x48\x05\xb0\x9f\xb0",
-             32)) {
-    memcpy(bootloader_version, "1.8.5", strlen("1.8.5"));
-    return 1;  // 1.8.5
-  }
-  if (0 ==
-      memcmp(hash,
-             "\xbf\x2e\x53\xd3\xcb\x0b\x1a\xf2\x39\xc0\x74\xa4\x1e\x86\xf1\x47"
-             "\xc4\x64\x95\xdf\x0d\x13\x9a\xd9\x56\x47\xc3\xf4\x6a\x66\x35\xa0",
-             32)) {
-    memcpy(bootloader_version, "1.8.5", strlen("1.8.5"));
-    return 1;  // 1.8.5
-  }
-  if (0 ==
-      memcmp(hash,
-             "\xae\xdc\x2f\x7e\xb5\xbc\x6a\x22\x49\xed\x35\xc3\x1f\x9d\x1e\x8d"
-             "\x55\x57\xa3\x0e\xc6\xd6\x36\xa6\xba\x9b\x3e\x92\xc9\x6d\x58\x29",
-             32)) {
-    memcpy(bootloader_version, "1.8.6", strlen("1.8.6"));
-    return 1;  // 1.8.6
-  }
-  if (0 ==
-      memcmp(hash,
-             "\x28\xb1\xaa\x4b\x74\xd1\xdb\xda\xbe\xff\x5b\x24\x8b\xc0\x5f\x97"
-             "\xca\x3a\x49\x07\x15\xfd\xa6\xca\x73\xc7\xf7\x6a\xb8\xa8\x49\xb9",
-             32)) {
-    memcpy(bootloader_version, "1.8.7", strlen("1.8.7"));
-    return 1;  // 1.8.7
-  }
-  if (0 ==
-      memcmp(hash,
-             "\xa7\xb1\xed\xcc\x56\x94\x07\xe8\xaa\x4f\xfa\x60\x5a\xdb\xb9\xa8"
-             "\xb2\x4c\x05\x4f\xe1\xac\xca\x56\xf0\x81\x5c\x9c\x02\xee\x71\xc6",
-             32)) {
-    memcpy(bootloader_version, "1.8.8", strlen("1.8.8"));
-    return 1;  // 1.8.8
-  }
-  if (0 ==
-      memcmp(hash,
-             "\x93\x6a\xc4\x1c\xf0\x04\x85\xa0\xa2\xd0\x11\x9e\xc4\x64\x24\x59"
-             "\xa5\x6a\x13\x84\xd2\x9e\x22\x2c\x42\x94\x82\x9a\x92\x40\xf8\xe2",
-             32)) {
-    memcpy(bootloader_version, "1.9.0", strlen("1.9.0"));
-    return 1;  // 1.9.0
-  }
-
   // BEGIN AUTO-GENERATED QA BOOTLOADER ENTRIES (bl_check_qa.txt)
   if (0 ==
       memcmp(hash,
-             "\x8c\xce\xa2\x13\xba\x7b\x8e\x06\x62\x95\xd4\xac\x44\x6f\x71\x4f"
-             "\xe5\x62\x93\x03\x06\xef\xd1\xe5\x2d\xad\x98\x38\x79\x6d\x57\xe2",
+             "\x80\xb8\x22\xf4\xd4\x08\x80\xfc\x90\x22\xc8\xe1\xb6\x75\x5b\xb0"
+             "\x59\x51\x5b\x3b\x0b\x54\x61\x04\xbd\x37\xe3\xf1\x46\x06\x3a\xb2",
              32)) {
-    memcpy(bootloader_version, "2.0.0", strlen("2.0.0"));
-    return 1;  // 2.0.0 shipped with fw 3.0.0
+    memcpy(bootloader_version, "2.0.6", strlen("2.0.6"));
+    return 1;  // 2.0.6 shipped with fw 3.5.0
+  }
+  if (0 ==
+      memcmp(hash,
+             "\xf1\xd1\x84\xfe\x18\xf4\x06\xa3\x8e\xde\xc9\x82\x9b\x98\x1d\x56"
+             "\xcd\x71\xca\x3d\x7b\x71\x69\xd1\xe4\xf8\x8a\x8c\x5a\x64\x3a\xc1",
+             32)) {
+    memcpy(bootloader_version, "2.0.7", strlen("2.0.7"));
+    return 1;  // 2.0.7 shipped with fw 3.5.0
+  }
+  if (0 ==
+      memcmp(hash,
+             "\xf8\xb3\xba\x58\x52\x0a\x96\xfa\xd2\x67\x34\x42\x8a\xbd\x1d\xdb"
+             "\x53\x4e\xee\x89\x2f\x82\x3c\xbe\xe6\x85\xea\xbf\x94\xe5\x9b\x59",
+             32)) {
+    memcpy(bootloader_version, "2.0.7", strlen("2.0.7"));
+    return 1;  // 2.0.7 shipped with fw 3.7.0
   }
   // END AUTO-GENERATED QA BOOTLOADER ENTRIES (bl_check_qa.txt)
 
@@ -110,71 +68,30 @@ static int known_bootloader(int r, const uint8_t *hash) {
 #if PRODUCTION
 static int known_bootloader(int r, const uint8_t *hash) {
   if (r != 32) return 0;
-  if (0 ==
-      memcmp(hash,
-             "\xe5\x83\x74\x1b\xb0\x53\xf2\x29\x29\xf5\x6c\x6f\xaf\xff\xea\xe9"
-             "\xae\x96\x16\x67\xbf\xa5\xf2\x1b\x3d\x51\x8d\xc5\x52\x71\x59\x99",
-             32)) {
-    memcpy(bootloader_version, "1.8.3", strlen("1.8.3"));
-    return 1;  // 1.8.3
-  }
-
-  if (0 ==
-      memcmp(hash,
-             "\xb5\x32\xd7\x5a\x3c\x38\x5d\x73\xba\x58\xb8\x29\x91\xe8\x36\xd1"
-             "\x26\xea\xb4\x5b\xb3\x87\x10\x0b\xc6\xb4\xf7\x48\x05\xb0\x9f\xb0",
-             32)) {
-    memcpy(bootloader_version, "1.8.5", strlen("1.8.5"));
-    return 1;  // 1.8.5
-  }
-  if (0 ==
-      memcmp(hash,
-             "\xbf\x2e\x53\xd3\xcb\x0b\x1a\xf2\x39\xc0\x74\xa4\x1e\x86\xf1\x47"
-             "\xc4\x64\x95\xdf\x0d\x13\x9a\xd9\x56\x47\xc3\xf4\x6a\x66\x35\xa0",
-             32)) {
-    memcpy(bootloader_version, "1.8.5", strlen("1.8.5"));
-    return 1;  // 1.8.5
-  }
-  if (0 ==
-      memcmp(hash,
-             "\xae\xdc\x2f\x7e\xb5\xbc\x6a\x22\x49\xed\x35\xc3\x1f\x9d\x1e\x8d"
-             "\x55\x57\xa3\x0e\xc6\xd6\x36\xa6\xba\x9b\x3e\x92\xc9\x6d\x58\x29",
-             32)) {
-    memcpy(bootloader_version, "1.8.6", strlen("1.8.6"));
-    return 1;  // 1.8.6
-  }
-  if (0 ==
-      memcmp(hash,
-             "\x28\xb1\xaa\x4b\x74\xd1\xdb\xda\xbe\xff\x5b\x24\x8b\xc0\x5f\x97"
-             "\xca\x3a\x49\x07\x15\xfd\xa6\xca\x73\xc7\xf7\x6a\xb8\xa8\x49\xb9",
-             32)) {
-    memcpy(bootloader_version, "1.8.7", strlen("1.8.7"));
-    return 1;  // 1.8.7
-  }
-  if (0 ==
-      memcmp(hash,
-             "\xa7\xb1\xed\xcc\x56\x94\x07\xe8\xaa\x4f\xfa\x60\x5a\xdb\xb9\xa8"
-             "\xb2\x4c\x05\x4f\xe1\xac\xca\x56\xf0\x81\x5c\x9c\x02\xee\x71\xc6",
-             32)) {
-    memcpy(bootloader_version, "1.8.8", strlen("1.8.8"));
-    return 1;  // 1.8.8
-  }
-  if (0 ==
-      memcmp(hash,
-             "\x93\x6a\xc4\x1c\xf0\x04\x85\xa0\xa2\xd0\x11\x9e\xc4\x64\x24\x59"
-             "\xa5\x6a\x13\x84\xd2\x9e\x22\x2c\x42\x94\x82\x9a\x92\x40\xf8\xe2",
-             32)) {
-    memcpy(bootloader_version, "1.9.0", strlen("1.9.0"));
-    return 1;  // 1.9.0
-  }
   // BEGIN AUTO-GENERATED BOOTLOADER ENTRIES (bl_check.txt)
   if (0 ==
       memcmp(hash,
-             "\xa8\xbe\x50\xe3\xb5\x25\x28\x08\xf5\x22\x47\x96\x99\x1b\x6e\x10"
-             "\xec\x70\x72\x6d\xc7\x29\x17\x93\x5b\x59\xaa\xf2\x0f\xca\xb2\x95",
+             "\xe4\xcf\xb4\x81\x66\x77\xc5\x65\xca\x73\x62\xf5\xf0\x13\x20\x95"
+             "\x09\xc3\xb0\x8c\x71\x24\x27\x42\x0f\xc3\xac\xbc\xbb\xd8\xed\x5c",
              32)) {
-    memcpy(bootloader_version, "2.0.0", strlen("2.0.0"));
-    return 1;  // 2.0.0 shipped with fw 3.0.0
+    memcpy(bootloader_version, "2.0.6", strlen("2.0.6"));
+    return 1;  // 2.0.6 shipped with fw 3.5.0
+  }
+  if (0 ==
+      memcmp(hash,
+             "\x45\xe1\x1f\x4d\x7d\x74\xf7\xc9\xaa\xa6\x71\xf5\x36\xe2\xc8\xd4"
+             "\x8f\x5b\x1d\xa4\x71\x65\x78\x13\x6d\x6f\x68\x00\x6f\x9e\xd1\xcc",
+             32)) {
+    memcpy(bootloader_version, "2.0.7", strlen("2.0.7"));
+    return 1;  // 2.0.7 shipped with fw 3.5.0
+  }
+  if (0 ==
+      memcmp(hash,
+             "\xf6\x98\x5a\xa0\xf3\xcf\x4a\x62\x85\xff\x4c\x63\x35\xbb\x6b\xf1"
+             "\x94\x82\x0d\x3f\x49\xb8\x61\xb7\xb5\xef\x8b\x9e\x09\x07\x32\x55",
+             32)) {
+    memcpy(bootloader_version, "2.0.7", strlen("2.0.7"));
+    return 1;  // 2.0.7 shipped with fw 3.7.0
   }
   // END AUTO-GENERATED BOOTLOADER ENTRIES (bl_check.txt)
   return 0;
@@ -194,9 +111,9 @@ void check_and_replace_bootloader(bool shutdown_on_replace) {
   int r = memory_bootloader_hash(hash);
 
   if (!known_bootloader(r, hash)) {
-    layoutDialog(&bmp_icon_error, NULL, NULL, NULL, _("Unknown bootloader"),
-                 _("detected."), NULL, _("Shutdown your OneKey"),
-                 _("contact our support."), NULL);
+    layoutDialog(&bmp_icon_error, NULL, NULL, NULL, "Unknown bootloader",
+                 "detected.", NULL, "Shutdown your OneKey",
+                 "contact our support.", NULL);
     delay_ms(1000);
     shutdown();
   }
@@ -211,8 +128,8 @@ void check_and_replace_bootloader(bool shutdown_on_replace) {
   }
 
   if (sys_usbState() == false && battery_cap == 0xff) {
-    layoutDialogCenterAdapterEx(NULL, NULL, NULL, NULL,
-                                _("Get battery level..."), NULL, NULL, NULL);
+    layoutDialogCenterAdapterEx(NULL, NULL, NULL, NULL, "Get battery level...",
+                                NULL, NULL, NULL);
     while (1) {
       if (battery_cap == 0xff) {
         ble_request_info(BLE_CMD_BATTERY);
@@ -229,8 +146,8 @@ void check_and_replace_bootloader(bool shutdown_on_replace) {
   if (sys_usbState() == false && battery_cap < 2) {
     layoutDialogCenterAdapterEx(
         &bmp_icon_warning, NULL, &bmp_bottom_right_confirm, NULL,
-        _("Low Battery!Use cable or"), _("Charge to 25% before"),
-        _("updating the bootloader"), NULL);
+        "Low Battery!Use cable or", "Charge to 25% before",
+        "updating the bootloader", NULL);
     while (1) {
       uint8_t key = keyScan();
       if (key == KEY_CONFIRM) {
@@ -247,11 +164,12 @@ void check_and_replace_bootloader(bool shutdown_on_replace) {
   // YOUR DEVICE.
 
   layoutDialogCenterAdapterEx(
-      &bmp_icon_warning, NULL, NULL, NULL, _("DO NOT power off during"),
-      _("update,or it may cause"), _("irreversible malfunction"), NULL);
+      &bmp_icon_warning, NULL, NULL, NULL, "DO NOT power off during",
+      "update,or it may cause", "irreversible malfunction", NULL);
 
   char delay_str[4] = "3s";
   for (int i = 2; i >= 0; i--) {
+    oledclearLine(6);
     oledclearLine(7);
     delay_str[0] = '1' + i;
     oledDrawStringCenter(OLED_WIDTH / 2, 54, delay_str, FONT_STANDARD);
@@ -259,40 +177,36 @@ void check_and_replace_bootloader(bool shutdown_on_replace) {
     delay_ms(1000);
   }
 
-  // unlock sectors
-  memory_write_unlock();
+  // unlock boot1's sectors
+  // memory_write_unlock();
 
-  for (int tries = 0; tries < 10; tries++) {
+  for (uint8_t tries = 0; tries < 10; tries++) {
     // replace bootloader
-    flash_wait_for_last_operation();
-    flash_clear_status_flags();
-    flash_unlock();
-    for (int i = FLASH_BOOT_SECTOR_FIRST; i <= FLASH_BOOT_SECTOR_LAST; i++) {
-      flash_erase_sector(i, FLASH_CR_PROGRAM_X32);
+    for (uint8_t isecs = FLASH_BOOT_SECTOR_FIRST;
+         isecs <= FLASH_BOOT_SECTOR_LAST; isecs++) {
+      flash_erase(isecs);
     }
-    for (int i = 0; i < FLASH_BOOT_LEN / 4; i++) {
-      const uint32_t *w = (const uint32_t *)(bl_data + i * 4);
-      flash_program_word(FLASH_BOOT_START + i * 4, *w);
+    for (uint32_t items = 0; items < FLASH_BOOT_LEN / 4; items++) {
+      const uint32_t *w = (const uint32_t *)(bl_data + items * 4);
+      flash_write_word_item(FLASH_BOOT_START + items * 4, *w);
     }
-    flash_wait_for_last_operation();
-    flash_lock();
     // check whether the write was OK
     r = memory_bootloader_hash(hash);
     if (r == 32 && 0 == memcmp(hash, bl_hash, 32)) {
       if (shutdown_on_replace) {
         // OK -> show info and halt
-        layoutDialog(&bmp_icon_info, NULL, NULL, NULL, _("Update finished"),
-                     _("successfully."), NULL, _("Please reconnect"),
-                     _("the device."), NULL);
+        layoutDialog(&bmp_icon_info, NULL, NULL, NULL, "Update finished",
+                     "successfully.", NULL, "Please reconnect", "the device.",
+                     NULL);
         shutdown();
       }
       return;
     }
   }
   // show info and halt
-  layoutDialog(&bmp_icon_error, NULL, NULL, NULL, _("Bootloader update"),
-               _("broken."), NULL, _("Unplug your OneKey"),
-               _("contact our support."), NULL);
+  layoutDialog(&bmp_icon_error, NULL, NULL, NULL, "Bootloader update",
+               "broken.", NULL, "Unplug your OneKey", "contact our support.",
+               NULL);
   delay_ms(1000);
   shutdown();
 #endif

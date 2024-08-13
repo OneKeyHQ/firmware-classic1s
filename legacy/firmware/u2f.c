@@ -35,26 +35,25 @@
 #include "protect.h"
 #include "secbool.h"
 #if !EMULATOR
-#include "mi2c.h"
+#include "thd89.h"
 #endif
+#include "flash.h"
 #include "nist256p1.h"
 #include "oled.h"
 #include "rng.h"
 #include "si2c.h"
-#include "flash.h"
 #include "sys.h"
 #include "trezor.h"
 #include "usb.h"
 #include "util.h"
 
+#include "memory.h"
+#include "se_chip.h"
 #include "u2f.h"
 #include "u2f/u2f.h"
 #include "u2f/u2f_hid.h"
 #include "u2f/u2f_keys.h"
 #include "u2f_knownapps.h"
-#include "se_chip.h"
-#include "memory.h"
-#include "hard_preset.h"
 
 // About 1/2 Second according to values used in protect.c
 #define U2F_TIMEOUT (800000 / 2)
@@ -67,7 +66,6 @@ static uint32_t last_good_auth_check_cid = 0;
 
 // Circular Output buffer
 static uint32_t u2f_out_start = 0;
-static secbool check_preset_data_state = secfalse;
 
 uint32_t u2f_out_end = 0;
 uint8_t u2f_out_packets[U2F_OUT_PKT_BUFFER_LEN][HID_RPT_SIZE];
@@ -101,6 +99,7 @@ static bool input_pin = false;
 static bool first_package = true;
 static uint32_t package_len = 0, rec_len = 0;
 bool u2f_init_command = false;
+static bool next_page = false;
 
 typedef struct {
   uint8_t reserved;
@@ -287,10 +286,33 @@ void u2fhid_read_start(const U2FHID_FRAME *f) {
       usbPoll();  // may trigger new request
       buttonUpdate();
       if (button.YesUp && (last_req_state == AUTH || last_req_state == REG)) {
-        last_req_state++;
-        // standard requires to remember button press for 10 seconds.
-        dialog_timeout = 10 * U2F_TIMEOUT;
+        if (next_page == true) {
+          // standard requires to remember button press for 10 seconds.
+          // dialog_timeout = 10 * U2F_TIMEOUT;
+          if (last_req_state == REG) {
+            layoutDialogCenterAdapterV2(
+                _(T__U2F_REGISTER), NULL, NULL, &bmp_bottom_right_confirm, NULL,
+                NULL, NULL, NULL, NULL, NULL, _(T__U2F_AUTHENTICATE));
+          } else {
+            layoutDialogCenterAdapterV2(
+                _(T__U2F_AUTHENTICATE), NULL, NULL, &bmp_bottom_right_confirm,
+                NULL, NULL, NULL, NULL, NULL, NULL,
+                _(C__AUTHENTICATE_U2F_SECURITY_KEY_QUES));
+          }
+          delay_ms(100);
+          next_page = false;
+        } else {
+          last_req_state++;
+        }
       }
+      // if (button.NoUp && (last_req_state == AUTH || last_req_state == REG) &&
+      //     false == next_page) {
+      //   send_u2fhid_error(cid, ERR_MSG_TIMEOUT);
+      //   last_req_state = AUTH;
+      //   usbTiny(0);
+      //   layoutHome();
+      //   return;
+      // }
       if (reader == 0) {
         layoutHome();
         return;
@@ -299,6 +321,7 @@ void u2fhid_read_start(const U2FHID_FRAME *f) {
 
     if (reader->cmd == 0) {
       last_req_state = INIT;
+      next_page = false;
       cid = 0;
       reader = 0;
       usbTiny(0);
@@ -451,54 +474,7 @@ void st_version(void) {
   send_u2f_msg(ucBuf, 4);
 }
 
-void gd_setPresetData(const APDU *papdu) {
-  uint8_t ucBuf[2];
-
-  if (APDU_LEN(*papdu) != 0x10) {
-    debugLog(0, "", "u2f set preset data - badlen");
-    send_u2f_error(U2F_SW_WRONG_LENGTH);
-    return;
-  }
-
-  if (!bPresetDataWrite((uint8_t *)papdu->data)) {
-    ucBuf[0] = U2F_SW_CONDITIONS_NOT_SATISFIED >> 8 & 0xFF;
-    ucBuf[1] = U2F_SW_CONDITIONS_NOT_SATISFIED & 0xFF;
-  } else {
-    ucBuf[0] = U2F_SW_NO_ERROR >> 8 & 0xFF;
-    ucBuf[1] = U2F_SW_NO_ERROR & 0xFF;
-  }
-  send_u2f_msg(ucBuf, 2);
-}
-
-void gd_getPresetData(void) {
-  uint8_t ucBuf[18];
-  memzero(ucBuf, sizeof(ucBuf));
-
-  if (!se_isFactoryMode()) {  // at factory stage
-    send_u2f_error(U2F_SW_CONDITIONS_NOT_SATISFIED);
-    return;
-  }
-  bPresetDataRead(ucBuf);
-  ucBuf[16] = U2F_SW_NO_ERROR >> 8 & 0xFF;
-  ucBuf[17] = U2F_SW_NO_ERROR & 0xFF;
-  send_u2f_msg(ucBuf, sizeof(ucBuf));
-}
-
-void gd_checkPresetData(void) {
-  if (!se_sync_session_key()) {
-    check_preset_data_state = secfalse;
-    send_u2f_error(U2F_SW_CONDITIONS_NOT_SATISFIED);
-    return;
-  }
-  check_preset_data_state = sectrue;
-  send_u2f_error(U2F_SW_NO_ERROR);
-}
-
 void gd32_protect(void) {
-  if (sectrue != check_preset_data_state) {
-    send_u2f_error(U2F_SW_CONDITIONS_NOT_SATISFIED);
-    return;
-  }
   // memory protect later
   memory_protect();
   send_u2f_error(U2F_SW_NO_ERROR);
@@ -512,11 +488,25 @@ void gd32_checkEleConnection(void) {
   vButton_Lcd_Test();
 }
 
+void get_device_state(void) {
+  uint8_t resp[4];
+  resp[0] = memory_protect_state() == 0xCC ? 1 : 0;
+  resp[1] = se_isFactoryMode() ? 0 : 1;
+  resp[2] = U2F_SW_NO_ERROR >> 8 & 0xFF;
+  resp[3] = U2F_SW_NO_ERROR & 0xFF;
+  send_u2f_msg(resp, 4);
+}
+
 void u2fhid_msg(const APDU *a, uint32_t len) {
   if (a->cla != 0 && a->cla != 0x80) {
     send_u2f_error(U2F_SW_CLA_NOT_SUPPORTED);
     return;
   }
+
+#if !EMULATOR
+  uint8_t buffer[1024 + 64];
+  uint16_t resp_len = sizeof(buffer);
+#endif
 
   switch (a->ins) {
     case U2F_REGISTER:
@@ -534,15 +524,6 @@ void u2fhid_msg(const APDU *a, uint32_t len) {
     case Buttton_Lcd_Test:
       vButton_Lcd_Test();
       break;
-    case SET_PRESETDATA:  // set presets default data
-      gd_setPresetData(a);
-      break;
-    case GET_PRESETDATA:  // get presets dafault data
-      gd_getPresetData();
-      break;
-    case CHECK_PRESETDATA:  // check presets default data
-      gd_checkPresetData();
-      break;
     case MEMORY_LOCK:  // it would disable swd and boot from system bootloader
                        // and sram
       gd32_protect();
@@ -550,21 +531,18 @@ void u2fhid_msg(const APDU *a, uint32_t len) {
     case CHECK_ELECONNECT:  // smt factory check device connection
       gd32_checkEleConnection();
       break;
+    case DEVICE_STATE:
+      get_device_state();
+      break;
     default:
 #if !EMULATOR
-      // MI2CDRV_Transmit
-      if (false == bMI2CDRV_SendData((uint8_t *)&(a->cla), len)) {
-        send_u2f_error(U2F_SW_INS_NOT_SUPPORTED);
-        return;
-      }
-      g_usMI2cRevLen = sizeof(g_ucMI2cRevBuf);
-      if (true == bMI2CDRV_ReceiveData(g_ucMI2cRevBuf, &g_usMI2cRevLen)) {
-        g_ucMI2cRevBuf[g_usMI2cRevLen] = U2F_SW_NO_ERROR >> 8 & 0xFF;
-        g_ucMI2cRevBuf[g_usMI2cRevLen + 1] = U2F_SW_NO_ERROR & 0xFF;
-        send_u2f_msg(g_ucMI2cRevBuf, g_usMI2cRevLen + 2);
+
+      if (!thd89_transmit((uint8_t *)&(a->cla), len, buffer, &resp_len)) {
+        send_u2f_error(thd89_last_error());
       } else {
-        debugLog(0, "", "i2c rev fail");
-        send_u2f_error(U2F_SW_INS_NOT_SUPPORTED);
+        buffer[resp_len] = U2F_SW_NO_ERROR >> 8 & 0xFF;
+        buffer[resp_len + 1] = U2F_SW_NO_ERROR & 0xFF;
+        send_u2f_msg(buffer, resp_len + 2);
       }
 #endif
       break;
@@ -785,19 +763,22 @@ void u2f_register(const APDU *a) {
         0 == memcmp(req->appId, BOGUS_APPID_FIREFOX, U2F_APPID_SIZE)) {
       if (cid == last_good_auth_check_cid) {
         layoutDialogCenterAdapterV2(
-            "U2F Already Registered", NULL, NULL, &bmp_bottom_right_confirm,
+            _(T__U2F_ALREADY_REGISTER), NULL, NULL, &bmp_bottom_right_confirm,
             NULL, NULL, NULL, NULL, NULL, NULL,
-            _("This U2F device is already\nregistered in this\napplication."));
+            _(C__THIS_U2F_DEVICE_IS_ALREADY_REGISTERED_IN_THIS_APP));
       } else {
         layoutDialogCenterAdapterV2(
-            "U2F Not Registered", NULL, NULL, &bmp_bottom_right_confirm, NULL,
+            _(T__U2F_NOT_REGISTER), NULL, NULL, &bmp_bottom_right_confirm, NULL,
             NULL, NULL, NULL, NULL, NULL,
-            _("This U2F device is not\nregistered in this\napplication."));
+            _(C__THIS_U2F_DEVICE_IS_NOT_REGISTERED_IN_THIS_APP));
       }
     } else {
       const char *appname = NULL;
       getReadableAppId(req->appId, &appname);
-      layoutU2FDialog(_("Register"), appname);
+      layoutDialogAdapterEx(_(T__U2F_REGISTER), NULL, NULL,
+                            &bmp_bottom_right_arrow, NULL, NULL,
+                            _(I__APP_NAME_COLON), appname, NULL, NULL);
+      next_page = true;
     }
     last_req_state = REG;
   }
@@ -949,7 +930,10 @@ void u2f_authenticate(const APDU *a) {
     buttonUpdate();  // Clear button state
     const char *appname = NULL;
     getReadableAppId(req->appId, &appname);
-    layoutU2FDialog(_("Authenticate"), appname);
+    layoutDialogAdapterEx(_(T__U2F_AUTHENTICATE), NULL, NULL,
+                          &bmp_bottom_right_arrow, NULL, NULL,
+                          _(I__APP_NAME_COLON), appname, NULL, NULL);
+    next_page = true;
     last_req_state = AUTH;
   }
 

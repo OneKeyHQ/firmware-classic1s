@@ -22,9 +22,7 @@ void fsm_msgGetPublicKey(const GetPublicKey *msg) {
 
   CHECK_INITIALIZED
 
-  if (!config_getFastPayPinFlag()) {
-    CHECK_PIN
-  }
+  CHECK_PIN
 
   InputScriptType script_type =
       msg->has_script_type ? msg->script_type : InputScriptType_SPENDADDRESS;
@@ -41,7 +39,7 @@ void fsm_msgGetPublicKey(const GetPublicKey *msg) {
   if (msg->address_n_count > 0 && msg->address_n[0] == PATH_SLIP25_PURPOSE) {
     // Verify that the desired path lies in the unlocked subtree.
     if (msg->address_n[0] != unlock_path) {
-      fsm_sendFailure(FailureType_Failure_DataError, _("Forbidden key path"));
+      fsm_sendFailure(FailureType_Failure_DataError, "Forbidden key path");
       layoutHome();
       return;
     }
@@ -60,7 +58,7 @@ void fsm_msgGetPublicKey(const GetPublicKey *msg) {
 
   if (hdnode_fill_public_key(node) != 0) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Failed to derive public key"));
+                    "Failed to derive public key");
     layoutHome();
     return;
   }
@@ -106,7 +104,7 @@ void fsm_msgGetPublicKey(const GetPublicKey *msg) {
                             sizeof(resp->xpub));
   } else {
     fsm_sendFailure(FailureType_Failure_DataError,
-                    _("Invalid combination of coin and script_type"));
+                    "Invalid combination of coin and script_type");
     layoutHome();
     return;
   }
@@ -162,11 +160,11 @@ void fsm_msgSignTx(const SignTx *msg) {
   CHECK_INITIALIZED
 
   CHECK_PARAM(msg->inputs_count > 0,
-              _("Transaction must have at least one input"));
+              "Transaction must have at least one input");
   CHECK_PARAM(msg->outputs_count > 0,
-              _("Transaction must have at least one output"));
+              "Transaction must have at least one output");
   CHECK_PARAM(msg->inputs_count + msg->outputs_count >= msg->inputs_count,
-              _("Value overflow"));
+              "Value overflow");
 
   const AuthorizeCoinJoin *authorization = NULL;
   if (authorization_type == MessageType_MessageType_AuthorizeCoinJoin) {
@@ -184,10 +182,10 @@ void fsm_msgSignTx(const SignTx *msg) {
   if (!coin) return;
 
   CHECK_PARAM((coin->decred || coin->overwintered) || !msg->has_expiry,
-              _("Expiry not enabled on this coin."))
+              "Expiry not enabled on this coin.")
   CHECK_PARAM(coin->timestamp || !msg->has_timestamp,
-              _("Timestamp not enabled on this coin."))
-  CHECK_PARAM(!coin->timestamp || msg->timestamp, _("Timestamp must be set."))
+              "Timestamp not enabled on this coin.")
+  CHECK_PARAM(!coin->timestamp || msg->timestamp, "Timestamp must be set.")
 
   const HDNode *node = fsm_getDerivedNode(coin->curve_name, NULL, 0, NULL);
   if (!node) return;
@@ -200,7 +198,7 @@ void fsm_msgTxAck(TxAck *msg) {
     CHECK_UNLOCKED
   }
 
-  CHECK_PARAM(msg->has_tx, _("No transaction provided"));
+  CHECK_PARAM(msg->has_tx, "No transaction provided");
 
   signing_txack(&(msg->tx));
 }
@@ -215,11 +213,10 @@ bool fsm_checkCoinPath(const CoinInfo *coin, InputScriptType script_type,
                       has_multisig, unlock, true)) {
     return true;
   }
-
   if (config_getSafetyCheckLevel() == SafetyCheckLevel_Strict &&
       !coin_path_check(coin, script_type, address_n_count, address_n,
                        has_multisig, unlock, false)) {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Forbidden key path"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Forbidden key path");
     return false;
   }
 
@@ -232,19 +229,19 @@ bool fsm_checkCoinPath(const CoinInfo *coin, InputScriptType script_type,
 
 bool fsm_checkScriptType(const CoinInfo *coin, InputScriptType script_type) {
   if (!is_internal_input_script_type(script_type)) {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Invalid script type"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Invalid script type");
     return false;
   }
 
   if (is_segwit_input_script_type(script_type) && !coin->has_segwit) {
     fsm_sendFailure(FailureType_Failure_DataError,
-                    _("Segwit not enabled on this coin"));
+                    "Segwit not enabled on this coin");
     return false;
   }
 
   if (script_type == InputScriptType_SPENDTAPROOT && !coin->has_taproot) {
     fsm_sendFailure(FailureType_Failure_DataError,
-                    _("Taproot not enabled on this coin"));
+                    "Taproot not enabled on this coin");
     return false;
   }
 
@@ -255,9 +252,7 @@ void fsm_msgGetAddress(const GetAddress *msg) {
   RESP_INIT(Address);
 
   CHECK_INITIALIZED
-  if (!config_getFastPayPinFlag()) {
-    CHECK_PIN
-  }
+  CHECK_PIN
 
   const CoinInfo *coin = fsm_getCoin(msg->has_coin_name, msg->coin_name);
   if (!coin) return;
@@ -276,56 +271,55 @@ void fsm_msgGetAddress(const GetAddress *msg) {
 
   if (hdnode_fill_public_key(node) != 0) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Failed to derive public key"));
+                    "Failed to derive public key");
     layoutHome();
     return;
   }
 
   char address[MAX_ADDR_SIZE];
   if (msg->has_multisig) {  // use progress bar only for multisig
-    layoutProgressAdapter(_("Computing address"), 0);
+    layoutProgressAdapter("Computing address", 0);
   }
   if (!compute_address(coin, msg->script_type, node, msg->has_multisig,
                        &msg->multisig, address)) {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Can't encode address"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Can't encode address");
     layoutHome();
     return;
   }
 
   if (msg->has_show_display && msg->show_display) {
-    char desc[20] = {0};
+    char desc[32] = {0};
     int multisig_index = 0;
     if (msg->has_multisig) {
-      strlcpy(desc, "Multisig __ of __:", sizeof(desc));
       const uint32_t m = msg->multisig.m;
       const uint32_t n = cryptoMultisigPubkeyCount(&(msg->multisig));
-      desc[9] = (m < 10) ? ' ' : ('0' + (m / 10));
-      desc[10] = '0' + (m % 10);
-      desc[15] = (n < 10) ? ' ' : ('0' + (n / 10));
-      desc[16] = '0' + (n % 10);
+#if !EMULATOR
+      snprintf(desc, 32, "%s(%ld-%ld)", _(T__MULTISIG_ADDRESS), m, n);
+#else
+      snprintf(desc, 32, "%s(%d-%d)", _(T__MULTISIG_ADDRESS), m, n);
+#endif
       multisig_index =
           cryptoMultisigPubkeyIndex(coin, &(msg->multisig), node->public_key);
     } else {
-      strcat(desc, coin->coin_name);
-      strcat(desc, " ");
-      strlcpy(desc + strlen(desc), _("Address:"), sizeof(desc));
+      strlcpy(desc, _(T__CHAIN_STR_ADDRESS), sizeof(desc));
+      bracket_replace(desc, coin->coin_name);
     }
 
     uint32_t multisig_xpub_magic = coin->xpub_magic;
     if (msg->has_multisig && coin->has_segwit) {
       if (!msg->has_ignore_xpub_magic || !msg->ignore_xpub_magic) {
         if (msg->script_type == InputScriptType_SPENDWITNESS &&
-            coin->xpub_magic_segwit_native) {
-          multisig_xpub_magic = coin->xpub_magic_segwit_native;
+            coin->xpub_magic_multisig_segwit_native) {
+          multisig_xpub_magic = coin->xpub_magic_multisig_segwit_native;
         } else if (msg->script_type == InputScriptType_SPENDP2SHWITNESS &&
-                   coin->xpub_magic_segwit_p2sh) {
-          multisig_xpub_magic = coin->xpub_magic_segwit_p2sh;
+                   coin->xpub_magic_multisig_segwit_p2sh) {
+          multisig_xpub_magic = coin->xpub_magic_multisig_segwit_p2sh;
         }
       }
     }
 
     bool is_cashaddr = coin->cashaddr_prefix != NULL;
-    if (!fsm_layoutAddress(address, desc, false,
+    if (!fsm_layoutAddress(address, NULL, desc, false,
                            is_cashaddr ? strlen(coin->cashaddr_prefix) + 1 : 0,
                            msg->address_n, msg->address_n_count, false,
                            msg->has_multisig ? &(msg->multisig) : NULL,
@@ -366,7 +360,7 @@ void fsm_msgSignMessage(const SignMessage *msg) {
 
   if (hdnode_fill_public_key(node) != 0) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Failed to derive public key"));
+                    "Failed to derive public key");
     layoutHome();
     return;
   }
@@ -374,7 +368,7 @@ void fsm_msgSignMessage(const SignMessage *msg) {
   if (!compute_address(coin, msg->script_type, node, false, NULL,
                        resp->address)) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Error computing address"));
+                    "Error computing address");
     layoutHome();
     return;
   }
@@ -386,15 +380,14 @@ void fsm_msgSignMessage(const SignMessage *msg) {
     return;
   }
 
-  layoutProgressSwipe(_("Signing"), 0);
+  layoutProgressSwipe(_(C__SIGNING), 0);
   if (cryptoMessageSign(coin, node, msg->script_type, msg->no_script_type,
                         msg->message.bytes, msg->message.size,
                         resp->signature.bytes) == 0) {
     resp->signature.size = 65;
     msg_write(MessageType_MessageType_MessageSignature, resp);
   } else {
-    fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Error signing message"));
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Error signing message");
   }
   layoutHome();
 }
@@ -402,9 +395,9 @@ void fsm_msgSignMessage(const SignMessage *msg) {
 void fsm_msgVerifyMessage(const VerifyMessage *msg) {
   const CoinInfo *coin = fsm_getCoin(msg->has_coin_name, msg->coin_name);
   if (!coin) return;
-  layoutProgressSwipe(_("Verifying"), 0);
+  layoutProgressSwipe(_(C__VERIFYING_ETC), 0);
   if (msg->signature.size != 65) {
-    fsm_sendFailure(FailureType_Failure_ProcessError, _("Invalid signature"));
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Invalid signature");
     layoutHome();
     return;
   }
@@ -419,11 +412,11 @@ void fsm_msgVerifyMessage(const VerifyMessage *msg) {
       return;
     }
 
-    fsm_sendSuccess(_("Message verified"));
+    fsm_sendSuccess("Message verified");
   } else if (result == 1) {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Invalid address"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Invalid address");
   } else {
-    fsm_sendFailure(FailureType_Failure_ProcessError, _("Invalid signature"));
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Invalid signature");
   }
   layoutHome();
 }
@@ -476,7 +469,7 @@ void fsm_msgGetOwnershipId(const GetOwnershipId *msg) {
                          msg->script_type, script_pubkey,
                          &script_pubkey_size)) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Failed to derive scriptPubKey"));
+                    "Failed to derive scriptPubKey");
     layoutHome();
     return;
   }
@@ -520,7 +513,7 @@ void fsm_msgGetOwnershipProof(const GetOwnershipProof *msg) {
         memcmp(msg->commitment_data.bytes + 1, authorization->coordinator,
                coordinator_len) != 0) {
       fsm_sendFailure(FailureType_Failure_ProcessError,
-                      _("Unauthorized operation"));
+                      "Unauthorized operation");
       layoutHome();
       return;
     }
@@ -537,8 +530,7 @@ void fsm_msgGetOwnershipProof(const GetOwnershipProof *msg) {
   if (msg->has_multisig) {
     // The legacy implementation currently only supports singlesig native segwit
     // v0 and v1, the bare minimum for CoinJoin.
-    fsm_sendFailure(FailureType_Failure_DataError,
-                    _("Multisig not supported."));
+    fsm_sendFailure(FailureType_Failure_DataError, "Multisig not supported.");
     layoutHome();
     return;
   }
@@ -558,7 +550,7 @@ void fsm_msgGetOwnershipProof(const GetOwnershipProof *msg) {
                          msg->script_type, script_pubkey,
                          &script_pubkey_size)) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Failed to derive scriptPubKey"));
+                    "Failed to derive scriptPubKey");
     layoutHome();
     return;
   }
@@ -576,7 +568,7 @@ void fsm_msgGetOwnershipProof(const GetOwnershipProof *msg) {
         memcmp(ownership_id, msg->ownership_ids[0].bytes,
                sizeof(ownership_id)) != 0) {
       fsm_sendFailure(FailureType_Failure_DataError,
-                      _("Invalid ownership identifier"));
+                      "Invalid ownership identifier");
       layoutHome();
       return;
     }
@@ -607,7 +599,7 @@ void fsm_msgGetOwnershipProof(const GetOwnershipProof *msg) {
                            script_pubkey, script_pubkey_size,
                            msg->commitment_data.bytes,
                            msg->commitment_data.size, resp)) {
-    fsm_sendFailure(FailureType_Failure_ProcessError, _("Signing failed"));
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Signing failed");
 
     layoutHome();
     return;
@@ -633,8 +625,7 @@ void fsm_msgAuthorizeCoinJoin(const AuthorizeCoinJoin *msg) {
 
   if (strnlen(msg->coordinator, sizeof(msg->coordinator)) >
       MAX_COORDINATOR_LEN) {
-    fsm_sendFailure(FailureType_Failure_DataError,
-                    _("Invalid coordinator name."));
+    fsm_sendFailure(FailureType_Failure_DataError, "Invalid coordinator name.");
     layoutHome();
     return;
   }
@@ -642,15 +633,14 @@ void fsm_msgAuthorizeCoinJoin(const AuthorizeCoinJoin *msg) {
   for (size_t i = 0; msg->coordinator[i] != '\0'; ++i) {
     if (msg->coordinator[i] < 32 || msg->coordinator[i] > 126) {
       fsm_sendFailure(FailureType_Failure_DataError,
-                      _("Invalid coordinator name."));
+                      "Invalid coordinator name.");
       layoutHome();
       return;
     }
   }
 
   if (msg->max_rounds < 1) {
-    fsm_sendFailure(FailureType_Failure_DataError,
-                    _("Invalid number of rounds."));
+    fsm_sendFailure(FailureType_Failure_DataError, "Invalid number of rounds.");
     layoutHome();
     return;
   }
@@ -660,7 +650,7 @@ void fsm_msgAuthorizeCoinJoin(const AuthorizeCoinJoin *msg) {
 
   if (msg->max_rounds > MAX_ROUNDS && safety_checks_is_strict) {
     fsm_sendFailure(FailureType_Failure_DataError,
-                    _("The number of rounds is unexpectedly large."));
+                    "The number of rounds is unexpectedly large.");
     layoutHome();
     return;
   }
@@ -668,7 +658,7 @@ void fsm_msgAuthorizeCoinJoin(const AuthorizeCoinJoin *msg) {
   if (msg->max_coordinator_fee_rate > MAX_COORDINATOR_FEE_RATE &&
       safety_checks_is_strict) {
     fsm_sendFailure(FailureType_Failure_DataError,
-                    _("The coordination fee rate is unexpectedly large."));
+                    "The coordination fee rate is unexpectedly large.");
     layoutHome();
     return;
   }
@@ -676,20 +666,19 @@ void fsm_msgAuthorizeCoinJoin(const AuthorizeCoinJoin *msg) {
   if (msg->max_fee_per_kvbyte > 10 * coin->maxfee_kb &&
       safety_checks_is_strict) {
     fsm_sendFailure(FailureType_Failure_DataError,
-                    _("The fee per vbyte is unexpectedly large."));
+                    "The fee per vbyte is unexpectedly large.");
     layoutHome();
     return;
   }
 
   if (msg->address_n_count == 0) {
-    fsm_sendFailure(FailureType_Failure_DataError,
-                    _("Empty path not allowed."));
+    fsm_sendFailure(FailureType_Failure_DataError, "Empty path not allowed.");
     layoutHome();
     return;
   }
 
   if (msg->address_n[0] != PATH_SLIP25_PURPOSE && safety_checks_is_strict) {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Forbidden key path."));
+    fsm_sendFailure(FailureType_Failure_DataError, "Forbidden key path.");
     layoutHome();
     return;
   }
@@ -713,7 +702,7 @@ void fsm_msgAuthorizeCoinJoin(const AuthorizeCoinJoin *msg) {
   // AuthorizeCoinJoin contains only the path prefix without change and index.
   if ((size_t)(msg->address_n_count + 2) >
       sizeof(msg->address_n) / sizeof(msg->address_n[0])) {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Forbidden key path."));
+    fsm_sendFailure(FailureType_Failure_DataError, "Forbidden key path.");
     layoutHome();
     return;
   }
@@ -741,7 +730,7 @@ void fsm_msgAuthorizeCoinJoin(const AuthorizeCoinJoin *msg) {
     return;
   }
 
-  fsm_sendSuccess(_("Coinjoin authorized"));
+  fsm_sendSuccess("Coinjoin authorized");
   layoutHome();
 }
 
@@ -753,7 +742,7 @@ void fsm_msgCancelAuthorization(const CancelAuthorization *msg) {
     return;
   }
 
-  fsm_sendSuccess(_("Authorization cancelled"));
+  fsm_sendSuccess("Authorization cancelled");
   layoutHome();
 }
 
@@ -767,7 +756,7 @@ void fsm_msgDoPreauthorized(const DoPreauthorized *msg) {
   authorization_type = config_getAuthorizationType();
   if (authorization_type == 0) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("No preauthorized operation"));
+                    "No preauthorized operation");
     layoutHome();
     return;
   }
@@ -792,7 +781,7 @@ void fsm_msgUnlockPath(const UnlockPath *msg) {
   // instead of per-coin or per-account unlocking in order to avoid UI
   // complexity.
   if (msg->address_n_count != 1 || msg->address_n[0] != PATH_SLIP25_PURPOSE) {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Invalid path"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Invalid path");
     layoutHome();
     return;
   }
@@ -818,7 +807,7 @@ void fsm_msgUnlockPath(const UnlockPath *msg) {
     }
 
     if (msg->mac.size != SHA256_DIGEST_LENGTH || diff != 0) {
-      fsm_sendFailure(FailureType_Failure_DataError, _("Invalid MAC"));
+      fsm_sendFailure(FailureType_Failure_DataError, "Invalid MAC");
       layoutHome();
       return;
     }
@@ -890,7 +879,7 @@ void fsm_msgGetPublicKeyMultiple(const GetPublicKeyMultiple *msg) {
                               resp->xpubs[i], sizeof(resp->xpubs[i]));
     } else {
       fsm_sendFailure(FailureType_Failure_DataError,
-                      _("Invalid combination of coin and script_type"));
+                      "Invalid combination of coin and script_type");
       layoutHome();
       return;
     }

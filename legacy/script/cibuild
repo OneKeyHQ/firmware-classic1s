@@ -17,6 +17,7 @@ make -C vendor/libsol
 make
 
 if [ "$EMULATOR" != 1 ]; then
+    rm bootloader/*.bin || true
     make -C bootloader
 fi
 

@@ -16,10 +16,14 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
-
+#undef COIN_TYPE
+#define COIN_TYPE 118
 void fsm_msgCosmosGetAddress(CosmosGetAddress *msg) {
   CHECK_INITIALIZED
 
+  CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,
+                                    COIN_TYPE, SECP256K1_NAME, true),
+              "Invalid path");
   CHECK_PIN
 
   RESP_INIT(CosmosAddress);
@@ -30,7 +34,7 @@ void fsm_msgCosmosGetAddress(CosmosGetAddress *msg) {
 
   if (hdnode_fill_public_key(node) != 0) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Failed to derive public key"));
+                    "Failed to derive public key");
     layoutHome();
     return;
   }
@@ -40,23 +44,21 @@ void fsm_msgCosmosGetAddress(CosmosGetAddress *msg) {
     memcpy(msg->hrp, "cosmos", 6);  // default cosmos
   }
   if (!cosmos_get_address(resp->address, node->public_key, msg->hrp)) {
-    fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Failed to get address"));
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Failed to get address");
     layoutHome();
     return;
   }
 
   if (msg->has_show_display && msg->show_display) {
-    char desc[32] = {0};
+    char desc[64] = {0};
     const CosmosNetworkType *n = cosmosnetworkByHrp(msg->hrp);
+    strlcpy(desc, _(T__CHAIN_STR_ADDRESS), sizeof(desc));
     if (n) {
-      strcat(desc, n->chain_name);
+      bracket_replace(desc, n->chain_name);
     } else {
-      strcat(desc, "Cosmos");
+      bracket_replace(desc, "Cosmos");
     }
-    strcat(desc, " ");
-    strcat(desc, _("Address:"));
-    if (!fsm_layoutAddress(resp->address, desc, false, 0, msg->address_n,
+    if (!fsm_layoutAddress(resp->address, NULL, desc, false, 0, msg->address_n,
                            msg->address_n_count, true, NULL, 0, 0, NULL)) {
       return;
     }
@@ -68,7 +70,9 @@ void fsm_msgCosmosGetAddress(CosmosGetAddress *msg) {
 
 void fsm_msgCosmosSignTx(const CosmosSignTx *msg) {
   CHECK_INITIALIZED
-
+  CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,
+                                    COIN_TYPE, SECP256K1_NAME, true),
+              "Invalid path");
   CHECK_PIN
 
   RESP_INIT(CosmosSignedTx);
@@ -79,7 +83,7 @@ void fsm_msgCosmosSignTx(const CosmosSignTx *msg) {
 
   if (hdnode_fill_public_key(node) != 0) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Failed to derive public key"));
+                    "Failed to derive public key");
     layoutHome();
     return;
   }

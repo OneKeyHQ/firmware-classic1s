@@ -301,7 +301,7 @@ static int rlp_calculate_number_length(uint32_t number) {
 static void send_request_chunk(void) {
   int progress = 1000 - (data_total > 1000000 ? data_left / (data_total / 800)
                                               : data_left * 800 / data_total);
-  layoutProgressAdapter(_("Signing"), progress);
+  layoutProgressAdapter(_(C__SIGNING), progress);
   msg_tx_request.has_data_length = true;
   msg_tx_request.data_length = data_left <= 1024 ? data_left : 1024;
   msg_write(MessageType_MessageType_ConfluxTxRequest, &msg_tx_request);
@@ -315,11 +315,11 @@ static int conflux_is_canonic(uint8_t v, uint8_t signature[64]) {
 static void send_signature(void) {
   uint8_t hash[32] = {0}, sig[64] = {0};
   uint8_t v = 0;
-  layoutProgressAdapter(_("Signing"), 1000);
+  layoutProgressAdapter(_(C__SIGNING), 1000);
 
   keccak_Final(&keccak_ctx_cfx, hash);
   if (hdnode_sign_digest(_node, hash, sig, &v, conflux_is_canonic) != 0) {
-    fsm_sendFailure(FailureType_Failure_ProcessError, _("Signing failed"));
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Signing failed");
     conflux_signing_abort();
     return;
   }
@@ -384,7 +384,7 @@ static bool layoutConfluxConfirmTx(
     uint8_t *to, uint32_t to_len, const char *signer, const uint8_t *value,
     uint32_t value_len, const ConfluxTokenType *token, uint32_t chain_ids,
     const uint8_t *gas_price, uint32_t gas_price_len, const uint8_t *gas_limit,
-    uint32_t gas_limit_len) {
+    uint32_t gas_limit_len, const uint8_t *data, uint32_t data_len) {
   bignum256 val = {0}, gas = {0};
   uint8_t pad_val[32] = {0};
   char gas_value[32] = {0};
@@ -409,22 +409,19 @@ static bool layoutConfluxConfirmTx(
   if (to_len) {
     get_base32_encode_address(to, to_str, sizeof(to_str), chain_ids, true);
   } else {
-    strlcpy(to_str, _("to new contract?"), sizeof(to_str));
+    strlcpy(to_str, "to new contract?", sizeof(to_str));
   }
+  confluxFormatAmount(&val, token, amount, sizeof(amount));
   if (token == NULL) {
-    if (bn_is_zero(&val)) {
-      strcpy(amount, _("message"));  // contract
-    } else {
-      confluxFormatAmount(&val, NULL, amount, sizeof(amount));
-      return layoutTransactionSign(
-          "Conflux", false, amount, to_str, signer, NULL, NULL, NULL, 0,
-          _("Maximum Fee"), gas_value, NULL, NULL, NULL, NULL, NULL, NULL);
-    }
+    return layoutTransactionSign("Conflux", 0, false, amount, to_str, signer,
+                                 NULL, NULL, data, data_len,
+                                 _(I__ETH_MAXIMUM_FEE_COLON), gas_value, NULL,
+                                 NULL, NULL, NULL, NULL, NULL);
   } else {
-    confluxFormatAmount(&val, token, amount, sizeof(amount));
-    return layoutTransactionSign("Conflux", true, amount, to_str, signer, NULL,
-                                 NULL, NULL, 0, _("Maximum Fee"), gas_value,
-                                 NULL, NULL, NULL, NULL, NULL, NULL);
+    return layoutTransactionSign("Conflux", 0, true, amount, to_str, signer,
+                                 NULL, NULL, NULL, 0,
+                                 _(I__ETH_MAXIMUM_FEE_COLON), gas_value, NULL,
+                                 NULL, NULL, NULL, NULL, NULL);
   }
   return true;
 }
@@ -490,8 +487,7 @@ void conflux_signing_init(ConfluxSignTx *msg, const HDNode *node) {
 
   if (msg->has_chain_id) {
     if (msg->chain_id < 1 || msg->chain_id > MAX_CHAIN_ID) {
-      fsm_sendFailure(FailureType_Failure_DataError,
-                      _("Chain Id out of bounds"));
+      fsm_sendFailure(FailureType_Failure_DataError, "Chain Id out of bounds");
       conflux_signing_abort();
       return;
     }
@@ -504,7 +500,7 @@ void conflux_signing_init(ConfluxSignTx *msg, const HDNode *node) {
   if (msg->has_data_length && msg->data_length > 0) {
     if (!msg->has_data_initial_chunk || msg->data_initial_chunk.size == 0) {
       fsm_sendFailure(FailureType_Failure_DataError,
-                      _("Data length provided, but no initial chunk"));
+                      "Data length provided, but no initial chunk");
       conflux_signing_abort();
       return;
     }
@@ -513,7 +509,7 @@ void conflux_signing_init(ConfluxSignTx *msg, const HDNode *node) {
      */
     if (msg->data_length > 16000000) {
       fsm_sendFailure(FailureType_Failure_DataError,
-                      _("Data length exceeds limit"));
+                      "Data length exceeds limit");
       conflux_signing_abort();
       return;
     }
@@ -523,14 +519,14 @@ void conflux_signing_init(ConfluxSignTx *msg, const HDNode *node) {
   }
   if (msg->data_initial_chunk.size > data_total) {
     fsm_sendFailure(FailureType_Failure_DataError,
-                    _("Invalid size of initial chunk"));
+                    "Invalid size of initial chunk");
     conflux_signing_abort();
     return;
   }
 
   // safety checks
   if (!conflux_signing_check(msg)) {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Safety check failed"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Safety check failed");
     conflux_signing_abort();
     return;
   }
@@ -566,47 +562,19 @@ void conflux_signing_init(ConfluxSignTx *msg, const HDNode *node) {
                                 msg->data_initial_chunk.bytes + 36, 32, token,
                                 msg->chain_id, msg->gas_price.bytes,
                                 msg->gas_price.size, msg->gas_limit.bytes,
-                                msg->gas_limit.size)) {
+                                msg->gas_limit.size, NULL, 0)) {
       fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
       conflux_signing_abort();
       return;
     }
   } else {
-    if (toset) {
-      if (!layoutConfluxConfirmTx(pubkeyhash, 20, signer, msg->value.bytes,
-                                  msg->value.size, NULL, msg->chain_id,
-                                  msg->gas_price.bytes, msg->gas_price.size,
-                                  msg->gas_limit.bytes, msg->gas_limit.size)) {
-        fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
-        conflux_signing_abort();
-        return;
-      }
-    } else {
-      if (!layoutConfluxConfirmTx(pubkeyhash, 0, signer, msg->value.bytes,
-                                  msg->value.size, NULL, msg->chain_id,
-                                  msg->gas_price.bytes, msg->gas_price.size,
-                                  msg->gas_limit.bytes, msg->gas_limit.size)) {
-        fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
-        conflux_signing_abort();
-        return;
-      }
-    }
-  }
-
-  if ((token == NULL) && (data_total > 0)) {
-    char to_str[52] = {0};
-    if (toset) {
-      get_base32_encode_address(pubkeyhash, to_str, sizeof(to_str),
-                                msg->chain_id, true);
-    } else {
-      strlcpy(to_str, _("to new contract?"), sizeof(to_str));
-    }
-
-    if (!layoutBlindSign("Conflux", true, to_str, signer,
-                         msg->data_initial_chunk.bytes, data_total, NULL, NULL,
-                         NULL, NULL, NULL, NULL)) {
-      fsm_sendFailure(FailureType_Failure_ActionCancelled, "Signing cancelled");
-      layoutHome();
+    if (!layoutConfluxConfirmTx(
+            pubkeyhash, toset ? 20 : 0, signer, msg->value.bytes,
+            msg->value.size, NULL, msg->chain_id, msg->gas_price.bytes,
+            msg->gas_price.size, msg->gas_limit.bytes, msg->gas_limit.size,
+            msg->data_initial_chunk.bytes, msg->data_initial_chunk.size)) {
+      fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
+      conflux_signing_abort();
       return;
     }
   }
@@ -614,7 +582,7 @@ void conflux_signing_init(ConfluxSignTx *msg, const HDNode *node) {
   /* Stage 1: Calculate total RLP length */
   uint32_t rlp_length = 0;
 
-  layoutProgressAdapter(_("Signing"), 0);
+  layoutProgressAdapter(_(C__SIGNING), 0);
 
   rlp_length += rlp_calculate_length(msg->nonce.size, msg->nonce.bytes[0]);
   rlp_length +=
@@ -635,7 +603,7 @@ void conflux_signing_init(ConfluxSignTx *msg, const HDNode *node) {
   /* Stage 2: Store header fields */
   hash_rlp_list_length(rlp_length);
 
-  layoutProgressAdapter(_("Signing"), 100);
+  layoutProgressAdapter(_(C__SIGNING), 100);
 
   hash_rlp_field(msg->nonce.bytes, msg->nonce.size);
   hash_rlp_field(msg->gas_price.bytes, msg->gas_price.size);
@@ -660,20 +628,19 @@ void conflux_signing_init(ConfluxSignTx *msg, const HDNode *node) {
 void conflux_signing_txack(const ConfluxTxAck *tx) {
   if (!conflux_signing) {
     fsm_sendFailure(FailureType_Failure_UnexpectedMessage,
-                    _("Not in Conflux signing mode"));
+                    "Not in Conflux signing mode");
     layoutHome();
     return;
   }
 
   if (tx->data_chunk.size > data_left) {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Too much data"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Too much data");
     conflux_signing_abort();
     return;
   }
 
   if (data_left > 0 && (!tx->has_data_chunk || tx->data_chunk.size == 0)) {
-    fsm_sendFailure(FailureType_Failure_DataError,
-                    _("Empty data chunk received"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Empty data chunk received");
     conflux_signing_abort();
     return;
   }
@@ -760,9 +727,9 @@ void conflux_message_sign(const ConfluxSignMessage *msg, const HDNode *node,
   conflux_message_hash(msg->message.bytes, msg->message.size, hash);
 
   uint8_t v = 0;
-  if (hdnode_sign_digest(node, hash, resp->signature.bytes, &v,
+  if (hdnode_sign_digest((HDNode *)node, hash, resp->signature.bytes, &v,
                          conflux_is_canonic)) {
-    fsm_sendFailure(FailureType_Failure_ProcessError, _("Signing failed"));
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Signing failed");
     return;
   }
 
@@ -824,9 +791,9 @@ void conflux_message_sign_cip23(const ConfluxSignMessageCIP23 *msg,
   keccak_Final(&ctx, hash);
 
   uint8_t v = 0;
-  if (hdnode_sign_digest(node, hash, resp->signature.bytes, &v,
+  if (hdnode_sign_digest((HDNode *)node, hash, resp->signature.bytes, &v,
                          conflux_is_canonic) != 0) {
-    fsm_sendFailure(FailureType_Failure_ProcessError, _("Signing failed"));
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Signing failed");
     return;
   }
 

@@ -17,8 +17,13 @@
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#undef COIN_TYPE
+#define COIN_TYPE 503
 void fsm_msgConfluxSignTx(ConfluxSignTx *msg) {
   CHECK_INITIALIZED
+  CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,
+                                    COIN_TYPE, SECP256K1_NAME, true),
+              "Invalid path");
 
   CHECK_PIN
 
@@ -37,6 +42,9 @@ void fsm_msgConfluxGetAddress(const ConfluxGetAddress *msg) {
   RESP_INIT(ConfluxAddress);
 
   CHECK_INITIALIZED
+  CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,
+                                    COIN_TYPE, SECP256K1_NAME, true),
+              "Invalid path");
 
   CHECK_PIN
 
@@ -57,10 +65,10 @@ void fsm_msgConfluxGetAddress(const ConfluxGetAddress *msg) {
     return;
   }
   if (msg->has_show_display && msg->show_display) {
-    char desc[16] = {0};
-    strcat(desc, "Conflux");
-    strcat(desc, _("Address:"));
-    if (!fsm_layoutAddress(resp->address, desc, false, 0, msg->address_n,
+    char desc[64] = {0};
+    strlcpy(desc, _(T__CHAIN_STR_ADDRESS), sizeof(desc));
+    bracket_replace(desc, "Conflux");
+    if (!fsm_layoutAddress(resp->address, NULL, desc, false, 0, msg->address_n,
                            msg->address_n_count, false, NULL, 0, 0, NULL)) {
       return;
     }
@@ -74,6 +82,9 @@ void fsm_msgConfluxSignMessage(const ConfluxSignMessage *msg) {
   RESP_INIT(ConfluxMessageSignature);
 
   CHECK_INITIALIZED
+  CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,
+                                    COIN_TYPE, SECP256K1_NAME, true),
+              "Invalid path");
 
   CHECK_PIN
 
@@ -102,7 +113,9 @@ void fsm_msgConfluxSignMessageCIP23(const ConfluxSignMessageCIP23 *msg) {
   RESP_INIT(ConfluxMessageSignature);
 
   CHECK_INITIALIZED
-
+  CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,
+                                    COIN_TYPE, SECP256K1_NAME, true),
+              "Invalid path");
   if (msg->domain_hash.size != 32 || msg->message_hash.size != 32) {
     fsm_sendFailure(FailureType_Failure_ProcessError, "data length error");
     return;
@@ -128,7 +141,7 @@ void fsm_msgConfluxSignMessageCIP23(const ConfluxSignMessageCIP23 *msg) {
   data2hex(msg->message_hash.bytes, 32, msg_hash);
   if (!fsm_layoutSignHash(
           "Conflux", signer_str, domain_hash, msg_hash,
-          _("Unable to show CIP-712 data. Sign at your own risk."))) {
+          _(C__UNBALE_TO_DECODE_EIP712_DATA_SIGN_AT_YOUR_OWN_RISK_EXCLAM))) {
     fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
     layoutHome();
     return;

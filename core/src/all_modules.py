@@ -111,6 +111,10 @@ trezor.enums.InputScriptType
 import trezor.enums.InputScriptType
 trezor.enums.MessageType
 import trezor.enums.MessageType
+trezor.enums.OneKeyDeviceType
+import trezor.enums.OneKeyDeviceType
+trezor.enums.OneKeySeType
+import trezor.enums.OneKeySeType
 trezor.enums.OutputScriptType
 import trezor.enums.OutputScriptType
 trezor.enums.PinMatrixRequestType
@@ -379,6 +383,10 @@ if not utils.BITCOIN_ONLY:
     import trezor.enums.CardanoTxWitnessType
     trezor.enums.EthereumDataType
     import trezor.enums.EthereumDataType
+    trezor.enums.EthereumDataTypeOneKey
+    import trezor.enums.EthereumDataTypeOneKey
+    trezor.enums.EthereumDefinitionType
+    import trezor.enums.EthereumDefinitionType
     trezor.enums.MoneroNetworkType
     import trezor.enums.MoneroNetworkType
     trezor.enums.NEMImportanceTransferMode

@@ -25,10 +25,12 @@
 #include "common.h"
 #include "compiler_traits.h"
 #include "config.h"
+#include "font_ex.h"
 #include "gettext.h"
 #include "layout.h"
 #include "layout2.h"
 #include "memzero.h"
+#include "menu_list.h"
 #include "oled.h"
 #include "protect.h"
 #include "rng.h"
@@ -40,6 +42,8 @@
 #include <libopencm3/stm32/desig.h>
 #include "ble.h"
 #include "otp.h"
+#include "se_chip.h"
+#include "secp256k1.h"
 #include "sys.h"
 #endif
 #ifdef USE_SECP256K1_ZKP
@@ -153,6 +157,80 @@ static void collect_hw_entropy(bool privileged) {
 #endif
 }
 
+static void set_thd89_session_key(void) {
+#if !EMULATOR
+  // set entropy in the OTP randomness block
+  // if (!flash_otp_is_locked(FLASH_OTP_BLOCK_THD89_SESSION_KEY)) {
+  //   uint8_t entropy[FLASH_OTP_BLOCK_SIZE] = {0};
+  //   random_buffer(entropy, FLASH_OTP_BLOCK_SIZE);
+  //   ensure(se_set_session_key(entropy), NULL);
+  //   flash_otp_write(FLASH_OTP_BLOCK_THD89_SESSION_KEY, 0, entropy,
+  //                   FLASH_OTP_BLOCK_SIZE);
+  //   flash_otp_lock(FLASH_OTP_BLOCK_THD89_SESSION_KEY);
+  // }
+
+  if (!flash_otp_is_locked(FLASH_OTP_BLOCK_THD89_PUBLIC_KEY1) ||
+      !flash_otp_is_locked(FLASH_OTP_BLOCK_THD89_PUBLIC_KEY2)) {
+    uint8_t pubkey[64] = {0};
+    ensure(se_get_ecdh_pubkey(pubkey), NULL);
+    ensure(se_lock_ecdh_pubkey(), NULL);
+    flash_otp_write(FLASH_OTP_BLOCK_THD89_PUBLIC_KEY1, 0, pubkey,
+                    FLASH_OTP_BLOCK_SIZE);
+    flash_otp_write(FLASH_OTP_BLOCK_THD89_PUBLIC_KEY2, 0, pubkey + 32,
+                    FLASH_OTP_BLOCK_SIZE);
+    flash_otp_lock(FLASH_OTP_BLOCK_THD89_PUBLIC_KEY1);
+    flash_otp_lock(FLASH_OTP_BLOCK_THD89_PUBLIC_KEY2);
+  }
+
+#endif
+}
+#if !EMULATOR
+static void verify_ble_firmware(void) {
+  uint8_t pubkey[65], rand_buffer[16], digest[32], sign[64];
+  uint8_t key;
+#if !EMULATOR
+  char *ble_ver = NULL;
+  ensure(ble_get_version(&ble_ver) ? sectrue : secfalse, NULL);
+#else
+  char ble_ver[5] = "1.5.1";
+#endif
+  if (!flash_otp_is_locked(FLASH_OTP_BLOCK_BLE_PUBLIC_KEY1) ||
+      !flash_otp_is_locked(FLASH_OTP_BLOCK_BLE_PUBLIC_KEY2)) {
+    if (memcmp(ble_ver, "1.5.1", 5) < 0) {
+      layoutDialogCenterAdapterEx(NULL, NULL, NULL, NULL, NULL,
+                                  "Please update BLE", NULL, NULL);
+      while (1) {
+        key = keyScan();
+        if (key == KEY_CONFIRM) {
+          return;
+        }
+      }
+    }
+    ensure(ble_get_pubkey(pubkey + 1) ? sectrue : secfalse, NULL);
+    ensure(ble_lock_pubkey() ? sectrue : secfalse, NULL);
+
+    flash_otp_write(FLASH_OTP_BLOCK_BLE_PUBLIC_KEY1, 0, pubkey + 1,
+                    FLASH_OTP_BLOCK_SIZE);
+    flash_otp_write(FLASH_OTP_BLOCK_BLE_PUBLIC_KEY2, 0, pubkey + 33,
+                    FLASH_OTP_BLOCK_SIZE);
+    flash_otp_lock(FLASH_OTP_BLOCK_BLE_PUBLIC_KEY1);
+    flash_otp_lock(FLASH_OTP_BLOCK_BLE_PUBLIC_KEY2);
+  } else {
+    flash_otp_read(FLASH_OTP_BLOCK_BLE_PUBLIC_KEY1, 0, pubkey + 1,
+                   FLASH_OTP_BLOCK_SIZE);
+    flash_otp_read(FLASH_OTP_BLOCK_BLE_PUBLIC_KEY2, 0, pubkey + 33,
+                   FLASH_OTP_BLOCK_SIZE);
+  }
+  pubkey[0] = 0x04;
+  random_buffer(rand_buffer, 16);
+  ensure(ble_sign_msg(rand_buffer, 16, sign) ? sectrue : secfalse, NULL);
+  sha256_Raw(rand_buffer, 16, digest);
+
+  ensure(ecdsa_verify_digest(&secp256k1, pubkey, sign, digest) == 0 ? sectrue
+                                                                    : secfalse,
+         NULL);
+}
+#endif
 int main(void) {
 #ifndef APPVER
   setup();
@@ -160,12 +238,14 @@ int main(void) {
                                    // unpredictable stack protection checks
   oledInit();
 #else
-  // TODO: DO not check bootloader for test version
-  // check_and_replace_bootloader(true);
   setupApp();
-  ble_reset();
+#if !FIRMWARE_QA
+  check_and_replace_bootloader(true);
+#endif
+  // ble_reset();
 #if !EMULATOR
   register_timer("button", timer1s / 2, buttonsTimer);
+  register_timer("button_long", timer1s / 5, longPressTimer);
   register_timer("charge_dis", timer1s, chargeDisTimer);
 #endif
   __stack_chk_guard = random32();  // this supports compiler provided
@@ -173,11 +253,14 @@ int main(void) {
 #endif
 
   drbg_init();
-
+  timer_init();
+  set_thd89_session_key();
+#if !EMULATOR
+  verify_ble_firmware();
+#endif
   if (!is_mode_unprivileged()) {
     cpu_mode = PRIVILEGED;
     collect_hw_entropy(true);
-    timer_init();
 #ifdef APPVER
     // enable MPU (Memory Protection Unit)
     mpu_config_firmware();
@@ -198,8 +281,10 @@ int main(void) {
 #endif
 
   config_init();
+  menu_default();
   layoutHome();
   usbInit();
+  font_init();
 
 #if EMULATOR
   system_millis_lock_start = timer_ms();

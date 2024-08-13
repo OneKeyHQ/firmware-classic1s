@@ -64,7 +64,7 @@
   pageIdx--;
 
 #define GEN_DEC_READFIX_UNSIGNED(BITS) \
-  parser_error_t _preadUInt##BITS(parser_context_t *ctx, uint##BITS##_t *value)
+  parser_error_t _preadUInt##BITS(parser_context_t *ctx, uint##BITS##_t *value);
 #define GEN_DEF_READFIX_UNSIGNED(BITS)                                        \
   parser_error_t _preadUInt##BITS(parser_context_t *ctx,                      \
                                   uint##BITS##_t *value) {                    \
@@ -158,8 +158,6 @@ GEN_DEC_READFIX_UNSIGNED(64);
 parser_error_t polkadot_parser_init(parser_context_t *ctx,
                                     const uint8_t *buffer, uint16_t bufferSize);
 
-parser_error_t _substrate_readBool(parser_context_t *c, pd_bool_t *value);
-
 parser_error_t _readCompactInt(parser_context_t *c, compactInt_t *v);
 
 parser_error_t _readCompactBalance(parser_context_t *c, pd_CompactBalance_t *v);
@@ -170,9 +168,9 @@ parser_error_t _readCallIndex(parser_context_t *c, pd_CallIndex_t *v);
 
 parser_error_t _readEra(parser_context_t *c, pd_ExtrinsicEra_t *v);
 
-parser_error_t _polkadot_readTx(parser_context_t *c, parser_tx_t *v);
-
-parser_error_t _checkVersions(parser_context_t *c);
+parser_error_t _polkadot_readTx(parser_context_t *c, parser_tx_t *v,
+                                bool mode_enabled);
+// parser_error_t _checkVersions(parser_context_t *c);
 
 uint16_t _getAddressType(void);
 

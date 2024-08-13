@@ -37,6 +37,7 @@
 #include "bip32.h"
 #include "config.h"
 #include "crypto.h"
+#include "curves.h"
 #include "fonts.h"
 #include "fsm.h"
 #include "gettext.h"
@@ -47,7 +48,6 @@
 #include "oled.h"
 #include "protect.h"
 #include "util.h"
-#include "curves.h"
 
 static bool stellar_signing = false;
 static StellarTransaction stellar_activeTx;
@@ -135,7 +135,7 @@ bool stellar_signingInit(const StellarSignTx *msg) {
       break;
     default:
       fsm_sendFailure(FailureType_Failure_DataError,
-                      _("Stellar invalid memo type"));
+                      "Stellar invalid memo type");
       return false;
   }
 
@@ -165,7 +165,7 @@ void stellar_signingAbort(void) {
 
 static void stellar_signingFail(const char *reason) {
   if (!reason) {
-    reason = _("Unknown error");
+    reason = "Unknown error";
   }
   fsm_sendFailure(FailureType_Failure_ProcessError, reason);
 
@@ -187,11 +187,11 @@ bool stellar_confirmSourceAccount(bool has_source_account,
 
   const char **str_addr_rows = stellar_lineBreakAddress(bytes);
 
-  stellar_layoutTransactionDialog(_("Op src account OK?"), NULL,
+  stellar_layoutTransactionDialog(__("Op src account OK?"), NULL,
                                   str_addr_rows[0], str_addr_rows[1],
                                   str_addr_rows[2]);
   if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
-    stellar_signingFail(_("User canceled"));
+    stellar_signingFail("User canceled");
     return false;
   }
 
@@ -206,7 +206,7 @@ bool stellar_confirmCreateAccountOp(const StellarCreateAccountOp *msg) {
 
   if (!stellar_confirmSourceAccount(msg->has_source_account,
                                     msg->source_account)) {
-    stellar_signingFail(_("Source account error"));
+    stellar_signingFail("Source account error");
     return false;
   }
 
@@ -216,7 +216,7 @@ bool stellar_confirmCreateAccountOp(const StellarCreateAccountOp *msg) {
   // Validate new account and convert to bytes
   uint8_t new_account_bytes[STELLAR_KEY_SIZE] = {0};
   if (!stellar_getAddressBytes(msg->new_account, new_account_bytes)) {
-    stellar_signingFail(_("Invalid new account address"));
+    stellar_signingFail("Invalid new account address");
     return false;
   }
 
@@ -227,15 +227,15 @@ bool stellar_confirmCreateAccountOp(const StellarCreateAccountOp *msg) {
   char str_amount[32] = {0};
   stellar_format_stroops(msg->starting_balance, str_amount, sizeof(str_amount));
 
-  strlcpy(str_amount_line, _("With "), sizeof(str_amount_line));
+  strlcpy(str_amount_line, __("With "), sizeof(str_amount_line));
   strlcat(str_amount_line, str_amount, sizeof(str_amount_line));
-  strlcat(str_amount_line, _(" XLM"), sizeof(str_amount_line));
+  strlcat(str_amount_line, __(" XLM"), sizeof(str_amount_line));
 
-  stellar_layoutTransactionDialog(_("Create account: "), str_addr_rows[0],
+  stellar_layoutTransactionDialog(__("Create account: "), str_addr_rows[0],
                                   str_addr_rows[1], str_addr_rows[2],
                                   str_amount_line);
   if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
-    stellar_signingFail(_("User canceled"));
+    stellar_signingFail("User canceled");
     return false;
   }
 
@@ -253,7 +253,7 @@ bool stellar_confirmPaymentOp(const StellarPaymentOp *msg) {
 
   if (!stellar_confirmSourceAccount(msg->has_source_account,
                                     msg->source_account)) {
-    stellar_signingFail(_("Source account error"));
+    stellar_signingFail("Source account error");
     return false;
   }
 
@@ -264,7 +264,7 @@ bool stellar_confirmPaymentOp(const StellarPaymentOp *msg) {
   uint8_t destination_account_bytes[STELLAR_KEY_SIZE] = {0};
   if (!stellar_getAddressBytes(msg->destination_account,
                                destination_account_bytes)) {
-    stellar_signingFail(_("Invalid destination account"));
+    stellar_signingFail("Invalid destination account");
     return false;
   }
 
@@ -273,7 +273,7 @@ bool stellar_confirmPaymentOp(const StellarPaymentOp *msg) {
 
   // To: G...
   char str_to[32] = {0};
-  strlcpy(str_to, _("To: "), sizeof(str_to));
+  strlcpy(str_to, __("To: "), sizeof(str_to));
   strlcat(str_to, str_addr_rows[0], sizeof(str_to));
 
   char str_asset_row[32] = {0};
@@ -284,13 +284,13 @@ bool stellar_confirmPaymentOp(const StellarPaymentOp *msg) {
   char str_amount[32] = {0};
   stellar_format_stroops(msg->amount, str_amount, sizeof(str_amount));
 
-  strlcpy(str_pay_amount, _("Pay "), sizeof(str_pay_amount));
+  strlcpy(str_pay_amount, __("Pay "), sizeof(str_pay_amount));
   strlcat(str_pay_amount, str_amount, sizeof(str_pay_amount));
 
   stellar_layoutTransactionDialog(str_pay_amount, str_asset_row, str_to,
                                   str_addr_rows[1], str_addr_rows[2]);
   if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
-    stellar_signingFail(_("User canceled"));
+    stellar_signingFail("User canceled");
     return false;
   }
 
@@ -312,7 +312,7 @@ bool stellar_confirmPathPaymentStrictReceiveOp(
 
   if (!stellar_confirmSourceAccount(msg->has_source_account,
                                     msg->source_account)) {
-    stellar_signingFail(_("Source account error"));
+    stellar_signingFail("Source account error");
     return false;
   }
 
@@ -323,7 +323,7 @@ bool stellar_confirmPathPaymentStrictReceiveOp(
   uint8_t destination_account_bytes[STELLAR_KEY_SIZE] = {0};
   if (!stellar_getAddressBytes(msg->destination_account,
                                destination_account_bytes)) {
-    stellar_signingFail(_("Invalid destination account"));
+    stellar_signingFail("Invalid destination account");
     return false;
   }
   const char **str_dest_rows =
@@ -331,7 +331,7 @@ bool stellar_confirmPathPaymentStrictReceiveOp(
 
   // To: G...
   char str_to[32] = {0};
-  strlcpy(str_to, _("To: "), sizeof(str_to));
+  strlcpy(str_to, __("To: "), sizeof(str_to));
   strlcat(str_to, str_dest_rows[0], sizeof(str_to));
 
   char str_send_asset[32] = {0};
@@ -346,7 +346,7 @@ bool stellar_confirmPathPaymentStrictReceiveOp(
   stellar_format_stroops(msg->destination_amount, str_amount,
                          sizeof(str_amount));
 
-  strlcpy(str_pay_amount, _("Path Pay "), sizeof(str_pay_amount));
+  strlcpy(str_pay_amount, __("Path Pay "), sizeof(str_pay_amount));
   strlcat(str_pay_amount, str_amount, sizeof(str_pay_amount));
 
   // Confirm what the receiver will get
@@ -360,7 +360,7 @@ bool stellar_confirmPathPaymentStrictReceiveOp(
   stellar_layoutTransactionDialog(str_pay_amount, str_dest_asset, str_to,
                                   str_dest_rows[1], str_dest_rows[2]);
   if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
-    stellar_signingFail(_("User canceled"));
+    stellar_signingFail("User canceled");
     return false;
   }
 
@@ -370,14 +370,14 @@ bool stellar_confirmPathPaymentStrictReceiveOp(
   stellar_format_stroops(msg->send_max, str_source_number,
                          sizeof(str_source_number));
 
-  strlcpy(str_source_amount, _("Pay Using "), sizeof(str_source_amount));
+  strlcpy(str_source_amount, __("Pay Using "), sizeof(str_source_amount));
   strlcat(str_source_amount, str_source_number, sizeof(str_source_amount));
 
-  stellar_layoutTransactionDialog(str_source_amount, str_send_asset,
-                                  _("This is the max"),
-                                  _("amount debited from your"), _("account."));
+  stellar_layoutTransactionDialog(
+      str_source_amount, str_send_asset, __("This is the max"),
+      __("amount debited from your"), __("account."));
   if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
-    stellar_signingFail(_("User canceled"));
+    stellar_signingFail("User canceled");
     return false;
   }
   // Note: no confirmation for intermediate steps since they don't impact the
@@ -411,7 +411,7 @@ bool stellar_confirmPathPaymentStrictSendOp(
 
   if (!stellar_confirmSourceAccount(msg->has_source_account,
                                     msg->source_account)) {
-    stellar_signingFail(_("Source account error"));
+    stellar_signingFail("Source account error");
     return false;
   }
 
@@ -422,7 +422,7 @@ bool stellar_confirmPathPaymentStrictSendOp(
   uint8_t destination_account_bytes[STELLAR_KEY_SIZE] = {0};
   if (!stellar_getAddressBytes(msg->destination_account,
                                destination_account_bytes)) {
-    stellar_signingFail(_("Invalid destination account"));
+    stellar_signingFail("Invalid destination account");
     return false;
   }
   const char **str_dest_rows =
@@ -430,7 +430,7 @@ bool stellar_confirmPathPaymentStrictSendOp(
 
   // To: G...
   char str_to[32] = {0};
-  strlcpy(str_to, _("To: "), sizeof(str_to));
+  strlcpy(str_to, __("To: "), sizeof(str_to));
   strlcat(str_to, str_dest_rows[0], sizeof(str_to));
 
   char str_send_asset[32] = {0};
@@ -455,10 +455,10 @@ bool stellar_confirmPathPaymentStrictSendOp(
   ....
   ....
   */
-  stellar_layoutTransactionDialog(_("Path Pay at least"), str_pay_amount,
+  stellar_layoutTransactionDialog(__("Path Pay at least"), str_pay_amount,
                                   str_dest_asset, str_to, str_dest_rows[1]);
   if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
-    stellar_signingFail(_("User canceled"));
+    stellar_signingFail("User canceled");
     return false;
   }
 
@@ -468,14 +468,14 @@ bool stellar_confirmPathPaymentStrictSendOp(
   stellar_format_stroops(msg->send_amount, str_source_number,
                          sizeof(str_source_number));
 
-  strlcpy(str_source_amount, _("Pay Using "), sizeof(str_source_amount));
+  strlcpy(str_source_amount, __("Pay Using "), sizeof(str_source_amount));
   strlcat(str_source_amount, str_source_number, sizeof(str_source_amount));
 
   stellar_layoutTransactionDialog(
       str_dest_rows[2], str_source_amount, str_send_asset,
-      _("This is the amount debited"), _("from your account."));
+      __("This is the amount debited"), __("from your account."));
   if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
-    stellar_signingFail(_("User canceled"));
+    stellar_signingFail("User canceled");
     return false;
   }
   // Note: no confirmation for intermediate steps since they don't impact the
@@ -508,7 +508,7 @@ bool stellar_confirmManageBuyOfferOp(const StellarManageBuyOfferOp *msg) {
 
   if (!stellar_confirmSourceAccount(msg->has_source_account,
                                     msg->source_account)) {
-    stellar_signingFail(_("Source account error"));
+    stellar_signingFail("Source account error");
     return false;
   }
 
@@ -518,15 +518,15 @@ bool stellar_confirmManageBuyOfferOp(const StellarManageBuyOfferOp *msg) {
   // New Offer / Delete #123 / Update #123
   char str_offer[32] = {0};
   if (msg->offer_id == 0) {
-    strlcpy(str_offer, _("New Offer"), sizeof(str_offer));
+    strlcpy(str_offer, __("New Offer"), sizeof(str_offer));
   } else {
     char str_offer_id[20] = {0};
     stellar_format_uint64(msg->offer_id, str_offer_id, sizeof(str_offer_id));
 
     if (msg->amount == 0) {
-      strlcpy(str_offer, _("Delete #"), sizeof(str_offer));
+      strlcpy(str_offer, __("Delete #"), sizeof(str_offer));
     } else {
-      strlcpy(str_offer, _("Update #"), sizeof(str_offer));
+      strlcpy(str_offer, __("Update #"), sizeof(str_offer));
     }
 
     strlcat(str_offer, str_offer_id, sizeof(str_offer));
@@ -545,7 +545,7 @@ bool stellar_confirmManageBuyOfferOp(const StellarManageBuyOfferOp *msg) {
    Buy 200
    XLM (Native Asset)
   */
-  strlcpy(str_buying, _("Buy "), sizeof(str_buying));
+  strlcpy(str_buying, __("Buy "), sizeof(str_buying));
   strlcat(str_buying, str_buying_amount, sizeof(str_buying));
 
   char str_selling[32] = {0};
@@ -561,14 +561,14 @@ bool stellar_confirmManageBuyOfferOp(const StellarManageBuyOfferOp *msg) {
    For 0.675952 Per
    USD (G12345678)
    */
-  strlcpy(str_selling, _("For "), sizeof(str_selling));
+  strlcpy(str_selling, __("For "), sizeof(str_selling));
   strlcat(str_selling, str_price, sizeof(str_selling));
-  strlcat(str_selling, _(" Per"), sizeof(str_selling));
+  strlcat(str_selling, __(" Per"), sizeof(str_selling));
 
   stellar_layoutTransactionDialog(str_offer, str_buying, str_buying_asset,
                                   str_selling, str_selling_asset);
   if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
-    stellar_signingFail(_("User canceled"));
+    stellar_signingFail("User canceled");
     return false;
   }
 
@@ -595,7 +595,7 @@ bool stellar_confirmManageSellOfferOp(const StellarManageSellOfferOp *msg) {
 
   if (!stellar_confirmSourceAccount(msg->has_source_account,
                                     msg->source_account)) {
-    stellar_signingFail(_("Source account error"));
+    stellar_signingFail("Source account error");
     return false;
   }
 
@@ -605,15 +605,15 @@ bool stellar_confirmManageSellOfferOp(const StellarManageSellOfferOp *msg) {
   // New Offer / Delete #123 / Update #123
   char str_offer[32] = {0};
   if (msg->offer_id == 0) {
-    strlcpy(str_offer, _("New Offer"), sizeof(str_offer));
+    strlcpy(str_offer, __("New Offer"), sizeof(str_offer));
   } else {
     char str_offer_id[20] = {0};
     stellar_format_uint64(msg->offer_id, str_offer_id, sizeof(str_offer_id));
 
     if (msg->amount == 0) {
-      strlcpy(str_offer, _("Delete #"), sizeof(str_offer));
+      strlcpy(str_offer, __("Delete #"), sizeof(str_offer));
     } else {
-      strlcpy(str_offer, _("Update #"), sizeof(str_offer));
+      strlcpy(str_offer, __("Update #"), sizeof(str_offer));
     }
 
     strlcat(str_offer, str_offer_id, sizeof(str_offer));
@@ -631,7 +631,7 @@ bool stellar_confirmManageSellOfferOp(const StellarManageSellOfferOp *msg) {
    Sell 200
    XLM (Native Asset)
   */
-  strlcpy(str_selling, _("Sell "), sizeof(str_selling));
+  strlcpy(str_selling, __("Sell "), sizeof(str_selling));
   strlcat(str_selling, str_sell_amount, sizeof(str_selling));
 
   char str_buying[32] = {0};
@@ -647,14 +647,14 @@ bool stellar_confirmManageSellOfferOp(const StellarManageSellOfferOp *msg) {
    For 0.675952 Per
    USD (G12345678)
    */
-  strlcpy(str_buying, _("For "), sizeof(str_buying));
+  strlcpy(str_buying, __("For "), sizeof(str_buying));
   strlcat(str_buying, str_price, sizeof(str_buying));
-  strlcat(str_buying, _(" Per"), sizeof(str_buying));
+  strlcat(str_buying, __(" Per"), sizeof(str_buying));
 
   stellar_layoutTransactionDialog(str_offer, str_selling, str_selling_asset,
                                   str_buying, str_buying_asset);
   if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
-    stellar_signingFail(_("User canceled"));
+    stellar_signingFail("User canceled");
     return false;
   }
 
@@ -682,7 +682,7 @@ bool stellar_confirmCreatePassiveSellOfferOp(
 
   if (!stellar_confirmSourceAccount(msg->has_source_account,
                                     msg->source_account)) {
-    stellar_signingFail(_("Source account error"));
+    stellar_signingFail("Source account error");
     return false;
   }
 
@@ -692,9 +692,9 @@ bool stellar_confirmCreatePassiveSellOfferOp(
   // New Offer / Delete #123 / Update #123
   char str_offer[32] = {0};
   if (msg->amount == 0) {
-    strlcpy(str_offer, _("Delete Passive Offer"), sizeof(str_offer));
+    strlcpy(str_offer, __("Delete Passive Offer"), sizeof(str_offer));
   } else {
-    strlcpy(str_offer, _("New Passive Offer"), sizeof(str_offer));
+    strlcpy(str_offer, __("New Passive Offer"), sizeof(str_offer));
   }
 
   char str_selling[32] = {0};
@@ -709,7 +709,7 @@ bool stellar_confirmCreatePassiveSellOfferOp(
    Sell 200
    XLM (Native Asset)
   */
-  strlcpy(str_selling, _("Sell "), sizeof(str_selling));
+  strlcpy(str_selling, __("Sell "), sizeof(str_selling));
   strlcat(str_selling, str_sell_amount, sizeof(str_selling));
 
   char str_buying[32] = {0};
@@ -725,14 +725,14 @@ bool stellar_confirmCreatePassiveSellOfferOp(
    For 0.675952 Per
    USD (G12345678)
    */
-  strlcpy(str_buying, _("For "), sizeof(str_buying));
+  strlcpy(str_buying, __("For "), sizeof(str_buying));
   strlcat(str_buying, str_price, sizeof(str_buying));
-  strlcat(str_buying, _(" Per"), sizeof(str_buying));
+  strlcat(str_buying, __(" Per"), sizeof(str_buying));
 
   stellar_layoutTransactionDialog(str_offer, str_selling, str_selling_asset,
                                   str_buying, str_buying_asset);
   if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
-    stellar_signingFail(_("User canceled"));
+    stellar_signingFail("User canceled");
     return false;
   }
 
@@ -757,7 +757,7 @@ bool stellar_confirmSetOptionsOp(const StellarSetOptionsOp *msg) {
 
   if (!stellar_confirmSourceAccount(msg->has_source_account,
                                     msg->source_account)) {
-    stellar_signingFail(_("Source account error"));
+    stellar_signingFail("Source account error");
     return false;
   }
 
@@ -773,13 +773,13 @@ bool stellar_confirmSetOptionsOp(const StellarSetOptionsOp *msg) {
   // Inflation destination
   stellar_hashupdate_bool(msg->has_inflation_destination_account);
   if (msg->has_inflation_destination_account) {
-    strlcpy(str_title, _("Set Inflation Destination"), sizeof(str_title));
+    strlcpy(str_title, __("Set Inflation Destination"), sizeof(str_title));
 
     // Validate account and convert to bytes
     uint8_t inflation_destination_account_bytes[STELLAR_KEY_SIZE] = {0};
     if (!stellar_getAddressBytes(msg->inflation_destination_account,
                                  inflation_destination_account_bytes)) {
-      stellar_signingFail(_("Invalid inflation destination account"));
+      stellar_signingFail("Invalid inflation destination account");
       return false;
     }
     const char **str_addr_rows =
@@ -788,7 +788,7 @@ bool stellar_confirmSetOptionsOp(const StellarSetOptionsOp *msg) {
     stellar_layoutTransactionDialog(str_title, NULL, str_addr_rows[0],
                                     str_addr_rows[1], str_addr_rows[2]);
     if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
-      stellar_signingFail(_("User canceled"));
+      stellar_signingFail("User canceled");
       return false;
     }
 
@@ -799,32 +799,32 @@ bool stellar_confirmSetOptionsOp(const StellarSetOptionsOp *msg) {
   // Clear flags
   stellar_hashupdate_bool(msg->has_clear_flags);
   if (msg->has_clear_flags) {
-    strlcpy(str_title, _("Clear Flag(s)"), sizeof(str_title));
+    strlcpy(str_title, __("Clear Flag(s)"), sizeof(str_title));
 
     // Auth required
     if (msg->clear_flags > 7) {
-      stellar_signingFail(_("Invalid flags"));
+      stellar_signingFail("Invalid flags");
       return false;
     }
     if (msg->clear_flags & 0x01) {
-      strlcpy(rows[row_idx], _("AUTH_REQUIRED"), sizeof(rows[row_idx]));
+      strlcpy(rows[row_idx], __("AUTH_REQUIRED"), sizeof(rows[row_idx]));
       row_idx++;
     }
     // Auth revocable
     if (msg->clear_flags & 0x02) {
-      strlcpy(rows[row_idx], _("AUTH_REVOCABLE"), sizeof(rows[row_idx]));
+      strlcpy(rows[row_idx], __("AUTH_REVOCABLE"), sizeof(rows[row_idx]));
       row_idx++;
     }
     // Auth immutable
     if (msg->clear_flags & 0x04) {
-      strlcpy(rows[row_idx], _("AUTH_IMMUTABLE"), sizeof(rows[row_idx]));
+      strlcpy(rows[row_idx], __("AUTH_IMMUTABLE"), sizeof(rows[row_idx]));
       row_idx++;
     }
 
     stellar_layoutTransactionDialog(str_title, rows[0], rows[1], rows[2],
                                     rows[3]);
     if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
-      stellar_signingFail(_("User canceled"));
+      stellar_signingFail("User canceled");
       return false;
     }
     memzero(rows, sizeof(rows));
@@ -837,32 +837,32 @@ bool stellar_confirmSetOptionsOp(const StellarSetOptionsOp *msg) {
   // Set flags
   stellar_hashupdate_bool(msg->has_set_flags);
   if (msg->has_set_flags) {
-    strlcpy(str_title, _("Set Flag(s)"), sizeof(str_title));
+    strlcpy(str_title, __("Set Flag(s)"), sizeof(str_title));
 
     // Auth required
     if (msg->set_flags > 7) {
-      stellar_signingFail(_("Invalid flags"));
+      stellar_signingFail("Invalid flags");
       return false;
     }
     if (msg->set_flags & 0x01) {
-      strlcpy(rows[row_idx], _("AUTH_REQUIRED"), sizeof(rows[row_idx]));
+      strlcpy(rows[row_idx], __("AUTH_REQUIRED"), sizeof(rows[row_idx]));
       row_idx++;
     }
     // Auth revocable
     if (msg->set_flags & 0x02) {
-      strlcpy(rows[row_idx], _("AUTH_REVOCABLE"), sizeof(rows[row_idx]));
+      strlcpy(rows[row_idx], __("AUTH_REVOCABLE"), sizeof(rows[row_idx]));
       row_idx++;
     }
     // Auth immutable
     if (msg->set_flags & 0x04) {
-      strlcpy(rows[row_idx], _("AUTH_IMMUTABLE"), sizeof(rows[row_idx]));
+      strlcpy(rows[row_idx], __("AUTH_IMMUTABLE"), sizeof(rows[row_idx]));
       row_idx++;
     }
 
     stellar_layoutTransactionDialog(str_title, rows[0], rows[1], rows[2],
                                     rows[3]);
     if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
-      stellar_signingFail(_("User canceled"));
+      stellar_signingFail("User canceled");
       return false;
     }
     memzero(rows, sizeof(rows));
@@ -881,7 +881,7 @@ bool stellar_confirmSetOptionsOp(const StellarSetOptionsOp *msg) {
     show_thresholds_confirm = true;
     stellar_format_uint32(msg->master_weight, str_master_weight,
                           sizeof(str_master_weight));
-    strlcpy(rows[row_idx], _("Master Weight: "), sizeof(rows[row_idx]));
+    strlcpy(rows[row_idx], __("Master Weight: "), sizeof(rows[row_idx]));
     strlcat(rows[row_idx], str_master_weight, sizeof(rows[row_idx]));
     row_idx++;
 
@@ -895,7 +895,7 @@ bool stellar_confirmSetOptionsOp(const StellarSetOptionsOp *msg) {
     show_thresholds_confirm = true;
     stellar_format_uint32(msg->low_threshold, str_low_threshold,
                           sizeof(str_low_threshold));
-    strlcpy(rows[row_idx], _("Low: "), sizeof(rows[row_idx]));
+    strlcpy(rows[row_idx], __("Low: "), sizeof(rows[row_idx]));
     strlcat(rows[row_idx], str_low_threshold, sizeof(rows[row_idx]));
     row_idx++;
 
@@ -909,7 +909,7 @@ bool stellar_confirmSetOptionsOp(const StellarSetOptionsOp *msg) {
     show_thresholds_confirm = true;
     stellar_format_uint32(msg->medium_threshold, str_med_threshold,
                           sizeof(str_med_threshold));
-    strlcpy(rows[row_idx], _("Medium: "), sizeof(rows[row_idx]));
+    strlcpy(rows[row_idx], __("Medium: "), sizeof(rows[row_idx]));
     strlcat(rows[row_idx], str_med_threshold, sizeof(rows[row_idx]));
     row_idx++;
 
@@ -923,7 +923,7 @@ bool stellar_confirmSetOptionsOp(const StellarSetOptionsOp *msg) {
     show_thresholds_confirm = true;
     stellar_format_uint32(msg->high_threshold, str_high_threshold,
                           sizeof(str_high_threshold));
-    strlcpy(rows[row_idx], _("High: "), sizeof(rows[row_idx]));
+    strlcpy(rows[row_idx], __("High: "), sizeof(rows[row_idx]));
     strlcat(rows[row_idx], str_high_threshold, sizeof(rows[row_idx]));
     row_idx++;
 
@@ -932,11 +932,11 @@ bool stellar_confirmSetOptionsOp(const StellarSetOptionsOp *msg) {
   }
 
   if (show_thresholds_confirm) {
-    strlcpy(str_title, _("Account Thresholds"), sizeof(str_title));
+    strlcpy(str_title, __("Account Thresholds"), sizeof(str_title));
     stellar_layoutTransactionDialog(str_title, rows[0], rows[1], rows[2],
                                     rows[3]);
     if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
-      stellar_signingFail(_("User canceled"));
+      stellar_signingFail("User canceled");
       return false;
     }
     memzero(rows, sizeof(rows));
@@ -946,7 +946,7 @@ bool stellar_confirmSetOptionsOp(const StellarSetOptionsOp *msg) {
   // Home domain
   stellar_hashupdate_bool(msg->has_home_domain);
   if (msg->has_home_domain) {
-    strlcpy(str_title, _("Home Domain"), sizeof(str_title));
+    strlcpy(str_title, __("Home Domain"), sizeof(str_title));
 
     // Split home domain if longer than 22 characters
     int home_domain_len = strnlen(msg->home_domain, 32);
@@ -959,7 +959,7 @@ bool stellar_confirmSetOptionsOp(const StellarSetOptionsOp *msg) {
 
     stellar_layoutTransactionDialog(str_title, rows[0], rows[1], NULL, NULL);
     if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
-      stellar_signingFail(_("User canceled"));
+      stellar_signingFail("User canceled");
       return false;
     }
     memzero(rows, sizeof(rows));
@@ -973,16 +973,16 @@ bool stellar_confirmSetOptionsOp(const StellarSetOptionsOp *msg) {
   stellar_hashupdate_bool(msg->has_signer_type);
   if (msg->has_signer_type) {
     if (msg->signer_weight > 0) {
-      strlcpy(str_title, _("Add Signer: "), sizeof(str_title));
+      strlcpy(str_title, __("Add Signer: "), sizeof(str_title));
     } else {
-      strlcpy(str_title, _("REMOVE Signer: "), sizeof(str_title));
+      strlcpy(str_title, __("REMOVE Signer: "), sizeof(str_title));
     }
 
     // Format weight as a string
     char str_weight[16] = {0};
     stellar_format_uint32(msg->signer_weight, str_weight, sizeof(str_weight));
     char str_weight_row[32] = {0};
-    strlcpy(str_weight_row, _("Weight: "), sizeof(str_weight_row));
+    strlcpy(str_weight_row, __("Weight: "), sizeof(str_weight_row));
     strlcat(str_weight_row, str_weight, sizeof(str_weight_row));
 
     // 0 = account, 1 = pre-auth, 2 = hash(x)
@@ -990,7 +990,7 @@ bool stellar_confirmSetOptionsOp(const StellarSetOptionsOp *msg) {
     bool needs_hash_confirm = false;
     switch (msg->signer_type) {
       case StellarSignerType_ACCOUNT:
-        strlcat(str_title, _("account"), sizeof(str_title));
+        strlcat(str_title, __("account"), sizeof(str_title));
 
         const char **str_addr_rows =
             stellar_lineBreakAddress(msg->signer_key.bytes);
@@ -999,28 +999,28 @@ bool stellar_confirmSetOptionsOp(const StellarSetOptionsOp *msg) {
                                         str_addr_rows[2]);
         if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall,
                            false)) {
-          stellar_signingFail(_("User canceled"));
+          stellar_signingFail("User canceled");
           return false;
         }
         break;
       case StellarSignerType_PRE_AUTH:
       case StellarSignerType_HASH:
         str_signer_type =
-            (msg->signer_type == 1) ? _("pre-auth hash") : _("hash(x)");
+            (msg->signer_type == 1) ? __("pre-auth hash") : __("hash(x)");
         needs_hash_confirm = true;
         strlcat(str_title, str_signer_type, sizeof(str_title));
 
         stellar_layoutTransactionDialog(str_title, str_weight_row, NULL,
-                                        _("(confirm hash on next"),
-                                        _("screen)"));
+                                        __("(confirm hash on next"),
+                                        __("screen)"));
         if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall,
                            false)) {
-          stellar_signingFail(_("User canceled"));
+          stellar_signingFail("User canceled");
           return false;
         }
         break;
       default:
-        stellar_signingFail(_("Stellar: invalid signer type"));
+        stellar_signingFail("Stellar: invalid signer type");
         return false;
     }
 
@@ -1031,10 +1031,10 @@ bool stellar_confirmSetOptionsOp(const StellarSetOptionsOp *msg) {
       data2hex(msg->signer_key.bytes + 16, 8, rows[row_idx++]);
       data2hex(msg->signer_key.bytes + 24, 8, rows[row_idx++]);
 
-      stellar_layoutTransactionDialog(_("Confirm Hash"), rows[0], rows[1],
+      stellar_layoutTransactionDialog(__("Confirm Hash"), rows[0], rows[1],
                                       rows[2], rows[3]);
       if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
-        stellar_signingFail(_("User canceled"));
+        stellar_signingFail("User canceled");
         return false;
       }
       memzero(rows, sizeof(rows));
@@ -1059,7 +1059,7 @@ bool stellar_confirmChangeTrustOp(const StellarChangeTrustOp *msg) {
 
   if (!stellar_confirmSourceAccount(msg->has_source_account,
                                     msg->source_account)) {
-    stellar_signingFail(_("Source account error"));
+    stellar_signingFail("Source account error");
     return false;
   }
 
@@ -1069,18 +1069,18 @@ bool stellar_confirmChangeTrustOp(const StellarChangeTrustOp *msg) {
   // Add Trust: USD
   char str_title[32] = {0};
   if (msg->limit == 0) {
-    strlcpy(str_title, _("DELETE Trust: "), sizeof(str_title));
+    strlcpy(str_title, __("DELETE Trust: "), sizeof(str_title));
   } else {
-    strlcpy(str_title, _("Add Trust: "), sizeof(str_title));
+    strlcpy(str_title, __("Add Trust: "), sizeof(str_title));
   }
   strlcat(str_title, msg->asset.code, sizeof(str_title));
 
   // Amount: MAX (or a number)
   char str_amount_row[32] = {0};
-  strlcpy(str_amount_row, _("Amount: "), sizeof(str_amount_row));
+  strlcpy(str_amount_row, __("Amount: "), sizeof(str_amount_row));
 
   if (msg->limit == 9223372036854775807) {
-    strlcat(str_amount_row, _("[Maximum]"), sizeof(str_amount_row));
+    strlcat(str_amount_row, __("[Maximum]"), sizeof(str_amount_row));
   } else {
     char str_amount[32] = {0};
     stellar_format_stroops(msg->limit, str_amount, sizeof(str_amount));
@@ -1090,9 +1090,8 @@ bool stellar_confirmChangeTrustOp(const StellarChangeTrustOp *msg) {
   // Validate destination account and convert to bytes
   uint8_t asset_issuer_bytes[STELLAR_KEY_SIZE] = {0};
   if (!stellar_getAddressBytes(msg->asset.issuer, asset_issuer_bytes)) {
-    stellar_signingFail(_("User canceled"));
-    fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Invalid asset issuer"));
+    stellar_signingFail("User canceled");
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Invalid asset issuer");
     return false;
   }
 
@@ -1102,7 +1101,7 @@ bool stellar_confirmChangeTrustOp(const StellarChangeTrustOp *msg) {
   stellar_layoutTransactionDialog(str_title, str_amount_row, str_addr_rows[0],
                                   str_addr_rows[1], str_addr_rows[2]);
   if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
-    stellar_signingFail(_("User canceled"));
+    stellar_signingFail("User canceled");
     return false;
   }
 
@@ -1121,7 +1120,7 @@ bool stellar_confirmAllowTrustOp(const StellarAllowTrustOp *msg) {
 
   if (!stellar_confirmSourceAccount(msg->has_source_account,
                                     msg->source_account)) {
-    stellar_signingFail(_("Source account error"));
+    stellar_signingFail("Source account error");
     return false;
   }
 
@@ -1131,9 +1130,9 @@ bool stellar_confirmAllowTrustOp(const StellarAllowTrustOp *msg) {
   // Add Trust: USD
   char str_title[32] = {0};
   if (msg->is_authorized) {
-    strlcpy(str_title, _("Allow Trust of"), sizeof(str_title));
+    strlcpy(str_title, __("Allow Trust of"), sizeof(str_title));
   } else {
-    strlcpy(str_title, _("REVOKE Trust of"), sizeof(str_title));
+    strlcpy(str_title, __("REVOKE Trust of"), sizeof(str_title));
   }
 
   // Asset code
@@ -1143,7 +1142,7 @@ bool stellar_confirmAllowTrustOp(const StellarAllowTrustOp *msg) {
   // Validate account and convert to bytes
   uint8_t trusted_account_bytes[STELLAR_KEY_SIZE] = {0};
   if (!stellar_getAddressBytes(msg->trusted_account, trusted_account_bytes)) {
-    stellar_signingFail(_("Invalid trusted account"));
+    stellar_signingFail("Invalid trusted account");
     return false;
   }
 
@@ -1152,13 +1151,13 @@ bool stellar_confirmAllowTrustOp(const StellarAllowTrustOp *msg) {
 
   // By: G...
   char str_by[32] = {0};
-  strlcpy(str_by, _("By: "), sizeof(str_by));
+  strlcpy(str_by, __("By: "), sizeof(str_by));
   strlcat(str_by, str_trustor_rows[0], sizeof(str_by));
 
   stellar_layoutTransactionDialog(str_title, str_asset_row, str_by,
                                   str_trustor_rows[1], str_trustor_rows[2]);
   if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
-    stellar_signingFail(_("User canceled"));
+    stellar_signingFail("User canceled");
     return false;
   }
 
@@ -1180,7 +1179,7 @@ bool stellar_confirmAllowTrustOp(const StellarAllowTrustOp *msg) {
       stellar_hashupdate_bytes((uint8_t *)padded_code, 12);
       break;
     default:
-      stellar_signingFail(_("Stellar: invalid asset type"));
+      stellar_signingFail("Stellar: invalid asset type");
       return false;
   }
   // is authorized
@@ -1196,7 +1195,7 @@ bool stellar_confirmAccountMergeOp(const StellarAccountMergeOp *msg) {
 
   if (!stellar_confirmSourceAccount(msg->has_source_account,
                                     msg->source_account)) {
-    stellar_signingFail(_("Source account error"));
+    stellar_signingFail("Source account error");
     return false;
   }
 
@@ -1207,7 +1206,7 @@ bool stellar_confirmAccountMergeOp(const StellarAccountMergeOp *msg) {
   uint8_t destination_account_bytes[STELLAR_KEY_SIZE] = {0};
   if (!stellar_getAddressBytes(msg->destination_account,
                                destination_account_bytes)) {
-    stellar_signingFail(_("Invalid destination account"));
+    stellar_signingFail("Invalid destination account");
     return false;
   }
 
@@ -1215,11 +1214,11 @@ bool stellar_confirmAccountMergeOp(const StellarAccountMergeOp *msg) {
       stellar_lineBreakAddress(destination_account_bytes);
 
   stellar_layoutTransactionDialog(
-      _("Merge Account"), _("All XLM will be sent to:"),
+      __("Merge Account"), __("All XLM will be sent to:"),
       str_destination_rows[0], str_destination_rows[1],
       str_destination_rows[2]);
   if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
-    stellar_signingFail(_("User canceled"));
+    stellar_signingFail("User canceled");
     return false;
   }
 
@@ -1236,7 +1235,7 @@ bool stellar_confirmManageDataOp(const StellarManageDataOp *msg) {
 
   if (!stellar_confirmSourceAccount(msg->has_source_account,
                                     msg->source_account)) {
-    stellar_signingFail(_("Source account error"));
+    stellar_signingFail("Source account error");
     return false;
   }
 
@@ -1245,9 +1244,9 @@ bool stellar_confirmManageDataOp(const StellarManageDataOp *msg) {
 
   char str_title[32] = {0};
   if (msg->has_value) {
-    strlcpy(str_title, _("Set data value key:"), sizeof(str_title));
+    strlcpy(str_title, __("Set data value key:"), sizeof(str_title));
   } else {
-    strlcpy(str_title, _("CLEAR data value key:"), sizeof(str_title));
+    strlcpy(str_title, __("CLEAR data value key:"), sizeof(str_title));
   }
 
   // Confirm key
@@ -1257,14 +1256,14 @@ bool stellar_confirmManageDataOp(const StellarManageDataOp *msg) {
   stellar_layoutTransactionDialog(str_title, str_key_lines[0], str_key_lines[1],
                                   str_key_lines[2], str_key_lines[3]);
   if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
-    stellar_signingFail(_("User canceled"));
+    stellar_signingFail("User canceled");
     return false;
   }
 
   // Confirm value by displaying sha256 hash since this can contain
   // non-printable characters
   if (msg->has_value) {
-    strlcpy(str_title, _("Confirm sha256 of value:"), sizeof(str_title));
+    strlcpy(str_title, __("Confirm sha256 of value:"), sizeof(str_title));
 
     char str_hash_digest[SHA256_DIGEST_STRING_LENGTH] = {0};
     sha256_Data(msg->value.bytes, msg->value.size, str_hash_digest);
@@ -1275,7 +1274,7 @@ bool stellar_confirmManageDataOp(const StellarManageDataOp *msg) {
                                     str_hash_lines[1], str_hash_lines[2],
                                     str_hash_lines[3]);
     if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
-      stellar_signingFail(_("User canceled"));
+      stellar_signingFail("User canceled");
       return false;
     }
   }
@@ -1299,7 +1298,7 @@ bool stellar_confirmBumpSequenceOp(const StellarBumpSequenceOp *msg) {
 
   if (!stellar_confirmSourceAccount(msg->has_source_account,
                                     msg->source_account)) {
-    stellar_signingFail(_("Source account error"));
+    stellar_signingFail("Source account error");
     return false;
   }
 
@@ -1309,10 +1308,10 @@ bool stellar_confirmBumpSequenceOp(const StellarBumpSequenceOp *msg) {
   char str_bump_to[20] = {0};
   stellar_format_uint64(msg->bump_to, str_bump_to, sizeof(str_bump_to));
 
-  stellar_layoutTransactionDialog(_("Bump Sequence"), _("Set sequence to:"),
+  stellar_layoutTransactionDialog(__("Bump Sequence"), __("Set sequence to:"),
                                   str_bump_to, NULL, NULL);
   if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
-    stellar_signingFail(_("User canceled"));
+    stellar_signingFail("User canceled");
     return false;
   }
 
@@ -1370,7 +1369,11 @@ void stellar_getSignatureForActiveTx(uint8_t *out_signature) {
   sha256_Final(&(stellar_activeTx.sha256_ctx), to_sign);
 
   uint8_t signature[64] = {0};
+#if EMULATOR
+  ed25519_sign(to_sign, sizeof(to_sign), node->private_key, signature);
+#else
   hdnode_sign(node, to_sign, sizeof(to_sign), 0, signature, NULL, NULL);
+#endif
   memcpy(out_signature, signature, sizeof(signature));
 }
 
@@ -1401,7 +1404,7 @@ void stellar_format_price(uint32_t numerator, uint32_t denominator, char *out,
 
   // early exit for invalid denominator
   if (denominator == 0) {
-    strlcpy(out, _("[Invalid Price]"), outlen);
+    strlcpy(out, __("[Invalid Price]"), outlen);
     return;
   }
 
@@ -1486,13 +1489,13 @@ void stellar_format_asset(const StellarAsset *asset, char *str_formatted,
   // Validate issuer account for non-native assets
   if (asset->type != StellarAssetType_NATIVE &&
       !stellar_validateAddress(asset->issuer)) {
-    stellar_signingFail(_("Invalid asset issuer"));
+    stellar_signingFail("Invalid asset issuer");
     return;
   }
 
   // Native asset
   if (asset->type == StellarAssetType_NATIVE) {
-    strlcpy(str_formatted, _("XLM (native asset)"), len);
+    strlcpy(str_formatted, "XLM (native asset)", len);
   }
   // 4-character custom
   if (asset->type == StellarAssetType_ALPHANUM4) {
@@ -1513,9 +1516,9 @@ void stellar_format_asset(const StellarAsset *asset, char *str_formatted,
   // Issuer is read the same way for both types of custom assets
   if (asset->type == StellarAssetType_ALPHANUM4 ||
       asset->type == StellarAssetType_ALPHANUM12) {
-    strlcat(str_formatted, _(" ("), len);
+    strlcat(str_formatted, " (", len);
     strlcat(str_formatted, str_asset_issuer_trunc, len);
-    strlcat(str_formatted, _(")"), len);
+    strlcat(str_formatted, ")", len);
   }
 }
 
@@ -1730,7 +1733,7 @@ void stellar_hashupdate_asset(const StellarAsset *asset) {
   uint8_t issuer_bytes[STELLAR_KEY_SIZE] = {0};
   if (asset->type != StellarAssetType_NATIVE &&
       !stellar_getAddressBytes(asset->issuer, issuer_bytes)) {
-    stellar_signingFail(_("Invalid asset issuer"));
+    stellar_signingFail("Invalid asset issuer");
     return;
   }
 
@@ -1775,30 +1778,29 @@ void stellar_layoutTransactionSummary(const StellarSignTx *msg) {
   // Format the fee
   stellar_format_stroops(msg->fee, str_fee, sizeof(str_fee));
 
-  strlcpy(str_lines[0], _("Fee: "), sizeof(str_lines[0]));
+  strlcpy(str_lines[0], __("Fee: "), sizeof(str_lines[0]));
   strlcat(str_lines[0], str_fee, sizeof(str_lines[0]));
-  strlcat(str_lines[0], _(" XLM"), sizeof(str_lines[0]));
+  strlcat(str_lines[0], __(" XLM"), sizeof(str_lines[0]));
 
   // add in numOperations
   stellar_format_uint32(msg->num_operations, str_num_ops, sizeof(str_num_ops));
 
-  strlcat(str_lines[0], _(" ("), sizeof(str_lines[0]));
+  strlcat(str_lines[0], __(" ("), sizeof(str_lines[0]));
   strlcat(str_lines[0], str_num_ops, sizeof(str_lines[0]));
   if (msg->num_operations == 1) {
-    strlcat(str_lines[0], _(" op)"), sizeof(str_lines[0]));
+    strlcat(str_lines[0], __(" op)"), sizeof(str_lines[0]));
   } else {
-    strlcat(str_lines[0], _(" ops)"), sizeof(str_lines[0]));
+    strlcat(str_lines[0], __(" ops)"), sizeof(str_lines[0]));
   }
 
   // Display full address being used to sign transaction
   const char **str_addr_rows =
       stellar_lineBreakAddress(stellar_activeTx.signing_pubkey);
 
-  stellar_layoutTransactionDialog(str_lines[0], _("Signing with:"),
-                                  str_addr_rows[0], str_addr_rows[1],
-                                  str_addr_rows[2]);
+  stellar_layoutTransactionDialog(str_lines[0], _(C__SIGNING), str_addr_rows[0],
+                                  str_addr_rows[1], str_addr_rows[2]);
   if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
-    stellar_signingFail(_("User canceled"));
+    stellar_signingFail("User canceled");
     return;
   }
 
@@ -1807,13 +1809,14 @@ void stellar_layoutTransactionSummary(const StellarSignTx *msg) {
 
   switch (msg->memo_type) {
     case StellarMemoType_NONE:
-      strlcpy(str_lines[0], _("[No Memo Set]"), sizeof(str_lines[0]));
-      strlcpy(str_lines[1], _("Important:"), sizeof(str_lines[0]));
-      strlcpy(str_lines[2], _("Many exchanges require"), sizeof(str_lines[0]));
-      strlcpy(str_lines[3], _("a memo when depositing."), sizeof(str_lines[0]));
+      strlcpy(str_lines[0], __("[No Memo Set]"), sizeof(str_lines[0]));
+      strlcpy(str_lines[1], __("Important:"), sizeof(str_lines[0]));
+      strlcpy(str_lines[2], __("Many exchanges require"), sizeof(str_lines[0]));
+      strlcpy(str_lines[3], __("a memo when depositing."),
+              sizeof(str_lines[0]));
       break;
     case StellarMemoType_TEXT:
-      strlcpy(str_lines[0], _("Memo (TEXT)"), sizeof(str_lines[0]));
+      strlcpy(str_lines[0], __("Memo (TEXT)"), sizeof(str_lines[0]));
 
       // Split 28-character string into two lines of 19 / 9
       // todo: word wrap method?
@@ -1821,19 +1824,19 @@ void stellar_layoutTransactionSummary(const StellarSignTx *msg) {
       strlcpy(str_lines[2], (const char *)(msg->memo_text + 19), 9 + 1);
       break;
     case StellarMemoType_ID:
-      strlcpy(str_lines[0], _("Memo (ID)"), sizeof(str_lines[0]));
+      strlcpy(str_lines[0], __("Memo (ID)"), sizeof(str_lines[0]));
       stellar_format_uint64(msg->memo_id, str_lines[1], sizeof(str_lines[1]));
       break;
     case StellarMemoType_HASH:
       needs_memo_hash_confirm = 1;
-      strlcpy(str_lines[0], _("Memo (HASH)"), sizeof(str_lines[0]));
+      strlcpy(str_lines[0], __("Memo (HASH)"), sizeof(str_lines[0]));
       break;
     case StellarMemoType_RETURN:
       needs_memo_hash_confirm = 1;
-      strlcpy(str_lines[0], _("Memo (RETURN)"), sizeof(str_lines[0]));
+      strlcpy(str_lines[0], __("Memo (RETURN)"), sizeof(str_lines[0]));
       break;
     default:
-      stellar_signingFail(_("Stellar invalid memo type"));
+      stellar_signingFail("Stellar invalid memo type");
       return;
   }
 
@@ -1847,7 +1850,7 @@ void stellar_layoutTransactionSummary(const StellarSignTx *msg) {
   stellar_layoutTransactionDialog(str_lines[0], str_lines[1], str_lines[2],
                                   str_lines[3], str_lines[4]);
   if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
-    stellar_signingFail(_("User canceled"));
+    stellar_signingFail("User canceled");
     return;
   }
 
@@ -1860,32 +1863,32 @@ void stellar_layoutTransactionSummary(const StellarSignTx *msg) {
   const struct tm *tm = NULL;
 
   timebound = (time_t)msg->timebounds_start;
-  strlcpy(str_lines[0], _("Valid from:"), sizeof(str_lines[0]));
+  strlcpy(str_lines[0], __("Valid from:"), sizeof(str_lines[0]));
   if (timebound) {
     tm = gmtime(&timebound);
     strftime(str_timebound, sizeof(str_timebound), "%F %T (UTC)", tm);
     strlcpy(str_lines[1], str_timebound, sizeof(str_lines[1]));
   } else {
-    strlcpy(str_lines[1], _("[no restriction]"), sizeof(str_lines[1]));
+    strlcpy(str_lines[1], __("[no restriction]"), sizeof(str_lines[1]));
   }
 
   // Reset for timebound_max
   memzero(str_timebound, sizeof(str_timebound));
 
   timebound = (time_t)msg->timebounds_end;
-  strlcpy(str_lines[2], _("Valid to:"), sizeof(str_lines[2]));
+  strlcpy(str_lines[2], __("Valid to:"), sizeof(str_lines[2]));
   if (timebound) {
     tm = gmtime(&timebound);
     strftime(str_timebound, sizeof(str_timebound), "%F %T (UTC)", tm);
     strlcpy(str_lines[3], str_timebound, sizeof(str_lines[3]));
   } else {
-    strlcpy(str_lines[3], _("[no restriction]"), sizeof(str_lines[3]));
+    strlcpy(str_lines[3], __("[no restriction]"), sizeof(str_lines[3]));
   }
 
-  stellar_layoutTransactionDialog(_("Confirm Time Bounds"), str_lines[0],
+  stellar_layoutTransactionDialog(__("Confirm Time Bounds"), str_lines[0],
                                   str_lines[1], str_lines[2], str_lines[3]);
   if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
-    stellar_signingFail(_("User canceled"));
+    stellar_signingFail("User canceled");
     return;
   }
 }
@@ -1932,7 +1935,7 @@ void stellar_layoutSigningDialog(const char *line1, const char *line2,
   // Ends up as: Signing with GABCDEFGHIJKL
   char str_header[32] = {0};
   memzero(str_header, sizeof(str_header));
-  strlcpy(str_header, _("Signing with "), sizeof(str_header));
+  strlcpy(str_header, __("Signing with "), sizeof(str_header));
   strlcat(str_header, str_pubaddr_truncated, sizeof(str_header));
 
   oledDrawString(offset_x, offset_y, str_header, FONT_STANDARD);
@@ -1963,7 +1966,7 @@ void stellar_layoutSigningDialog(const char *line1, const char *line2,
   offset_y += line_height;
 
   // Cancel button
-  layoutButtonNoAdapter(_("Cancel"), &bmp_btn_cancel);
+  layoutButtonNoAdapter(__("Cancel"), &bmp_btn_cancel);
 
   // Warnings (drawn centered between the buttons
   if (warning) {
@@ -1974,9 +1977,9 @@ void stellar_layoutSigningDialog(const char *line1, const char *line2,
   // Next / sign button
   char str_next_label[8] = {0};
   if (is_final_step) {
-    strlcpy(str_next_label, _("SIGN"), sizeof(str_next_label));
+    strlcpy(str_next_label, __("SIGN"), sizeof(str_next_label));
   } else {
-    strlcpy(str_next_label, _("Next"), sizeof(str_next_label));
+    strlcpy(str_next_label, __("Next"), sizeof(str_next_label));
   }
 
   layoutButtonYesAdapter(str_next_label, &bmp_btn_confirm);
@@ -1996,11 +1999,11 @@ void stellar_layoutTransactionDialog(const char *line1, const char *line2,
 
   if (stellar_activeTx.network_type == 2) {
     // Warning: testnet
-    strlcpy(str_warning, _("WRN:TN"), sizeof(str_warning));
+    strlcpy(str_warning, __("WRN:TN"), sizeof(str_warning));
   }
   if (stellar_activeTx.network_type == 3) {
     // Warning: private network
-    strlcpy(str_warning, _("WRN:PN"), sizeof(str_warning));
+    strlcpy(str_warning, __("WRN:PN"), sizeof(str_warning));
   }
 
   stellar_layoutSigningDialog(

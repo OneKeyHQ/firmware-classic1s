@@ -17,14 +17,19 @@
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#undef COIN_TYPE
+#define COIN_TYPE 354
 void fsm_msgPolkadotGetAddress(PolkadotGetAddress *msg) {
   CHECK_INITIALIZED
-
+  CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,
+                                    COIN_TYPE, ED25519_POLKADOT_NAME, true),
+              "Invalid path");
   CHECK_PIN
 
   RESP_INIT(PolkadotAddress);
-  HDNode *node = fsm_getDerivedNode(ED25519_LEDGER_NAME, msg->address_n,
+  HDNode *node = fsm_getDerivedNode(ED25519_POLKADOT_NAME, msg->address_n,
                                     msg->address_n_count, NULL);
+  if (!node) return;
   hdnode_fill_public_key(node);
 
   data2hexaddr(node->public_key + 1, 32, resp->public_key);
@@ -34,12 +39,11 @@ void fsm_msgPolkadotGetAddress(PolkadotGetAddress *msg) {
                                        msg->prefix);
 
   if (msg->has_show_display && msg->show_display) {
-    char desc[32] = {0};
-    strcat(desc, msg->network);
-    desc[0] = desc[0] - ('a' - 'A');
-    strcat(desc, " ");
-    strcat(desc, _("Address:"));
-    if (!fsm_layoutAddress(resp->address, desc, false, 0, msg->address_n,
+    char desc[64] = {0};
+    strlcpy(desc, _(T__CHAIN_STR_ADDRESS), sizeof(desc));
+    msg->network[0] = msg->network[0] - ('a' - 'A');
+    bracket_replace(desc, msg->network);
+    if (!fsm_layoutAddress(resp->address, NULL, desc, false, 0, msg->address_n,
                            msg->address_n_count, true, NULL, 0, 0, NULL)) {
       return;
     }
@@ -51,17 +55,20 @@ void fsm_msgPolkadotGetAddress(PolkadotGetAddress *msg) {
 
 void fsm_msgPolkadotSignTx(const PolkadotSignTx *msg) {
   CHECK_INITIALIZED
-
+  CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,
+                                    COIN_TYPE, ED25519_POLKADOT_NAME, true),
+              "Invalid path");
   CHECK_PIN
 
   RESP_INIT(PolkadotSignedTx);
 
-  HDNode *node = fsm_getDerivedNode(ED25519_LEDGER_NAME, msg->address_n,
+  HDNode *node = fsm_getDerivedNode(ED25519_POLKADOT_NAME, msg->address_n,
                                     msg->address_n_count, NULL);
+  if (!node) return;
   hdnode_fill_public_key(node);
 
   if (!polkadot_sign_tx(msg, node, resp)) {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Signing failed"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Signing failed");
     layoutHome();
     return;
   }

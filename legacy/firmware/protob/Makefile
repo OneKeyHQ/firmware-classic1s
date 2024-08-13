@@ -7,18 +7,21 @@ SKIPPED_MESSAGES := Binance DebugMonero Eos Monero Ontology SdProtect Tezos WebA
 	DebugLinkLayout GetNonce \
 	TxAckInput TxAckOutput TxAckPrev TxAckPaymentRequest \
 	EthereumSignTypedData EthereumTypedDataStructRequest EthereumTypedDataStructAck \
-	EthereumTypedDataValueRequest EthereumTypedDataValueAck
+	EthereumTypedDataValueRequest EthereumTypedDataValueAck \
+	EthereumSignTypedDataOneKey EthereumTypedDataStructRequestOneKey EthereumTypedDataStructAckOneKey \
+	EthereumTypedDataValueRequestOneKey EthereumTypedDataValueAckOneKey
+
 
 ifeq ($(BITCOIN_ONLY), 1)
 SKIPPED_MESSAGES += Ethereum NEM Stellar Solana Starcoin Aptos Near Conflux Algorand \
-	Filecoin Cosmos Polkadot Cardano SUI Kaspa
+	Filecoin Cosmos Polkadot Sui Kaspa Nexa Nervos
 endif
 
 PROTO_NAMES = messages messages-bitcoin messages-common messages-crypto messages-debug \
-	messages-ethereum messages-management messages-nem messages-stellar messages-solana \
-	messages-starcoin messages-tron messages-aptos messages-near messages-conflux \
-	messages-algorand messages-ripple messages-filecoin messages-cosmos \
-	messages-polkadot messages-cardano messages-sui messages-kaspa
+	messages-ethereum-onekey messages-ethereum messages-ethereum-definitions messages-management messages-nem messages-stellar  \
+	messages-solana messages-starcoin messages-tron messages-aptos messages-near messages-conflux \
+	messages-algorand messages-ripple messages-filecoin messages-cosmos messages-nostr messages-lnurl \
+	messages-polkadot messages-cardano messages-sui messages-kaspa messages-nexa messages-nervos
 
 PROTO_OPTIONS = $(PROTO_NAMES:=.options)
 PROTO_COMPILED = $(PROTO_NAMES:=.pb)

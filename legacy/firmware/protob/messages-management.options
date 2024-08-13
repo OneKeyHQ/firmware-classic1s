@@ -13,10 +13,31 @@ Features.session_id                     max_size:32
 Features.ble_name                       max_size:32
 Features.ble_ver                        max_size:16
 Features.se_ver                         max_size:16
+Features.se_build_id                    max_size:8
+Features.se_hash                        max_size:32
 Features.onekey_version                 max_size:16
 Features.onekey_serial                  max_size:32
 Features.bootloader_version             max_size:8
 Features.build_id                       max_size:64
+Features.product                        max_size:16
+
+Features.onekey_board_version           max_size:16
+Features.onekey_board_hash              max_size:32
+Features.onekey_boot_version            max_size:16
+Features.onekey_boot_hash               max_size:32
+Features.onekey_se_version              max_size:16
+Features.onekey_se_hash                 max_size:32
+Features.onekey_se_build_id             max_size:8
+Features.onekey_firmware_version        max_size:16
+Features.onekey_firmware_hash           max_size:32
+Features.onekey_firmware_build_id       max_size:64
+Features.onekey_serial_no               max_size:32
+Features.onekey_boot_build_id           max_size:8
+Features.onekey_ble_name                max_size:32
+Features.onekey_ble_version             max_size:16
+Features.onekey_ble_build_id            max_size:8
+Features.onekey_ble_hash                max_size:32
+
 
 ApplySettings.language                  max_size:17
 ApplySettings.label                     max_size:33
@@ -57,8 +78,8 @@ BixinMessageSE.inputmessage             max_size:1025
 BixinOutMessageSE.outmessage            max_size:1025
 
 BixinVerifyDeviceRequest.data           max_size:512
-BixinVerifyDeviceAck.cert               max_size:1024
-BixinVerifyDeviceAck.signature          max_size:512
+BixinVerifyDeviceAck.cert               max_size:512
+BixinVerifyDeviceAck.signature          max_size:64
 
 BixinLoadDevice.mnemonics               max_size:241
 BixinLoadDevice.language                max_size:17

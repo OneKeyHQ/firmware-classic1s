@@ -129,7 +129,7 @@ __Z_INLINE parser_error_t parser_formatAmountItem(uint16_t amountToken,
 
   if (numElements == 0) {
     *pageCount = 1;
-    snprintf(outVal, outValLen, _("none"));
+    snprintf(outVal, outValLen, "none");
     return parser_ok;
   }
 
@@ -264,7 +264,7 @@ __Z_INLINE parser_error_t parser_formatAmount(uint16_t amountToken,
 
   if (totalPages == 0) {
     *pageCount = 1;
-    snprintf(outVal, outValLen, _("none"));
+    snprintf(outVal, outValLen, "none");
     return parser_ok;
   }
 
@@ -287,7 +287,6 @@ parser_error_t cosmos_parser_getItem(const parser_context_t *ctx,
 
   uint8_t numItems;
   CHECK_PARSER_ERR(cosmos_parser_getNumItems(ctx, &numItems))
-  CHECK_APP_CANARY()
 
   if (numItems == 0) {
     return parser_unexpected_number_items;
@@ -300,7 +299,6 @@ parser_error_t cosmos_parser_getItem(const parser_context_t *ctx,
   uint16_t ret_value_token_index = 0;
   CHECK_PARSER_ERR(tx_display_query(displayIdx, tmpKey, sizeof(tmpKey),
                                     &ret_value_token_index))
-  CHECK_APP_CANARY()
   snprintf(outKey, outKeyLen, "%s", tmpKey);
 
   if (parser_isAmount(tmpKey)) {
@@ -310,13 +308,10 @@ parser_error_t cosmos_parser_getItem(const parser_context_t *ctx,
     CHECK_PARSER_ERR(tx_getToken(ret_value_token_index, outVal, outValLen,
                                  pageIdx, pageCount))
   }
-  CHECK_APP_CANARY()
 
   CHECK_PARSER_ERR(tx_display_make_friendly())
-  CHECK_APP_CANARY()
 
   snprintf(outKey, outKeyLen, "%s", tmpKey);
-  CHECK_APP_CANARY()
 
   return parser_ok;
 }

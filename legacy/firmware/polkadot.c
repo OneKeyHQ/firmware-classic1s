@@ -40,18 +40,21 @@ void polkadot_get_address_from_public_key(const uint8_t *public_key,
   crypto_SS58EncodePubkey((uint8_t *)address, 64, addressType, public_key);
 }
 
-static bool layoutPolkadotSign(void) {
+static bool layoutPolkadotSign(char *signer) {
   bool result = false;
   int index = 1;
   int y = 0;
   uint8_t key = KEY_NULL;
   uint8_t numItems = 0;
   uint8_t max_index = 0;
-  char token_key[64];
-  char token_val[128];
+  char token_key[64] = {0};
+  char token_val[128] = {0};
   uint8_t pageCount = 0;
   char desc[64];
-  const char **tx_msg = format_tx_message("Polkadot");
+  char t_network[32] = {0};
+  strncpy(t_network, polkadot_network, strlen(polkadot_network) + 1);
+  t_network[0] -= 32;
+  const char **tx_msg = format_tx_message(t_network);
 
   ButtonRequest resp = {0};
   memzero(&resp, sizeof(ButtonRequest));
@@ -60,29 +63,36 @@ static bool layoutPolkadotSign(void) {
   msg_write(MessageType_MessageType_ButtonRequest, &resp);
 
   polkadot_tx_getNumItems(&numItems);
-  max_index = numItems;
+  max_index = numItems + 1;
 refresh_menu:
   oledClear();
   y = 13;
   polkadot_tx_getItem(index, token_key, sizeof(token_key), token_val,
                       sizeof(token_val), 0, &pageCount);
   memset(desc, 0, 64);
-  strcat(desc, _(token_key));
+  strcat(desc, token_key);
   strcat(desc, ":");
+
   if (index == 1) {
     layoutHeader(tx_msg[0]);
-    oledDrawStringAdapter(0, y, desc, FONT_STANDARD);
+    oledDrawStringAdapter(0, y, gettext_from_en(desc), FONT_STANDARD);
     oledDrawStringAdapter(0, y + 10, token_val, FONT_STANDARD);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
+  } else if ((max_index - 1) == index) {
+    layoutHeader(tx_msg[0]);
+    oledDrawStringAdapter(0, y, _(I__SIGNED_BY_COLON), FONT_STANDARD);
+    oledDrawStringAdapter(0, y + 10, signer, FONT_STANDARD);
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
+    layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
   } else if (max_index == index) {
-    layoutHeader(_("Sign Transaction"));
-    oledDrawStringAdapter(0, y, tx_msg[1], FONT_STANDARD);
+    layoutHeader(_(T__SIGN_TRANSACTION));
+    layoutTxConfirmPage(tx_msg[1]);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_confirm);
   } else {
     layoutHeader(tx_msg[0]);
-    oledDrawStringAdapter(0, y, desc, FONT_STANDARD);
+    oledDrawStringAdapter(0, y, gettext_from_en(desc), FONT_STANDARD);
     oledDrawStringAdapter(0, y + 10, token_val, FONT_STANDARD);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
@@ -132,6 +142,10 @@ static bool get_signer_address(const PolkadotSignTx *msg, const HDNode *node,
     addressType = 5;
   } else if (!strncmp(msg->network, "westend", 7)) {
     addressType = 42;
+  } else if (!strncmp(msg->network, "joystream", 9)) {
+    addressType = 126;
+  } else if (!strncmp(msg->network, "manta", 5)) {
+    addressType = 77;
   } else {
     return false;
   }
@@ -152,27 +166,34 @@ bool polkadot_sign_tx(const PolkadotSignTx *msg, const HDNode *node,
   memcpy(polkadot_network, msg->network, strlen(msg->network) + 1);
   parser_error_t ret = polkadot_tx_parse(msg->raw_tx.bytes, msg->raw_tx.size);
   if (ret == parser_unexpected_callIndex) {
-    if (!layoutBlindSign("Polkadot", false, NULL, signer, msg->raw_tx.bytes,
-                         msg->raw_tx.size, NULL, NULL, NULL, NULL, NULL,
-                         NULL)) {
+    polkadot_network[0] -= 32;
+    if (!layoutBlindSign(polkadot_network, false, NULL, signer,
+                         msg->raw_tx.bytes, msg->raw_tx.size, NULL, NULL, NULL,
+                         NULL, NULL, NULL)) {
       fsm_sendFailure(FailureType_Failure_ActionCancelled, "Signing cancelled");
       layoutHome();
       return false;
     }
   } else if (ret != parser_ok) {
-    fsm_sendFailure(FailureType_Failure_DataError, "Tx invalid");
+    char error_msg[32] = {0};
+    snprintf(error_msg, sizeof(error_msg), "Tx parse error: %d", ret);
+    fsm_sendFailure(FailureType_Failure_DataError, error_msg);
     layoutHome();
     return false;
   } else {
-    if (!layoutPolkadotSign()) {
+    if (!layoutPolkadotSign(signer)) {
       fsm_sendFailure(FailureType_Failure_ActionCancelled, "Signing cancelled");
       layoutHome();
       return false;
     }
   }
-
+#if EMULATOR
+  ed25519_sign(msg->raw_tx.bytes, msg->raw_tx.size, node->private_key,
+               resp->signature.bytes);
+#else
   hdnode_sign(node, msg->raw_tx.bytes, msg->raw_tx.size, 0,
               resp->signature.bytes, NULL, NULL);
+#endif
   resp->signature.size = 64;
 
   return true;

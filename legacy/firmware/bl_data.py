@@ -10,7 +10,7 @@ data = open(fn, "rb").read()
 if len(data) > 65536:
     raise Exception("bootloader has to be smaller than 32768 bytes")
 
-data += b"\x00" * (32768 - len(data))
+data += b"\x00" * (65536 - len(data))
 
 bh = sha256(sha256(data).digest()).digest()
 

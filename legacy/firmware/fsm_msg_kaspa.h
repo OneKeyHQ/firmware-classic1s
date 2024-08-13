@@ -17,9 +17,13 @@
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#undef COIN_TYPE
+#define COIN_TYPE 111111
 void fsm_msgKaspaGetAddress(const KaspaGetAddress *msg) {
   CHECK_INITIALIZED
-
+  CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,
+                                    COIN_TYPE, SECP256K1_NAME, true),
+              "Invalid path");
   CHECK_PIN
 
   RESP_INIT(KaspaAddress);
@@ -40,10 +44,10 @@ void fsm_msgKaspaGetAddress(const KaspaGetAddress *msg) {
   }
 
   if (msg->has_show_display && msg->show_display) {
-    char desc[16] = {0};
-    strcat(desc, "Kaspa");
-    strcat(desc, _("Address:"));
-    if (!fsm_layoutAddress(resp->address, desc, false, 0, msg->address_n,
+    char desc[64] = {0};
+    strlcpy(desc, _(T__CHAIN_STR_ADDRESS), sizeof(desc));
+    bracket_replace(desc, "Kaspa");
+    if (!fsm_layoutAddress(resp->address, NULL, desc, false, 0, msg->address_n,
                            msg->address_n_count, true, NULL, 0, 0, NULL)) {
       return;
     }
@@ -53,6 +57,9 @@ void fsm_msgKaspaGetAddress(const KaspaGetAddress *msg) {
 }
 
 #define SIGN_DYNAMIC                                                        \
+  CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,   \
+                                    COIN_TYPE, SECP256K1_NAME, true),       \
+              "Invalid path");                                              \
   HDNode *node = fsm_getDerivedNode(SECP256K1_NAME, msg->address_n,         \
                                     msg->address_n_count, NULL);            \
   if (!node) return;                                                        \

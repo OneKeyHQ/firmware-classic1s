@@ -1,16 +1,18 @@
-#include <libopencm3/stm32/gpio.h>
-#include <libopencm3/stm32/i2c.h>
-#include <libopencm3/stm32/rcc.h>
 #include <stdint.h>
 #include <string.h>
 
-#include "mi2c.h"
-#include "timer.h"
-#include "compatible.h"
+#include <libopencm3/stm32/gpio.h>
+#include <libopencm3/stm32/i2c.h>
+#include <libopencm3/stm32/rcc.h>
+#include <vendor/libopencm3/include/libopencmsis/core_cm3.h>
 
-uint8_t g_ucMI2cRevBuf[MI2C_BUF_MAX_LEN];
-uint8_t g_ucMI2cSendBuf[MI2C_BUF_MAX_LEN];
-uint16_t g_usMI2cRevLen;
+#include "common.h"
+#include "compatible.h"
+#include "mi2c.h"
+#include "secbool.h"
+#include "timer.h"
+#include "usart.h"
+
 uint16_t g_lasterror;  // TODO:will change in encrypt+MAC
 uint16_t i2c_retry_cnts = 0;
 
@@ -25,15 +27,14 @@ static uint8_t ucXorCheck(uint8_t ucInputXor, uint8_t *pucSrc, uint16_t usLen) {
   return ucXor;
 }
 
-static bool bMI2CDRV_ReadBytes(uint32_t i2c, uint8_t *res,
-                               uint16_t *pusOutLen) {
+static int bMI2CDRV_ReadBytes(uint32_t i2c, uint8_t *res, uint16_t *pusOutLen) {
   uint8_t ucLenBuf[2], ucSW[2], ucXor = 0, ucXor1 = 0;
   uint16_t i, usRevLen, usRealLen = 0, usTimeout = 0;
 
   i2c_retry_cnts = 0;
   while (1) {
     if (i2c_retry_cnts > MI2C_RETRYCNTS) {
-      return false;
+      return -1;
     }
 
     // send start
@@ -52,14 +53,15 @@ static bool bMI2CDRV_ReadBytes(uint32_t i2c, uint8_t *res,
     // Waiting for address is transferred.
     while (!(I2C_SR1(i2c) & I2C_SR1_ADDR)) {
       usTimeout++;
-      if (usTimeout > MI2C_TIMEOUT) {  // setup timeout is 5ms once
+      if (usTimeout > MI2C_ADDR_ACK_TIMEOUT) {  // setup timeout is 5ms once
         break;
       }
     }
-    if (usTimeout > MI2C_TIMEOUT) {
+    if (usTimeout > MI2C_ADDR_ACK_TIMEOUT) {
       usTimeout = 0;
       i2c_retry_cnts++;
       i2c_send_stop(i2c);  // it will release i2c bus
+      delay_ms(2);
       continue;
     }
     /* Clearing ADDR condition sequence. */
@@ -81,7 +83,7 @@ static bool bMI2CDRV_ReadBytes(uint32_t i2c, uint8_t *res,
 
   if (usRevLen > 0 && (res == NULL)) {
     i2c_send_stop(i2c);
-    return false;
+    return -1;
   }
 
   // rev data
@@ -120,11 +122,11 @@ static bool bMI2CDRV_ReadBytes(uint32_t i2c, uint8_t *res,
 
   i2c_send_stop(i2c);
   if (0x00 == usRealLen) {
-    return false;
+    return -1;
   }
 
   if (ucXor != ucXor1) {
-    return false;
+    return -1;
   }
   usRealLen -= MI2C_XOR_LEN;
   g_lasterror = (ucSW[0] << 8) + ucSW[1];
@@ -136,10 +138,10 @@ static bool bMI2CDRV_ReadBytes(uint32_t i2c, uint8_t *res,
     } else {
       *pusOutLen = usRealLen - 2;
     }
-    return false;
+    return 1;
   }
   *pusOutLen = usRealLen - 2;
-  return true;
+  return 0;
 }
 
 static bool bMI2CDRV_WriteBytes(uint32_t i2c, uint8_t *data,
@@ -167,11 +169,11 @@ static bool bMI2CDRV_WriteBytes(uint32_t i2c, uint8_t *data,
     // Waiting for address is transferred.
     while (!(I2C_SR1(i2c) & I2C_SR1_ADDR)) {
       usTimeout++;
-      if (usTimeout > MI2C_TIMEOUT) {
+      if (usTimeout > MI2C_ADDR_ACK_TIMEOUT) {
         break;
       }
     }
-    if (usTimeout > MI2C_TIMEOUT) {
+    if (usTimeout > MI2C_ADDR_ACK_TIMEOUT) {
       i2c_retry_cnts++;
       usTimeout = 0;
       continue;
@@ -247,7 +249,13 @@ void vMI2CDRV_Init(void) {
  *master i2c rev
  */
 bool bMI2CDRV_ReceiveData(uint8_t *pucStr, uint16_t *pusRevLen) {
-  if (false == bMI2CDRV_ReadBytes(MI2CX, pucStr, pusRevLen)) {
+  int ret = 0;
+  __disable_irq();
+  ret = bMI2CDRV_ReadBytes(MI2CX, pucStr, pusRevLen);
+  __enable_irq();
+  if (ret < 0) {
+    ensure(secfalse, "i2c read error");
+  } else if (ret == 1) {
     return false;
   }
 
@@ -260,8 +268,12 @@ bool bMI2CDRV_SendData(uint8_t *pucStr, uint16_t usStrLen) {
   if (usStrLen > (MI2C_BUF_MAX_LEN - 3)) {
     usStrLen = MI2C_BUF_MAX_LEN - 3;
   }
-
-  return bMI2CDRV_WriteBytes(MI2CX, pucStr, usStrLen);
+  __disable_irq();
+  if (!bMI2CDRV_WriteBytes(MI2CX, pucStr, usStrLen)) {
+    ensure(secfalse, "i2c write error");
+  }
+  __enable_irq();
+  return true;
 }
 
 uint16_t get_lasterror(void) { return g_lasterror; }

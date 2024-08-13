@@ -20,8 +20,13 @@
 #ifndef __GETTEXT_H__
 #define __GETTEXT_H__
 
-char* gettext(const char* msgid);
+#include "i18n/i18n.h"
 
-#define _(X) gettext(X)
+char* gettext(const char* msgid);
+char* gettextX(int msgid);
+const char* gettext_from_en(char* en_str);
+
+#define _(X) gettextX(X)
+#define __(X) gettext(X)
 
 #endif

@@ -73,22 +73,22 @@ refresh_menu:
   tx_getItem(index, token_key, sizeof(token_key), token_val, sizeof(token_val),
              0, &pageCount);
   memset(desc, 0, 64);
-  strcat(desc, _(token_key));
+  strcat(desc, token_key);
   strcat(desc, ":");
   if (index == 0) {
     layoutHeader(tx_msg[0]);
-    oledDrawStringAdapter(0, y, desc, FONT_STANDARD);
+    oledDrawStringAdapter(0, y, gettext_from_en(desc), FONT_STANDARD);
     oledDrawStringAdapter(0, y + 10, token_val, FONT_STANDARD);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
   } else if (max_index == index) {
-    layoutHeader(_("Sign Transaction"));
-    oledDrawStringAdapter(0, y, tx_msg[1], FONT_STANDARD);
+    layoutHeader(_(T__SIGN_TRANSACTION));
+    layoutTxConfirmPage(tx_msg[1]);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_confirm);
   } else {
     layoutHeader(tx_msg[0]);
-    oledDrawStringAdapter(0, y, desc, FONT_STANDARD);
+    oledDrawStringAdapter(0, y, gettext_from_en(desc), FONT_STANDARD);
     oledDrawStringAdapter(0, y + 10, token_val, FONT_STANDARD);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
@@ -143,8 +143,13 @@ bool algorand_sign_tx(const AlgorandSignTx *msg, const HDNode *node,
     layoutHome();
     return false;
   }
+#if EMULATOR
+  ed25519_sign(msg->raw_tx.bytes, msg->raw_tx.size, node->private_key,
+               resp->signature.bytes);
+#else
   hdnode_sign(node, msg->raw_tx.bytes, msg->raw_tx.size, 0,
               resp->signature.bytes, NULL, NULL);
+#endif
   resp->signature.size = 64;
 
   return true;

@@ -16,10 +16,13 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
-
+#undef COIN_TYPE
+#define COIN_TYPE 101010
 void fsm_msgStarcoinGetAddress(const StarcoinGetAddress *msg) {
   CHECK_INITIALIZED
-
+  CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,
+                                    COIN_TYPE, ED25519_NAME, true),
+              "Invalid path");
   CHECK_PIN
 
   RESP_INIT(StarcoinAddress);
@@ -35,10 +38,10 @@ void fsm_msgStarcoinGetAddress(const StarcoinGetAddress *msg) {
   starcoin_get_address_from_public_key(node->public_key + 1, resp->address + 2);
 
   if (msg->has_show_display && msg->show_display) {
-    char desc[16] = {0};
-    strcat(desc, "Starcoin");
-    strcat(desc, _("Address:"));
-    if (!fsm_layoutAddress(resp->address, desc, false, 0, msg->address_n,
+    char desc[64] = {0};
+    strlcpy(desc, _(T__CHAIN_STR_ADDRESS), sizeof(desc));
+    bracket_replace(desc, "Starcoin");
+    if (!fsm_layoutAddress(resp->address, NULL, desc, false, 0, msg->address_n,
                            msg->address_n_count, true, NULL, 0, 0, NULL)) {
       return;
     }
@@ -50,7 +53,9 @@ void fsm_msgStarcoinGetAddress(const StarcoinGetAddress *msg) {
 
 void fsm_msgStarcoinGetPublicKey(const StarcoinGetPublicKey *msg) {
   CHECK_INITIALIZED
-
+  CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,
+                                    COIN_TYPE, ED25519_NAME, true),
+              "Invalid path");
   CHECK_PIN
 
   RESP_INIT(StarcoinPublicKey);
@@ -79,7 +84,9 @@ void fsm_msgStarcoinGetPublicKey(const StarcoinGetPublicKey *msg) {
 
 void fsm_msgStarcoinSignTx(const StarcoinSignTx *msg) {
   CHECK_INITIALIZED
-
+  CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,
+                                    COIN_TYPE, ED25519_NAME, true),
+              "Invalid path");
   CHECK_PIN
 
   RESP_INIT(StarcoinSignedTx);
@@ -90,7 +97,7 @@ void fsm_msgStarcoinSignTx(const StarcoinSignTx *msg) {
 
   hdnode_fill_public_key(node);
   if (!starcoin_sign_tx(msg, node, resp)) {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Signing failed"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Signing failed");
     layoutHome();
     return;
   }
@@ -100,7 +107,9 @@ void fsm_msgStarcoinSignTx(const StarcoinSignTx *msg) {
 
 void fsm_msgStarcoinSignMessage(const StarcoinSignMessage *msg) {
   CHECK_INITIALIZED
-
+  CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,
+                                    COIN_TYPE, ED25519_NAME, true),
+              "Invalid path");
   CHECK_PIN
 
   RESP_INIT(StarcoinMessageSignature);
@@ -139,9 +148,9 @@ void fsm_msgStarcoinVerifyMessage(const StarcoinVerifyMessage *msg) {
       return;
     }
 
-    fsm_sendSuccess(_("Message verified"));
+    fsm_sendSuccess("Message verified");
   } else {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Invalid signature"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Invalid signature");
   }
 
   layoutHome();

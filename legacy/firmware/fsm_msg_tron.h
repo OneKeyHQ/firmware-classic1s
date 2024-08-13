@@ -16,13 +16,15 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
-
+#undef COIN_TYPE
+#define COIN_TYPE 195
 void fsm_msgTronSignMessage(TronSignMessage *msg) {
-  RESP_INIT(TronMessageSignature);
-
   CHECK_INITIALIZED
-
+  CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,
+                                    COIN_TYPE, SECP256K1_NAME, true),
+              "Invalid path");
   CHECK_PIN
+  RESP_INIT(TronMessageSignature);
 
   const HDNode *node = fsm_getDerivedNode(SECP256K1_NAME, msg->address_n,
                                           msg->address_n_count, NULL);
@@ -48,11 +50,12 @@ void fsm_msgTronSignMessage(TronSignMessage *msg) {
 }
 
 void fsm_msgTronGetAddress(TronGetAddress *msg) {
-  RESP_INIT(TronAddress);
-
   CHECK_INITIALIZED
-
+  CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,
+                                    COIN_TYPE, SECP256K1_NAME, true),
+              "Invalid path");
   CHECK_PIN
+  RESP_INIT(TronAddress);
 
   const HDNode *node = fsm_getDerivedNode(SECP256K1_NAME, msg->address_n,
                                           msg->address_n_count, NULL);
@@ -64,10 +67,10 @@ void fsm_msgTronGetAddress(TronGetAddress *msg) {
   resp->has_address = 1;
 
   if (msg->has_show_display && msg->show_display) {
-    char desc[16] = {0};
-    strcat(desc, "Tron");
-    strcat(desc, _("Address:"));
-    if (!fsm_layoutAddress(resp->address, desc, false, 0, msg->address_n,
+    char desc[64] = {0};
+    strlcpy(desc, _(T__CHAIN_STR_ADDRESS), sizeof(desc));
+    bracket_replace(desc, "Tron");
+    if (!fsm_layoutAddress(resp->address, NULL, desc, false, 0, msg->address_n,
                            msg->address_n_count, true, NULL, 0, 0, NULL)) {
       return;
     }
@@ -78,12 +81,12 @@ void fsm_msgTronGetAddress(TronGetAddress *msg) {
 }
 
 void fsm_msgTronSignTx(TronSignTx *msg) {
-  RESP_INIT(TronSignedTx);
-
   CHECK_INITIALIZED
-
+  CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,
+                                    COIN_TYPE, SECP256K1_NAME, true),
+              "Invalid path");
   CHECK_PIN
-
+  RESP_INIT(TronSignedTx);
   const HDNode *node = fsm_getDerivedNode(SECP256K1_NAME, msg->address_n,
                                           msg->address_n_count, NULL);
   if (!node) return;

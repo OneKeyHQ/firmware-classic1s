@@ -37,11 +37,11 @@
 
 // legacy storage magic
 #define LEGACY_STORAGE_SECTOR 2
-static const uint32_t META_MAGIC_V10 = 0x525a5254;  // 'TRZR'
+// static const uint32_t META_MAGIC_V10 = 0x525a5254;  // 'TRZR'
 
 // norcow storage magic
-static const uint32_t NORCOW_MAGIC = 0x3243524e;  // 'NRC2'
-static const uint8_t norcow_sectors[NORCOW_SECTOR_COUNT] = NORCOW_SECTORS;
+// static const uint32_t NORCOW_MAGIC = 0x3243524e;  // 'NRC2'
+// static const uint8_t norcow_sectors[NORCOW_SECTOR_COUNT] = NORCOW_SECTORS;
 
 /** Flash program word operation extracted from libopencm3,
  * so it can run from RAM
@@ -122,6 +122,7 @@ int main(void) {
 
   secbool storage_initialized = secfalse;
 
+#if 0
   // check legacy storage
   uint32_t *magic = (uint32_t *)flash_get_address(LEGACY_STORAGE_SECTOR, 0,
                                                   sizeof(META_MAGIC_V10));
@@ -140,7 +141,8 @@ int main(void) {
       }
     }
   }
-
+#endif
+  storage_initialized = sectrue;
   if (sectrue == storage_initialized) {
     // Storage probably contains a seed so leave the firmware intact.
     // Invalidating it would cause the bootloader to wipe the storage before

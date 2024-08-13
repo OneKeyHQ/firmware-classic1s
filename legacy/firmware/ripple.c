@@ -295,9 +295,10 @@ bool ripple_sign_tx(const RippleSignTx *msg, HDNode *node,
 
   ripple_format_amount(msg->payment.amount, amount, sizeof(amount));
   ripple_format_amount(msg->fee, gas_value, sizeof(gas_value));
-  if (!layoutTransactionSign("Ripple", false, amount, msg->payment.destination,
-                             address, NULL, NULL, NULL, 0, _("Maximum Fee:"),
-                             gas_value, NULL, NULL, NULL, NULL, NULL, NULL)) {
+  if (!layoutTransactionSign("Ripple", 0, false, amount,
+                             msg->payment.destination, address, NULL, NULL,
+                             NULL, 0, _(I__ETH_MAXIMUM_FEE_COLON), gas_value,
+                             NULL, NULL, NULL, NULL, NULL, NULL)) {
     fsm_sendFailure(FailureType_Failure_ActionCancelled, "Signing cancelled");
     layoutHome();
     return false;
@@ -314,8 +315,13 @@ bool ripple_sign_tx(const RippleSignTx *msg, HDNode *node,
   // sign tx hash
   uint8_t v;
   uint8_t sig[65] = {0};
+#if EMULATOR
+  if (ecdsa_sign_digest(&secp256k1, node->private_key, hash, sig, &v,
+                        ripple_is_canonic) != 0) {
+#else
   if (hdnode_sign_digest(node, hash, sig, &v, ripple_is_canonic) != 0) {
-    fsm_sendFailure(FailureType_Failure_ProcessError, _("Signing failed"));
+#endif
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Signing failed");
     return false;
   }
 

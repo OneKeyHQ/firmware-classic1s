@@ -17,6 +17,8 @@
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <string.h>
+
 #include "util.h"
 
 inline void delay(uint32_t wait) {
@@ -66,4 +68,79 @@ void uint2str(uint32_t num, char *str) {
     str[j] = str[i - 1 - j];
     str[i - 1 - j] = temp;
   }
+}
+
+uint32_t version_string_to_int(const char *version_str) {
+  uint32_t version = 0;
+  int part = 0;
+  int shift = 24;
+
+  for (uint8_t i = 0; i < strlen(version_str); i++) {
+    if (version_str[i] == '.') {
+      version |= (part << shift);
+      part = 0;
+      shift -= 8;
+    } else if (version_str[i] >= '0' && version_str[i] <= '9') {
+      part = part * 10 + (version_str[i] - '0');
+    } else {
+      return 0;
+    }
+  }
+
+  version |= (part << shift);
+  return version;
+}
+
+extern int utf8_get_size(const uint8_t ch);
+bool bracket_replace(char *orig, const char *with) {
+  int steps = 0;
+  int with_len = strlen(with), orig_len = strlen(orig), len = 0;
+  char *p = orig;
+  char tmp[256] = {0};
+
+  while (*p) {
+    if ((uint8_t)*p < 0x80) {
+      if ((*p == '{') && (p[1] == '}')) {
+        len = strlen(p + 2) + 1;
+        memcpy(tmp, p + 2, len);
+        memcpy(p, with, with_len);
+        memcpy(p + with_len, tmp, len);
+        orig[orig_len - 2 + with_len] = '\0';
+        break;
+      }
+      p++;
+    } else {
+      steps = utf8_get_size(*p);
+      p += steps;
+    }
+  }
+  return true;
+}
+
+int hex2data(const char *hexStr, unsigned char *output,
+             unsigned int *outputLen) {
+  size_t len = strlen(hexStr);
+  if (len % 2 != 0) {
+    return -1;
+  }
+  size_t finalLen = len / 2;
+  *outputLen = finalLen;
+  for (size_t inIdx = 0, outIdx = 0; outIdx < finalLen; inIdx += 2, outIdx++) {
+    if ((hexStr[inIdx] - 48) <= 9 && (hexStr[inIdx + 1] - 48) <= 9) {
+      goto convert;
+    } else {
+      if (((hexStr[inIdx] - 65) <= 5 && (hexStr[inIdx + 1] - 65) <= 5) ||
+          ((hexStr[inIdx] - 97) <= 5 && (hexStr[inIdx + 1] - 97) <= 5)) {
+        goto convert;
+      } else {
+        *outputLen = 0;
+        return -1;
+      }
+    }
+  convert:
+    output[outIdx] =
+        (hexStr[inIdx] % 32 + 9) % 25 * 16 + (hexStr[inIdx + 1] % 32 + 9) % 25;
+  }
+  output[finalLen] = '\0';
+  return 0;
 }

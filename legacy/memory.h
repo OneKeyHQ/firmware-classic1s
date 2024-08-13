@@ -77,42 +77,35 @@ extern uint8_t *emulator_flash_base;
 #define FLASH_FWHEADER_LEN (0x400)
 
 #define FLASH_APP_START (FLASH_FWHEADER_START + FLASH_FWHEADER_LEN)
-#define FLASH_APP_LEN (FLASH_TOTAL_SIZE - (FLASH_APP_START - FLASH_ORIGIN))
+#define FLASH_APP_LEN (2 * 1024 * 1024 - 64 * 1024)
 
 #define FLASH_BOOT_SECTOR_FIRST 0
-#define FLASH_BOOT_SECTOR_LAST 1
+#define FLASH_BOOT_SECTOR_LAST 3
 
-#define FLASH_STORAGE_SECTOR_FIRST 2
-#define FLASH_STORAGE_SECTOR_LAST 3
+#define FLASH_STORAGE_SECTOR_FIRST 0
+#define FLASH_STORAGE_SECTOR_LAST 0
 
 #define MPU_CONFIG_BOOT 0x5a
 #define MPU_CONFIG_FIRM 0xa5
 #define MPU_CONFIG_OFF 0xee
 
-#if BLE_SWD_UPDATE
 #define FLASH_CODE_SECTOR_FIRST 4
-#define FLASH_CODE_SECTOR_LAST 9
-#define FLASH_BLE_SECTOR_FIRST 10
-#define FLASH_BLE_SECTOR_LAST 11
+#define FLASH_CODE_SECTOR_LAST 23
+#define FLASH_BLE_SECTOR_FIRST 26
+#define FLASH_BLE_SECTOR_LAST 26
 
-#define FLASH_BLE_ADDR_START (0x080C0000)
-#define FLASH_BLE_MAX_LEN (0x40000)
+#define FLASH_SE_SECTOR_FIRST 26
+#define FLASH_SE_SECTOR_LAST 27
 
-#else
-#define FLASH_CODE_SECTOR_FIRST 4
-#define FLASH_CODE_SECTOR_LAST 10
-#define FLASH_BLE_SECTOR_FIRST 11
-#define FLASH_BLE_SECTOR_LAST 11
-
-#define FLASH_BLE_ADDR_START (0x080E0000)
-#define FLASH_INIT_DATA_START (FLASH_BLE_ADDR_START + FLASH_FWHEADER_LEN)
+#define FLASH_BLE_SE_ADDR_START (0x08280000)  // sector
+#define FLASH_INIT_DATA_START (FLASH_BLE_SE_ADDR_START + FLASH_FWHEADER_LEN)
 #define FLASH_INIT_DATA_LEN 512
 #define FLASH_BLE_FIRMWARE_START (FLASH_INIT_DATA_START + FLASH_INIT_DATA_LEN)
-#define FLASH_BLE_MAX_LEN (0x20000)
-
-#endif
+#define FLASH_BLE_MAX_LEN (0x40000)
 
 void memory_protect(void);
+uint8_t memory_protect_state(void);
+void memory_write_lock(void);
 void memory_write_unlock(void);
 int memory_bootloader_hash(uint8_t *hash);
 void mpu_setup_gd32(uint8_t mode);
@@ -121,7 +114,7 @@ int memory_firmware_hash(const uint8_t *challenge, uint32_t challenge_size,
                          void (*progress_callback)(uint32_t, uint32_t),
                          uint8_t hash[32]);
 
-    static inline void flash_write32(uint32_t addr, uint32_t word) {
+static inline void flash_write32(uint32_t addr, uint32_t word) {
   *(volatile uint32_t *)FLASH_PTR(addr) = word;
 }
 static inline void flash_write8(uint32_t addr, uint8_t byte) {

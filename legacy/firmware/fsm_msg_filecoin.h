@@ -17,9 +17,13 @@
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#undef COIN_TYPE
+#define COIN_TYPE 461
 void fsm_msgFilecoinGetAddress(const FilecoinGetAddress *msg) {
   CHECK_INITIALIZED
-
+  CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,
+                                    COIN_TYPE, SECP256K1_NAME, true),
+              "Invalid path");
   CHECK_PIN
 
   RESP_INIT(FilecoinAddress);
@@ -28,10 +32,8 @@ void fsm_msgFilecoinGetAddress(const FilecoinGetAddress *msg) {
   if (!node) return;
 
   uint8_t pk[65] = {0};
-  /* get uncompressed public key */
-  if (ecdsa_get_public_key65(node->curve->params, node->private_key, pk) != 0) {
-    return;
-  }
+  ecdsa_uncompress_pubkey(node->curve->params, node->public_key, pk);
+
   if (msg->has_testnet && msg->testnet) {
     filecoin_testnet = true;
   } else {
@@ -39,10 +41,10 @@ void fsm_msgFilecoinGetAddress(const FilecoinGetAddress *msg) {
   }
   if (!get_filecoin_addr(pk, resp)) return;
   if (msg->has_show_display && msg->show_display) {
-    char desc[16] = {0};
-    strcat(desc, "Filecoin");
-    strcat(desc, _("Address:"));
-    if (!fsm_layoutAddress(resp->address, desc, false, 0, msg->address_n,
+    char desc[64] = {0};
+    strlcpy(desc, _(T__CHAIN_STR_ADDRESS), sizeof(desc));
+    bracket_replace(desc, "Filecoin");
+    if (!fsm_layoutAddress(resp->address, NULL, desc, false, 0, msg->address_n,
                            msg->address_n_count, true, NULL, 0, 0, NULL)) {
       return;
     }
@@ -54,7 +56,9 @@ void fsm_msgFilecoinGetAddress(const FilecoinGetAddress *msg) {
 
 void fsm_msgFilecoinSignTx(const FilecoinSignTx *msg) {
   CHECK_INITIALIZED
-
+  CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,
+                                    COIN_TYPE, SECP256K1_NAME, true),
+              "Invalid path");
   CHECK_PIN
 
   RESP_INIT(FilecoinSignedTx);
@@ -68,7 +72,7 @@ void fsm_msgFilecoinSignTx(const FilecoinSignTx *msg) {
     filecoin_testnet = false;
   }
   if (!filecoin_sign_tx(msg, node, resp)) {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Signing failed"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Signing failed");
     layoutHome();
     return;
   }

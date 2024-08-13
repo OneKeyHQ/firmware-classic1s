@@ -1,0 +1,75 @@
+name: "build-classic1s"
+
+on:
+  schedule:
+    - cron: '30 19 * * 0,1,2,3,4'
+  workflow_dispatch:
+
+jobs:
+  build-classic1s:
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v3
+
+      - name: Populate vars
+        id: vars
+        run: |
+          BOOT_VERSION=$(./tools/version.sh ./legacy/bootloader/version.h)
+          FIRMWARE_VERSION=$(cat ./legacy/firmware/version.h | grep "ONEKEY_VERSION " | awk -F "[\"\"]" '{print $2}')
+          BUILD_DATE=$(date +"%Y%m%d")
+          SHORT_HASH=$(git rev-parse --short HEAD)
+
+          echo "BOOT_VERSION=$BOOT_VERSION" >> $GITHUB_ENV
+          echo "BUILD_DATE=$BUILD_DATE" >> $GITHUB_ENV
+          echo "SHORT_HASH=$SHORT_HASH" >> $GITHUB_ENV
+          echo "FIRMWARE_VERSION=$FIRMWARE_VERSION" >> $GITHUB_ENV
+          echo "ARTIFACTS_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"" >> $GITHUB_ENV
+
+      - name: "Build classic1S firmware"
+        run: |
+          sh <(curl -L https://releases.nixos.org/nix/nix-2.23.3/install) --no-daemon
+          . $HOME/.nix-profile/etc/profile.d/nix.sh
+          nix-shell --run "poetry install"
+          nix-shell --run "poetry run ./legacy/script/setup"
+          nix-shell --run "export FIRMWARE_QA=1 && poetry run ./legacy/script/cibuild"
+          nix-shell --run "poetry run pip install ecdsa && poetry run ./legacy/debug_signing/sign_onekey_qa.py ./legacy/firmware/classic*Stable*.bin -S 1:${{ secrets.SECRET_QA_KEY_1 }} -S 2:${{ secrets.SECRET_QA_KEY_2 }} -S 3:${{ secrets.SECRET_QA_KEY_3 }} -S 4:${{ secrets.SECRET_QA_KEY_4 }}"
+          mkdir -p qa && cp ./legacy/firmware/classic*Stable*.qa.signed.bin qa
+          nix-shell --run "poetry run ./legacy/script/setup"
+          nix-shell --run "export PRODUCTION=0 BOOTLOADER_QA=1 && poetry run ./legacy/script/cibuild"
+          cp ./legacy/bootloader/classic1s_bootloader*Stable*.bin qa
+          nix-shell --run "poetry run ./legacy/script/setup"
+          nix-shell --run "poetry run ./legacy/script/cibuild"
+          ./legacy/script/hash.py -t bootloader -f legacy/bootloader/classic1s_bootloader*Stable*.bin > legacy/bootloader/hash.txt
+          ./legacy/script/hash.py -t firmware -f legacy/firmware/classic*Stable*.bin > legacy/firmware/hash.txt
+          ./legacy/script/hash.py -t bootloader -f qa/classic1s_bootloader*Stable*.bin > qa/hash.txt
+          ./legacy/script/hash.py -t firmware -f qa/classic1s.*Stable*.bin >> qa/hash.txt
+
+      - name: "Upload Artifacts"
+        uses: actions/upload-artifact@v3
+        with:
+          name: firmware-classic1s-${{ github.sha }}
+          path: |
+            ./legacy/firmware/classic*Stable*.bin
+            ./legacy/firmware/hash.txt
+            ./legacy/bootloader/classic1s_bootloader*Stable*.bin
+            ./legacy/bootloader/hash.txt
+            ./legacy/bootloader0/bootloader0.bin
+            ./legacy/intermediate_fw/classic*.bin
+            ./qa
+
+      - name: "Notify to Slack"
+        uses: onekeyhq/actions/notice-slack-app-update@main
+        with:
+          web-hook-url: ${{ secrets.SLACK_DEV_RELEASE_WEBHOOK }}
+          artifact-type: CLASSIC-FIRMWARE-1S
+          artifact-name: Classic-Hardware-Firmware-1S
+          artifact-bundle-id: 'so.onekey.firmware.classic2'
+          artifact-version-name: '${{ env.FIRMWARE_VERSION }}'
+          artifact-version-code: '${{ env.SHORT_HASH }}-${{ env.BUILD_DATE }}'
+          artifact-download-url: '${{ env.ARTIFACTS_URL }}'
+          change-log: 'firmware@${{ env.FIRMWARE_VERSION }} / boot@${{ env.BOOT_VERSION }}'
+          custom-issue-url: ''
+          custom-message-title: ''
+          custom-message-payload: ''

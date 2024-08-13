@@ -17,26 +17,31 @@
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "memory.h"
-#include "flash.h"
 #include <stdint.h>
-#include "sha2.h"
-#include "gd32f4xx.h"
 #include "blake2s.h"
+#include "flash.h"
+#include "gd32f4xx.h"
+#include "memory.h"
+#include "sha2.h"
 
 void memory_protect(void) {
   /* enable security protection */
   fmc_unlock();
   ob_unlock();
-  // bootloader's sectors are protected
-  ob_write_protection_enable(OB_WP_0 | OB_WP_1 | OB_WP_2 | OB_WP_3);
   ob_security_protection_config(FMC_HSPC);
   ob_start();
   ob_lock();
   fmc_lock();
 }
 
+uint8_t memory_protect_state(void) { return (FMC_OBCTL0 >> 8) & 0xff; }
+
 void memory_write_lock(void) {
+  uint32_t option_byte0 = FMC_OBCTL0;
+
+  if (((option_byte0 >> 16) & 0x0f) == (OB_WP_1 | OB_WP_2 | OB_WP_3)) {
+    return;
+  }
   /* disable security protection */
   fmc_unlock();
   ob_unlock();

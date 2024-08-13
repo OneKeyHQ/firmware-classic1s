@@ -60,7 +60,7 @@ def pad_to_size(data, size):
 def prepare_hashes(data):
     # process chunks
     start = 0
-    end = (64 - 1) * 1024
+    end = (256 - 1) * 1024
     hashes = []
     for i in range(16):
         sector = data[start:end]
@@ -70,7 +70,7 @@ def prepare_hashes(data):
         else:
             hashes.append(b"\x00" * 32)
         start = end
-        end += 64 * 1024
+        end += 256 * 1024
     return hashes
 
 

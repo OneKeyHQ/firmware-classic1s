@@ -7,15 +7,10 @@
 #include "substrate/substrate_dispatch.h"
 #include "substrate/substrate_types.h"
 
-extern uint16_t __address_type;
-
-parser_error_t _polkadot_readTx(parser_context_t *c, parser_tx_t *v) {
+parser_error_t _polkadot_readTx(parser_context_t *c, parser_tx_t *v,
+                                bool mode_enabled) {
   CHECK_INPUT()
 
-  __address_type = _detectAddressType(c);
-
-  //  Reverse parse to retrieve spec before forward parsing
-  CHECK_ERROR(_checkVersions(c))
   // Now forward parse
   CHECK_ERROR(_readCallIndex(c, &v->callIndex))
   CHECK_ERROR(
@@ -23,11 +18,21 @@ parser_error_t _polkadot_readTx(parser_context_t *c, parser_tx_t *v) {
   CHECK_ERROR(_readEra(c, &v->era))
   CHECK_ERROR(_readCompactIndex(c, &v->nonce))
   CHECK_ERROR(_readCompactBalance(c, &v->tip))
-  CHECK_ERROR(_preadUInt32(c, &v->specVersion))
-  CHECK_ERROR(_preadUInt32(c, &v->transactionVersion))
+  if (mode_enabled) {
+    CHECK_ERROR(_readu8(c, &v->mode))
+  }
+  CHECK_ERROR(_readu32(c, &v->specVersion))
+  CHECK_ERROR(_readu32(c, &v->transactionVersion))
   CHECK_ERROR(_readHash(c, &v->genesisHash))
   CHECK_ERROR(_readHash(c, &v->blockHash))
-
+  if (mode_enabled) {
+    uint8_t optMetadataHash = 0;
+    CHECK_ERROR(_readu8(c, &optMetadataHash));
+    // Reject the transaction if Mode=Enabled or MetadataDigest is present
+    if (v->mode == 1 || optMetadataHash == 1) {
+      return parser_unexpected_value;
+    }
+  }
   if (c->offset < c->bufferLen) {
     return parser_unexpected_unparsed_bytes;
   }
@@ -35,6 +40,5 @@ parser_error_t _polkadot_readTx(parser_context_t *c, parser_tx_t *v) {
   if (c->offset > c->bufferLen) {
     return parser_unexpected_buffer_end;
   }
-
   return parser_ok;
 }

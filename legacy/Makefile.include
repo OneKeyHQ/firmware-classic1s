@@ -90,7 +90,6 @@ CFLAGS   += $(OPTFLAGS) \
             $(FPUFLAGS) \
             $(CONFFLAG) \
             -DSTM32F4 \
-            -DRAND_PLATFORM_INDEPENDENT=1 \
             -DDEBUG_LINK=$(DEBUG_LINK) \
             -DDEBUG_LOG=$(DEBUG_LOG) \
             -I$(TOOLCHAIN_DIR)/include \
@@ -116,14 +115,10 @@ LDFLAGS  += -L$(TOP_DIR) \
 LDFLAGS  += -L$(TOP_DIR)vendor/libsol
 LDLIBS   += -lsol
 
-LDFLAGS  += -L$(TOP_DIR)vendor/libpresetdata
-LDLIBS   += -lpresetdata
-LIBDEPS  += $(TOP_DIR)vendor/libpresetdata/libpresetdata.a
-
 ZKP_PATH = $(TOP_DIR)vendor/secp256k1-zkp
 
-# hw_model = T1B1 = 0x31423154
-HW_MODEL = 0x31423154
+# hw_model = C2B2 = 0x32423243
+HW_MODEL = 0x32423243
 CPUFLAGS   += -DHW_MODEL=$(HW_MODEL)
 CPUFLAGS   += -DHW_REVISION=0
 CFLAGS   += -DHW_MODEL=$(HW_MODEL)
@@ -202,6 +197,15 @@ CPUFLAGS += -DBOOTLOADER_QA=1
 $(info BOOTLOADER_QA=1)
 endif
 
+ifeq ($(FIRMWARE_QA),1)
+CFLAGS   += -DFIRMWARE_QA=1
+CPUFLAGS += -DFIRMWARE_QA=1
+$(info FIRMWARE_QA=1)
+else
+CFLAGS   += -DFIRMWARE_QA=0
+CPUFLAGS += -DFIRMWARE_QA=0
+$(info FIRMWARE_QA=0)
+endif
 
 ifeq ($(DEBUG_RNG), 1)
 CFLAGS += -DDEBUG_RNG=1

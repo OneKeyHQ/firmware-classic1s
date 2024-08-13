@@ -236,15 +236,18 @@ enum {
   READSTATE_READING,
 };
 
+extern bool msg_command_inprogress;
+
 void msg_process(char type, uint16_t msg_id, const pb_msgdesc_t *fields,
                  uint8_t *msg_raw, uint32_t msg_size) {
-  //FTFixed:如果使用芯片自动分配的Ram，会发生异常
+  // FTFixed:如果使用芯片自动分配的Ram，会发生异常
   static uint8_t msg_decoded[MSG_IN_DECODED_SIZE]
       __attribute__((section(".secMessageSection")));
   memzero(msg_decoded, sizeof(msg_decoded));
   pb_istream_t stream = pb_istream_from_buffer(msg_raw, msg_size);
   bool status = pb_decode(&stream, fields, msg_decoded);
   if (status) {
+    msg_command_inprogress = true;
     MessageProcessFunc(type, 'i', msg_id, msg_decoded);
   } else {
     fsm_sendFailure(FailureType_Failure_DataError, stream.errmsg);
@@ -272,12 +275,11 @@ void msg_read_common(char type, const uint8_t *buf, uint32_t len) {
 
     fields = MessageFields(type, 'i', msg_id);
     if (!fields) {  // unknown message
-      fsm_sendFailure(FailureType_Failure_UnexpectedMessage,
-                      _("Unknown message"));
+      fsm_sendFailure(FailureType_Failure_UnexpectedMessage, "Unknown message");
       return;
     }
     if (msg_encoded_size > MSG_IN_ENCODED_SIZE) {  // message is too big :(
-      fsm_sendFailure(FailureType_Failure_DataError, _("Message too big"));
+      fsm_sendFailure(FailureType_Failure_DataError, "Message too big");
       return;
     }
 
@@ -407,7 +409,7 @@ void msg_read_tiny(const uint8_t *buf, int len) {
     // There is a risk that the struct decoded from the message won't fit into
     // msg_tiny or the encoded message does not fit into the buffer. The first
     // is a fail-safe in case of a forgotten _Static_assert above.
-    fsm_sendFailure(FailureType_Failure_DataError, _("Message too big"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Message too big");
     msg_tiny_id = 0xFFFF;
     return;
   }

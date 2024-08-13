@@ -133,6 +133,24 @@ if TYPE_CHECKING:
         EthereumTypedDataValueAck = 468
         EthereumTypedDataSignature = 469
         EthereumSignTypedHash = 470
+        EthereumGetPublicKeyOneKey = 20100
+        EthereumPublicKeyOneKey = 20101
+        EthereumGetAddressOneKey = 20102
+        EthereumAddressOneKey = 20103
+        EthereumSignTxOneKey = 20104
+        EthereumSignTxEIP1559OneKey = 20105
+        EthereumTxRequestOneKey = 20106
+        EthereumTxAckOneKey = 20107
+        EthereumSignMessageOneKey = 20108
+        EthereumVerifyMessageOneKey = 20109
+        EthereumMessageSignatureOneKey = 20110
+        EthereumSignTypedDataOneKey = 20111
+        EthereumTypedDataStructRequestOneKey = 20112
+        EthereumTypedDataStructAckOneKey = 20113
+        EthereumTypedDataValueRequestOneKey = 20114
+        EthereumTypedDataValueAckOneKey = 20115
+        EthereumTypedDataSignatureOneKey = 20116
+        EthereumSignTypedHashOneKey = 20117
         NEMGetAddress = 67
         NEMAddress = 68
         NEMSignTx = 69
@@ -280,7 +298,7 @@ if TYPE_CHECKING:
         BixinBackupDevice = 914
         BixinBackupDeviceAck = 915
         BixinPinInputOnDevice = 10000
-        EthereumSignMessageEIP712 = 10200
+        Deprecated_EthereumSignMessageEIP712 = 10200
         GetPublicKeyMultiple = 10210
         PublicKeyMultiple = 10211
         ConfluxGetAddress = 10112
@@ -317,6 +335,10 @@ if TYPE_CHECKING:
         SuiAddress = 11101
         SuiSignTx = 11102
         SuiSignedTx = 11103
+        SuiSignMessage = 11104
+        SuiMessageSignature = 11105
+        SuiTxRequest = 11106
+        SuiTxAck = 11107
         FilecoinGetAddress = 11200
         FilecoinAddress = 11201
         FilecoinSignTx = 11202
@@ -327,6 +349,30 @@ if TYPE_CHECKING:
         KaspaSignedTx = 11303
         KaspaTxInputRequest = 11304
         KaspaTxInputAck = 11305
+        NexaGetAddress = 11400
+        NexaAddress = 11401
+        NexaSignTx = 11402
+        NexaSignedTx = 11403
+        NexaTxInputRequest = 11404
+        NexaTxInputAck = 11405
+        NostrGetPublicKey = 11500
+        NostrPublicKey = 11501
+        NostrSignEvent = 11502
+        NostrSignedEvent = 11503
+        NostrEncryptMessage = 11504
+        NostrEncryptedMessage = 11505
+        NostrDecryptMessage = 11506
+        NostrDecryptedMessage = 11507
+        NostrSignSchnorr = 11508
+        NostrSignedSchnorr = 11509
+        LnurlAuth = 11600
+        LnurlAuthResp = 11601
+        NervosGetAddress = 11701
+        NervosAddress = 11702
+        NervosSignTx = 11703
+        NervosSignedTx = 11704
+        NervosTxRequest = 11705
+        NervosTxAck = 11706
         DeviceEraseSector = 10026
 
     class FailureType(IntEnum):
@@ -512,6 +558,17 @@ if TYPE_CHECKING:
         ShamirGroups = 16
         PassphraseEntry = 17
 
+    class OneKeyDeviceType(IntEnum):
+        CLASSIC = 0
+        CLASSIC1S = 1
+        MINI = 2
+        TOUCH = 3
+        TOUCH_PRO = 4
+
+    class OneKeySeType(IntEnum):
+        THD89 = 0
+        SE608A = 1
+
     class ExportType(IntEnum):
         SeedEncExportType_NO = 0
         SeedEncExportType_YES = 1
@@ -541,6 +598,20 @@ if TYPE_CHECKING:
         NO = 0
         YES = 1
         INFO = 2
+
+    class EthereumDefinitionType(IntEnum):
+        NETWORK = 0
+        TOKEN = 1
+
+    class EthereumDataTypeOneKey(IntEnum):
+        UINT = 1
+        INT = 2
+        BYTES = 3
+        STRING = 4
+        BOOL = 5
+        ADDRESS = 6
+        ARRAY = 7
+        STRUCT = 8
 
     class EthereumDataType(IntEnum):
         UINT = 1

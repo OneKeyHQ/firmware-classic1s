@@ -24,7 +24,7 @@
 #include <stdlib.h>
 #include "secbool.h"
 
-#define FLASH_SECTOR_COUNT 24
+#define FLASH_SECTOR_COUNT 28
 
 // note: FLASH_SR_RDERR is STM32F42xxx and STM32F43xxx specific (STM32F427)
 // (reference RM0090 section 3.7.5)
@@ -45,6 +45,11 @@ uint8_t *flash_read_bytes(uint32_t addr);
 // secbool __wur flash_erase(uint8_t sector);
 secbool flash_erase(uint8_t sector);
 secbool flash_write_word_item(uint32_t offset, uint32_t data);
+secbool flash_write_word_item_ex(uint32_t offset, uint32_t data);
+void gd32_flash_init(void);
+
+void flash_unlock_ex(void);
+void flash_lock_ex(void);
 
 secbool __wur flash_write_byte(uint8_t sector, uint32_t offset, uint8_t data);
 secbool __wur flash_write_word(uint8_t sector, uint32_t offset, uint32_t data);

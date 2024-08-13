@@ -25,7 +25,7 @@ void fsm_msgCipherKeyValue(const CipherKeyValue *msg) {
   CHECK_INITIALIZED
 
   CHECK_PARAM(msg->value.size % 16 == 0,
-              _("Value length must be a multiple of 16"));
+              "Value length must be a multiple of 16");
 
   CHECK_PIN
 
@@ -50,6 +50,7 @@ void fsm_msgCipherKeyValue(const CipherKeyValue *msg) {
   strlcat((char *)data, ask_on_encrypt ? "E1" : "E0", sizeof(data));
   strlcat((char *)data, ask_on_decrypt ? "D1" : "D0", sizeof(data));
 
+#if EMULATOR
   hmac_sha512(node->private_key, 32, data, strlen((char *)data), data);
 
   if (msg->iv.size == 16) {
@@ -69,6 +70,25 @@ void fsm_msgCipherKeyValue(const CipherKeyValue *msg) {
     aes_cbc_decrypt(msg->value.bytes, resp->value.bytes, msg->value.size,
                     data + 32, &ctx);
   }
+#else
+  RESP_INIT(CipheredKeyValue);
+
+  uint8_t *iv = NULL;
+
+  if (msg->iv.size == 16) {
+    iv = (uint8_t *)msg->iv.bytes;
+  }
+  if (encrypt) {
+    se_aes256_encrypt(data, strlen((char *)data), iv,
+                      (uint8_t *)msg->value.bytes, msg->value.size,
+                      resp->value.bytes);
+  } else {
+    se_aes256_decrypt(data, strlen((char *)data), iv,
+                      (uint8_t *)msg->value.bytes, msg->value.size,
+                      resp->value.bytes);
+  }
+
+#endif
   resp->value.size = msg->value.size;
   msg_write(MessageType_MessageType_CipheredKeyValue, resp);
   layoutHome();
@@ -91,7 +111,7 @@ void fsm_msgSignIdentity(const SignIdentity *msg) {
 
   uint8_t hash[32];
   if (cryptoIdentityFingerprint(&(msg->identity), hash) == 0) {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Invalid identity"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Invalid identity");
     layoutHome();
     return;
   }
@@ -122,7 +142,7 @@ void fsm_msgSignIdentity(const SignIdentity *msg) {
       msg->identity.has_proto && (strcmp(msg->identity.proto, "signify") == 0);
 
   int result = 0;
-  layoutProgressSwipe(_("Singing"), 0);
+  layoutProgressSwipe(__("Singing"), 0);
   if (sign_ssh) {  // SSH does not sign visual challenge
     result = sshMessageSign(node, msg->challenge_hidden.bytes,
                             msg->challenge_hidden.size, resp->signature.bytes);
@@ -145,7 +165,7 @@ void fsm_msgSignIdentity(const SignIdentity *msg) {
   if (result == 0) {
     if (hdnode_fill_public_key(node) != 0) {
       fsm_sendFailure(FailureType_Failure_ProcessError,
-                      _("Failed to derive public key"));
+                      "Failed to derive public key");
       layoutHome();
       return;
     }
@@ -158,7 +178,7 @@ void fsm_msgSignIdentity(const SignIdentity *msg) {
       if (hdnode_get_address(node, 0x00, resp->address,
                              sizeof(resp->address)) != 0) {
         fsm_sendFailure(FailureType_Failure_ProcessError,
-                        _("Failed to get address"));
+                        "Failed to get address");
         layoutHome();
         return;
       }
@@ -172,8 +192,7 @@ void fsm_msgSignIdentity(const SignIdentity *msg) {
     resp->signature.size = 65;
     msg_write(MessageType_MessageType_SignedIdentity, resp);
   } else {
-    fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Error signing identity"));
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Error signing identity");
   }
   layoutHome();
 }
@@ -194,7 +213,7 @@ void fsm_msgGetECDHSessionKey(const GetECDHSessionKey *msg) {
 
   uint8_t hash[32];
   if (cryptoIdentityFingerprint(&(msg->identity), hash) == 0) {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Invalid identity"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Invalid identity");
     layoutHome();
     return;
   }
@@ -224,7 +243,7 @@ void fsm_msgGetECDHSessionKey(const GetECDHSessionKey *msg) {
     resp->session_key.size = result_size;
     if (hdnode_fill_public_key(node) != 0) {
       fsm_sendFailure(FailureType_Failure_ProcessError,
-                      _("Failed to derive public key"));
+                      "Failed to derive public key");
       layoutHome();
       return;
     }
@@ -234,7 +253,7 @@ void fsm_msgGetECDHSessionKey(const GetECDHSessionKey *msg) {
     msg_write(MessageType_MessageType_ECDHSessionKey, resp);
   } else {
     fsm_sendFailure(FailureType_Failure_ProcessError,
-                    _("Error getting ECDH session key"));
+                    "Error getting ECDH session key");
   }
   layoutHome();
 }
@@ -248,7 +267,7 @@ static bool fsm_checkCosiPath(uint32_t address_n_count,
   }
 
   if (config_getSafetyCheckLevel() == SafetyCheckLevel_Strict) {
-    fsm_sendFailure(FailureType_Failure_DataError, _("Forbidden key path"));
+    fsm_sendFailure(FailureType_Failure_DataError, "Forbidden key path");
     return false;
   }
 
@@ -291,12 +310,11 @@ void fsm_msgCosiSign(const CosiSign *msg) {
 
   CHECK_INITIALIZED
 
-  CHECK_PARAM(msg->global_commitment.size == 32,
-              _("Invalid global commitment"));
-  CHECK_PARAM(msg->global_pubkey.size == 32, _("Invalid global pubkey"));
+  CHECK_PARAM(msg->global_commitment.size == 32, "Invalid global commitment");
+  CHECK_PARAM(msg->global_pubkey.size == 32, "Invalid global pubkey");
 
   if (!cosi_nonce_is_set) {
-    fsm_sendFailure(FailureType_Failure_ProcessError, _("CoSi nonce not set"));
+    fsm_sendFailure(FailureType_Failure_ProcessError, "CoSi nonce not set");
     layoutHome();
     return;
   }

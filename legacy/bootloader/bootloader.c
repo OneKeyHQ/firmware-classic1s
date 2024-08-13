@@ -26,6 +26,7 @@
 
 #include "bootloader.h"
 #include "buttons.h"
+#include "common.h"
 #include "compiler_traits.h"
 #include "flash.h"
 #include "fw_signatures.h"
@@ -39,6 +40,10 @@
 #include "sys.h"
 #include "usb.h"
 #include "util.h"
+
+#include "thd89_boot.h"
+
+uint8_t se_state;
 
 void layoutFirmwareFingerprint(const uint8_t *hash) {
   char str[4][17] = {0};
@@ -152,6 +157,12 @@ int main(void) {
 #ifndef APPVER
     bool down_pressed = (buttonRead() & BTN_PIN_DOWN) == 0;
 
+    ensure(sectrue * se_get_state(&se_state), "se_get_state");
+
+    if (se_state == THD89_STATE_BOOT) {
+      force_boot = true;
+    }
+
     if (firmware_present_new() && !down_pressed && !force_boot) {
       oledClear();
       oledDrawBitmap(52, 20, &bmp_boot_icon);
@@ -174,6 +185,8 @@ int main(void) {
 #endif
   }
 
+  se_get_state(&se_state);
+  gd32_flash_init();
   layoutBootHome();
   bootloader_loop();
 

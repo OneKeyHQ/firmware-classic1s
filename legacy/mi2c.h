@@ -7,8 +7,9 @@
 #include "sys.h"
 #include "usart.h"
 
-#define MI2C_BUF_MAX_LEN (1024 + 512)
-#define MI2C_SEND_MAX_LEN (1024 + 512)
+#define MI2C_DATA_MAX_LEN (1024)
+#define MI2C_BUF_MAX_LEN (1024 + 64)
+#define MI2C_SEND_MAX_LEN (1024 + 64)
 
 #define MI2CX I2C1
 
@@ -39,19 +40,6 @@
 #define MI2C_XOR_LEN (1)
 
 //#define	GET_MI2C_COMBUS	        (gpio_get(GPIO_MI2C_PORT, MI2C_COMBUS))
-
-extern uint8_t g_ucMI2cRevBuf[MI2C_BUF_MAX_LEN];
-extern uint8_t g_ucMI2cSendBuf[MI2C_BUF_MAX_LEN];
-extern uint16_t g_usMI2cRevLen;
-
-#define CLA (g_ucMI2cSendBuf[0])
-#define INS (g_ucMI2cSendBuf[1])
-#define P1 (g_ucMI2cSendBuf[2])
-#define P2 (g_ucMI2cSendBuf[3])
-#define P3 (g_ucMI2cSendBuf[4])
-
-#define SH_IOBUFFER (g_ucMI2cSendBuf + 5)
-#define SH_CMDHEAD (g_ucMI2cSendBuf)
 
 #if !EMULATOR
 extern void vMI2CDRV_Init(void);

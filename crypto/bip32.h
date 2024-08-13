@@ -51,6 +51,8 @@ typedef struct {
 typedef struct {
   uint32_t depth;
   uint32_t child_num;
+  uint32_t address_count;
+  uint32_t address_n[8];
   uint8_t chain_code[32];
 
   uint8_t private_key[32];
@@ -59,6 +61,12 @@ typedef struct {
   uint8_t public_key[33];
   const curve_info *curve;
 } HDNode;
+
+extern const curve_info ed25519_info;
+extern const curve_info curve25519_info;
+extern const curve_info ed25519_keccak_info;
+extern const curve_info ed25519_sha3_info;
+extern const curve_info ed25519_polkadot_info;
 
 int hdnode_from_xpub(uint32_t depth, uint32_t child_num,
                      const uint8_t *chain_code, const uint8_t *public_key,
@@ -117,17 +125,33 @@ int hdnode_nem_decrypt(const HDNode *node, const ed25519_public_key public_key,
                        size_t size, uint8_t *buffer);
 #endif
 
+#if EMULATOR
+int hdnode_sign(HDNode *node, const uint8_t *msg, uint32_t msg_len,
+                HasherType hasher_sign, uint8_t *sig, uint8_t *pby,
+                int (*is_canonical)(uint8_t by, uint8_t sig[64]));
+int hdnode_sign_digest(HDNode *node, const uint8_t *digest, uint8_t *sig,
+                       uint8_t *pby,
+                       int (*is_canonical)(uint8_t by, uint8_t sig[64]));
+#else
 int hdnode_sign(const HDNode *node, const uint8_t *msg, uint32_t msg_len,
                 HasherType hasher_sign, uint8_t *sig, uint8_t *pby,
                 int (*is_canonical)(uint8_t by, uint8_t sig[64]));
 int hdnode_sign_digest(const HDNode *node, const uint8_t *digest, uint8_t *sig,
                        uint8_t *pby,
                        int (*is_canonical)(uint8_t by, uint8_t sig[64]));
+#endif
 int hdnode_bip340_sign_digest(const HDNode *node, const uint8_t *digest,
                               uint8_t sig[64]);
+int hdnode_bip340_sign_digest_internal(const HDNode *node,
+                                       const uint8_t *digest, uint8_t sig[64]);
+int hdnode_bch_sign_digest(const HDNode *node, const uint8_t *digest,
+                           uint8_t sig[64]);
 
 int hdnode_get_shared_key(const HDNode *node, const uint8_t *peer_public_key,
                           uint8_t *session_key, int *result_size);
+int hdnode_bip340_get_shared_key_ln(const HDNode *node,
+                                    const uint8_t *peer_public_key,
+                                    uint8_t session_key[65]);
 
 int hdnode_bip340_get_shared_key(const HDNode *node,
                                  const uint8_t *peer_public_key,
