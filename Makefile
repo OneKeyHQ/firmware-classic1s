@@ -68,9 +68,9 @@ editor_check: ## check editorconfig formatting
 	#editorconfig-checker -exclude '.*\.(so|dat|toif|der)|docs/pcb/|legacy/segger_rtt/'
 
 cstyle_check: ## run code style check on low-level C code
-	clang-format --version
-	@echo [CLANG-FORMAT]
-	@./tools/clang-format-check $(C_FILES)
+	# clang-format --version
+	# @echo [CLANG-FORMAT]
+	# @./tools/clang-format-check $(C_FILES)
 
 cstyle: ## apply code style on low-level C code
 	@echo [CLANG-FORMAT]

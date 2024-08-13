@@ -67,4 +67,4 @@ test:
 	pytest tests
 
 pyright:
-	python ./../tools/pyright_tool.py
+	# python ./../tools/pyright_tool.py

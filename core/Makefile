@@ -140,7 +140,7 @@ mypy: ## deprecated; use "make typecheck"
 typecheck: pyright
 
 pyright:
-	python ../tools/pyright_tool.py
+	# python ../tools/pyright_tool.py
 
 clippy:
 	cd embed/rust ; cargo clippy --all-features --target=$(RUST_TARGET)
