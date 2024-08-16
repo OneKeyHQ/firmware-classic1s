@@ -373,6 +373,12 @@ if TYPE_CHECKING:
         NervosSignedTx = 11704
         NervosTxRequest = 11705
         NervosTxAck = 11706
+        TonGetAddress = 11901
+        TonAddress = 11902
+        TonSignMessage = 11903
+        TonSignedMessage = 11904
+        TonSignProof = 11905
+        TonSignedProof = 11906
         DeviceEraseSector = 10026
 
     class FailureType(IntEnum):
@@ -670,6 +676,16 @@ if TYPE_CHECKING:
         Yay = 0
         Nay = 1
         Pass = 2
+
+    class TonWalletVersion(IntEnum):
+        V3R1 = 0
+        V3R2 = 1
+        V4R1 = 2
+        V4R2 = 3
+
+    class TonWorkChain(IntEnum):
+        BASECHAIN = 0
+        MASTERCHAIN = 1
 
     class TronResourceCode(IntEnum):
         BANDWIDTH = 0

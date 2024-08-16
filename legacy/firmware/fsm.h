@@ -47,6 +47,7 @@
 #include "messages-stellar.pb.h"
 #include "messages-sui.pb.h"
 #include "messages-tron.pb.h"
+#include "messages-ton.pb.h"
 
 // CoinJoin fee rate multiplier.
 #define FEE_RATE_DECIMALS (1000000)
@@ -317,4 +318,8 @@ void fsm_msgNostrSignSchnorr(const NostrSignSchnorr *msg);
 // lnurl
 void fsm_msgLnurlAuth(const LnurlAuth *msg);
 
+// ton
+void fsm_msgTonGetAddress(const TonGetAddress *msg);
+void fsm_msgTonSignMessage(const TonSignMessage *msg);
+void fsm_msgTonSignProof(const TonSignProof *msg);
 #endif

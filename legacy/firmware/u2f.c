@@ -490,7 +490,11 @@ void gd32_checkEleConnection(void) {
 
 void get_device_state(void) {
   uint8_t resp[4];
+  #if !EMULATOR
   resp[0] = memory_protect_state() == 0xCC ? 1 : 0;
+  #else
+  resp[0] = 1;
+  #endif
   resp[1] = se_isFactoryMode() ? 0 : 1;
   resp[2] = U2F_SW_NO_ERROR >> 8 & 0xFF;
   resp[3] = U2F_SW_NO_ERROR & 0xFF;
