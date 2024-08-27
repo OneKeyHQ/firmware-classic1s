@@ -107,6 +107,7 @@ typedef struct __attribute__((packed)) {
 
 #define U2F_AUTH_ENFORCE        0x03    // Enforce user presence and sign
 #define U2F_AUTH_CHECK_ONLY     0x07    // Check only
+#define U2F_NOT_AUTH_ENFORCE    0x08    // Don't enforce user presence
 #define U2F_AUTH_FLAG_TUP       0x01    // Test of user presence set
 
 typedef struct __attribute__((packed)) {

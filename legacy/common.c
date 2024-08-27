@@ -37,9 +37,6 @@ uint8_t cpu_mode = 0;
 bool g_bIsBixinAPP = false;
 uint32_t g_uiFastPayFlag = 0;
 uint8_t g_uchash_mode = 0;
-// 1:U2F register,always use soft algorithm
-// 2:U2F authenticate,use hard algorithm if se is enabled
-uint8_t g_ucSignU2F = 0;
 
 static HMAC_DRBG_CTX drbg_ctx;
 

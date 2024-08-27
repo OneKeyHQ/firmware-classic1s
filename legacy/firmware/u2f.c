@@ -95,11 +95,11 @@ typedef enum {
 
 static U2F_STATE last_req_state = INIT;
 
-static bool input_pin = false;
 static bool first_package = true;
 static uint32_t package_len = 0, rec_len = 0;
 bool u2f_init_command = false;
 static bool next_page = false;
+static bool se_seed_cached = false;
 
 typedef struct {
   uint8_t reserved;
@@ -268,6 +268,10 @@ void u2fhid_read_start(const U2FHID_FRAME *f) {
         u2fhid_ping(reader->buf, reader->len);
         break;
       case U2FHID_MSG:
+        if (reader->len == 5) {
+          // lc2 lc3 = 0
+          reader->buf[5] = reader->buf[6] = 0;
+        }
         u2fhid_msg((APDU *)reader->buf, reader->len);
         break;
       case U2FHID_WINK:
@@ -299,20 +303,13 @@ void u2fhid_read_start(const U2FHID_FRAME *f) {
                 NULL, NULL, NULL, NULL, NULL, NULL,
                 _(C__AUTHENTICATE_U2F_SECURITY_KEY_QUES));
           }
-          delay_ms(100);
+          // delay_ms(100);
           next_page = false;
         } else {
+          layoutHome();
           last_req_state++;
         }
       }
-      // if (button.NoUp && (last_req_state == AUTH || last_req_state == REG) &&
-      //     false == next_page) {
-      //   send_u2fhid_error(cid, ERR_MSG_TIMEOUT);
-      //   last_req_state = AUTH;
-      //   usbTiny(0);
-      //   layoutHome();
-      //   return;
-      // }
       if (reader == 0) {
         layoutHome();
         return;
@@ -325,8 +322,7 @@ void u2fhid_read_start(const U2FHID_FRAME *f) {
       cid = 0;
       reader = 0;
       usbTiny(0);
-      // FTFixed: 生产阶段会影响清se的cos，不影响后续使用
-      // layoutHome();
+      layoutHome();
       return;
     }
   }
@@ -635,15 +631,15 @@ static void getReadableAppId(const uint8_t appid[U2F_APPID_SIZE],
   data2hex(appid + (U2F_APPID_SIZE - 4), 4, &buf[10]);
   *appname = buf;
 }
-
+#if EMULATOR
 static const HDNode *getDerivedNode(uint32_t *address_n,
                                     size_t address_n_count) {
   static CONFIDENTIAL HDNode node;
-  /* if (!config_getU2FRoot(&node)) { */
-  /*   layoutHome(); */
-  /*   debugLog(0, "", "ERR: Device not init"); */
-  /*   return 0; */
-  /* } */
+  if (!config_getU2FRoot(&node)) {
+    layoutHome();
+    debugLog(0, "", "ERR: Device not init");
+    return 0;
+  }
 
   if (!address_n || address_n_count == 0) {
     return &node;
@@ -717,10 +713,12 @@ static const HDNode *validateKeyHandle(const uint8_t app_id[],
   // Done!
   return node;
 }
+#endif
 
 void u2f_register(const APDU *a) {
   static U2F_REGISTER_REQ last_req;
   const U2F_REGISTER_REQ *req = (U2F_REGISTER_REQ *)a->data;
+  uint8_t percent;
 
   if (!config_isInitialized()) {
     send_u2f_error(U2F_SW_CONDITIONS_NOT_SATISFIED);
@@ -728,17 +726,30 @@ void u2f_register(const APDU *a) {
   }
 
   if (!session_isUnlocked()) {
-    input_pin = true;
     send_u2f_error(U2F_SW_CONDITIONS_NOT_SATISFIED);
+    protectPinOnDevice(true, true);
+    dialog_timeout = U2F_TIMEOUT;
+    layoutHome();
+    return;
   }
 
-  protectPinOnDevice(true, true);
-
-  if (input_pin) {
-    input_pin = false;
-    last_req_state = REG;
-    dialog_timeout = U2F_TIMEOUT;
-    return;
+  if (!se_seed_cached) {
+    UI_WAIT_CALLBACK ui_callback = se_get_ui_callback();
+    secbool ret = se_gen_root_node(&percent);
+    if (ret) {
+      if (percent == 100) {
+        se_seed_cached = true;
+        last_req_state = INIT;
+      } else if (ui_callback) {
+        ui_callback(_(C__PROCESSING_ETC), percent * 10);
+        send_u2f_error(U2F_SW_CONDITIONS_NOT_SATISFIED);
+        dialog_timeout = U2F_TIMEOUT;
+        return;
+      }
+    } else {
+      send_u2f_error(U2F_SW_WRONG_DATA);
+      return;
+    }
   }
 
   // Validate basic request parameters
@@ -799,6 +810,8 @@ void u2f_register(const APDU *a) {
 
     resp->registerId = U2F_REGISTER_ID;
     resp->keyHandleLen = KEY_HANDLE_LEN;
+
+#if EMULATOR
     // Generate keypair for this appId
     const HDNode *node =
         generateKeyHandle(req->appId, (uint8_t *)&resp->keyHandleCertSig);
@@ -814,26 +827,32 @@ void u2f_register(const APDU *a) {
       send_u2f_error(U2F_SW_WRONG_DATA);
       return;
     }
+#endif
 
     memcpy(resp->keyHandleCertSig + resp->keyHandleLen, U2F_ATT_CERT,
            sizeof(U2F_ATT_CERT));
 
     uint8_t sig[64] = {0};
+#if EMULATOR
     U2F_REGISTER_SIG_STR sig_base = {0};
     sig_base.reserved = 0;
     memcpy(sig_base.appId, req->appId, U2F_APPID_SIZE);
     memcpy(sig_base.chal, req->chal, U2F_CHAL_SIZE);
     memcpy(sig_base.keyHandle, &resp->keyHandleCertSig, KEY_HANDLE_LEN);
     memcpy(sig_base.pubKey, &resp->pubKey, U2F_PUBKEY_LEN);
-    g_ucSignU2F = 1;
     if (ecdsa_sign(&nist256p1, HASHER_SHA2, U2F_ATT_PRIV_KEY,
                    (uint8_t *)&sig_base, sizeof(sig_base), sig, NULL,
                    NULL) != 0) {
       send_u2f_error(U2F_SW_WRONG_DATA);
-      g_ucSignU2F = 0;
       return;
     }
-
+#else
+    if (!se_u2f_register(req->appId, req->chal, resp->keyHandleCertSig,
+                         (uint8_t *)&resp->pubKey, sig)) {
+      send_u2f_error(U2F_SW_WRONG_DATA);
+      return;
+    }
+#endif
     // Where to write the signature in the response
     uint8_t *resp_sig =
         resp->keyHandleCertSig + resp->keyHandleLen + sizeof(U2F_ATT_CERT);
@@ -861,6 +880,7 @@ void u2f_register(const APDU *a) {
 void u2f_authenticate(const APDU *a) {
   const U2F_AUTHENTICATE_REQ *req = (U2F_AUTHENTICATE_REQ *)a->data;
   static U2F_AUTHENTICATE_REQ last_req;
+  uint8_t percent;
 
   if (!config_isInitialized()) {
     send_u2f_error(U2F_SW_CONDITIONS_NOT_SATISFIED);
@@ -879,6 +899,34 @@ void u2f_authenticate(const APDU *a) {
     return;
   }
 
+  if (!session_isUnlocked()) {
+    send_u2f_error(U2F_SW_CONDITIONS_NOT_SATISFIED);
+    protectPinOnDevice(true, true);
+    dialog_timeout = U2F_TIMEOUT;
+    layoutHome();
+    return;
+  }
+
+  if (!se_seed_cached) {
+    UI_WAIT_CALLBACK ui_callback = se_get_ui_callback();
+    secbool ret = se_gen_root_node(&percent);
+    if (ret) {
+      if (percent == 100) {
+        se_seed_cached = true;
+        last_req_state = INIT;
+      } else if (ui_callback) {
+        ui_callback(_(C__PROCESSING_ETC), percent * 10);
+        send_u2f_error(U2F_SW_CONDITIONS_NOT_SATISFIED);
+        dialog_timeout = U2F_TIMEOUT;
+        return;
+      }
+    } else {
+      send_u2f_error(U2F_SW_WRONG_DATA);
+      return;
+    }
+  }
+
+#if EMULATOR
   const HDNode *node = validateKeyHandle(req->appId, req->keyHandle);
 
   if (!node) {
@@ -886,20 +934,12 @@ void u2f_authenticate(const APDU *a) {
     send_u2f_error(U2F_SW_WRONG_DATA);  // error:bad key handle
     return;
   }
-
-  if (!session_isUnlocked()) {
-    input_pin = true;
-    send_u2f_error(U2F_SW_CONDITIONS_NOT_SATISFIED);
-  }
-
-  protectPinOnDevice(true, true);
-
-  if (input_pin) {
-    input_pin = false;
-    last_req_state = AUTH;
-    dialog_timeout = U2F_TIMEOUT;
+#else
+  if (!se_u2f_validate_handle(req->appId, req->keyHandle)) {
+    send_u2f_error(U2F_SW_WRONG_DATA);
     return;
   }
+#endif
 
   if (a->p1 == U2F_AUTH_CHECK_ONLY) {
     debugLog(0, "", "u2f authenticate check");
@@ -911,7 +951,7 @@ void u2f_authenticate(const APDU *a) {
     return;
   }
 
-  if (a->p1 != U2F_AUTH_ENFORCE) {
+  if (a->p1 != U2F_AUTH_ENFORCE && a->p1 != U2F_NOT_AUTH_ENFORCE) {
     debugLog(0, "", "u2f authenticate unknown");
     // error:bad key handle
     send_u2f_error(U2F_SW_WRONG_DATA);
@@ -950,8 +990,10 @@ void u2f_authenticate(const APDU *a) {
     uint8_t buf[(sizeof(U2F_AUTHENTICATE_RESP)) + 2] = {0};
     U2F_AUTHENTICATE_RESP *resp = (U2F_AUTHENTICATE_RESP *)&buf;
 
+    uint8_t sig[64] = {0};
+    resp->flags = a->p1 == U2F_AUTH_ENFORCE ? U2F_AUTH_FLAG_TUP : 0;
+#if EMULATOR
     const uint32_t ctr = config_nextU2FCounter();
-    resp->flags = U2F_AUTH_FLAG_TUP;
     resp->ctr[0] = ctr >> 24 & 0xff;
     resp->ctr[1] = ctr >> 16 & 0xff;
     resp->ctr[2] = ctr >> 8 & 0xff;
@@ -959,20 +1001,25 @@ void u2f_authenticate(const APDU *a) {
 
     // Build and sign response
     U2F_AUTHENTICATE_SIG_STR sig_base = {0};
-    uint8_t sig[64] = {0};
+
     memcpy(sig_base.appId, req->appId, U2F_APPID_SIZE);
     sig_base.flags = resp->flags;
     memcpy(sig_base.ctr, resp->ctr, 4);
     memcpy(sig_base.chal, req->chal, U2F_CHAL_SIZE);
-    g_ucSignU2F = 2;
     if (ecdsa_sign(&nist256p1, HASHER_SHA2, node->private_key,
                    (uint8_t *)&sig_base, sizeof(sig_base), sig, NULL,
                    NULL) != 0) {
       send_u2f_error(U2F_SW_WRONG_DATA);
-      g_ucSignU2F = 0;
+      return;
+    }
+#else
+    if (!se_u2f_authenticate(req->appId, req->keyHandle, req->chal, resp->ctr,
+                             sig)) {
+      send_u2f_error(U2F_SW_WRONG_DATA);
       return;
     }
 
+#endif
     // Copy DER encoded signature into response
     const uint8_t sig_len = ecdsa_sig_to_der(sig, resp->sig);
 

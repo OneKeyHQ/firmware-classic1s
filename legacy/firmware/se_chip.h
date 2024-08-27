@@ -21,6 +21,7 @@ enum {
 
 typedef void (*UI_WAIT_CALLBACK)(const char *message, int progress);
 void se_set_ui_callback(UI_WAIT_CALLBACK callback);
+UI_WAIT_CALLBACK se_get_ui_callback(void);
 
 secbool se_transmit_mac(uint8_t ins, uint8_t p1, uint8_t p2, uint8_t *data,
                         uint16_t data_len, uint8_t *recv, uint16_t *recv_len);
@@ -49,7 +50,7 @@ secbool se_getRetryTimes(uint8_t *ptimes);
 secbool se_clearSecsta(void);
 secbool se_getSecsta(void);
 secbool se_set_u2f_counter(uint32_t u2fcounter);
-secbool se_get_u2f_counter(uint32_t *u2fcounter);
+secbool se_get_u2f_next_counter(uint32_t *u2fcounter);
 secbool se_set_mnemonic(const char *mnemonic, uint16_t len);
 secbool se_sessionStart(uint8_t *session_id_bytes);
 secbool se_sessionOpen(uint8_t *session_id_bytes);
@@ -134,6 +135,17 @@ uint16_t se_lasterror(void);
 
 bool se_isFactoryMode(void);
 bool se_disableFactoryMode(void);
+
+secbool se_gen_root_node(uint8_t *percent);
+secbool se_u2f_register(const uint8_t app_id[32], const uint8_t challenge[32],
+                        uint8_t key_handle[64], uint8_t pub_key[65],
+                        uint8_t sign[64]);
+secbool se_u2f_validate_handle(const uint8_t app_id[32],
+                               const uint8_t key_handle[64]);
+secbool se_u2f_authenticate(const uint8_t app_id[32],
+                            const uint8_t key_handle[64],
+                            const uint8_t challenge[32], uint8_t *u2f_counter,
+                            uint8_t sign[64]);
 #else
 #define se_transmit(...) 0
 #define se_get_sn(...) false
