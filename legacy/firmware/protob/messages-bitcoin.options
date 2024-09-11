@@ -108,3 +108,7 @@ GetPublicKeyMultiple.ecdsa_curve_name                       max_size:32
 GetPublicKeyMultiple.coin_name                              max_size:21
 
 PublicKeyMultiple.xpubs                                     max_count:20 max_size:113
+
+SignPsbt.psbt                                              max_size: 2048
+SignPsbt.coin_name                                         max_size:21
+SignedPsbt.psbt                                            max_size: 2432

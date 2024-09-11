@@ -96,7 +96,7 @@
 #include "ton.h"
 #include "tron.h"
 #endif
-
+#include "psbt/psbt.h"
 #if EMULATOR
 #include <stdio.h>
 #endif

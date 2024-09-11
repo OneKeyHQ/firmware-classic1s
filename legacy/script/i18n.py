@@ -43,7 +43,7 @@ def write_keys(parsed):
 
 
 def write_lang(parsed, lang_iso):
-    content = f"const char *languages_{lang_iso.lower()}[] = " + "{"
+    content = f"const char *const languages_{lang_iso.lower()}[] = " + "{"
     content = [content]
     for key in parsed:
         text = key["translations"][lang_iso]

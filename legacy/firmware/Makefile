@@ -156,6 +156,7 @@ OBJS += ton_cell.o
 OBJS += ton_tokens.o
 OBJS += ton_address.o
 OBJS += ton_layout.o
+OBJS += psbt/psbt.o
 endif
 
 OBJS += debug.o

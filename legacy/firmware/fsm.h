@@ -112,6 +112,7 @@ void fsm_msgAuthorizeCoinJoin(const AuthorizeCoinJoin *msg);
 void fsm_msgCancelAuthorization(const CancelAuthorization *msg);
 void fsm_msgDoPreauthorized(const DoPreauthorized *msg);
 void fsm_msgUnlockPath(const UnlockPath *msg);
+void fsm_msgSignPsbt(const SignPsbt *msg);
 
 // crypto
 void fsm_msgCipherKeyValue(const CipherKeyValue *msg);

@@ -1,4 +1,4 @@
-const char *languages_zh_tw[] = {
+const char *const languages_zh_tw[] = {
     "感謝使用 OneKey！",
     "快速上手",
     "接下來，請按照螢幕上\n的說明完成開始設置您的\nOneKey Classic",

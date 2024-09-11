@@ -1,4 +1,4 @@
-const char *languages_pt_br[] = {
+const char *const languages_pt_br[] = {
     "Bem-vindo(a) à OneKey",
     "Início Rápido",
     "Em seguida, siga as\ninstruções na tela para\nconfigurar dispositivo.",
