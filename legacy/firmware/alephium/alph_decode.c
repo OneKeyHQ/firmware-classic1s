@@ -1,13 +1,16 @@
 #include "alph_decode.h"
-#include <ctype.h>
-#include <inttypes.h>
-#include <stdarg.h>
-#include "SEGGER_RTT.h"
-#include "rtt_log.h"
 
 #define SINGLE_BYTE_LIMIT 0x40
 #define TWO_BYTE_LIMIT 0x80
 #define MULTI_BYTE_LIMIT 0xC0
+
+#define PREFIX_SINGLE_BYTE 0x00
+#define PREFIX_TWO_BYTES 0x40
+#define PREFIX_FOUR_BYTES 0x80
+#define PREFIX_MULTI_BYTES 0xC0
+
+#define SIGN_BIT 0x20
+#define VALUE_MASK 0x3F
 
 AlephiumError alephium_init(void) { return ALEPHIUM_OK; }
 
@@ -48,28 +51,28 @@ AlephiumError decode_i32(const uint8_t* data, int32_t* value,
   }
 
   uint8_t first_byte = data[0];
-  uint8_t prefix = first_byte & 0xC0;
+  uint8_t prefix = first_byte & PREFIX_MULTI_BYTES;
 
-  if (prefix == 0x00) {
-    *value = (first_byte & 0x20) ? -(64 - first_byte) : first_byte;
+  if (prefix == PREFIX_SINGLE_BYTE) {
+    *value = (first_byte & SIGN_BIT) ? -(64 - first_byte) : first_byte;
     *bytes_read = 1;
-  } else if (prefix == 0x40) {
-    uint16_t val = ((uint16_t)(first_byte & 0x3F) << 8) | data[1];
-    *value = (first_byte & 0x20) ? -(16384 - val) : val;
+  } else if (prefix == PREFIX_TWO_BYTES) {
+    uint16_t val = ((uint16_t)(first_byte & VALUE_MASK) << 8) | data[1];
+    *value = (first_byte & SIGN_BIT) ? -(16384 - val) : val;
     *bytes_read = 2;
-  } else if (prefix == 0x80) {
-    uint32_t val = ((uint32_t)(first_byte & 0x3F) << 24) |
+  } else if (prefix == PREFIX_FOUR_BYTES) {
+    uint32_t val = ((uint32_t)(first_byte & VALUE_MASK) << 24) |
                    ((uint32_t)data[1] << 16) | ((uint32_t)data[2] << 8) |
                    data[3];
-    *value = (first_byte & 0x20) ? -(1073741824 - val) : val;
+    *value = (first_byte & SIGN_BIT) ? -(1073741824 - val) : val;
     *bytes_read = 4;
   } else {
-    size_t length = (first_byte & 0x3F) + 5;
+    size_t length = (first_byte & VALUE_MASK) + 5;
     uint64_t val = 0;
     for (size_t i = 1; i < length; i++) {
       val = (val << 8) | data[i];
     }
-    *value = (first_byte & 0x20) ? -val : val;
+    *value = (first_byte & SIGN_BIT) ? -val : val;
     *bytes_read = length;
   }
 

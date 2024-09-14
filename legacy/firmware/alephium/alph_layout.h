@@ -1,11 +1,11 @@
 #ifndef __ALEPHIUM_LAYOUT_H__
 #define __ALEPHIUM_LAYOUT_H__
 
-#include <stdio.h> 
+#include <stdio.h>
 #include "../gettext.h"
 #include "../layout2.h"
-#include "../protect.h" 
-#include "SEGGER_RTT.h" 
+#include "../protect.h"
+#include "SEGGER_RTT.h"
 #include "buttons.h"
 
 bool layoutFee(const char *fee);

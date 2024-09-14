@@ -1,7 +1,9 @@
 #ifndef __ALEPHIUM_DECODE_H__
 #define __ALEPHIUM_DECODE_H__
 
+#include <ctype.h>
 #include <inttypes.h>
+#include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>

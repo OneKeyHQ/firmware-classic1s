@@ -1,7 +1,7 @@
 #include "alph_address.h"
 #include "../fsm.h"
 #include "../layout2.h"
-#include "../protect.h"  // 为 protectWaitKey 函数
+#include "../protect.h"
 #include "base58.h"
 #include "blake2b.h"
 
