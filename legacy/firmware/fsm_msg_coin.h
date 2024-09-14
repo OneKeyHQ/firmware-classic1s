@@ -381,14 +381,40 @@ void fsm_msgSignMessage(const SignMessage *msg) {
   }
 
   layoutProgressSwipe(_(C__SIGNING), 0);
-  if (cryptoMessageSign(coin, node, msg->script_type, msg->no_script_type,
-                        msg->message.bytes, msg->message.size,
-                        resp->signature.bytes) == 0) {
-    resp->signature.size = 65;
-    msg_write(MessageType_MessageType_MessageSignature, resp);
+  if (msg->has_is_bip322_simple && msg->is_bip322_simple) {
+    size_t signature_size = 0;
+    if (msg->script_type == InputScriptType_SPENDWITNESS) {
+      if (!sign_bip322_simple_segwit(node, coin, msg->message.bytes,
+                                     msg->message.size, resp->signature.bytes,
+                                     &signature_size)) {
+        fsm_sendFailure(FailureType_Failure_ProcessError, "Signing failed");
+      }
+    } else if (msg->script_type == InputScriptType_SPENDTAPROOT) {
+      if (!sign_bip322_simple_taproot(node, msg->message.bytes,
+                                      msg->message.size, resp->signature.bytes,
+                                      &signature_size)) {
+        fsm_sendFailure(FailureType_Failure_ProcessError, "Signing failed");
+      }
+    } else {
+      fsm_sendFailure(FailureType_Failure_ProcessError,
+                      "Unsupported script type");
+      layoutHome();
+      return;
+    }
+    resp->signature.size = signature_size;
   } else {
-    fsm_sendFailure(FailureType_Failure_ProcessError, "Error signing message");
+    if (cryptoMessageSign(coin, node, msg->script_type, msg->no_script_type,
+                          msg->message.bytes, msg->message.size,
+                          resp->signature.bytes) == 0) {
+      resp->signature.size = 65;
+    } else {
+      fsm_sendFailure(FailureType_Failure_ProcessError,
+                      "Error signing message");
+      layoutHome();
+      return;
+    }
   }
+  msg_write(MessageType_MessageType_MessageSignature, resp);
   layoutHome();
 }
 

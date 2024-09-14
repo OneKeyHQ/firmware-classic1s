@@ -1689,6 +1689,7 @@ class SignMessage(protobuf.MessageType):
         3: protobuf.Field("coin_name", "string", repeated=False, required=False, default='Bitcoin'),
         4: protobuf.Field("script_type", "InputScriptType", repeated=False, required=False, default=InputScriptType.SPENDADDRESS),
         5: protobuf.Field("no_script_type", "bool", repeated=False, required=False, default=None),
+        10: protobuf.Field("is_bip322_simple", "bool", repeated=False, required=False, default=False),
     }
 
     def __init__(
@@ -1699,12 +1700,14 @@ class SignMessage(protobuf.MessageType):
         coin_name: Optional["str"] = 'Bitcoin',
         script_type: Optional["InputScriptType"] = InputScriptType.SPENDADDRESS,
         no_script_type: Optional["bool"] = None,
+        is_bip322_simple: Optional["bool"] = False,
     ) -> None:
         self.address_n: Sequence["int"] = address_n if address_n is not None else []
         self.message = message
         self.coin_name = coin_name
         self.script_type = script_type
         self.no_script_type = no_script_type
+        self.is_bip322_simple = is_bip322_simple
 
 
 class MessageSignature(protobuf.MessageType):

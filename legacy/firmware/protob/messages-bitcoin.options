@@ -22,7 +22,7 @@ VerifyMessage.message                                       max_size:1024
 VerifyMessage.coin_name                                     max_size:21
 
 MessageSignature.address                                    max_size:130
-MessageSignature.signature                                  max_size:65
+MessageSignature.signature                                  max_size:109
 
 TransactionType.inputs                                      max_count:1
 TransactionType.bin_outputs                                 max_count:1
