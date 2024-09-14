@@ -343,4 +343,5 @@ const char *languages_en[] = {
     "Do you want to approve\nLNURL Auth request?",
     "Do you want to encrypt\{} message?",
     "Do you want to decrypt {} message?",
+    "The following transaction output contains contract data",
 };

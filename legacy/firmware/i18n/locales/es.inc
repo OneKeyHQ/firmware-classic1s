@@ -343,4 +343,5 @@ const char *languages_es[] = {
     "¿Quiere aprobar la\nsolicitud de autenticación\nLNURL?",
     "¿Quieres cifrar el\nmensaje {}?",
     "¿Quieres descifrar el\nmensaje {}?",
+    "La siguiente salida de transacción contiene datos de contrato",
 };

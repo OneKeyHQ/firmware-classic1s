@@ -142,6 +142,10 @@ OBJS += sui.o
 OBJS += kaspa.o
 OBJS += nexa.o
 OBJS += nervos.o
+OBJS += alephium.o
+OBJS += alephium/alph_address.o
+OBJS += alephium/alph_decode.o
+OBJS += alephium/alph_layout.o
 OBJS += nostr.o
 OBJS += base64.o
 OBJS += lnurl.o
@@ -249,6 +253,7 @@ OBJS += protob/messages-nexa.pb.o
 OBJS += protob/messages-nervos.pb.o
 OBJS += protob/messages-nostr.pb.o
 OBJS += protob/messages-lnurl.pb.o
+OBJS += protob/messages-alephium.pb.o
 endif
 
 OPTFLAGS ?= -Os

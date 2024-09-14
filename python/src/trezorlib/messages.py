@@ -381,6 +381,16 @@ class MessageType(IntEnum):
     NervosSignedTx = 11704
     NervosTxRequest = 11705
     NervosTxAck = 11706
+    AlephiumGetAddress = 12101
+    AlephiumAddress = 12102
+    AlephiumSignTx = 12103
+    AlephiumSignedTx = 12104
+    AlephiumTxRequest = 12105
+    AlephiumTxAck = 12106
+    AlephiumBytecodeRequest = 12107
+    AlephiumBytecodeAck = 12108
+    AlephiumSignMessage = 12109
+    AlephiumMessageSignature = 12110
     DeviceEraseSector = 10026
 
 
@@ -727,6 +737,191 @@ class TezosBallotType(IntEnum):
 class TronResourceCode(IntEnum):
     BANDWIDTH = 0
     ENERGY = 1
+
+
+class AlephiumGetAddress(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 12101
+    FIELDS = {
+        1: protobuf.Field("address_n", "uint32", repeated=True, required=False, default=None),
+        2: protobuf.Field("show_display", "bool", repeated=False, required=False, default=None),
+        3: protobuf.Field("include_public_key", "bool", repeated=False, required=False, default=None),
+        4: protobuf.Field("target_group", "uint32", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        address_n: Optional[Sequence["int"]] = None,
+        show_display: Optional["bool"] = None,
+        include_public_key: Optional["bool"] = None,
+        target_group: Optional["int"] = None,
+    ) -> None:
+        self.address_n: Sequence["int"] = address_n if address_n is not None else []
+        self.show_display = show_display
+        self.include_public_key = include_public_key
+        self.target_group = target_group
+
+
+class AlephiumAddress(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 12102
+    FIELDS = {
+        1: protobuf.Field("address", "string", repeated=False, required=True),
+        2: protobuf.Field("public_key", "bytes", repeated=False, required=False, default=None),
+        3: protobuf.Field("derived_path", "uint32", repeated=True, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        address: "str",
+        derived_path: Optional[Sequence["int"]] = None,
+        public_key: Optional["bytes"] = None,
+    ) -> None:
+        self.derived_path: Sequence["int"] = derived_path if derived_path is not None else []
+        self.address = address
+        self.public_key = public_key
+
+
+class AlephiumSignTx(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 12103
+    FIELDS = {
+        1: protobuf.Field("address_n", "uint32", repeated=True, required=False, default=None),
+        2: protobuf.Field("data_initial_chunk", "bytes", repeated=False, required=True),
+        3: protobuf.Field("data_length", "uint32", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        data_initial_chunk: "bytes",
+        address_n: Optional[Sequence["int"]] = None,
+        data_length: Optional["int"] = None,
+    ) -> None:
+        self.address_n: Sequence["int"] = address_n if address_n is not None else []
+        self.data_initial_chunk = data_initial_chunk
+        self.data_length = data_length
+
+
+class AlephiumSignedTx(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 12104
+    FIELDS = {
+        1: protobuf.Field("signature", "bytes", repeated=False, required=True),
+        2: protobuf.Field("address", "string", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        signature: "bytes",
+        address: "str",
+    ) -> None:
+        self.signature = signature
+        self.address = address
+
+
+class AlephiumTxRequest(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 12105
+    FIELDS = {
+        1: protobuf.Field("data_length", "uint32", repeated=False, required=False, default=None),
+        2: protobuf.Field("public_key", "bytes", repeated=False, required=False, default=None),
+        3: protobuf.Field("signature", "bytes", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        data_length: Optional["int"] = None,
+        public_key: Optional["bytes"] = None,
+        signature: Optional["bytes"] = None,
+    ) -> None:
+        self.data_length = data_length
+        self.public_key = public_key
+        self.signature = signature
+
+
+class AlephiumTxAck(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 12106
+    FIELDS = {
+        1: protobuf.Field("data_chunk", "bytes", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        data_chunk: "bytes",
+    ) -> None:
+        self.data_chunk = data_chunk
+
+
+class AlephiumBytecodeRequest(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 12107
+    FIELDS = {
+        1: protobuf.Field("data_length", "uint32", repeated=False, required=False, default=None),
+        2: protobuf.Field("public_key", "bytes", repeated=False, required=False, default=None),
+        3: protobuf.Field("signature", "bytes", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        data_length: Optional["int"] = None,
+        public_key: Optional["bytes"] = None,
+        signature: Optional["bytes"] = None,
+    ) -> None:
+        self.data_length = data_length
+        self.public_key = public_key
+        self.signature = signature
+
+
+class AlephiumBytecodeAck(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 12108
+    FIELDS = {
+        1: protobuf.Field("bytecode_data", "bytes", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        bytecode_data: "bytes",
+    ) -> None:
+        self.bytecode_data = bytecode_data
+
+
+class AlephiumSignMessage(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 12109
+    FIELDS = {
+        1: protobuf.Field("address_n", "uint32", repeated=True, required=False, default=None),
+        2: protobuf.Field("message", "bytes", repeated=False, required=False, default=None),
+        3: protobuf.Field("message_type", "bytes", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        address_n: Optional[Sequence["int"]] = None,
+        message: Optional["bytes"] = None,
+        message_type: Optional["bytes"] = None,
+    ) -> None:
+        self.address_n: Sequence["int"] = address_n if address_n is not None else []
+        self.message = message
+        self.message_type = message_type
+
+
+class AlephiumMessageSignature(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 12110
+    FIELDS = {
+        1: protobuf.Field("signature", "bytes", repeated=False, required=False, default=None),
+        2: protobuf.Field("address", "string", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        signature: Optional["bytes"] = None,
+        address: Optional["str"] = None,
+    ) -> None:
+        self.signature = signature
+        self.address = address
 
 
 class AlgorandGetAddress(protobuf.MessageType):

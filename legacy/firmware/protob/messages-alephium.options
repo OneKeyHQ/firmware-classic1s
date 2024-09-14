@@ -1,0 +1,32 @@
+AlephiumGetAddress.address_n                                   max_count:8
+
+AlephiumAddress.address                                        max_size:64
+AlephiumAddress.public_key                                     max_size:64
+AlephiumAddress.derived_path                                   max_count:8
+
+
+AlephiumSignTx.address_n                                       max_count:8
+AlephiumSignTx.data_initial_chunk                              max_size:1024
+
+
+AlephiumSignedTx.signature                                     max_size:64
+AlephiumSignedTx.address                                       max_size:64
+
+AlephiumTxRequest.public_key                                   max_size:32
+AlephiumTxRequest.signature                                    max_size:64
+
+AlephiumTxAck.data_chunk                                       max_size:1024
+
+
+
+AlephiumMessageSignature.signature                             max_size:64
+AlephiumMessageSignature.address                               max_size:64
+
+AlephiumBytecodeRequest.public_key                             max_size:32
+AlephiumBytecodeRequest.signature                              max_size:64
+
+AlephiumBytecodeAck.bytecode_data                              max_size:1024
+
+AlephiumSignMessage.address_n                                  max_count:8
+AlephiumSignMessage.message                                    max_size:1024
+AlephiumSignMessage.message_type                               max_size:32

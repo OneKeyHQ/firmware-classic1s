@@ -21,6 +21,7 @@
 #define __FSM_H__
 
 #include "coins.h"
+#include "messages-alephium.pb.h"
 #include "messages-algorand.pb.h"
 #include "messages-aptos.pb.h"
 #include "messages-bitcoin.pb.h"
@@ -306,6 +307,13 @@ void fsm_msgNexaTxInputAck(const NexaTxInputAck *msg);
 void fsm_msgNervosGetAddress(const NervosGetAddress *msg);
 void fsm_msgNervosSignTx(const NervosSignTx *msg);
 void fsm_msgNervosTxAck(const NervosTxAck *msg);
+
+// alephium
+void fsm_msgAlephiumGetAddress(const AlephiumGetAddress *msg);
+void fsm_msgAlephiumSignTx(const AlephiumSignTx *msg);
+void fsm_msgAlephiumTxAck(const AlephiumTxAck *msg);
+void fsm_msgAlephiumBytecodeAck(const AlephiumBytecodeAck *msg);
+void fsm_msgAlephiumSignMessage(const AlephiumSignMessage *msg);
 
 // Nostr
 void fsm_msgNostrGetPublicKey(const NostrGetPublicKey *msg);
