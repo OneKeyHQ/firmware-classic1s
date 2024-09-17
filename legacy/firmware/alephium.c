@@ -313,7 +313,6 @@ void format_amount_with_decimals(const char *amount_str, char *formatted,
             formatted_size - strlen(formatted) - 1);
   }
 
-  // 移除尾随零
   char *decimal_point = strchr(formatted, '.');
   if (decimal_point) {
     char *end = formatted + strlen(formatted) - 1;
@@ -322,30 +321,14 @@ void format_amount_with_decimals(const char *amount_str, char *formatted,
       end--;
     }
 
-    // 如果小数点后没有数字，移除小数点
     if (end == decimal_point) {
       *end = '\0';
     }
   }
 
-  // 如果结果为空字符串，设置为 "0"
   if (formatted[0] == '\0') {
     strcpy(formatted, "0");
   }
-
-  // char *end = formatted + strlen(formatted) - 1;
-  // while (end > formatted && *end == '0' && *(end - 1) != '.') {
-  //   *end = '\0';
-  //   end--;
-  // }
-
-  // if (*end == '.') {
-  //   *end = '\0';
-  // }
-
-  // if (formatted[0] == '\0') {
-  //   strcpy(formatted, "0");
-  // }
 }
 
 void uint64_to_string(uint64_t value, char *str, size_t str_size) {
