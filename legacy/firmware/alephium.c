@@ -199,11 +199,9 @@ void alephium_handle_bytecode_ack(const AlephiumBytecodeAck *msg) {
                        msg->bytecode_data.size, &resp);
     if (resp.signature.size == 64) {
       msg_write(MessageType_MessageType_AlephiumSignedTx, &resp);
-      SEGGER_RTT_printf(0, "Signed transaction sent successfully\n");
     } else {
       fsm_sendFailure(FailureType_Failure_ProcessError,
                       "Failed to generate signature");
-      SEGGER_RTT_printf(0, "Failed to generate signature\n");
     }
 
     layoutHome();
@@ -230,31 +228,6 @@ void format_amount(const char *amount, char *formatted, size_t formatted_size) {
   }
   strncpy(formatted, start, formatted_size);
   formatted[formatted_size - 1] = '\0';
-}
-
-void format_amount_with_decimals(uint64_t amount, int decimals, char *formatted,
-                                 size_t formatted_size) {
-  char full_amount[30];
-  snprintf(full_amount, sizeof(full_amount), "%018" PRIu64, amount);
-
-  int len = strlen(full_amount);
-  int integer_part_len = len - decimals;
-
-  if (integer_part_len <= 0) {
-    snprintf(formatted, formatted_size, "0.%0*" PRIu64, decimals, amount);
-  } else {
-    snprintf(formatted, formatted_size, "%.*s.%s", integer_part_len,
-             full_amount, full_amount + integer_part_len);
-  }
-
-  char *end = formatted + strlen(formatted) - 1;
-  while (*end == '0' && end > formatted) {
-    end--;
-  }
-  if (*end == '.') {
-    end--;
-  }
-  *(end + 1) = '\0';
 }
 
 void hex_to_decimal_str(const char *hex, char *decimal, size_t decimal_size) {
@@ -318,8 +291,8 @@ void alephium_signing_abort(void) {
   layoutHome();
 }
 
-void format_amount_with_decimals2(const char *amount_str, char *formatted,
-                                  size_t formatted_size) {
+void format_amount_with_decimals(const char *amount_str, char *formatted,
+                                 size_t formatted_size) {
   size_t len = strlen(amount_str);
   const size_t decimal_places = 18;
 
@@ -340,19 +313,39 @@ void format_amount_with_decimals2(const char *amount_str, char *formatted,
             formatted_size - strlen(formatted) - 1);
   }
 
-  char *end = formatted + strlen(formatted) - 1;
-  while (end > formatted && *end == '0' && *(end - 1) != '.') {
-    *end = '\0';
-    end--;
+  // 移除尾随零
+  char *decimal_point = strchr(formatted, '.');
+  if (decimal_point) {
+    char *end = formatted + strlen(formatted) - 1;
+    while (end > decimal_point && *end == '0') {
+      *end = '\0';
+      end--;
+    }
+
+    // 如果小数点后没有数字，移除小数点
+    if (end == decimal_point) {
+      *end = '\0';
+    }
   }
 
-  if (*end == '.') {
-    *end = '\0';
-  }
-
+  // 如果结果为空字符串，设置为 "0"
   if (formatted[0] == '\0') {
     strcpy(formatted, "0");
   }
+
+  // char *end = formatted + strlen(formatted) - 1;
+  // while (end > formatted && *end == '0' && *(end - 1) != '.') {
+  //   *end = '\0';
+  //   end--;
+  // }
+
+  // if (*end == '.') {
+  //   *end = '\0';
+  // }
+
+  // if (formatted[0] == '\0') {
+  //   strcpy(formatted, "0");
+  // }
 }
 
 void uint64_to_string(uint64_t value, char *str, size_t str_size) {
@@ -416,8 +409,8 @@ void process_decoded_tx(const AlephiumDecodedTx *decoded_tx,
       continue;
     }
     char formatted_amount[65] = {0};
-    format_amount_with_decimals2(output->amount, formatted_amount,
-                                 sizeof(formatted_amount));
+    format_amount_with_decimals(output->amount, formatted_amount,
+                                sizeof(formatted_amount));
 
     if (decoded_tx->inputs_count > 0 && i == 0) {
       data2hex(decoded_tx->inputs[0].key, 32, signer);
@@ -449,13 +442,11 @@ void process_decoded_tx(const AlephiumDecodedTx *decoded_tx,
   }
 
   if (bytecode && bytecode_size > 0) {
-    debugLog(0, "process_decoded_tx", "Bytecode data:");
     size_t offset = 0;
     for (size_t i = 0; i < bytecode_size; i++) {
       offset += snprintf(debug_msg + offset, sizeof(debug_msg) - offset, "%02x",
                          bytecode[i]);
       if ((i + 1) % 16 == 0 || i == bytecode_size - 1) {
-        debugLog(0, "process_decoded_tx", debug_msg);
         offset = 0;
       }
     }
@@ -472,11 +463,9 @@ void process_decoded_tx(const AlephiumDecodedTx *decoded_tx,
   char total_fee[41] = {0};
   calculate_total_fee(decoded_tx->gas_amount, decoded_tx->gas_price, total_fee,
                       sizeof(total_fee));
-  SEGGER_RTT_printf(0, "Raw total fee: %s\n", total_fee);
 
   char formatted_fee[65] = {0};
-  format_amount_with_decimals2(total_fee, formatted_fee, sizeof(formatted_fee));
-  SEGGER_RTT_printf(0, "Formatted fee: %s\n", formatted_fee);
+  format_amount_with_decimals(total_fee, formatted_fee, sizeof(formatted_fee));
 
   if (!layoutFee(formatted_fee)) {
     fsm_sendFailure(FailureType_Failure_ActionCancelled,

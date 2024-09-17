@@ -1,9 +1,4 @@
 #include "alph_address.h"
-#include "../fsm.h"
-#include "../layout2.h"
-#include "../protect.h"
-#include "base58.h"
-#include "blake2b.h"
 
 #define TOTAL_NUMBER_OF_GROUPS 4
 

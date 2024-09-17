@@ -12,8 +12,6 @@
 #define SIGN_BIT 0x20
 #define VALUE_MASK 0x3F
 
-AlephiumError alephium_init(void) { return ALEPHIUM_OK; }
-
 AlephiumError decode_compact_int(const uint8_t* data, uint64_t* value,
                                  size_t* bytes_read) {
   if (!data || !value || !bytes_read) {
@@ -273,6 +271,9 @@ AlephiumError decode_alephium_tx(const uint8_t* data, size_t data_length,
   if (err != ALEPHIUM_OK) return err;
   index += bytes_read;
   tx->inputs_count = (size_t)inputs_count;
+  if (tx->inputs_count > MAX_INPUTS) {
+    return ALEPHIUM_ERROR_TOO_MANY_INPUTS;
+  }
 
   for (size_t i = 0; i < tx->inputs_count && i < MAX_INPUTS; i++) {
     memcpy(&tx->inputs[i].hint, data + index, 4);
@@ -292,8 +293,14 @@ AlephiumError decode_alephium_tx(const uint8_t* data, size_t data_length,
   if (err != ALEPHIUM_OK) return err;
   index += bytes_read;
   tx->outputs_count = (size_t)outputs_count;
+  if (tx->outputs_count > MAX_OUTPUTS) {
+    return ALEPHIUM_ERROR_TOO_MANY_OUTPUTS;
+  }
 
   for (size_t i = 0; i < tx->outputs_count && i < MAX_OUTPUTS; i++) {
+    if (tx->outputs[i].tokens_count > MAX_TOKENS) {
+      return ALEPHIUM_ERROR_TOO_MANY_TOKENS;
+    }
     if (index >= data_length) {
       return ALEPHIUM_ERROR_INVALID_DATA;
     }

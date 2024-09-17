@@ -5,7 +5,6 @@
 #include "../gettext.h"
 #include "../layout2.h"
 #include "../protect.h"
-#include "SEGGER_RTT.h"
 #include "buttons.h"
 
 bool layoutFee(const char *fee);

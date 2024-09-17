@@ -101,7 +101,7 @@ bool layoutOutput(const char *chain_name, const char *amount,
     }
 
     int index = 0;
-    int chars_per_line = 21;
+    int chars_per_line = 20;
     int lines_per_page = 3;
     int chars_per_page = chars_per_line * lines_per_page;
     int total_chars = bytecode_size * 2;

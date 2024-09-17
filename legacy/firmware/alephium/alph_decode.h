@@ -8,9 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "SEGGER_RTT.h"
 #include "base58.h"
-#include "rtt_log.h"
 
 #define SCRIPT_TYPE_P2PKH 0
 #define SCRIPT_TYPE_P2MPKH 1
@@ -20,9 +18,9 @@
 #define ALEPHIUM_VERSION_MINOR 0
 #define ALEPHIUM_VERSION_PATCH 0
 
-#define MAX_INPUTS 10
-#define MAX_OUTPUTS 50
-#define MAX_TOKENS 16
+#define MAX_INPUTS 16
+#define MAX_OUTPUTS 64
+#define MAX_TOKENS 8
 
 #define ALEPHIUM_ADDRESS_SIZE 33
 #define ALEPHIUM_HASH_SIZE 32
@@ -36,6 +34,9 @@ typedef enum {
   ALEPHIUM_ERROR_INVALID_DATA,
   ALEPHIUM_ERROR_BUFFER_OVERFLOW,
   ALEPHIUM_ERROR_UNSUPPORTED_SCRIPT,
+  ALEPHIUM_ERROR_TOO_MANY_INPUTS,
+  ALEPHIUM_ERROR_TOO_MANY_OUTPUTS,
+  ALEPHIUM_ERROR_TOO_MANY_TOKENS
 } AlephiumError;
 
 typedef struct {
@@ -75,7 +76,7 @@ typedef struct {
 } AlephiumDecodedTx;
 
 // Function declarations
-AlephiumError alephium_init(void);
+
 AlephiumError decode_compact_int(const uint8_t* data, uint64_t* value,
                                  size_t* bytes_read);
 AlephiumError decode_i32(const uint8_t* data, int32_t* value,
@@ -86,6 +87,5 @@ AlephiumError decode_unlock_script(const uint8_t* data, uint8_t* script,
                                    size_t max_length, size_t* bytes_read);
 AlephiumError decode_alephium_tx(const uint8_t* data, size_t data_length,
                                  AlephiumDecodedTx* tx);
-void alephium_debug_log(const char* message, ...);
 
 #endif  // __ALEPHIUM_H__

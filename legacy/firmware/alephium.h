@@ -35,12 +35,11 @@ void format_alephium_amount(uint64_t raw_amount, char *formatted_amount,
                             size_t formatted_size);
 void send_request_bytecode(void);
 void format_amount(const char *amount, char *formatted, size_t formatted_size);
-void format_amount_with_decimals(uint64_t amount, int decimals, char *formatted,
-                                 size_t formatted_size);
+
 void hex_to_decimal_str(const char *hex, char *decimal, size_t decimal_size);
 void alephium_signing_abort(void);
-void format_amount_with_decimals2(const char *amount_str, char *formatted,
-                                  size_t formatted_size);
+void format_amount_with_decimals(const char *amount_str, char *formatted,
+                                 size_t formatted_size);
 void uint64_to_string(uint64_t value, char *str, size_t str_size);
 void calculate_total_fee(uint32_t gas_amount, uint64_t gas_price,
                          char *total_fee, size_t total_fee_size);
