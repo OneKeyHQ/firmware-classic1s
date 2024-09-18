@@ -10,7 +10,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "SEGGER_RTT.h"
 #include "alephium/alph_address.h"
 #include "alephium/alph_decode.h"
 #include "alephium/alph_layout.h"
@@ -22,19 +21,17 @@
 #include "messages-alephium.pb.h"
 #include "messages.h"
 #include "protect.h"
-#include "rtt_log.h"
 #include "util.h"
 
 bool alephium_get_address(const HDNode *node, const AlephiumGetAddress *msg,
                           AlephiumAddress *resp);
-void alephium_sign_tx(HDNode *node, const AlephiumSignTx *msg);
+void alephium_sign_tx(const HDNode *node, const AlephiumSignTx *msg);
 void alephium_signing_txack(const AlephiumTxAck *tx);
 void send_request_chunk(void);
 void alephium_handle_bytecode_ack(const AlephiumBytecodeAck *msg);
 void format_alephium_amount(uint64_t raw_amount, char *formatted_amount,
                             size_t formatted_size);
 void send_request_bytecode(void);
-void format_amount(const char *amount, char *formatted, size_t formatted_size);
 
 void hex_to_decimal_str(const char *hex, char *decimal, size_t decimal_size);
 void alephium_signing_abort(void);

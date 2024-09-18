@@ -33,7 +33,6 @@ message AlephiumAddress {
  * Request: Ask device to sign transaction
  * @start
  * @next AlephiumSignedTx
- * @next AlephiumTxInputRequest
  * @next Failure
  */
 message AlephiumSignTx {

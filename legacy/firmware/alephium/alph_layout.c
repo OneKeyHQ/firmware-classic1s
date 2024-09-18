@@ -54,6 +54,75 @@ bool layoutFinal(void) {
   }
 }
 
+void displayAddressPage(const char **str, int index, int rowcount,
+                        const char *header) {
+  oledClear_ex();
+  layoutHeader(header);
+
+  if (0 == index) {
+    oledDrawStringAdapter(0, 13, "Send to:", FONT_STANDARD);
+    for (int i = 0; i < 3; i++) {
+      oledDrawStringAdapter(0, 23 + i * 10, str[i], FONT_STANDARD);
+    }
+  } else {
+    for (int i = 0; i < 4; i++) {
+      oledDrawStringAdapter(0, 13 + i * 10, str[index + i - 1], FONT_STANDARD);
+    }
+  }
+
+  if (index > 0) {
+    oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8,
+                   &bmp_bottom_middle_arrow_up);
+  }
+  if (index < rowcount - 3) {
+    oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8,
+                   &bmp_bottom_middle_arrow_down);
+  }
+}
+
+void drawScrollBar(int index, int rowcount) {
+  int bar_start = 12, bar_end = 52;
+  int bar_height = 40 - 2 * (rowcount - 4);
+  for (int i = bar_start; i < bar_end; i += 2) {
+    oledDrawPixel(OLED_WIDTH - 1, i);
+  }
+  for (int i = bar_start + 2 * index;
+       i < (bar_start + bar_height + 2 * (index - 1)) - 1; i++) {
+    oledDrawPixel(OLED_WIDTH - 1, i);
+    oledDrawPixel(OLED_WIDTH - 2, i);
+  }
+}
+
+bool displayAndNavigateAddress(const char *to_address, const char *header) {
+  uint32_t rowlen = 21, addrlen = strlen(to_address);
+  int index = 0, rowcount = addrlen / rowlen + 1;
+  const char **str =
+      split_message((const uint8_t *)to_address, addrlen, rowlen);
+
+  while (1) {
+    displayAddressPage(str, index, rowcount, header);
+    drawScrollBar(index, rowcount);
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
+    layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
+    oledRefresh();
+
+    uint8_t key = protectWaitKey(0, 0);
+    switch (key) {
+      case KEY_UP:
+        if (index > 0) index--;
+        break;
+      case KEY_DOWN:
+        if (index < rowcount - 3) index++;
+        break;
+      case KEY_CONFIRM:
+        return true;
+      case KEY_CANCEL:
+      default:
+        return false;
+    }
+  }
+}
+
 bool layoutOutput(const char *chain_name, const char *amount,
                   const char *to_address, const char *token_id,
                   const char *token_amount, const uint8_t *bytecode,
@@ -123,7 +192,8 @@ bool layoutOutput(const char *chain_name, const char *amount,
                                 : chars_per_line;
         for (int j = 0; j < chars_to_copy; j += 2) {
           if (start + j < total_chars) {
-            snprintf(bytecode_part + j, 3, "%02x", bytecode[(start + j) / 2]);
+            snprintf(bytecode_part + j, sizeof(bytecode_part) - j, "%02x",
+                     bytecode[(start + j) / 2]);
           }
         }
         oledDrawStringAdapter(0, 23 + i * 10, bytecode_part, FONT_STANDARD);
@@ -241,10 +311,8 @@ bool layoutOutput(const char *chain_name, const char *amount,
           if (start >= total_chars) break;
 
           char token_id_part[22] = {0};
-          int chars_to_copy = (start + chars_per_line > total_chars)
-                                  ? (total_chars - start)
-                                  : chars_per_line;
-          strncpy(token_id_part, token_id + start, chars_to_copy);
+          strncpy(token_id_part, token_id + start, sizeof(token_id_part) - 1);
+          token_id_part[sizeof(token_id_part) - 1] = '\0';
           oledDrawStringAdapter(0, 23 + i * 10, token_id_part, FONT_STANDARD);
         }
 
@@ -281,73 +349,8 @@ bool layoutOutput(const char *chain_name, const char *amount,
   }
 
   if (to_address) {
-    uint32_t rowlen = 21, addrlen = strlen(to_address);
-    int index = 0, rowcount = addrlen / rowlen + 1;
-    if (rowcount > 3) {
-      const char **str =
-          split_message((const uint8_t *)to_address, addrlen, rowlen);
-
-    refresh_addr:
-      oledClear_ex();
-      layoutHeader(tx_msg[0]);
-
-      if (0 == index) {
-        oledDrawStringAdapter(0, 13, "Send to:", FONT_STANDARD);
-        oledDrawStringAdapter(0, 23, str[0], FONT_STANDARD);
-        oledDrawStringAdapter(0, 33, str[1], FONT_STANDARD);
-        oledDrawStringAdapter(0, 43, str[2], FONT_STANDARD);
-        oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8,
-                       &bmp_bottom_middle_arrow_down);
-      } else {
-        oledDrawStringAdapter(0, 13, str[index - 1], FONT_STANDARD);
-        oledDrawStringAdapter(0, 23, str[index], FONT_STANDARD);
-        oledDrawStringAdapter(0, 33, str[index + 1], FONT_STANDARD);
-        oledDrawStringAdapter(0, 43, str[index + 2], FONT_STANDARD);
-        if (index == rowcount - 3) {
-          oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8,
-                         &bmp_bottom_middle_arrow_up);
-        } else {
-          oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8,
-                         &bmp_bottom_middle_arrow_up);
-          oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8,
-                         &bmp_bottom_middle_arrow_down);
-        }
-      }
-
-      int i, bar_start = 12, bar_end = 52;
-      int bar_height = 40 - 2 * (rowcount - 4);
-      for (i = bar_start; i < bar_end; i += 2) {
-        oledDrawPixel(OLED_WIDTH - 1, i);
-      }
-      for (i = bar_start + 2 * ((int)index);
-           i < (bar_start + bar_height + 2 * ((int)index - 1)) - 1; i++) {
-        oledDrawPixel(OLED_WIDTH - 1, i);
-        oledDrawPixel(OLED_WIDTH - 2, i);
-      }
-
-      layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
-      layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
-
-      oledRefresh();
-      key = protectWaitKey(0, 0);
-      switch (key) {
-        case KEY_UP:
-          if (index > 0) {
-            index--;
-          }
-          goto refresh_addr;
-        case KEY_DOWN:
-          if (index < rowcount - 3) {
-            index++;
-          }
-          goto refresh_addr;
-        case KEY_CONFIRM:
-          return true;
-        case KEY_CANCEL:
-          return false;
-        default:
-          return false;
-      }
+    if (strlen(to_address) > 63) {  // 假设 63 是需要分页显示的阈值
+      return displayAndNavigateAddress(to_address, tx_msg[0]);
     } else {
       oledClear();
       layoutHeader(tx_msg[0]);
@@ -359,12 +362,10 @@ bool layoutOutput(const char *chain_name, const char *amount,
       while (1) {
         key = protectWaitKey(0, 0);
         if (key == KEY_CONFIRM) {
-          ret = true;
-          break;
+          return true;
         }
         if (key == KEY_CANCEL || key == KEY_NULL) {
-          ret = false;
-          break;
+          return false;
         }
       }
     }

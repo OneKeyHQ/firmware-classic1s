@@ -58,8 +58,8 @@ void fsm_msgAlephiumGetAddress(const AlephiumGetAddress *msg) {
 void fsm_msgAlephiumSignTx(const AlephiumSignTx *msg) {
   HDNode *node = fsm_getDerivedNode(SECP256K1_NAME, msg->address_n,
                                     msg->address_n_count, NULL);
-  hdnode_fill_public_key(node);
   if (!node) return;
+  hdnode_fill_public_key(node);
   alephium_sign_tx(node, msg);
 }
 

@@ -1,5 +1,5 @@
-#ifndef __ALPH_ADDRESS_H__
-#define __ALPH_ADDRESS_H__
+#ifndef __ALPH_LAYOUT_H__
+#define __ALPH_LAYOUT_H__
 
 #include <stdbool.h>
 #include "base58.h"
@@ -10,4 +10,4 @@
 bool alph_get_address(const HDNode *node, const AlephiumGetAddress *msg,
                       AlephiumAddress *resp);
 
-#endif
+#endif  // __ALPH_LAYOUT_H__

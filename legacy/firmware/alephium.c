@@ -1,8 +1,5 @@
 #include "alephium.h"
-#include "debug.h"
-#include "fsm.h"
-#include "layout2.h"
-#include "messages-alephium.pb.h"
+#include "alephium/alph_layout.h"
 
 static uint8_t *alephium_data_buffer = NULL;
 static size_t alephium_data_left = 0;
@@ -17,7 +14,7 @@ bool alephium_get_address(const HDNode *node, const AlephiumGetAddress *msg,
   return alph_get_address(node, msg, resp);
 }
 
-void alephium_sign_tx(HDNode *node, const AlephiumSignTx *msg) {
+void alephium_sign_tx(const HDNode *node, const AlephiumSignTx *msg) {
   char log_buffer[1024];
   globalNode = malloc(sizeof(HDNode));
   if (globalNode != NULL) {
@@ -221,15 +218,6 @@ void format_alephium_amount(uint64_t raw_amount, char *formatted_amount,
            alph, fraction);
 }
 
-void format_amount(const char *amount, char *formatted, size_t formatted_size) {
-  const char *start = amount;
-  while (*start == '0' && *(start + 1) != '\0') {
-    start++;
-  }
-  strncpy(formatted, start, formatted_size);
-  formatted[formatted_size - 1] = '\0';
-}
-
 void hex_to_decimal_str(const char *hex, char *decimal, size_t decimal_size) {
   size_t hex_len = strlen(hex);
   char *temp = calloc(hex_len * 4 + 1, sizeof(char));
@@ -285,6 +273,10 @@ void alephium_signing_abort(void) {
   if (alephium_data_buffer) {
     free(alephium_data_buffer);
     alephium_data_buffer = NULL;
+  }
+  if (globalNode) {
+    free(globalNode);
+    globalNode = NULL;
   }
   alephium_data_left = 0;
   alephium_data_total_size = 0;

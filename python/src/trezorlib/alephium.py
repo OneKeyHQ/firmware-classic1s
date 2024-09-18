@@ -62,19 +62,7 @@ def sign_tx(
         )
     except Exception as e:
         print(f"Error during initial call: {e}")
-        raise  # 抛出异常而不是返回 None
-
-    while isinstance(resp, messages.AlephiumTxRequest):
-        print("AlephiumTxRequest error" + str(resp.data_length))
-        data_chunk = bytes.fromhex("00000000000000000000")
-        resp = client.call(messages.AlephiumTxAck(data_chunk=data_chunk))
-
-    while isinstance(resp, messages.AlephiumBytecodeRequest):
-        print("AlephiumBytecodeRequest " + str(resp.data_length))
-        bytecode_data = bytes.fromhex(
-            "01010300000007b413c40de0b6b3a7640000a20c0c1440206c3b1f6262ffad9a4cb1e78f03f17f3593837505a69edbc18a59cf23c1f1c4020100"
-        )
-        resp = client.call(messages.AlephiumBytecodeAck(bytecode_data=bytecode_data))
+        raise
 
     if isinstance(resp, messages.AlephiumSignedTx):
         return cast("MessageType", resp)

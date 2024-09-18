@@ -1,6 +1,7 @@
 #include "alph_address.h"
 
 #define TOTAL_NUMBER_OF_GROUPS 4
+#define MAX_CHILD_INDEX 0x7FFFFFFF
 
 static uint32_t djb_hash(const uint8_t* data, size_t len) {
   uint32_t h = 5381;
@@ -33,7 +34,7 @@ static bool derive_pub_key_for_group(HDNode* node, uint32_t* address_n,
       return true;
     }
     address_n[*address_n_count - 1]++;
-    if (address_n[*address_n_count - 1] > 0x80000000) {
+    if (address_n[*address_n_count - 1] > MAX_CHILD_INDEX) {
       return false;
     }
     hdnode_private_ckd(node, address_n[*address_n_count - 1]);
@@ -43,6 +44,9 @@ static bool derive_pub_key_for_group(HDNode* node, uint32_t* address_n,
 bool alph_get_address(const HDNode* node, const AlephiumGetAddress* msg,
                       AlephiumAddress* resp) {
   if (!node) return false;
+  if (msg->address_n_count > 10) {
+    return false;
+  }
 
   HDNode derived_node = *node;
   uint32_t derived_path[10];
