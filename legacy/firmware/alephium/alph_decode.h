@@ -81,4 +81,4 @@ AlephiumError decode_unlock_script(const uint8_t* data, uint8_t* script,
 AlephiumError decode_alephium_tx(const uint8_t* data, size_t data_length,
                                  AlephiumDecodedTx* tx);
 
-#endif  // __ALPH_H__
+#endif  // __ALPH_DECODE_H__

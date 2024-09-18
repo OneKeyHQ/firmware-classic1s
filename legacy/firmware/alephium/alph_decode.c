@@ -250,8 +250,8 @@ AlephiumError generate_address_from_output(uint8_t lockup_script_type,
   return ALEPHIUM_OK;
 }
 
-void format_alph_amount(long double amount, char* formatted,
-                        size_t formatted_size) {
+void format_alph_amount_from_double(long double amount, char* formatted,
+                                    size_t formatted_size) {
   snprintf(formatted, formatted_size, "%.18Lf", amount);
 
   char* end = formatted + strlen(formatted) - 1;
@@ -290,8 +290,8 @@ AlephiumError decode_alephium_tx(const uint8_t* data, size_t data_length,
   long double gas_price_alph =
       strtold(gas_price_str, NULL) / 1000000000000000000.0L;
   char formatted_gas_price[50];
-  format_alph_amount(gas_price_alph, formatted_gas_price,
-                     sizeof(formatted_gas_price));
+  format_alph_amount_from_double(gas_price_alph, formatted_gas_price,
+                                 sizeof(formatted_gas_price));
 
   uint64_t inputs_count;
   err = decode_compact_int(data + index, &inputs_count, &bytes_read);
@@ -359,7 +359,8 @@ AlephiumError decode_alephium_tx(const uint8_t* data, size_t data_length,
     alph_amount /= 1000000000000000000.0L;
 
     char formatted_amount[50];
-    format_alph_amount(alph_amount, formatted_amount, sizeof(formatted_amount));
+    format_alph_amount_from_double(alph_amount, formatted_amount,
+                                   sizeof(formatted_amount));
 
     tx->outputs[i].lockup_script_type = data[index++];
     memcpy(tx->outputs[i].lockup_script_hash, data + index, 32);

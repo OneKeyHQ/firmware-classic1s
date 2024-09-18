@@ -17,9 +17,13 @@ bool alephium_get_address(const HDNode *node, const AlephiumGetAddress *msg,
 void alephium_sign_tx(const HDNode *node, const AlephiumSignTx *msg) {
   char log_buffer[1024];
   globalNode = malloc(sizeof(HDNode));
-  if (globalNode != NULL) {
-    memcpy(globalNode, node, sizeof(HDNode));
+  if (globalNode == NULL) {
+    fsm_sendFailure(FailureType_Failure_ProcessError,
+                    "Memory allocation failed");
+    layoutHome();
+    return;
   }
+  memcpy(globalNode, node, sizeof(HDNode));
   alephium_data_total_size = msg->data_initial_chunk.size;
   alephium_data_left = alephium_data_total_size;
   alephium_data_buffer = (uint8_t *)malloc(alephium_data_total_size);
@@ -48,10 +52,10 @@ void alephium_sign_tx(const HDNode *node, const AlephiumSignTx *msg) {
     snprintf(log_buffer, sizeof(log_buffer),
              "Requesting more data chunks, total size: %zu, data left: %zu",
              (size_t)alephium_data_total_size, (size_t)alephium_data_left);
-    send_request_chunk();
+    alephium_send_request_chunk();
   } else {
     if (alephium_data_buffer[2] == 1) {
-      send_request_bytecode();
+      alephium_send_request_bytecode();
       return;
     }
     AlephiumDecodedTx decoded_tx;
@@ -64,7 +68,7 @@ void alephium_sign_tx(const HDNode *node, const AlephiumSignTx *msg) {
       return;
     }
     AlephiumSignedTx resp = {0};
-    process_decoded_tx(&decoded_tx, NULL, 0, &resp);
+    alephium_process_decoded_tx(&decoded_tx, NULL, 0, &resp);
 
     if (resp.signature.size == 64) {
       msg_write(MessageType_MessageType_AlephiumSignedTx, &resp);
@@ -77,14 +81,14 @@ void alephium_sign_tx(const HDNode *node, const AlephiumSignTx *msg) {
   }
 }
 
-void send_request_chunk(void) {
+void alephium_send_request_chunk(void) {
   msg_tx_request.has_data_length = true;
   msg_tx_request.data_length =
       alephium_data_left <= 1024 ? alephium_data_left : 1024;
   msg_write(MessageType_MessageType_AlephiumTxRequest, &msg_tx_request);
 }
 
-void send_request_bytecode(void) {
+void alephium_send_request_bytecode(void) {
   AlephiumBytecodeRequest msg_bytecode_request;
   memset(&msg_bytecode_request, 0, sizeof(msg_bytecode_request));
 
@@ -127,10 +131,10 @@ void alephium_signing_txack(const AlephiumTxAck *tx) {
            (size_t)alephium_data_left);
 
   if (alephium_data_left > 0) {
-    send_request_chunk();
+    alephium_send_request_chunk();
   } else {
     if (alephium_data_buffer[2] == 1) {
-      send_request_bytecode();
+      alephium_send_request_bytecode();
       return;
     }
 
@@ -145,7 +149,7 @@ void alephium_signing_txack(const AlephiumTxAck *tx) {
     }
 
     AlephiumSignedTx resp = {0};
-    process_decoded_tx(&decoded_tx, NULL, 0, &resp);
+    alephium_process_decoded_tx(&decoded_tx, NULL, 0, &resp);
     if (resp.signature.size == 64) {
       msg_write(MessageType_MessageType_AlephiumSignedTx, &resp);
     } else {
@@ -192,8 +196,8 @@ void alephium_handle_bytecode_ack(const AlephiumBytecodeAck *msg) {
       return;
     }
     AlephiumSignedTx resp = {0};
-    process_decoded_tx(&decoded_tx, msg->bytecode_data.bytes,
-                       msg->bytecode_data.size, &resp);
+    alephium_process_decoded_tx(&decoded_tx, msg->bytecode_data.bytes,
+                                msg->bytecode_data.size, &resp);
     if (resp.signature.size == 64) {
       msg_write(MessageType_MessageType_AlephiumSignedTx, &resp);
     } else {
@@ -210,15 +214,8 @@ void alephium_handle_bytecode_ack(const AlephiumBytecodeAck *msg) {
   }
 }
 
-void format_alephium_amount(uint64_t raw_amount, char *formatted_amount,
-                            size_t formatted_size) {
-  uint64_t alph = raw_amount / 100000000;
-  uint64_t fraction = raw_amount % 100000000;
-  snprintf(formatted_amount, formatted_size, "%" PRIu64 ".%08" PRIu64 " ALPH",
-           alph, fraction);
-}
-
-void hex_to_decimal_str(const char *hex, char *decimal, size_t decimal_size) {
+void hex_string_to_decimal_string(const char *hex, char *decimal,
+                                  size_t decimal_size) {
   size_t hex_len = strlen(hex);
   char *temp = calloc(hex_len * 4 + 1, sizeof(char));
   if (!temp) {
@@ -283,8 +280,8 @@ void alephium_signing_abort(void) {
   layoutHome();
 }
 
-void format_amount_with_decimals(const char *amount_str, char *formatted,
-                                 size_t formatted_size) {
+void format_alph_amount_from_string(const char *amount_str, char *formatted,
+                                    size_t formatted_size) {
   size_t len = strlen(amount_str);
   const size_t decimal_places = 18;
 
@@ -323,7 +320,7 @@ void format_amount_with_decimals(const char *amount_str, char *formatted,
   }
 }
 
-void uint64_to_string(uint64_t value, char *str, size_t str_size) {
+void uint64_to_decimal_string(uint64_t value, char *str, size_t str_size) {
   char temp[21];
   size_t i = 0;
 
@@ -339,10 +336,10 @@ void uint64_to_string(uint64_t value, char *str, size_t str_size) {
   str[j] = '\0';
 }
 
-void calculate_total_fee(uint32_t gas_amount, uint64_t gas_price,
-                         char *total_fee, size_t total_fee_size) {
+void alephium_calculate_total_fee(uint32_t gas_amount, uint64_t gas_price,
+                                  char *total_fee, size_t total_fee_size) {
   uint64_t total_fee_value = (uint64_t)gas_amount * gas_price;
-  uint64_to_string(total_fee_value, total_fee, total_fee_size);
+  uint64_to_decimal_string(total_fee_value, total_fee, total_fee_size);
 }
 
 bool generate_alephium_address(const uint8_t *public_key, char *address,
@@ -361,9 +358,9 @@ bool generate_alephium_address(const uint8_t *public_key, char *address,
          0;
 }
 
-void process_decoded_tx(const AlephiumDecodedTx *decoded_tx,
-                        const uint8_t *bytecode, size_t bytecode_size,
-                        AlephiumSignedTx *resp) {
+void alephium_process_decoded_tx(const AlephiumDecodedTx *decoded_tx,
+                                 const uint8_t *bytecode, size_t bytecode_size,
+                                 AlephiumSignedTx *resp) {
   char debug_msg[256];
   char chain_name[32] = "Alephium";
   char signer[65] = {0};
@@ -384,8 +381,8 @@ void process_decoded_tx(const AlephiumDecodedTx *decoded_tx,
       continue;
     }
     char formatted_amount[65] = {0};
-    format_amount_with_decimals(output->amount, formatted_amount,
-                                sizeof(formatted_amount));
+    format_alph_amount_from_string(output->amount, formatted_amount,
+                                   sizeof(formatted_amount));
 
     if (decoded_tx->inputs_count > 0 && i == 0) {
       data2hex(decoded_tx->inputs[0].key, 32, signer);
@@ -403,8 +400,8 @@ void process_decoded_tx(const AlephiumDecodedTx *decoded_tx,
       char token_amount[120] = {0};
 
       data2hex(output->tokens[j].id, 32, token_id);
-      hex_to_decimal_str(output->tokens[j].amount, token_amount,
-                         sizeof(token_amount));
+      hex_string_to_decimal_string(output->tokens[j].amount, token_amount,
+                                   sizeof(token_amount));
 
       if (!layoutOutput(chain_name, NULL, output->address, token_id,
                         output->tokens[j].amount, NULL, 0)) {
@@ -436,11 +433,12 @@ void process_decoded_tx(const AlephiumDecodedTx *decoded_tx,
   }
 
   char total_fee[41] = {0};
-  calculate_total_fee(decoded_tx->gas_amount, decoded_tx->gas_price, total_fee,
-                      sizeof(total_fee));
+  alephium_calculate_total_fee(decoded_tx->gas_amount, decoded_tx->gas_price,
+                               total_fee, sizeof(total_fee));
 
   char formatted_fee[65] = {0};
-  format_amount_with_decimals(total_fee, formatted_fee, sizeof(formatted_fee));
+  format_alph_amount_from_string(total_fee, formatted_fee,
+                                 sizeof(formatted_fee));
 
   if (!layoutFee(formatted_fee)) {
     fsm_sendFailure(FailureType_Failure_ActionCancelled,
