@@ -1,16 +1,28 @@
 #include "alph_decode.h"
 
-#define SINGLE_BYTE_LIMIT 0x40
-#define TWO_BYTE_LIMIT 0x80
-#define MULTI_BYTE_LIMIT 0xC0
+#define U256_SINGLE_BYTE_LIMIT 0x40
+#define U256_TWO_BYTE_LIMIT 0x80
+#define U256_MULTI_BYTE_LIMIT 0xC0
 
-#define PREFIX_SINGLE_BYTE 0x00
-#define PREFIX_TWO_BYTES 0x40
-#define PREFIX_FOUR_BYTES 0x80
-#define PREFIX_MULTI_BYTES 0xC0
+#define I32_PREFIX_MASK 0xC0
+#define I32_PREFIX_SINGLE_BYTE 0x00
+#define I32_PREFIX_TWO_BYTES 0x40
+#define I32_PREFIX_FOUR_BYTES 0x80
+#define I32_PREFIX_MULTI_BYTES 0xC0
+#define I32_SIGN_BIT 0x20
+#define I32_VALUE_MASK 0x3F
+#define I32_MAX_VALUE_1BYTE 64           // 2^6
+#define I32_MAX_VALUE_2BYTES 16384       // 2^14
+#define I32_MAX_VALUE_4BYTES 1073741824  // 2^30
 
-#define SIGN_BIT 0x20
-#define VALUE_MASK 0x3F
+#define COMPACT_INT_16BIT_FLAG 0xFD
+#define COMPACT_INT_32BIT_FLAG 0xFE
+
+#define MAX_DECIMAL_LEN 256
+
+#define SCRIPT_TYPE_P2PKH 0
+#define SCRIPT_TYPE_P2MPKH 1
+#define SCRIPT_TYPE_P2SH 2
 
 AlephiumError decode_compact_int(const uint8_t* data, uint64_t* value,
                                  size_t* bytes_read) {
@@ -19,15 +31,15 @@ AlephiumError decode_compact_int(const uint8_t* data, uint64_t* value,
   }
 
   uint8_t first_byte = data[0];
-  if (first_byte < 0xFD) {
+  if (first_byte < COMPACT_INT_16BIT_FLAG) {
     *value = first_byte;
     *bytes_read = 1;
     return ALEPHIUM_OK;
-  } else if (first_byte == 0xFD) {
+  } else if (first_byte == COMPACT_INT_16BIT_FLAG) {
     *value = (uint64_t)data[1] | ((uint64_t)data[2] << 8);
     *bytes_read = 3;
     return ALEPHIUM_OK;
-  } else if (first_byte == 0xFE) {
+  } else if (first_byte == COMPACT_INT_32BIT_FLAG) {
     *value = (uint64_t)data[1] | ((uint64_t)data[2] << 8) |
              ((uint64_t)data[3] << 16) | ((uint64_t)data[4] << 24);
     *bytes_read = 5;
@@ -47,31 +59,39 @@ AlephiumError decode_i32(const uint8_t* data, int32_t* value,
   if (!data || !value || !bytes_read) {
     return ALEPHIUM_ERROR_INVALID_DATA;
   }
-
   uint8_t first_byte = data[0];
-  uint8_t prefix = first_byte & PREFIX_MULTI_BYTES;
-
-  if (prefix == PREFIX_SINGLE_BYTE) {
-    *value = (first_byte & SIGN_BIT) ? -(64 - first_byte) : first_byte;
-    *bytes_read = 1;
-  } else if (prefix == PREFIX_TWO_BYTES) {
-    uint16_t val = ((uint16_t)(first_byte & VALUE_MASK) << 8) | data[1];
-    *value = (first_byte & SIGN_BIT) ? -(16384 - val) : val;
-    *bytes_read = 2;
-  } else if (prefix == PREFIX_FOUR_BYTES) {
-    uint32_t val = ((uint32_t)(first_byte & VALUE_MASK) << 24) |
-                   ((uint32_t)data[1] << 16) | ((uint32_t)data[2] << 8) |
-                   data[3];
-    *value = (first_byte & SIGN_BIT) ? -(1073741824 - val) : val;
-    *bytes_read = 4;
-  } else {
-    size_t length = (first_byte & VALUE_MASK) + 5;
-    uint64_t val = 0;
-    for (size_t i = 1; i < length; i++) {
-      val = (val << 8) | data[i];
-    }
-    *value = (first_byte & SIGN_BIT) ? -val : val;
-    *bytes_read = length;
+  uint8_t prefix = first_byte & I32_PREFIX_MASK;
+  switch (prefix) {
+    case I32_PREFIX_SINGLE_BYTE:
+      *value = (first_byte & I32_SIGN_BIT) ? -(I32_MAX_VALUE_1BYTE - first_byte)
+                                           : first_byte;
+      *bytes_read = 1;
+      break;
+    case I32_PREFIX_TWO_BYTES: {
+      uint16_t val = ((uint16_t)(first_byte & I32_VALUE_MASK) << 8) | data[1];
+      *value =
+          (first_byte & I32_SIGN_BIT) ? -(I32_MAX_VALUE_2BYTES - val) : val;
+      *bytes_read = 2;
+    } break;
+    case I32_PREFIX_FOUR_BYTES: {
+      uint32_t val = ((uint32_t)(first_byte & I32_VALUE_MASK) << 24) |
+                     ((uint32_t)data[1] << 16) | ((uint32_t)data[2] << 8) |
+                     data[3];
+      *value =
+          (first_byte & I32_SIGN_BIT) ? -(I32_MAX_VALUE_4BYTES - val) : val;
+      *bytes_read = 4;
+    } break;
+    case I32_PREFIX_MULTI_BYTES: {
+      size_t length = (first_byte & I32_VALUE_MASK) + 5;
+      uint64_t val = 0;
+      for (size_t i = 1; i < length; i++) {
+        val = (val << 8) | data[i];
+      }
+      *value = (first_byte & I32_SIGN_BIT) ? -val : val;
+      *bytes_read = length;
+    } break;
+    default:
+      return ALEPHIUM_ERROR_INVALID_DATA;
   }
 
   return ALEPHIUM_OK;
@@ -81,7 +101,7 @@ void format_hex_to_decimal(const char* hex_str, char* decimal_str,
                            size_t decimal_str_size) {
   size_t hex_len = strlen(hex_str);
   size_t decimal_len = 0;
-  char temp[256] = "0";
+  char temp[MAX_DECIMAL_LEN] = "0";
 
   for (size_t i = 0; i < hex_len; i++) {
     int digit;
@@ -118,21 +138,21 @@ AlephiumError decode_u256(const uint8_t* data, char* value_str,
   uint8_t first_byte = data[0];
   size_t length = 0;
 
-  if (first_byte < SINGLE_BYTE_LIMIT) {
+  if (first_byte < U256_SINGLE_BYTE_LIMIT) {
     snprintf(value_str, value_str_size, "%u", first_byte);
     *bytes_read = 1;
     return ALEPHIUM_OK;
-  } else if (first_byte < TWO_BYTE_LIMIT) {
+  } else if (first_byte < U256_TWO_BYTE_LIMIT) {
     uint16_t value = ((uint16_t)(first_byte & 0x3F) << 8) | data[1];
     snprintf(value_str, value_str_size, "%u", value);
     *bytes_read = 2;
-  } else if (first_byte < MULTI_BYTE_LIMIT) {
-    length = (first_byte - TWO_BYTE_LIMIT) + 3;
+  } else if (first_byte < U256_MULTI_BYTE_LIMIT) {
+    length = (first_byte - U256_TWO_BYTE_LIMIT) + 3;
   } else {
-    length = (first_byte - MULTI_BYTE_LIMIT) + 4;
+    length = (first_byte - U256_MULTI_BYTE_LIMIT) + 4;
   }
 
-  if (first_byte >= TWO_BYTE_LIMIT) {
+  if (first_byte >= U256_TWO_BYTE_LIMIT) {
     if (length > 32 || length * 2 >= value_str_size) {
       return ALEPHIUM_ERROR_BUFFER_OVERFLOW;
     }
@@ -149,12 +169,11 @@ AlephiumError decode_u256(const uint8_t* data, char* value_str,
     }
     *bytes_read = length + 1;
 
-    char decimal_str[256];
+    char decimal_str[MAX_DECIMAL_LEN];
     format_hex_to_decimal(value_str, decimal_str, sizeof(decimal_str));
     strncpy(value_str, decimal_str, value_str_size - 1);
     value_str[value_str_size - 1] = '\0';
   }
-
   return ALEPHIUM_OK;
 }
 
@@ -166,31 +185,39 @@ AlephiumError decode_unlock_script(const uint8_t* data, uint8_t* script,
 
   uint8_t script_type = data[0];
   size_t length = 0;
+  AlephiumError err;
 
-  if (script_type == 0) {
-    length = 34;
-  } else if (script_type == 1) {
-    uint64_t mpk_count;
-    size_t bytes_read_inner;
-    AlephiumError err =
-        decode_compact_int(data + 1, &mpk_count, &bytes_read_inner);
-    if (err != ALEPHIUM_OK) return err;
-    length = 1 + bytes_read_inner + mpk_count * 37;
-  } else if (script_type == 2) {
-    uint64_t script_length, params_length;
-    size_t bytes_read_inner1, bytes_read_inner2;
-    AlephiumError err =
-        decode_compact_int(data + 1, &script_length, &bytes_read_inner1);
-    if (err != ALEPHIUM_OK) return err;
-    err = decode_compact_int(data + 1 + bytes_read_inner1 + script_length,
-                             &params_length, &bytes_read_inner2);
-    if (err != ALEPHIUM_OK) return err;
-    length = 1 + bytes_read_inner1 + script_length + bytes_read_inner2 +
-             params_length;
-  } else if (script_type == 3) {
-    length = 1;
-  } else {
-    return ALEPHIUM_ERROR_UNSUPPORTED_SCRIPT;
+  switch (script_type) {
+    case SCRIPT_TYPE_P2PKH:
+      length = ALEPHIUM_ADDRESS_SIZE + 1;
+      break;
+
+    case SCRIPT_TYPE_P2MPKH: {
+      uint64_t mpk_count;
+      size_t bytes_read_inner;
+      err = decode_compact_int(data + 1, &mpk_count, &bytes_read_inner);
+      if (err != ALEPHIUM_OK) return err;
+      length = 1 + bytes_read_inner + mpk_count * 37;
+    } break;
+
+    case SCRIPT_TYPE_P2SH: {
+      uint64_t script_length, params_length;
+      size_t bytes_read_inner1, bytes_read_inner2;
+      err = decode_compact_int(data + 1, &script_length, &bytes_read_inner1);
+      if (err != ALEPHIUM_OK) return err;
+      err = decode_compact_int(data + 1 + bytes_read_inner1 + script_length,
+                               &params_length, &bytes_read_inner2);
+      if (err != ALEPHIUM_OK) return err;
+      length = 1 + bytes_read_inner1 + script_length + bytes_read_inner2 +
+               params_length;
+    } break;
+
+    case 3:
+      length = 1;
+      break;
+
+    default:
+      return ALEPHIUM_ERROR_UNSUPPORTED_SCRIPT;
   }
 
   if (length > max_length) {
