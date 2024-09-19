@@ -420,7 +420,6 @@ enum MessageType {
     MessageType_BixinBackupDeviceAck = 915 [deprecated = true];
 
     MessageType_BixinPinInputOnDevice = 10000 [(wire_in) = true, (wire_tiny) = true, (wire_no_fsm) = true];
-    MessageType_Deprecated_EthereumSignMessageEIP712 = 10200 [deprecated = true];
     MessageType_GetPublicKeyMultiple = 10210 [(wire_in) = true];
     MessageType_PublicKeyMultiple = 10211 [(wire_out) = true];
 
@@ -520,6 +519,18 @@ enum MessageType {
     MessageType_NervosSignedTx = 11704 [(wire_out) = true];
     MessageType_NervosTxRequest = 11705 [(wire_out) = true];
     MessageType_NervosTxAck = 11706 [(wire_in) = true];
+
+    // alephium
+    MessageType_AlephiumGetAddress = 12101 [(wire_in) = true];
+    MessageType_AlephiumAddress = 12102 [(wire_out) = true];
+    MessageType_AlephiumSignTx = 12103 [(wire_in) = true];
+    MessageType_AlephiumSignedTx = 12104 [(wire_out) = true];
+    MessageType_AlephiumTxRequest = 12105 [(wire_out) = true];
+    MessageType_AlephiumTxAck = 12106 [(wire_in) = true];
+    MessageType_AlephiumBytecodeRequest = 12107 [(wire_out) = true];
+    MessageType_AlephiumBytecodeAck = 12108 [(wire_in) = true];
+    MessageType_AlephiumSignMessage = 12109 [(wire_in) = true];
+    MessageType_AlephiumMessageSignature = 12110 [(wire_out) = true];
 
     //onekey
     MessageType_DeviceEraseSector= 10026 [deprecated = true];

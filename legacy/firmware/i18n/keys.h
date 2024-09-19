@@ -714,5 +714,7 @@
 #define C__DO_YOU_WANT_TO_ENCRYPT_CHAIN_STR_MESSAGE_QUES 342
 // Do you want to decrypt {} message?
 #define C__DO_YOU_WANT_TO_DECRYPT_CHAIN_STR_MESSAGE_QUES 343
+// The following transaction output contains contract data
+#define SIGN_TX_CONTAIN_CONTRACT_DATA_TEXT 344
 #endif
 // clang-format on

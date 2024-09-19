@@ -31,6 +31,7 @@ from ..transport.udp import UdpTransport
 from . import (
     AliasedGroup,
     TrezorConnection,
+    alephium,
     algorand,
     aptos,
     binance,
@@ -108,6 +109,7 @@ COMMAND_ALIASES = {
     "kaspa": kaspa.cli,
     "sui": sui.cli,
     "nervos": nervos.cli,
+    "alephium": alephium.cli,
     # firmware aliases:
     "fw": firmware.cli,
     "update-firmware": firmware.update,
@@ -457,6 +459,8 @@ cli.add_command(sol.cli)
 cli.add_command(kaspa.cli)
 cli.add_command(sui.cli)
 cli.add_command(nervos.cli)
+cli.add_command(alephium.cli)
+
 
 #
 # Main

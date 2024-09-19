@@ -67,6 +67,7 @@
 
 #if !BITCOIN_ONLY
 #include "ada.h"
+#include "alephium.h"
 #include "algorand.h"
 #include "aptos.h"
 #include "cardano.h"
@@ -681,6 +682,7 @@ bool fsm_common_path_check(const uint32_t *address_n, uint32_t address_n_count,
 #if !BITCOIN_ONLY
 
 #include "fsm_msg_ada.h"
+#include "fsm_msg_alephium.h"
 #include "fsm_msg_algorand.h"
 #include "fsm_msg_aptos.h"
 #include "fsm_msg_conflux.h"

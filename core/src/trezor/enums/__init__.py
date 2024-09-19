@@ -373,6 +373,16 @@ if TYPE_CHECKING:
         NervosSignedTx = 11704
         NervosTxRequest = 11705
         NervosTxAck = 11706
+        AlephiumGetAddress = 12101
+        AlephiumAddress = 12102
+        AlephiumSignTx = 12103
+        AlephiumSignedTx = 12104
+        AlephiumTxRequest = 12105
+        AlephiumTxAck = 12106
+        AlephiumBytecodeRequest = 12107
+        AlephiumBytecodeAck = 12108
+        AlephiumSignMessage = 12109
+        AlephiumMessageSignature = 12110
         DeviceEraseSector = 10026
 
     class FailureType(IntEnum):
