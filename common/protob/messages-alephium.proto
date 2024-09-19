@@ -9,7 +9,7 @@ option java_outer_classname = "TrezorMessageAlephium";
 /**
  * Request: Ask device for address corresponding to address_n path
  * @start
- * @next Address
+ * @next AlephiumAddress
  * @next Failure
  */
 message AlephiumGetAddress {
@@ -50,8 +50,6 @@ message AlephiumSignTx {
     required string address  = 2;
 }
 
-
-
 /**
  * Response: Device asks for more data from transaction payload, or returns the signature.
  * If data_length is set, device awaits that many more bytes of payload.
@@ -79,11 +77,9 @@ message AlephiumBytecodeRequest {
     optional bytes signature = 3;      
 }
 
-
  message AlephiumBytecodeAck {
     required bytes bytecode_data = 1;  
 }
-
 
 /**
  * Request: Ask device to sign message
@@ -105,7 +101,5 @@ message AlephiumMessageSignature {
     optional bytes  signature = 1;  
     optional string address = 2;     
 }
-
-
 
  
