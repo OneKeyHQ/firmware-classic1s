@@ -43,6 +43,7 @@
 #include "messages-nostr.pb.h"
 #include "messages-polkadot.pb.h"
 #include "messages-ripple.pb.h"
+#include "messages-scdo.pb.h"
 #include "messages-solana.pb.h"
 #include "messages-starcoin.pb.h"
 #include "messages-stellar.pb.h"
@@ -322,6 +323,12 @@ void fsm_msgNostrSignEvent(const NostrSignEvent *msg);
 void fsm_msgNostrEncryptMessage(NostrEncryptMessage *msg);
 void fsm_msgNostrDecryptMessage(NostrDecryptMessage *msg);
 void fsm_msgNostrSignSchnorr(const NostrSignSchnorr *msg);
+
+// scdo
+void fsm_msgScdoGetAddress(const ScdoGetAddress *msg);
+void fsm_msgScdoSignTx(ScdoSignTx *msg);
+void fsm_msgScdoTxAck(const ScdoTxAck *msg);
+void fsm_msgScdoSignMessage(const ScdoSignMessage *msg);
 
 // lnurl
 void fsm_msgLnurlAuth(const LnurlAuth *msg);

@@ -1,0 +1,22 @@
+ScdoGetAddress.address_n                 max_count:8
+ScdoAddress.address                      max_size:64
+
+ScdoSignTx.address_n                     max_count:8
+ScdoSignTx.nonce                         max_size:32
+ScdoSignTx.gas_price                     max_size:32
+ScdoSignTx.gas_limit                     max_size:32
+ScdoSignTx.to                            max_size:64
+ScdoSignTx.value                         max_size:32
+ScdoSignTx.timestamp                     max_size:32
+ScdoSignTx.data_initial_chunk            max_size:1024
+ScdoSignTx.data_length                   max_size:4
+ScdoSignTx.tx_type                       max_size:4
+
+ScdoSignedTx.data_length                 max_size:4
+ScdoSignedTx.signature                   max_size:65
+ScdoTxAck.data_chunk                     max_size:1024
+
+ScdoSignMessage.address_n                max_count:8
+ScdoSignMessage.message                  max_size:1024
+ScdoSignedMessage.signature              max_size:65
+ScdoSignedMessage.address                max_size:64
