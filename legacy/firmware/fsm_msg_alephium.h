@@ -30,7 +30,6 @@ void fsm_msgAlephiumGetAddress(const AlephiumGetAddress *msg) {
               "Invalid path");
   CHECK_PIN
   RESP_INIT(AlephiumAddress);
-
   HDNode *node = fsm_getDerivedNode(SECP256K1_NAME, msg->address_n,
                                     msg->address_n_count, NULL);
   if (!node) {
@@ -56,6 +55,12 @@ void fsm_msgAlephiumGetAddress(const AlephiumGetAddress *msg) {
 }
 
 void fsm_msgAlephiumSignTx(const AlephiumSignTx *msg) {
+  CHECK_INITIALIZED
+  CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,
+                                    COIN_TYPE, SECP256K1_NAME, true),
+              "Invalid path");
+  CHECK_PIN
+  RESP_INIT(AlephiumSignedTx);
   HDNode *node = fsm_getDerivedNode(SECP256K1_NAME, msg->address_n,
                                     msg->address_n_count, NULL);
   if (!node) return;
@@ -77,29 +82,24 @@ void fsm_msgAlephiumSignMessage(const AlephiumSignMessage *msg) {
   CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,
                                     COIN_TYPE, SECP256K1_NAME, true),
               "Invalid path");
+  CHECK_PIN
+  RESP_INIT(AlephiumMessageSignature);
   if (msg->message.size == 0 || msg->message.size > ALEPHIUM_MAX_MESSAGE_SIZE) {
     fsm_sendFailure(FailureType_Failure_ProcessError, "Invalid message length");
     return;
   }
-
   if (msg->has_message_type &&
       memcmp(msg->message_type.bytes, "alephium", 8) != 0) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
                     "Unsupported Message Type");
     return;
   }
-
-  CHECK_PIN
-
   HDNode *node = fsm_getDerivedNode(SECP256K1_NAME, msg->address_n,
                                     msg->address_n_count, NULL);
   if (!node) {
     fsm_sendFailure(FailureType_Failure_ProcessError, "Failed to derive node");
     return;
   }
-
-  RESP_INIT(AlephiumMessageSignature);
-
   if (!alephium_sign_message(node, msg, resp)) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
                     "Failed to sign Alephium message");
