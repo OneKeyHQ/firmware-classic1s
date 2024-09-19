@@ -388,12 +388,16 @@ void fsm_msgSignMessage(const SignMessage *msg) {
                                      msg->message.size, resp->signature.bytes,
                                      &signature_size)) {
         fsm_sendFailure(FailureType_Failure_ProcessError, "Signing failed");
+        layoutHome();
+        return;
       }
     } else if (msg->script_type == InputScriptType_SPENDTAPROOT) {
       if (!sign_bip322_simple_taproot(node, msg->message.bytes,
                                       msg->message.size, resp->signature.bytes,
                                       &signature_size)) {
         fsm_sendFailure(FailureType_Failure_ProcessError, "Signing failed");
+        layoutHome();
+        return;
       }
     } else {
       fsm_sendFailure(FailureType_Failure_ProcessError,

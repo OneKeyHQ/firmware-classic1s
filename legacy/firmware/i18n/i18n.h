@@ -5,8 +5,8 @@
 #include <stdio.h>
 #include "keys.h"
 
-extern const char *i18n_lang_keys[];
-extern const char *i18n_langs[];
+extern const char *const i18n_lang_keys[];
+extern const char *const i18n_langs[];
 extern uint8_t langs_len;
 extern int I18N_LANGUAGE_ITEMS;
 

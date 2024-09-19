@@ -10,6 +10,7 @@ static const uint32_t zero_4bytes = 0;
 static const uint64_t zero_8bytes = 0;
 static const uint8_t OP_RETURN = 0x6a;
 static const uint8_t one = 1;
+static const uint32_t one_4bytes = 1;
 static const uint32_t MAX_UINT32 = 0xFFFFFFFF;
 
 static void create_to_spend(const uint8_t *message, size_t message_len,
@@ -160,7 +161,7 @@ static void sighash_bip143(const uint8_t *message, size_t message_len,
   // nLockTime
   hasher_Update(&h_preimage, (uint8_t *)&zero_4bytes, 4);
   // nHashType
-  hasher_Update(&h_preimage, (uint8_t *)&one, 4);
+  hasher_Update(&h_preimage, (uint8_t *)&one_4bytes, 4);
 
   hasher_Final(&h_preimage, sighash);
 }
