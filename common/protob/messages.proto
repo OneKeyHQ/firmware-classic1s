@@ -520,6 +520,14 @@ enum MessageType {
     MessageType_NervosTxRequest = 11705 [(wire_out) = true];
     MessageType_NervosTxAck = 11706 [(wire_in) = true];
 
+    // ton
+    MessageType_TonGetAddress = 11901 [(wire_in) = true];
+    MessageType_TonAddress = 11902 [(wire_out) = true];
+    MessageType_TonSignMessage = 11903 [(wire_in) = true];
+    MessageType_TonSignedMessage = 11904 [(wire_out) = true];
+    MessageType_TonSignProof = 11905 [(wire_in) = true];
+    MessageType_TonSignedProof = 11906 [(wire_out) = true];
+
     // alephium
     MessageType_AlephiumGetAddress = 12101 [(wire_in) = true];
     MessageType_AlephiumAddress = 12102 [(wire_out) = true];

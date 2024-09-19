@@ -58,6 +58,8 @@
 #include "timer.h"
 #include "util.h"
 
+#include "SEGGER_RTT.h"
+#include "rtt_log.h"
 /* Display info timeout */
 uint32_t system_millis_display_info_start = 0;
 bool msg_command_inprogress = false;

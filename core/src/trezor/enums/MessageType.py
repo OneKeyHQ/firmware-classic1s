@@ -361,3 +361,9 @@ if not utils.BITCOIN_ONLY:
     AlephiumBytecodeAck = 12108
     AlephiumSignMessage = 12109
     AlephiumMessageSignature = 12110
+    TonGetAddress = 11901
+    TonAddress = 11902
+    TonSignMessage = 11903
+    TonSignedMessage = 11904
+    TonSignProof = 11905
+    TonSignedProof = 11906

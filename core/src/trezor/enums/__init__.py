@@ -383,6 +383,12 @@ if TYPE_CHECKING:
         AlephiumBytecodeAck = 12108
         AlephiumSignMessage = 12109
         AlephiumMessageSignature = 12110
+        TonGetAddress = 11901
+        TonAddress = 11902
+        TonSignMessage = 11903
+        TonSignedMessage = 11904
+        TonSignProof = 11905
+        TonSignedProof = 11906
         DeviceEraseSector = 10026
 
     class FailureType(IntEnum):
@@ -680,6 +686,13 @@ if TYPE_CHECKING:
         Yay = 0
         Nay = 1
         Pass = 2
+
+    class TonWalletVersion(IntEnum):
+        V4R2 = 3
+
+    class TonWorkChain(IntEnum):
+        BASECHAIN = 0
+        MASTERCHAIN = 1
 
     class TronResourceCode(IntEnum):
         BANDWIDTH = 0
