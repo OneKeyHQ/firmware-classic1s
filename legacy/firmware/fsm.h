@@ -48,8 +48,8 @@
 #include "messages-starcoin.pb.h"
 #include "messages-stellar.pb.h"
 #include "messages-sui.pb.h"
-#include "messages-tron.pb.h"
 #include "messages-ton.pb.h"
+#include "messages-tron.pb.h"
 
 // CoinJoin fee rate multiplier.
 #define FEE_RATE_DECIMALS (1000000)

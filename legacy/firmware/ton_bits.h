@@ -1,6 +1,6 @@
-#include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #ifndef __TON_BITS_H__
 #define __TON_BITS_H__
@@ -9,8 +9,8 @@
 #define HASH_LEN 32
 
 typedef struct BitString_t {
-    uint8_t data[128];
-    uint16_t data_cursor;  // NOTE: In bits
+  uint8_t data[128];
+  uint16_t data_cursor;  // NOTE: In bits
 } BitString_t;
 
 void bitstring_init(BitString_t* self);

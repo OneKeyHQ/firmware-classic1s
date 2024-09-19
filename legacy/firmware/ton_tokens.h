@@ -5,7 +5,7 @@
 
 typedef struct {
   char address[49];  // tron address
-  char name[10];   // token name
+  char name[10];     // token name
   int decimals;      // token decimals
 } TonTokenType;
 

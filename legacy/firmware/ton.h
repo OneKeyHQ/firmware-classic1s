@@ -28,20 +28,17 @@
 /**
  * Size of Public key in bytes
  */
-void ton_to_user_friendly(TonWorkChain workchain,
-                          const char *hash,
-                          bool is_bounceable,
-                          bool is_testnet_only,
+void ton_to_user_friendly(TonWorkChain workchain, const char *hash,
+                          bool is_bounceable, bool is_testnet_only,
                           char *address);
 
-void ton_get_address_from_public_key(const uint8_t *public_key,
-                                       char *address);
+void ton_get_address_from_public_key(const uint8_t *public_key, char *address);
 
 bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
-                        TonSignedMessage *resp);
+                      TonSignedMessage *resp);
 
 bool ton_sign_proof(const TonSignProof *msg, const HDNode *node,
-                        TonSignedProof *resp);
+                    TonSignedProof *resp);
 
 // uint16_t crc16(uint8_t *ptr, size_t count);
 

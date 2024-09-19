@@ -306,7 +306,6 @@ class MessageType(IntEnum):
     BixinBackupDevice = 914
     BixinBackupDeviceAck = 915
     BixinPinInputOnDevice = 10000
-    Deprecated_EthereumSignMessageEIP712 = 10200
     GetPublicKeyMultiple = 10210
     PublicKeyMultiple = 10211
     ConfluxGetAddress = 10112
@@ -387,6 +386,13 @@ class MessageType(IntEnum):
     TonSignedMessage = 11904
     TonSignProof = 11905
     TonSignedProof = 11906
+    ScdoGetAddress = 12001
+    ScdoAddress = 12002
+    ScdoSignTx = 12003
+    ScdoSignedTx = 12004
+    ScdoTxAck = 12005
+    ScdoSignMessage = 12006
+    ScdoSignedMessage = 12007
     AlephiumGetAddress = 12101
     AlephiumAddress = 12102
     AlephiumSignTx = 12103
@@ -397,13 +403,6 @@ class MessageType(IntEnum):
     AlephiumBytecodeAck = 12108
     AlephiumSignMessage = 12109
     AlephiumMessageSignature = 12110
-    ScdoGetAddress = 12001
-    ScdoAddress = 12002
-    ScdoSignTx = 12003
-    ScdoSignedTx = 12004
-    ScdoTxAck = 12005
-    ScdoSignMessage = 12006
-    ScdoSignedMessage = 12007
     DeviceEraseSector = 10026
 
 
