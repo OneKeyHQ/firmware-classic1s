@@ -447,7 +447,12 @@ void alephium_process_decoded_tx(const AlephiumDecodedTx *decoded_tx,
     return;
   }
 
-  layoutFinal();
+  if (!layoutFinal()) {
+    fsm_sendFailure(FailureType_Failure_ActionCancelled,
+                    "Transaction cancelled by user");
+    layoutHome();
+    return;
+  }
 
   uint8_t hash[32];
   blake2b(alephium_data_buffer, alephium_data_total_size, hash, sizeof(hash));

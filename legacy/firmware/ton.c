@@ -34,6 +34,7 @@
 #include "ton_address.h"
 #include "ton_bits.h"
 #include "ton_cell.h"
+#include "ton_layout.h"
 #include "ton_tokens.h"
 #include "util.h"
 
@@ -121,8 +122,8 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
   ton_parse_addr(usr_friendly_address, &parsed_resp);
 
   // prepare body ref
-  CellRef_t *payload;
-  payload = (CellRef_t *)malloc(sizeof(CellRef_t));
+  CellRef_t payload_data;
+  CellRef_t *payload = &payload_data;
 
   bool is_raw_data = false;
   size_t data_len = 0;
@@ -136,26 +137,22 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
     if (msg->has_comment) {
       if (memcmp(msg->comment, "b5ee9c72", 8) == 0) {
         is_raw_data = true;
-
         data_len = strlen(msg->comment) / 2;
         raw_data = (unsigned char *)malloc(data_len);
-
         hex2data(msg->comment, raw_data, &data_len);
 
-        if (!layoutTransactionSign(
-                "Ton", 0, false, amount_str, msg->destination,
-                usr_friendly_address, NULL, NULL, (const uint8_t *)raw_data,
-                data_len, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)) {
+        if (!layoutTonSign("Ton", false, amount_str, msg->destination,
+                           usr_friendly_address, NULL, NULL,
+                           (const uint8_t *)raw_data, data_len, NULL)) {
           fsm_sendFailure(FailureType_Failure_ActionCancelled,
                           "Signing cancelled");
           layoutHome();
           return false;
         }
       } else {
-        if (!layoutTransactionSign("Ton", 0, false, amount_str,
-                                   msg->destination, usr_friendly_address, NULL,
-                                   NULL, NULL, 0, "Memo", msg->comment, NULL,
-                                   NULL, NULL, NULL, NULL, NULL)) {
+        if (!layoutTonSign("Ton", false, amount_str, msg->destination,
+                           usr_friendly_address, NULL, NULL, NULL, 0,
+                           msg->comment)) {
           fsm_sendFailure(FailureType_Failure_ActionCancelled,
                           "Signing cancelled");
           layoutHome();
@@ -163,10 +160,8 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
         }
       }
     } else {
-      if (!layoutTransactionSign("Ton", 0, false, amount_str, msg->destination,
-                                 usr_friendly_address, NULL, NULL, NULL, 0,
-                                 NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                                 NULL)) {
+      if (!layoutTonSign("Ton", false, amount_str, msg->destination,
+                         usr_friendly_address, NULL, NULL, NULL, 0, NULL)) {
         fsm_sendFailure(FailureType_Failure_ActionCancelled,
                         "Signing cancelled");
         layoutHome();
@@ -176,7 +171,7 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
 
     // create payload
     if (is_raw_data) {
-      if (!ton_prase_boc(raw_data, data_len, payload)) {
+      if (!ton_parse_boc(raw_data, data_len, payload)) {
         free(raw_data);
         fsm_sendFailure(FailureType_Failure_ProcessError,
                         "Failed to create raw data body");
@@ -196,21 +191,18 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
     ton_format_jetton_amount(msg->jetton_amount, amount_str, sizeof(amount_str),
                              token->decimals, token->name);
     if (msg->has_comment) {
-      if (!layoutTransactionSign("Ton", 0, true, amount_str, msg->destination,
-                                 usr_friendly_address, NULL, NULL, NULL, 0,
-                                 "Memo", msg->comment,
-                                 "Token Contract:", msg->jetton_master_address,
-                                 NULL, NULL, NULL, NULL)) {
+      if (!layoutTonSign("Ton", true, amount_str, msg->jetton_master_address,
+                         usr_friendly_address, msg->destination, NULL, NULL, 0,
+                         msg->comment)) {
         fsm_sendFailure(FailureType_Failure_ActionCancelled,
                         "Signing cancelled");
         layoutHome();
         return false;
       }
     } else {
-      if (!layoutTransactionSign("Ton", 0, true, amount_str, msg->destination,
-                                 usr_friendly_address, NULL, NULL, NULL, 0,
-                                 "Token Contract:", msg->jetton_master_address,
-                                 NULL, NULL, NULL, NULL, NULL, NULL)) {
+      if (!layoutTonSign("Ton", true, amount_str, msg->jetton_master_address,
+                         usr_friendly_address, msg->destination, NULL, NULL, 0,
+                         NULL)) {
         fsm_sendFailure(FailureType_Failure_ActionCancelled,
                         "Signing cancelled");
         layoutHome();
@@ -241,14 +233,48 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
     for (int i = 0; i < ext_dest_count; i++) {
       ext_destination_ptrs[i] = msg->ext_destination[i];
       ext_payload_ptrs[i] = msg->ext_payload[i];
+
+      char amount_str[60];
+      ton_format_toncoin_amount(msg->ext_ton_amount[i], amount_str,
+                                sizeof(amount_str));
+
+      if (memcmp(ext_payload_ptrs[i], "b5ee9c72", 8) == 0 ||
+          !msg->has_comment) {
+        data_len = strlen(ext_payload_ptrs[i]) / 2;
+        if (!layoutTonSign("Ton", false, amount_str, ext_destination_ptrs[i],
+                           usr_friendly_address, NULL, NULL,
+                           (const uint8_t *)ext_payload_ptrs[i], data_len,
+                           NULL)) {
+          fsm_sendFailure(FailureType_Failure_ActionCancelled,
+                          "Signing cancelled");
+          layoutHome();
+          return false;
+        }
+      } else {
+        if (!layoutTonSign("Ton", false, amount_str, ext_destination_ptrs[i],
+                           usr_friendly_address, NULL, NULL, NULL, 0,
+                           ext_payload_ptrs[i])) {
+          fsm_sendFailure(FailureType_Failure_ActionCancelled,
+                          "Signing cancelled");
+          layoutHome();
+          return false;
+        }
+      }
     }
   }
 
-  ton_create_message_digest(msg->expire_at, msg->seqno,
-                            parsed_dest.is_bounceable, parsed_dest.workchain,
-                            parsed_dest.hash, msg->ton_amount, msg->mode, NULL,
-                            payload, ext_destination_ptrs, msg->ext_ton_amount,
-                            ext_payload_ptrs, ext_dest_count, digest);
+  if (!confirmFinal()) {
+    fsm_sendFailure(FailureType_Failure_ActionCancelled,
+                    "Transaction cancelled by user");
+    layoutHome();
+    return false;
+  }
+
+  ton_create_message_digest(
+      msg->expire_at, msg->seqno, parsed_dest.is_bounceable,
+      parsed_dest.workchain, parsed_dest.hash, msg->ton_amount, msg->mode, NULL,
+      payload, ext_destination_ptrs, msg->ext_ton_amount, ext_payload_ptrs,
+      ext_dest_count, digest, NULL, NULL);
 
 #if EMULATOR
   ed25519_sign((const unsigned char *)digest, SHA256_SIZE, node->private_key,
@@ -261,8 +287,8 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
   resp->signature.size = 64;
   resp->has_signature = true;
 
-  resp->signning_message.size = 4;
-  memcpy(resp->signning_message.bytes, "\xff\xff\xff\xff", 4);
+  resp->signning_message.size = 0;
+  memset(resp->signning_message.bytes, 0, resp->signning_message.size);
   resp->has_signning_message = true;
 
   return true;
@@ -270,8 +296,6 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
 
 bool ton_sign_proof(const TonSignProof *msg, const HDNode *node,
                     TonSignedProof *resp) {
-  printf("ton_sign_proof\n");
-
   // get address
   char raw_address[32] = {0};
   char usr_friendly_address[49] = {0};

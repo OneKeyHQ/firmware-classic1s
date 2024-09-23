@@ -1,5 +1,6 @@
 #include "ton_address.h"
 #include <string.h>
+#include "fsm.h"
 
 static inline unsigned char to_uchar(char ch) { return ch; }
 
@@ -29,9 +30,9 @@ void ton_base64_encode(const char *restrict in, size_t inlen,
   if (outlen) *out = '\0';
 }
 
-int32_t ton_base64_decode(const char *in, size_t in_len, uint8_t *out,
-                          size_t max_out_len) {
-  int32_t success = 0;
+bool ton_base64_decode(const char *in, size_t in_len, uint8_t *out,
+                       size_t max_out_len) {
+  bool success = true;
   const uint32_t base64_index[256] = {
       0U,  0U,  0U,  0U,  0U,  0U,  0U,  0U,  0U,  0U,  0U,  0U,  0U,  0U,  0U,
       0U,  0U,  0U,  0U,  0U,  0U,  0U,  0U,  0U,  0U,  0U,  0U,  0U,  0U,  0U,
@@ -55,22 +56,19 @@ int32_t ton_base64_decode(const char *in, size_t in_len, uint8_t *out,
   bool pad_bool =
       (in_len > 0U) &&
       (((in_len % 4U) != 0U) || (in_data_uchar[in_len - 1U] == (uint8_t)'='));
-  uint32_t pad_uint = 0U;
-  if (pad_bool) {
-    pad_uint = 1U;
-  }
+  uint32_t pad_uint = pad_bool ? 1U : 0U;
   const size_t len = (((in_len + 3U) / 4U) - pad_uint) * 4U;
   const size_t out_len = ((len / 4U) * 3U) + pad_uint;
 
   if (out_len > max_out_len) {
-    success = 1;
+    success = false;
   }
 
   if (len == 0U) {
-    success = 1;
+    success = false;
   }
 
-  if (success == 0) {
+  if (success) {
     size_t j = 0U;
     for (size_t i = 0U; i < len; i += 4U) {
       uint32_t n = (base64_index[in_data_uchar[i]] << 18U) |
@@ -91,7 +89,7 @@ int32_t ton_base64_decode(const char *in, size_t in_len, uint8_t *out,
 
       if ((in_len > (len + 2U)) && (in_data_uchar[len + 2U] != (uint8_t)'=')) {
         if ((out_len + 1U) > max_out_len) {
-          success = 1;
+          success = false;
         } else {
           n |= base64_index[in_data_uchar[len + 2U]] << 6U;
           out[out_len] = (uint8_t)((n >> 8U) & 0xFFU);
@@ -104,11 +102,11 @@ int32_t ton_base64_decode(const char *in, size_t in_len, uint8_t *out,
 }
 
 uint16_t crc16(uint8_t *ptr, size_t count) {
-  size_t crc = 0;
+  uint16_t crc = 0;
   int counter = count;
   int i = 0;
   while (--counter >= 0) {
-    crc = crc ^ (size_t)*ptr++ << 8;
+    crc = crc ^ (uint16_t)*ptr++ << 8;
     i = 8;
     do {
       if (crc & 0x8000) {
@@ -165,7 +163,7 @@ void ton_parse_addr(const char *dest, TON_PARSED_ADDRESS *parsed_addr) {
   if (flag == 0x11) {
     parsed_addr->is_bounceable = true;
   } else if (flag != 0x51) {
-    // printf("error");
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Invalid address");
   }
 
   // Workchain

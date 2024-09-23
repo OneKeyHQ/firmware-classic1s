@@ -34,7 +34,10 @@ void fsm_msgScdoSignTx(ScdoSignTx *msg) {
 
   char scdo_address[43];
   uint8_t pubkey[65] = {0};
-  ecdsa_uncompress_pubkey(node->curve->params, node->public_key, pubkey);
+  if (!ecdsa_uncompress_pubkey(node->curve->params, node->public_key, pubkey)) {
+    fsm_sendFailure(FailureType_Failure_ProcessError,
+                    "Failed to uncompress pubkey");
+  }
   scdo_eth_2_address(pubkey + 1, scdo_address, sizeof(scdo_address));
   scdo_sign_tx(msg, node, scdo_address);
 }

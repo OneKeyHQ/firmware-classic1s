@@ -28,7 +28,8 @@ bool ton_create_message_digest(uint32_t expire_at, uint32_t seqno,
                                const char** ext_dest,
                                const uint64_t* ext_ton_amount,
                                const char** ext_payload, uint8_t ext_dest_count,
-                               uint8_t* digest);
+                               uint8_t* digest, uint8_t* signing_msg,
+                               size_t* signing_msg_len);
 
-bool ton_prase_boc(const uint8_t* input_boc, size_t input_boc_len,
+bool ton_parse_boc(const uint8_t* input_boc, size_t input_boc_len,
                    CellRef_t* payload);
