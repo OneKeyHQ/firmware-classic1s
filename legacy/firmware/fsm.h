@@ -43,10 +43,12 @@
 #include "messages-nostr.pb.h"
 #include "messages-polkadot.pb.h"
 #include "messages-ripple.pb.h"
+#include "messages-scdo.pb.h"
 #include "messages-solana.pb.h"
 #include "messages-starcoin.pb.h"
 #include "messages-stellar.pb.h"
 #include "messages-sui.pb.h"
+#include "messages-ton.pb.h"
 #include "messages-tron.pb.h"
 
 // CoinJoin fee rate multiplier.
@@ -322,7 +324,17 @@ void fsm_msgNostrEncryptMessage(NostrEncryptMessage *msg);
 void fsm_msgNostrDecryptMessage(NostrDecryptMessage *msg);
 void fsm_msgNostrSignSchnorr(const NostrSignSchnorr *msg);
 
+// scdo
+void fsm_msgScdoGetAddress(const ScdoGetAddress *msg);
+void fsm_msgScdoSignTx(ScdoSignTx *msg);
+void fsm_msgScdoTxAck(const ScdoTxAck *msg);
+void fsm_msgScdoSignMessage(const ScdoSignMessage *msg);
+
 // lnurl
 void fsm_msgLnurlAuth(const LnurlAuth *msg);
 
+// ton
+void fsm_msgTonGetAddress(const TonGetAddress *msg);
+void fsm_msgTonSignMessage(const TonSignMessage *msg);
+void fsm_msgTonSignProof(const TonSignProof *msg);
 #endif

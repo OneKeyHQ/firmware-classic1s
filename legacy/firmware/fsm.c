@@ -88,10 +88,12 @@
 #include "nostr.h"
 #include "polkadot.h"
 #include "ripple.h"
+#include "scdo.h"
 #include "solana.h"
 #include "starcoin.h"
 #include "stellar.h"
 #include "sui.h"
+#include "ton.h"
 #include "tron.h"
 #endif
 
@@ -699,9 +701,12 @@ bool fsm_common_path_check(const uint32_t *address_n, uint32_t address_n_count,
 #include "fsm_msg_nostr.h"
 #include "fsm_msg_polkadot.h"
 #include "fsm_msg_ripple.h"
+#include "fsm_msg_scdo.h"
 #include "fsm_msg_solana.h"
 #include "fsm_msg_starcoin.h"
 #include "fsm_msg_stellar.h"
 #include "fsm_msg_sui.h"
+#include "fsm_msg_ton.h"
 #include "fsm_msg_tron.h"
+
 #endif

@@ -391,7 +391,8 @@ AlephiumError decode_alephium_tx(const uint8_t* data, size_t data_length,
     index += bytes_read;
     tx->outputs[i].tokens_count = (size_t)tokens_count;
 
-    for (size_t j = 0; j < tx->outputs[i].tokens_count && j < ALEPHIUM_MAX_TOKENS; j++) {
+    for (size_t j = 0;
+         j < tx->outputs[i].tokens_count && j < ALEPHIUM_MAX_TOKENS; j++) {
       memcpy(tx->outputs[i].tokens[j].id, data + index, 32);
       index += 32;
       err = decode_u256(data + index, tx->outputs[i].tokens[j].amount,

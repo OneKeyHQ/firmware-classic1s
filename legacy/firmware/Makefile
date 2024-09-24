@@ -147,8 +147,15 @@ OBJS += alephium/alph_address.o
 OBJS += alephium/alph_decode.o
 OBJS += alephium/alph_layout.o
 OBJS += nostr.o
+OBJS += scdo.o
 OBJS += base64.o
 OBJS += lnurl.o
+OBJS += ton.o
+OBJS += ton_bits.o
+OBJS += ton_cell.o
+OBJS += ton_tokens.o
+OBJS += ton_address.o
+OBJS += ton_layout.o
 endif
 
 OBJS += debug.o
@@ -252,8 +259,10 @@ OBJS += protob/messages-kaspa.pb.o
 OBJS += protob/messages-nexa.pb.o
 OBJS += protob/messages-nervos.pb.o
 OBJS += protob/messages-nostr.pb.o
+OBJS += protob/messages-scdo.pb.o
 OBJS += protob/messages-lnurl.pb.o
 OBJS += protob/messages-alephium.pb.o
+OBJS += protob/messages-ton.pb.o
 endif
 
 OPTFLAGS ?= -Os

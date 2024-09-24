@@ -298,7 +298,6 @@ if TYPE_CHECKING:
         BixinBackupDevice = 914
         BixinBackupDeviceAck = 915
         BixinPinInputOnDevice = 10000
-        Deprecated_EthereumSignMessageEIP712 = 10200
         GetPublicKeyMultiple = 10210
         PublicKeyMultiple = 10211
         ConfluxGetAddress = 10112
@@ -373,6 +372,19 @@ if TYPE_CHECKING:
         NervosSignedTx = 11704
         NervosTxRequest = 11705
         NervosTxAck = 11706
+        TonGetAddress = 11901
+        TonAddress = 11902
+        TonSignMessage = 11903
+        TonSignedMessage = 11904
+        TonSignProof = 11905
+        TonSignedProof = 11906
+        ScdoGetAddress = 12001
+        ScdoAddress = 12002
+        ScdoSignTx = 12003
+        ScdoSignedTx = 12004
+        ScdoTxAck = 12005
+        ScdoSignMessage = 12006
+        ScdoSignedMessage = 12007
         AlephiumGetAddress = 12101
         AlephiumAddress = 12102
         AlephiumSignTx = 12103
@@ -680,6 +692,13 @@ if TYPE_CHECKING:
         Yay = 0
         Nay = 1
         Pass = 2
+
+    class TonWalletVersion(IntEnum):
+        V4R2 = 3
+
+    class TonWorkChain(IntEnum):
+        BASECHAIN = 0
+        MASTERCHAIN = 1
 
     class TronResourceCode(IntEnum):
         BANDWIDTH = 0

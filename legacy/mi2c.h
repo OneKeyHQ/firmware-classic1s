@@ -39,7 +39,7 @@
 
 #define MI2C_XOR_LEN (1)
 
-//#define	GET_MI2C_COMBUS	        (gpio_get(GPIO_MI2C_PORT, MI2C_COMBUS))
+// #define	GET_MI2C_COMBUS	        (gpio_get(GPIO_MI2C_PORT, MI2C_COMBUS))
 
 #if !EMULATOR
 extern void vMI2CDRV_Init(void);
