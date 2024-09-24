@@ -33,7 +33,6 @@ bool confirmFinal(void) {
     key = protectWaitKey(0, 1);
     if (key == KEY_CONFIRM) {
       return true;
-      break;
     }
     if (key == KEY_CANCEL || key == KEY_NULL) {
       return false;

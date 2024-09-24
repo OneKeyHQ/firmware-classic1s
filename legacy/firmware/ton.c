@@ -139,6 +139,11 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
         is_raw_data = true;
         data_len = strlen(msg->comment) / 2;
         raw_data = (unsigned char *)malloc(data_len);
+        if (raw_data == NULL) {
+          fsm_sendFailure(FailureType_Failure_ProcessError,
+                          "Memory allocation failed");
+          return false;
+        }
         hex2data(msg->comment, raw_data, &data_len);
 
         if (!layoutTonSign("Ton", false, amount_str, msg->destination,
@@ -335,7 +340,7 @@ bool ton_sign_proof(const TonSignProof *msg, const HDNode *node,
   uint32_t comment_len = msg->comment.size;
   sha256_Update(&ctx, (const uint8_t *)msg->comment.bytes, comment_len);
 
-  uint8_t *message[32] = {0};
+  uint8_t message[32] = {0};
   sha256_Final(&ctx, (uint8_t *)message);
 
   // hash 2
@@ -347,12 +352,18 @@ bool ton_sign_proof(const TonSignProof *msg, const HDNode *node,
 
   sha256_Update(&ctx, (const uint8_t *)message, 32);
 
-  uint8_t *message_final[32] = {0};
+  uint8_t message_final[32] = {0};
   sha256_Final(&ctx, (uint8_t *)message_final);
 
+#if EMULATOR
   ed25519_sign((const unsigned char *)message_final, SHA256_SIZE,
                node->private_key, resp->signature.bytes);
-  resp->signature.size = 64;
+#else
+  hdnode_sign(node, (const unsigned char *)message_final, SHA256_SIZE, 0,
+              resp->signature.bytes, NULL, NULL);
+#endif
 
+  resp->signature.size = 64;
+  resp->has_signature = true;
   return true;
 }

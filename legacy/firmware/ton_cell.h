@@ -7,7 +7,7 @@ typedef struct CellRef_t {
 
 typedef struct {
   BitString_t bits;
-  uint32_t ref_indices[4];  // 最多4个引用
+  uint32_t ref_indices[4];  // max ref = 4
   uint8_t refs_count;
   CellRef_t cell_ref;
 } CellData_t;

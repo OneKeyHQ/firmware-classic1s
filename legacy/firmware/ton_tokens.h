@@ -1,7 +1,7 @@
 #ifndef __TON_TOKENS_H__
 #define __TON_TOKENS_H__
 
-#include <stdint.h>
+// #include <stdint.h>
 
 typedef struct {
   char address[49];  // ton address

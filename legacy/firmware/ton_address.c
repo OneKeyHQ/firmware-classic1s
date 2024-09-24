@@ -33,6 +33,17 @@ void ton_base64_encode(const char *restrict in, size_t inlen,
 bool ton_base64_decode(const char *in, size_t in_len, uint8_t *out,
                        size_t max_out_len) {
   bool success = true;
+
+  for (size_t i = 0; i < in_len; i++) {
+    char c = in[i];
+    if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+          (c >= '0' && c <= '9') || c == '+' || c == '/' || c == '-' ||
+          c == '_' || (c == '=' && i >= in_len - 2))) {
+      success = false;
+      break;
+    }
+  }
+
   const uint32_t base64_index[256] = {
       0U,  0U,  0U,  0U,  0U,  0U,  0U,  0U,  0U,  0U,  0U,  0U,  0U,  0U,  0U,
       0U,  0U,  0U,  0U,  0U,  0U,  0U,  0U,  0U,  0U,  0U,  0U,  0U,  0U,  0U,
@@ -150,7 +161,10 @@ void ton_decode_addr(TonWorkChain workchain, const char *hash,
 void ton_parse_addr(const char *dest, TON_PARSED_ADDRESS *parsed_addr) {
   // Base64
   uint8_t decode_res[36];
-  ton_base64_decode(dest, USER_FRIENDLY_B64_LEN, decode_res, USER_FRIENDLY_LEN);
+  if (!ton_base64_decode(dest, USER_FRIENDLY_B64_LEN, decode_res,
+                         USER_FRIENDLY_LEN)) {
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Address decode failed");
+  }
 
   // Flag
   uint8_t flag = decode_res[0];
