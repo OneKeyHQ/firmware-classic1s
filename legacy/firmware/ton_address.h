@@ -19,6 +19,6 @@ typedef struct {
 void ton_decode_addr(TonWorkChain workchain, const char *hash,
                      bool is_bounceable, bool is_testnet_only, char *output);
 
-void ton_parse_addr(const char *dest, TON_PARSED_ADDRESS *parsed_addr);
+bool ton_parse_addr(const char *dest, TON_PARSED_ADDRESS *parsed_addr);
 
 #endif  // __TON_ADDRESS_H__

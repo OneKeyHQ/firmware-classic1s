@@ -158,12 +158,12 @@ void ton_decode_addr(TonWorkChain workchain, const char *hash,
   ton_base64_encode(address, sizeof(address), output, USER_FRIENDLY_B64_LEN);
 }
 
-void ton_parse_addr(const char *dest, TON_PARSED_ADDRESS *parsed_addr) {
+bool ton_parse_addr(const char *dest, TON_PARSED_ADDRESS *parsed_addr) {
   // Base64
   uint8_t decode_res[36];
   if (!ton_base64_decode(dest, USER_FRIENDLY_B64_LEN, decode_res,
                          USER_FRIENDLY_LEN)) {
-    fsm_sendFailure(FailureType_Failure_ProcessError, "Address decode failed");
+    return false;
   }
 
   // Flag
@@ -177,11 +177,12 @@ void ton_parse_addr(const char *dest, TON_PARSED_ADDRESS *parsed_addr) {
   if (flag == 0x11) {
     parsed_addr->is_bounceable = true;
   } else if (flag != 0x51) {
-    fsm_sendFailure(FailureType_Failure_ProcessError, "Invalid address");
+    return false;
   }
 
   // Workchain
   parsed_addr->workchain = decode_res[1];
   // Hash
   memmove(parsed_addr->hash, decode_res + 2, 32);
+  return true;
 }

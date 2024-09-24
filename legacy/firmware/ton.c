@@ -118,8 +118,18 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
 
   // parse dest&resp addr
   TON_PARSED_ADDRESS parsed_dest, parsed_resp = {0};
-  ton_parse_addr(msg->destination, &parsed_dest);
-  ton_parse_addr(usr_friendly_address, &parsed_resp);
+  if (!ton_parse_addr(msg->destination, &parsed_dest)) {
+    fsm_sendFailure(FailureType_Failure_ProcessError,
+                    "Failed to parse destination address");
+    layoutHome();
+    return false;
+  }
+  if (!ton_parse_addr(usr_friendly_address, &parsed_resp)) {
+    fsm_sendFailure(FailureType_Failure_ProcessError,
+                    "Failed to parse response address");
+    layoutHome();
+    return false;
+  }
 
   // prepare body ref
   CellRef_t payload_data;
@@ -135,7 +145,8 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
     ton_format_toncoin_amount(msg->ton_amount, amount_str, sizeof(amount_str));
 
     if (msg->has_comment) {
-      if (memcmp(msg->comment, "b5ee9c72", 8) == 0) {
+      if (strlen(msg->comment) >= 8 &&
+          memcmp(msg->comment, "b5ee9c72", 8) == 0) {
         is_raw_data = true;
         data_len = strlen(msg->comment) / 2;
         raw_data = (unsigned char *)malloc(data_len);
@@ -243,22 +254,32 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
       ton_format_toncoin_amount(msg->ext_ton_amount[i], amount_str,
                                 sizeof(amount_str));
 
-      if (memcmp(ext_payload_ptrs[i], "b5ee9c72", 8) == 0 ||
-          !msg->has_comment) {
-        data_len = strlen(ext_payload_ptrs[i]) / 2;
-        if (!layoutTonSign("Ton", false, amount_str, ext_destination_ptrs[i],
-                           usr_friendly_address, NULL, NULL,
-                           (const uint8_t *)ext_payload_ptrs[i], data_len,
-                           NULL)) {
-          fsm_sendFailure(FailureType_Failure_ActionCancelled,
-                          "Signing cancelled");
-          layoutHome();
-          return false;
+      if (msg->has_comment) {
+        if (strlen(msg->comment) >= 8 &&
+            memcmp(msg->comment, "b5ee9c72", 8) == 0) {  // raw data
+          data_len = strlen(ext_payload_ptrs[i]) / 2;
+          if (!layoutTonSign("Ton", false, amount_str, ext_destination_ptrs[i],
+                             usr_friendly_address, NULL, NULL,
+                             (const uint8_t *)ext_payload_ptrs[i], data_len,
+                             NULL)) {
+            fsm_sendFailure(FailureType_Failure_ActionCancelled,
+                            "Signing cancelled");
+            layoutHome();
+            return false;
+          }
+        } else {  // memo
+          if (!layoutTonSign("Ton", false, amount_str, ext_destination_ptrs[i],
+                             usr_friendly_address, NULL, NULL, NULL, 0,
+                             ext_payload_ptrs[i])) {
+            fsm_sendFailure(FailureType_Failure_ActionCancelled,
+                            "Signing cancelled");
+            layoutHome();
+            return false;
+          }
         }
-      } else {
+      } else {  // no comment
         if (!layoutTonSign("Ton", false, amount_str, ext_destination_ptrs[i],
-                           usr_friendly_address, NULL, NULL, NULL, 0,
-                           ext_payload_ptrs[i])) {
+                           usr_friendly_address, NULL, NULL, NULL, 0, NULL)) {
           fsm_sendFailure(FailureType_Failure_ActionCancelled,
                           "Signing cancelled");
           layoutHome();
@@ -275,11 +296,16 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
     return false;
   }
 
-  ton_create_message_digest(
-      msg->expire_at, msg->seqno, parsed_dest.is_bounceable,
-      parsed_dest.workchain, parsed_dest.hash, msg->ton_amount, msg->mode, NULL,
-      payload, ext_destination_ptrs, msg->ext_ton_amount, ext_payload_ptrs,
-      ext_dest_count, digest, NULL, NULL);
+  if (!ton_create_message_digest(
+          msg->expire_at, msg->seqno, parsed_dest.is_bounceable,
+          parsed_dest.workchain, parsed_dest.hash, msg->ton_amount, msg->mode,
+          NULL, payload, ext_destination_ptrs, msg->ext_ton_amount,
+          ext_payload_ptrs, ext_dest_count, digest, NULL, NULL)) {
+    fsm_sendFailure(FailureType_Failure_ProcessError,
+                    "Failed to create message digest");
+    layoutHome();
+    return false;
+  }
 
 #if EMULATOR
   ed25519_sign((const unsigned char *)digest, SHA256_SIZE, node->private_key,

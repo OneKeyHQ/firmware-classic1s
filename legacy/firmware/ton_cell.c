@@ -213,11 +213,15 @@ bool ton_create_message_digest(uint32_t expire_at, uint32_t seqno,
 
   for (int i = 0; i < ext_dest_count && i < 3; i++) {
     TON_PARSED_ADDRESS parsed_addr;
-    ton_parse_addr(ext_dest[i], &parsed_addr);
+
+    if (!ton_parse_addr(ext_dest[i], &parsed_addr)) {
+      return false;
+    }
 
     CellRef_t ext_payload_ref;
     if (ext_payload && ext_payload[i] && strlen(ext_payload[i]) > 0) {
-      if (memcmp(ext_payload[i], "b5ee9c72", 8) == 0) {
+      if (strlen(ext_payload[i]) >= 8 &&
+          memcmp(ext_payload[i], "b5ee9c72", 8) == 0) {
         unsigned int data_len = strlen(ext_payload[i]) / 2;
         uint8_t raw_data[data_len];
         hex2data(ext_payload[i], raw_data, &data_len);
