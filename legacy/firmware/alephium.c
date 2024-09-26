@@ -9,9 +9,9 @@ static uint32_t alephium_address_n[8] = {0};
 static uint32_t alephium_address_n_count = 0;
 static HDNode *globalNode = NULL;
 
-bool alephium_get_address(const HDNode *node, const AlephiumGetAddress *msg,
+bool alephium_get_address(const AlephiumGetAddress *msg,
                           AlephiumAddress *resp) {
-  return alph_get_address(node, msg, resp);
+  return alph_get_address(msg, resp);
 }
 
 void alephium_sign_tx(const HDNode *node, const AlephiumSignTx *msg) {
@@ -169,26 +169,52 @@ void alephium_handle_bytecode_ack(const AlephiumBytecodeAck *msg) {
     }
 
     size_t remove_length = msg->bytecode_data.size;
-    size_t new_data_size = alephium_data_total_size - remove_length;
-    uint8_t *new_data_buffer = (uint8_t *)malloc(new_data_size);
-    if (!new_data_buffer) {
+    if (remove_length > alephium_data_total_size) {
+      fsm_sendFailure(FailureType_Failure_DataError, "Invalid remove_length");
+      layoutHome();
+      return;
+    }
+    size_t remove_bytecode_data_size = alephium_data_total_size - remove_length;
+
+    if (remove_bytecode_data_size == 0) {
+      fsm_sendFailure(FailureType_Failure_DataError,
+                      "No data left after removing bytecode");
+      layoutHome();
+      return;
+    }
+
+    if (memcmp(alephium_data_buffer + 3, msg->bytecode_data.bytes,
+               remove_length) != 0) {
+      fsm_sendFailure(FailureType_Failure_DataError, "Bytecode data mismatch");
+      layoutHome();
+      return;
+    }
+
+    uint8_t *remove_bytecode_data_buffer =
+        (uint8_t *)malloc(remove_bytecode_data_size);
+    if (!remove_bytecode_data_buffer) {
       fsm_sendFailure(FailureType_Failure_ProcessError,
                       "Memory allocation failed");
       layoutHome();
       return;
     }
 
-    memcpy(new_data_buffer, alephium_data_buffer, 3);
-    memcpy(new_data_buffer + 3, alephium_data_buffer + 3 + remove_length,
-           new_data_size - 3);
+    if (remove_bytecode_data_size < 3) {
+      fsm_sendFailure(FailureType_Failure_DataError, "Data size too small");
+      layoutHome();
+      return;
+    }
 
-    free(alephium_data_buffer);
-    alephium_data_buffer = new_data_buffer;
-    alephium_data_total_size = new_data_size;
+    memcpy(remove_bytecode_data_buffer, alephium_data_buffer, 3);
+    memcpy(remove_bytecode_data_buffer + 3,
+           alephium_data_buffer + 3 + remove_length,
+           remove_bytecode_data_size - 3);
 
     AlephiumDecodedTx decoded_tx;
     AlephiumError err = decode_alephium_tx(
-        alephium_data_buffer, alephium_data_total_size, &decoded_tx);
+        remove_bytecode_data_buffer, remove_bytecode_data_size, &decoded_tx);
+
+    free(remove_bytecode_data_buffer);
     if (err != ALEPHIUM_OK) {
       fsm_sendFailure(FailureType_Failure_DataError,
                       "Failed to decode transaction");

@@ -23,8 +23,7 @@
 #include "protect.h"
 #include "util.h"
 
-bool alephium_get_address(const HDNode *node, const AlephiumGetAddress *msg,
-                          AlephiumAddress *resp);
+bool alephium_get_address(const AlephiumGetAddress *msg, AlephiumAddress *resp);
 void alephium_sign_tx(const HDNode *node, const AlephiumSignTx *msg);
 void alephium_signing_txack(const AlephiumTxAck *tx);
 void alephium_send_request_chunk(void);

@@ -30,13 +30,7 @@ void fsm_msgAlephiumGetAddress(const AlephiumGetAddress *msg) {
               "Invalid path");
   CHECK_PIN
   RESP_INIT(AlephiumAddress);
-  HDNode *node = fsm_getDerivedNode(SECP256K1_NAME, msg->address_n,
-                                    msg->address_n_count, NULL);
-  if (!node) {
-    fsm_sendFailure(FailureType_Failure_ProcessError, "Failed to derive node");
-    return;
-  }
-  if (!alephium_get_address(node, msg, resp)) {
+  if (!alephium_get_address(msg, resp)) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
                     "Failed to get Alephium address");
     layoutHome();
