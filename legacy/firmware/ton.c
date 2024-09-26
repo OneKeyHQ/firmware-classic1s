@@ -296,15 +296,37 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
     return false;
   }
 
-  if (!ton_create_message_digest(
-          msg->expire_at, msg->seqno, parsed_dest.is_bounceable,
-          parsed_dest.workchain, parsed_dest.hash, msg->ton_amount, msg->mode,
-          NULL, payload, ext_destination_ptrs, msg->ext_ton_amount,
-          ext_payload_ptrs, ext_dest_count, digest, NULL, NULL)) {
-    fsm_sendFailure(FailureType_Failure_ProcessError,
-                    "Failed to create message digest");
-    layoutHome();
-    return false;
+  if (msg->jetton_amount == 0) {
+    if (!ton_create_message_digest(
+            msg->expire_at, msg->seqno, parsed_dest.is_bounceable,
+            parsed_dest.workchain, parsed_dest.hash, msg->ton_amount, msg->mode,
+            NULL, payload, ext_destination_ptrs, msg->ext_ton_amount,
+            ext_payload_ptrs, ext_dest_count, digest, NULL, NULL)) {
+      fsm_sendFailure(FailureType_Failure_ProcessError,
+                      "Failed to create message digest");
+      layoutHome();
+      return false;
+    }
+  } else {
+    // parse dest&resp addr
+    memset(&parsed_dest, 0, sizeof(TON_PARSED_ADDRESS));
+    if (!ton_parse_addr(msg->jetton_wallet_address, &parsed_dest)) {
+      fsm_sendFailure(FailureType_Failure_ProcessError,
+                      "Failed to parse jetton wallet address");
+      layoutHome();
+      return false;
+    }
+
+    if (!ton_create_message_digest(
+            msg->expire_at, msg->seqno, parsed_dest.is_bounceable,
+            parsed_dest.workchain, parsed_dest.hash, msg->ton_amount, msg->mode,
+            NULL, payload, ext_destination_ptrs, msg->ext_ton_amount,
+            ext_payload_ptrs, ext_dest_count, digest, NULL, NULL)) {
+      fsm_sendFailure(FailureType_Failure_ProcessError,
+                      "Failed to create message digest");
+      layoutHome();
+      return false;
+    }
   }
 
 #if EMULATOR
