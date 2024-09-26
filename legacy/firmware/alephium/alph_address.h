@@ -5,9 +5,9 @@
 #include "base58.h"
 #include "bip32.h"
 #include "blake2b.h"
+#include "curves.h"
 #include "messages-alephium.pb.h"
 
-bool alph_get_address(const HDNode *node, const AlephiumGetAddress *msg,
-                      AlephiumAddress *resp);
+bool alph_get_address(const AlephiumGetAddress *msg, AlephiumAddress *resp);
 
 #endif  // __ALPH_ADDRESS_H__
