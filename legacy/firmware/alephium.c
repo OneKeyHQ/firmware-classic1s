@@ -199,6 +199,12 @@ void alephium_handle_bytecode_ack(const AlephiumBytecodeAck *msg) {
       return;
     }
 
+    if (remove_bytecode_data_size < 3) {
+      fsm_sendFailure(FailureType_Failure_DataError, "Data size too small");
+      layoutHome();
+      return;
+    }
+
     memcpy(remove_bytecode_data_buffer, alephium_data_buffer, 3);
     memcpy(remove_bytecode_data_buffer + 3,
            alephium_data_buffer + 3 + remove_length,

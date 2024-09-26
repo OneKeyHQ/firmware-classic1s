@@ -3,10 +3,6 @@
 #define TOTAL_NUMBER_OF_GROUPS 4
 #define MAX_CHILD_INDEX 0x7FFFFFFF
 
-extern HDNode *fsm_getDerivedNode(const char *curve, const uint32_t *address_n,
-                                  size_t address_n_count,
-                                  uint32_t *fingerprint);
-
 static uint32_t djb_hash(const uint8_t *data, size_t len) {
   uint32_t h = 5381;
   for (size_t i = 0; i < len; i++) {
