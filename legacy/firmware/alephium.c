@@ -169,16 +169,22 @@ void alephium_handle_bytecode_ack(const AlephiumBytecodeAck *msg) {
     }
 
     size_t remove_length = msg->bytecode_data.size;
+    if (remove_length > alephium_data_total_size) {
+      fsm_sendFailure(FailureType_Failure_DataError, "Invalid remove_length");
+      layoutHome();
+      return;
+    }
     size_t remove_bytecode_data_size = alephium_data_total_size - remove_length;
 
-    if (memcmp(alephium_data_buffer + 3, msg->bytecode_data.bytes, remove_length) != 0) {
-      fsm_sendFailure(FailureType_Failure_DataError,
-                      "Bytecode data mismatch");
+    if (memcmp(alephium_data_buffer + 3, msg->bytecode_data.bytes,
+               remove_length) != 0) {
+      fsm_sendFailure(FailureType_Failure_DataError, "Bytecode data mismatch");
       layoutHome();
       return;
     }
 
-    uint8_t *remove_bytecode_data_buffer = (uint8_t *)malloc(remove_bytecode_data_size);
+    uint8_t *remove_bytecode_data_buffer =
+        (uint8_t *)malloc(remove_bytecode_data_size);
     if (!remove_bytecode_data_buffer) {
       fsm_sendFailure(FailureType_Failure_ProcessError,
                       "Memory allocation failed");
@@ -187,9 +193,9 @@ void alephium_handle_bytecode_ack(const AlephiumBytecodeAck *msg) {
     }
 
     memcpy(remove_bytecode_data_buffer, alephium_data_buffer, 3);
-    memcpy(remove_bytecode_data_buffer + 3, alephium_data_buffer + 3 + remove_length,
+    memcpy(remove_bytecode_data_buffer + 3,
+           alephium_data_buffer + 3 + remove_length,
            remove_bytecode_data_size - 3);
-
 
     AlephiumDecodedTx decoded_tx;
     AlephiumError err = decode_alephium_tx(

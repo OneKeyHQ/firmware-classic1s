@@ -42,10 +42,12 @@ HDNode *alph_get_derived_node(const uint32_t *address_n,
 static bool derive_pub_key_for_group(uint32_t *address_n,
                                      uint32_t *address_n_count,
                                      int target_group) {
-  int iteration = 0;
   HDNode *node = NULL;
   while (1) {
     node = alph_get_derived_node(address_n, *address_n_count);
+    if (!node) {
+      return false;
+    }
     int current_group =
         get_pub_key_group(node->public_key, TOTAL_NUMBER_OF_GROUPS);
     if (current_group == target_group) {
@@ -55,7 +57,6 @@ static bool derive_pub_key_for_group(uint32_t *address_n,
     if (address_n[*address_n_count - 1] > MAX_CHILD_INDEX) {
       return false;
     }
-    iteration++;
   }
 }
 
