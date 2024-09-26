@@ -176,6 +176,13 @@ void alephium_handle_bytecode_ack(const AlephiumBytecodeAck *msg) {
     }
     size_t remove_bytecode_data_size = alephium_data_total_size - remove_length;
 
+    if (remove_bytecode_data_size == 0) {
+      fsm_sendFailure(FailureType_Failure_DataError,
+                      "No data left after removing bytecode");
+      layoutHome();
+      return;
+    }
+
     if (memcmp(alephium_data_buffer + 3, msg->bytecode_data.bytes,
                remove_length) != 0) {
       fsm_sendFailure(FailureType_Failure_DataError, "Bytecode data mismatch");

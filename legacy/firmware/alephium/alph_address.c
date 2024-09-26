@@ -40,11 +40,11 @@ HDNode *alph_get_derived_node(const uint32_t *address_n,
 }
 
 static bool derive_pub_key_for_group(uint32_t *address_n,
-                                     uint32_t *address_n_count,
+                                     uint32_t address_n_count,
                                      int target_group) {
   HDNode *node = NULL;
   while (1) {
-    node = alph_get_derived_node(address_n, *address_n_count);
+    node = alph_get_derived_node(address_n, address_n_count);
     if (!node) {
       return false;
     }
@@ -53,8 +53,8 @@ static bool derive_pub_key_for_group(uint32_t *address_n,
     if (current_group == target_group) {
       return true;
     }
-    address_n[*address_n_count - 1]++;
-    if (address_n[*address_n_count - 1] > MAX_CHILD_INDEX) {
+    address_n[address_n_count - 1]++;
+    if (address_n[address_n_count - 1] > MAX_CHILD_INDEX) {
       return false;
     }
   }
@@ -71,7 +71,7 @@ bool alph_get_address(const AlephiumGetAddress *msg, AlephiumAddress *resp) {
     if (msg->target_group >= TOTAL_NUMBER_OF_GROUPS) {
       return false;
     }
-    if (!derive_pub_key_for_group(derived_path, &derived_path_count,
+    if (!derive_pub_key_for_group(derived_path, derived_path_count,
                                   msg->target_group)) {
       return false;
     }
