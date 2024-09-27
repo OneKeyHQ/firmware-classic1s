@@ -36,13 +36,14 @@
 #define CODE_INDEX_SECP256K1_SINGLE 0x00
 #define FORMAT_TYPE_SHORT 0x01
 
-const uint8_t *global_witness_buffer = NULL;
+#define MAX_WITNESS_BUFFER_SIZE 1024
+static uint8_t global_witness_buffer[MAX_WITNESS_BUFFER_SIZE];
 const char CHARSET[] = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 static NervosTxRequest msg_tx_request;
 static uint32_t data_total, data_left, witness_buffer_len_nervos;
 static bool nervos_signing = false;
 uint8_t global_hash_output[32];
-HDNode *globalNode = NULL;
+static HDNode global_node;
 blake2b_state S_GLOBAL;
 
 void ckb_hasher_init(blake2b_state *S) {
@@ -269,14 +270,15 @@ void nervos_sign_sighash_init(HDNode *node, const NervosSignTx *msg,
   }
 
   nervos_signing = true;
-  globalNode = malloc(sizeof(HDNode));
+  memcpy(&global_node, node, sizeof(HDNode));
 
-  if (globalNode != NULL) {
-    memcpy(globalNode, node, sizeof(HDNode));
+  if (msg->witness_buffer.size > MAX_WITNESS_BUFFER_SIZE) {
+    fsm_sendFailure(FailureType_Failure_DataError, "Witness buffer too large");
+    nervos_signing_abort();
+    return;
   }
-  uint8_t *temp = malloc(msg->witness_buffer.size);
-  memcpy(temp, &msg->witness_buffer.bytes, msg->witness_buffer.size);
-  global_witness_buffer = temp;
+  memcpy(global_witness_buffer, msg->witness_buffer.bytes,
+         msg->witness_buffer.size);
   witness_buffer_len_nervos = msg->witness_buffer.size;
   data_total = msg->data_length;
   data_left = data_total - msg->data_initial_chunk.size;
@@ -338,7 +340,7 @@ void send_signature(void) {
   }
 
 #else
-  int ret = hdnode_sign_digest(globalNode, output, sig, &v1, NULL);
+  int ret = hdnode_sign_digest(&global_node, output, sig, &v1, NULL);
   if (ret != 0) {
     fsm_sendFailure(FailureType_Failure_ProcessError, "nervos Signing failed");
     return;
@@ -352,19 +354,12 @@ void send_signature(void) {
 }
 
 void nervos_signing_abort(void) {
-  if (globalNode != NULL) {
-    free(globalNode);
-    globalNode = NULL;
-  }
-  if (global_witness_buffer != NULL) {
-    free((void *)global_witness_buffer);
-    global_witness_buffer = NULL;
-  }
+  memset(&global_node, 0, sizeof(HDNode));
+  memset(global_witness_buffer, 0, MAX_WITNESS_BUFFER_SIZE);
   data_total = 0;
   data_left = 0;
   witness_buffer_len_nervos = 0;
   nervos_signing = false;
-  global_witness_buffer = NULL;
   memset(global_hash_output, 0, sizeof(global_hash_output));
   memset(&S_GLOBAL, 0, sizeof(S_GLOBAL));
   memset(&msg_tx_request, 0, sizeof(msg_tx_request));

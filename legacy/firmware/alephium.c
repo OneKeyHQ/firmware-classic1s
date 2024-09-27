@@ -1,13 +1,14 @@
 #include "alephium.h"
 #include "alephium/alph_layout.h"
 
-static uint8_t *alephium_data_buffer = NULL;
+#define MAX_ALEPHIUM_DATA_SIZE 20480
+static uint8_t alephium_data_buffer[MAX_ALEPHIUM_DATA_SIZE];
 static size_t alephium_data_left = 0;
 static size_t alephium_data_total_size = 0;
 static AlephiumTxRequest msg_tx_request;
 static uint32_t alephium_address_n[8] = {0};
 static uint32_t alephium_address_n_count = 0;
-static HDNode *globalNode = NULL;
+static HDNode global_node;
 
 bool alephium_get_address(const AlephiumGetAddress *msg,
                           AlephiumAddress *resp) {
@@ -16,23 +17,14 @@ bool alephium_get_address(const AlephiumGetAddress *msg,
 
 void alephium_sign_tx(const HDNode *node, const AlephiumSignTx *msg) {
   char log_buffer[1024];
-  globalNode = malloc(sizeof(HDNode));
-  if (globalNode == NULL) {
-    fsm_sendFailure(FailureType_Failure_ProcessError,
-                    "Memory allocation failed");
+  if (alephium_data_total_size > MAX_ALEPHIUM_DATA_SIZE) {
+    fsm_sendFailure(FailureType_Failure_DataError, "Data too large");
     layoutHome();
     return;
   }
-  memcpy(globalNode, node, sizeof(HDNode));
+  memcpy(&global_node, node, sizeof(HDNode));
   alephium_data_total_size = msg->data_initial_chunk.size;
   alephium_data_left = alephium_data_total_size;
-  alephium_data_buffer = (uint8_t *)malloc(alephium_data_total_size);
-  if (!alephium_data_buffer) {
-    fsm_sendFailure(FailureType_Failure_ProcessError,
-                    "Memory allocation failed");
-    layoutHome();
-    return;
-  }
   memcpy(alephium_data_buffer, msg->data_initial_chunk.bytes,
          msg->data_initial_chunk.size);
   alephium_data_left -= msg->data_initial_chunk.size;
@@ -163,11 +155,6 @@ void alephium_signing_txack(const AlephiumTxAck *tx) {
 
 void alephium_handle_bytecode_ack(const AlephiumBytecodeAck *msg) {
   if (msg->bytecode_data.size > 0) {
-    for (int i = 0; i < msg->bytecode_data.size; i++) {
-      char byte_str[4];
-      snprintf(byte_str, sizeof(byte_str), "%02x", msg->bytecode_data.bytes[i]);
-    }
-
     size_t remove_length = msg->bytecode_data.size;
     if (remove_length > alephium_data_total_size) {
       fsm_sendFailure(FailureType_Failure_DataError, "Invalid remove_length");
@@ -182,19 +169,9 @@ void alephium_handle_bytecode_ack(const AlephiumBytecodeAck *msg) {
       layoutHome();
       return;
     }
-
     if (memcmp(alephium_data_buffer + 3, msg->bytecode_data.bytes,
                remove_length) != 0) {
       fsm_sendFailure(FailureType_Failure_DataError, "Bytecode data mismatch");
-      layoutHome();
-      return;
-    }
-
-    uint8_t *remove_bytecode_data_buffer =
-        (uint8_t *)malloc(remove_bytecode_data_size);
-    if (!remove_bytecode_data_buffer) {
-      fsm_sendFailure(FailureType_Failure_ProcessError,
-                      "Memory allocation failed");
       layoutHome();
       return;
     }
@@ -204,7 +181,7 @@ void alephium_handle_bytecode_ack(const AlephiumBytecodeAck *msg) {
       layoutHome();
       return;
     }
-
+    uint8_t remove_bytecode_data_buffer[remove_bytecode_data_size];
     memcpy(remove_bytecode_data_buffer, alephium_data_buffer, 3);
     memcpy(remove_bytecode_data_buffer + 3,
            alephium_data_buffer + 3 + remove_length,
@@ -213,8 +190,6 @@ void alephium_handle_bytecode_ack(const AlephiumBytecodeAck *msg) {
     AlephiumDecodedTx decoded_tx;
     AlephiumError err = decode_alephium_tx(
         remove_bytecode_data_buffer, remove_bytecode_data_size, &decoded_tx);
-
-    free(remove_bytecode_data_buffer);
     if (err != ALEPHIUM_OK) {
       fsm_sendFailure(FailureType_Failure_DataError,
                       "Failed to decode transaction");
@@ -293,14 +268,8 @@ void hex_string_to_decimal_string(const char *hex, char *decimal,
 }
 
 void alephium_signing_abort(void) {
-  if (alephium_data_buffer) {
-    free(alephium_data_buffer);
-    alephium_data_buffer = NULL;
-  }
-  if (globalNode) {
-    free(globalNode);
-    globalNode = NULL;
-  }
+  memset(alephium_data_buffer, 0, sizeof(alephium_data_buffer));
+  memset(&global_node, 0, sizeof(HDNode));
   alephium_data_left = 0;
   alephium_data_total_size = 0;
   layoutHome();
@@ -392,7 +361,7 @@ void alephium_process_decoded_tx(const AlephiumDecodedTx *decoded_tx,
   char signer[65] = {0};
   char current_address[50] = {0};
 
-  if (!generate_alephium_address(globalNode->public_key, current_address,
+  if (!generate_alephium_address(global_node.public_key, current_address,
                                  sizeof(current_address))) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
                     "Failed to generate current address");
@@ -482,15 +451,9 @@ void alephium_process_decoded_tx(const AlephiumDecodedTx *decoded_tx,
 
   uint8_t hash[32];
   blake2b(alephium_data_buffer, alephium_data_total_size, hash, sizeof(hash));
-  if (!globalNode) {
-    fsm_sendFailure(FailureType_Failure_DataError, "Failed to derive node");
-    layoutHome();
-    return;
-  }
-
   uint8_t signature[64];
   uint8_t v;
-  int ret = hdnode_sign_digest(globalNode, hash, signature, &v, NULL);
+  int ret = hdnode_sign_digest(&global_node, hash, signature, &v, NULL);
   if (ret != 0) {
     fsm_sendFailure(FailureType_Failure_ProcessError, "Signing failed");
     layoutHome();
