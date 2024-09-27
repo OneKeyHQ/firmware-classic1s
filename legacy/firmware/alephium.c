@@ -2,7 +2,8 @@
 #include "alephium/alph_layout.h"
 
 #define MAX_ALEPHIUM_DATA_SIZE 20480
-static uint8_t alephium_data_buffer[MAX_ALEPHIUM_DATA_SIZE];
+static uint8_t alephium_data_buffer[MAX_ALEPHIUM_DATA_SIZE]
+    __attribute__((section(".secMessageSection")));
 static size_t alephium_data_left = 0;
 static size_t alephium_data_total_size = 0;
 static AlephiumTxRequest msg_tx_request;
@@ -496,6 +497,5 @@ bool alephium_sign_message(const HDNode *node, const AlephiumSignMessage *msg,
   resp->has_signature = true;
   memcpy(resp->signature.bytes, signature, 64);
   resp->signature.size = 64;
-
   return true;
 }
