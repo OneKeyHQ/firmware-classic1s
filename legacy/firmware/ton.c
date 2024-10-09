@@ -135,9 +135,9 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
   CellRef_t payload_data;
   CellRef_t *payload = &payload_data;
 
+  unsigned char raw_data[1024];
   bool is_raw_data = false;
   size_t data_len = 0;
-  unsigned char *raw_data = NULL;
 
   // display
   if (msg->jetton_amount == 0) {
@@ -149,10 +149,10 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
           memcmp(msg->comment, "b5ee9c72", 8) == 0) {
         is_raw_data = true;
         data_len = strlen(msg->comment) / 2;
-        raw_data = (unsigned char *)malloc(data_len);
-        if (raw_data == NULL) {
+        if (data_len > sizeof(raw_data)) {
           fsm_sendFailure(FailureType_Failure_ProcessError,
-                          "Memory allocation failed");
+                          "Raw data too large");
+          layoutHome();
           return false;
         }
         hex2data(msg->comment, raw_data, &data_len);
@@ -188,12 +188,10 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
     // create payload
     if (is_raw_data) {
       if (!ton_parse_boc(raw_data, data_len, payload)) {
-        free(raw_data);
         fsm_sendFailure(FailureType_Failure_ProcessError,
                         "Failed to create raw data body");
         return false;
       }
-      free(raw_data);
     } else {
       if (!ton_create_transfer_body(msg->comment, payload)) {
         payload = NULL;
@@ -296,19 +294,7 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
     return false;
   }
 
-  if (msg->jetton_amount == 0) {
-    if (!ton_create_message_digest(
-            msg->expire_at, msg->seqno, parsed_dest.is_bounceable,
-            parsed_dest.workchain, parsed_dest.hash, msg->ton_amount, msg->mode,
-            NULL, payload, ext_destination_ptrs, msg->ext_ton_amount,
-            ext_payload_ptrs, ext_dest_count, digest, NULL, NULL)) {
-      fsm_sendFailure(FailureType_Failure_ProcessError,
-                      "Failed to create message digest");
-      layoutHome();
-      return false;
-    }
-  } else {
-    // parse dest&resp addr
+  if (msg->jetton_amount != 0) {
     memset(&parsed_dest, 0, sizeof(TON_PARSED_ADDRESS));
     if (!ton_parse_addr(msg->jetton_wallet_address, &parsed_dest)) {
       fsm_sendFailure(FailureType_Failure_ProcessError,
@@ -316,17 +302,17 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
       layoutHome();
       return false;
     }
+  }
 
-    if (!ton_create_message_digest(
-            msg->expire_at, msg->seqno, parsed_dest.is_bounceable,
-            parsed_dest.workchain, parsed_dest.hash, msg->ton_amount, msg->mode,
-            NULL, payload, ext_destination_ptrs, msg->ext_ton_amount,
-            ext_payload_ptrs, ext_dest_count, digest, NULL, NULL)) {
-      fsm_sendFailure(FailureType_Failure_ProcessError,
-                      "Failed to create message digest");
-      layoutHome();
-      return false;
-    }
+  if (!ton_create_message_digest(
+          msg->expire_at, msg->seqno, parsed_dest.is_bounceable,
+          parsed_dest.workchain, parsed_dest.hash, msg->ton_amount, msg->mode,
+          NULL, payload, ext_destination_ptrs, msg->ext_ton_amount,
+          ext_payload_ptrs, ext_dest_count, digest, NULL, NULL)) {
+    fsm_sendFailure(FailureType_Failure_ProcessError,
+                    "Failed to create message digest");
+    layoutHome();
+    return false;
   }
 
 #if EMULATOR
