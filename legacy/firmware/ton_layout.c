@@ -3,9 +3,6 @@
 #include "messages.h"
 #include "util.h"
 
-#include "SEGGER_RTT.h"
-#include "rtt_log.h"
-
 void drawTonScrollbar(int pages, int index) {
   int i, bar_start = 12, bar_end = 52;
   int bar_heght = 40 - 2 * (pages - 1);

@@ -148,6 +148,7 @@ OBJS += alephium/alph_decode.o
 OBJS += alephium/alph_layout.o
 OBJS += nostr.o
 OBJS += scdo.o
+OBJS += scdo_tokens.o
 OBJS += base64.o
 OBJS += lnurl.o
 OBJS += ton.o
