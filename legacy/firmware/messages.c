@@ -256,7 +256,8 @@ void msg_process(char type, uint16_t msg_id, const pb_msgdesc_t *fields,
 
 void msg_read_common(char type, const uint8_t *buf, uint32_t len) {
   static char read_state = READSTATE_IDLE;
-  static uint8_t msg_encoded[MSG_IN_ENCODED_SIZE];
+  static uint8_t msg_encoded[MSG_IN_ENCODED_SIZE]
+      __attribute__((section(".secMessageSection")));
   static uint16_t msg_id = 0xFFFF;
   static uint32_t msg_encoded_size = 0;
   static uint32_t msg_pos = 0;

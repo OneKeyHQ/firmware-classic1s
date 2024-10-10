@@ -22,7 +22,7 @@ VerifyMessage.message                                       max_size:1024
 VerifyMessage.coin_name                                     max_size:21
 
 MessageSignature.address                                    max_size:130
-MessageSignature.signature                                  max_size:65
+MessageSignature.signature                                  max_size:109
 
 TransactionType.inputs                                      max_count:1
 TransactionType.bin_outputs                                 max_count:1
@@ -108,3 +108,7 @@ GetPublicKeyMultiple.ecdsa_curve_name                       max_size:32
 GetPublicKeyMultiple.coin_name                              max_size:21
 
 PublicKeyMultiple.xpubs                                     max_count:20 max_size:113
+
+SignPsbt.psbt                                              max_size: 2048
+SignPsbt.coin_name                                         max_size:21
+SignedPsbt.psbt                                            max_size: 2432

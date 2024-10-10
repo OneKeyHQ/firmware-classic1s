@@ -157,6 +157,8 @@ OBJS += ton_cell.o
 OBJS += ton_tokens.o
 OBJS += ton_address.o
 OBJS += ton_layout.o
+OBJS += psbt/psbt.o
+OBJS += bip322_simple/bip322_simple.o
 endif
 
 OBJS += debug.o

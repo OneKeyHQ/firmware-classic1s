@@ -97,6 +97,8 @@ class MessageType(IntEnum):
     GetOwnershipProof = 49
     OwnershipProof = 50
     AuthorizeCoinJoin = 51
+    SignPsbt = 10052
+    SignedPsbt = 10053
     CipherKeyValue = 23
     CipheredKeyValue = 48
     SignIdentity = 53
@@ -1687,6 +1689,7 @@ class SignMessage(protobuf.MessageType):
         3: protobuf.Field("coin_name", "string", repeated=False, required=False, default='Bitcoin'),
         4: protobuf.Field("script_type", "InputScriptType", repeated=False, required=False, default=InputScriptType.SPENDADDRESS),
         5: protobuf.Field("no_script_type", "bool", repeated=False, required=False, default=None),
+        10: protobuf.Field("is_bip322_simple", "bool", repeated=False, required=False, default=False),
     }
 
     def __init__(
@@ -1697,12 +1700,14 @@ class SignMessage(protobuf.MessageType):
         coin_name: Optional["str"] = 'Bitcoin',
         script_type: Optional["InputScriptType"] = InputScriptType.SPENDADDRESS,
         no_script_type: Optional["bool"] = None,
+        is_bip322_simple: Optional["bool"] = False,
     ) -> None:
         self.address_n: Sequence["int"] = address_n if address_n is not None else []
         self.message = message
         self.coin_name = coin_name
         self.script_type = script_type
         self.no_script_type = no_script_type
+        self.is_bip322_simple = is_bip322_simple
 
 
 class MessageSignature(protobuf.MessageType):
@@ -2251,6 +2256,37 @@ class PublicKeyMultiple(protobuf.MessageType):
         xpubs: Optional[Sequence["str"]] = None,
     ) -> None:
         self.xpubs: Sequence["str"] = xpubs if xpubs is not None else []
+
+
+class SignPsbt(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 10052
+    FIELDS = {
+        1: protobuf.Field("psbt", "bytes", repeated=False, required=True),
+        2: protobuf.Field("coin_name", "string", repeated=False, required=False, default='Bitcoin'),
+    }
+
+    def __init__(
+        self,
+        *,
+        psbt: "bytes",
+        coin_name: Optional["str"] = 'Bitcoin',
+    ) -> None:
+        self.psbt = psbt
+        self.coin_name = coin_name
+
+
+class SignedPsbt(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 10053
+    FIELDS = {
+        1: protobuf.Field("psbt", "bytes", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        psbt: "bytes",
+    ) -> None:
+        self.psbt = psbt
 
 
 class HDNodePathType(protobuf.MessageType):

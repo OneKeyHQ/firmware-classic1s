@@ -96,7 +96,8 @@
 #include "ton.h"
 #include "tron.h"
 #endif
-
+#include "bip322_simple/bip322_simple.h"
+#include "psbt/psbt.h"
 #if EMULATOR
 #include <stdio.h>
 #endif

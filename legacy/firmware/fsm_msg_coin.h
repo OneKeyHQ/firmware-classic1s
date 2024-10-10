@@ -381,14 +381,44 @@ void fsm_msgSignMessage(const SignMessage *msg) {
   }
 
   layoutProgressSwipe(_(C__SIGNING), 0);
-  if (cryptoMessageSign(coin, node, msg->script_type, msg->no_script_type,
-                        msg->message.bytes, msg->message.size,
-                        resp->signature.bytes) == 0) {
-    resp->signature.size = 65;
-    msg_write(MessageType_MessageType_MessageSignature, resp);
+  if (msg->has_is_bip322_simple && msg->is_bip322_simple) {
+    size_t signature_size = 0;
+    if (msg->script_type == InputScriptType_SPENDWITNESS) {
+      if (!sign_bip322_simple_segwit(node, coin, msg->message.bytes,
+                                     msg->message.size, resp->signature.bytes,
+                                     &signature_size)) {
+        fsm_sendFailure(FailureType_Failure_ProcessError, "Signing failed");
+        layoutHome();
+        return;
+      }
+    } else if (msg->script_type == InputScriptType_SPENDTAPROOT) {
+      if (!sign_bip322_simple_taproot(node, msg->message.bytes,
+                                      msg->message.size, resp->signature.bytes,
+                                      &signature_size)) {
+        fsm_sendFailure(FailureType_Failure_ProcessError, "Signing failed");
+        layoutHome();
+        return;
+      }
+    } else {
+      fsm_sendFailure(FailureType_Failure_ProcessError,
+                      "Unsupported script type");
+      layoutHome();
+      return;
+    }
+    resp->signature.size = signature_size;
   } else {
-    fsm_sendFailure(FailureType_Failure_ProcessError, "Error signing message");
+    if (cryptoMessageSign(coin, node, msg->script_type, msg->no_script_type,
+                          msg->message.bytes, msg->message.size,
+                          resp->signature.bytes) == 0) {
+      resp->signature.size = 65;
+    } else {
+      fsm_sendFailure(FailureType_Failure_ProcessError,
+                      "Error signing message");
+      layoutHome();
+      return;
+    }
   }
+  msg_write(MessageType_MessageType_MessageSignature, resp);
   layoutHome();
 }
 
@@ -898,5 +928,255 @@ void fsm_msgGetPublicKeyMultiple(const GetPublicKeyMultiple *msg) {
   resp->xpubs_count = msg->addresses_count;
 
   msg_write(MessageType_MessageType_PublicKeyMultiple, resp);
+  layoutHome();
+}
+
+void fsm_msgSignPsbt(const SignPsbt *msg) {
+  CHECK_INITIALIZED
+  CHECK_PIN
+  RESP_INIT(SignedPsbt);
+
+  const CoinInfo *coin = fsm_getCoin(msg->has_coin_name, msg->coin_name);
+  if (!coin) return;
+  PSBT psbt = {0};
+
+  if (!psbt_deserialize(msg->psbt.bytes, msg->psbt.size, &psbt)) {
+    fsm_sendFailure(FailureType_Failure_DataError, "PSBT parse failed");
+    layoutHome();
+    return;
+  }
+  uint32_t root_fingerprint;
+  {
+    uint32_t path[1] = {PATH_HARDENED | 0};
+    HDNode *node =
+        fsm_getDerivedNode(coin->curve_name, path, 1, &root_fingerprint);
+    if (!node) return;
+  }
+  BitcoinSigHasher hasher = {0};
+  sig_hasher_init(&hasher);
+  int64_t total_in = 0;
+  int64_t total_out = 0;
+  int64_t change_out = 0;
+
+  for (int i = 0; i < psbt.inputs_len; i++) {
+    PartiallySignedInput *input = &psbt.inputs[i];
+    CHECK_PARAM(input->prev_txid_lookuped || psbt.tx_lookuped,
+                "invalid psbt, input missing prev_txid")
+    CHECK_PARAM(input->prev_out_index_lookuped || psbt.tx_lookuped,
+                "invalid psbt, input missing prev_out_index")
+    CHECK_PARAM(input->sequence_lookuped || psbt.tx_lookuped,
+                "invalid psbt, input missing sequence")
+    CHECK_PARAM(
+        !input->non_witness_utxo_lookuped && input->witness_utxo_lookuped,
+        "invalid psbt, only witness_utxo is supported")
+    CHECK_PARAM(input->tap_bip32_path_lookuped,
+                "invalid psbt, taproot path is missing")
+    CHECK_PARAM(!input->sighash_type_lookuped ||
+                    input->sighash_type == SIGHASH_ALL_TAPROOT,
+                "invalid psbt, only SIGHASH_ALL_TAPROOT is allowed")
+
+    uint8_t script_pub[34] = {0};
+    uint8_t script_pub_len = input->witness_utxo.scriptPubKey_len;
+    int64_t amount = input->witness_utxo.nValue;
+    CHECK_PARAM(script_pub_len <= 34, "invalid psbt, input script overflow")
+    memcpy(script_pub, input->witness_utxo.scriptPubKey, script_pub_len);
+
+    uint8_t witness_version = 0;
+    bool is_wit = is_witness(script_pub, script_pub_len, &witness_version);
+    CHECK_PARAM(is_wit && witness_version == 1,
+                "invalid psbt, only taproot is supported")
+
+    uint8_t mfp[4] = {0};
+    memcpy(mfp, input->tap_bip32_path.key_origin.fingerprint, 4);
+    uint32_t mfp_u32 = mfp[0] << 24 | mfp[1] << 16 | mfp[2] << 8 | mfp[3];
+    CHECK_PARAM(mfp_u32 == root_fingerprint, "invalid psbt, wallet mismatch")
+    if (!fsm_checkCoinPath(coin, InputScriptType_SPENDTAPROOT,
+                           input->tap_bip32_path.key_origin.path_len,
+                           input->tap_bip32_path.key_origin.path, false,
+                           MessageType_MessageType_SignTx, true)) {
+      layoutHome();
+      return;
+    }
+    HDNode *t_node = fsm_getDerivedNode(
+        coin->curve_name, input->tap_bip32_path.key_origin.path,
+        input->tap_bip32_path.key_origin.path_len, NULL);
+    if (!t_node) return;
+    uint8_t *intend_pubkey = t_node->public_key + 1;
+    CHECK_PARAM(
+        memcmp(intend_pubkey, input->tap_bip32_path.x_only_pubkey, 32) == 0,
+        "invalid key")
+    if (!input->tap_leaf_script_lookuped) {
+      CHECK_PARAM(memcmp(input->tap_bip32_path.x_only_pubkey,
+                         input->tap_internal_key, 32) == 0,
+                  "invalid key")
+    } else {
+      CHECK_PARAM(
+          custom_memmem(input->tap_leaf_script.script,
+                        input->tap_leaf_script.script_len,
+                        input->tap_bip32_path.x_only_pubkey, 32) != NULL,
+          "invalid script")
+    }
+    total_in += amount;
+    sig_hasher_add_input(&hasher, input);
+  }
+  for (int i = 0; i < psbt.outputs_len; i++) {
+    bool is_change = false;
+    PartiallySignedOutput *output = &psbt.outputs[i];
+    uint8_t witness_version = 0;
+    bool is_wit =
+        is_witness(output->script, output->script_len, &witness_version);
+    char out_addr[MAX_ADDR_SIZE] = {0};
+    uint8_t op_return_data[80] = {0};
+    uint8_t op_return_data_len = 0;
+    if (is_wit) {
+      segwit_addr_encode(out_addr, coin->bech32_prefix, witness_version,
+                         output->script + 2, output->script_len - 2);
+    } else if (is_p2pkh(output->script, output->script_len)) {
+      uint8_t raw[MAX_ADDR_RAW_SIZE] = {0};
+      size_t prefix_len = address_prefix_bytes_len(coin->address_type);
+      address_write_prefix_bytes(coin->address_type, raw);
+      memcpy(raw + prefix_len, output->script + 3, 20);
+      base58_encode_check(raw, 20 + prefix_len, coin->curve->hasher_base58,
+                          out_addr, MAX_ADDR_SIZE);
+    } else if (is_p2sh(output->script, output->script_len)) {
+      uint8_t raw[MAX_ADDR_RAW_SIZE] = {0};
+      size_t prefix_len = address_prefix_bytes_len(coin->address_type_p2sh);
+      address_write_prefix_bytes(coin->address_type_p2sh, raw);
+      memcpy(raw + prefix_len, output->script + 2, 20);
+      base58_encode_check(raw, 20 + prefix_len, coin->curve->hasher_base58,
+                          out_addr, MAX_ADDR_SIZE);
+    } else if (is_opreturn(output->script, output->script_len)) {
+      CHECK_PARAM(output->amount == 0, "OpReturn output should have 0 value");
+      op_return_data_len = output->script_len - 2;
+      memcpy(op_return_data, output->script + 2, op_return_data_len);
+    } else {
+      fsm_sendFailure(FailureType_Failure_DataError, "invalid output type");
+      layoutHome();
+      return;
+    }
+    if (!is_wit || (is_wit && witness_version == 0)) {
+      for (size_t j = 0; j < output->hd_keypaths_len; j++) {
+        uint8_t mfp[4] = {0};
+        memcpy(mfp, output->hd_keypaths[j].key_origin.fingerprint, 4);
+        uint32_t mfp_u32 = mfp[0] << 24 | mfp[1] << 16 | mfp[2] << 8 | mfp[3];
+        CHECK_PARAM(mfp_u32 == root_fingerprint,
+                    "invalid psbt, fingerprint mismatch");
+        change_out += output->amount;
+        is_change = true;
+      }
+    } else if (is_wit && witness_version == 1) {
+      if (output->tap_bip32_path_lookuped) {
+        uint8_t mfp[4] = {0};
+        memcpy(mfp, output->tap_bip32_path.key_origin.fingerprint, 4);
+        uint32_t mfp_u32 = mfp[0] << 24 | mfp[1] << 16 | mfp[2] << 8 | mfp[3];
+        CHECK_PARAM((mfp_u32 == root_fingerprint &&
+                     memcmp(output->tap_bip32_path.x_only_pubkey,
+                            output->tap_internal_key, 32) == 0),
+                    "invalid parameters, only key path change is allowed");
+        change_out += output->amount;
+        is_change = true;
+      }
+    }
+
+    if (!is_change) {
+      if (op_return_data_len > 0) {
+        layoutConfirmOpReturn(op_return_data, op_return_data_len);
+        if (protectWaitKeyValue(ButtonRequestType_ButtonRequest_ConfirmOutput,
+                                true, 0, 1) != KEY_CONFIRM) {
+          fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
+          layoutHome();
+          return;
+        }
+      } else {
+        TxOutputType tx_output = {0};
+        tx_output.amount = (uint64_t)output->amount;
+        tx_output.address_n_count = 0;
+        strcpy(tx_output.address, out_addr);
+        if (!layoutConfirmOutput(coin, AmountUnit_BITCOIN, &tx_output)) {
+          fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
+          layoutHome();
+          return;
+        }
+      }
+    }
+    sig_hasher_add_output(&hasher, output);
+    total_out += output->amount;
+  }
+  CHECK_PARAM(total_in > total_out, "Insufficient funds");
+  uint32_t locktime = 0;
+  if (!compute_locktime(&psbt, &locktime)) {
+    fsm_sendFailure(FailureType_Failure_DataError, "invalid psbt, locktime ");
+    layoutHome();
+    return;
+  }
+  bool lkt_disabled = locktime_disabled(&psbt);
+  if (locktime > 0) {
+    layoutConfirmNondefaultLockTime(locktime, lkt_disabled);
+    if (protectWaitKeyValue(ButtonRequestType_ButtonRequest_SignTx, true, 0,
+                            1) != KEY_CONFIRM) {
+      fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
+      signing_abort();
+      return;
+    }
+  }
+  if (!layoutConfirmTx(coin, AmountUnit_BITCOIN, total_in, 0, total_out,
+                       change_out, 0)) {
+    fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
+    layoutHome();
+    return;
+  }
+  for (int i = 0; i < psbt.inputs_len; i++) {
+    PartiallySignedInput *input = &psbt.inputs[i];
+    if (input->tap_bip32_path_lookuped) {
+      bool script_path_spending = false;
+      uint8_t leaf_hash[32] = {0};
+      if (input->tap_leaf_script_lookuped) {
+        script_path_spending = true;
+        uint8_t leaf_version = input->tap_leaf_script.leaf_version;
+        char TAG_TAPLEAF[] = "TapLeaf";
+        Hasher t_hasher = {0};
+        tagged_hasher_init(&t_hasher, (uint8_t *)TAG_TAPLEAF,
+                           sizeof(TAG_TAPLEAF) - 1);
+        hasher_Update(&t_hasher, &leaf_version, 1);
+        ser_length_hash(&t_hasher, input->tap_leaf_script.script_len);
+        hasher_Update(&t_hasher, input->tap_leaf_script.script,
+                      input->tap_leaf_script.script_len);
+        hasher_Final(&t_hasher, leaf_hash);
+      } else {
+        script_path_spending = false;
+      }
+      uint8_t sigmsg_digest[32] = {0};
+      HDNode *s_node = fsm_getDerivedNode(
+          coin->curve_name, input->tap_bip32_path.key_origin.path,
+          input->tap_bip32_path.key_origin.path_len, NULL);
+      if (!s_node) return;
+      sig_hasher_final(&hasher);
+      sig_hasher_hash_341(&hasher, i, SIGHASH_ALL_TAPROOT, sigmsg_digest,
+                          psbt.tx_version, locktime,
+                          script_path_spending ? leaf_hash : NULL);
+      uint8_t signature[64] = {0};
+      if (!script_path_spending) {
+        hdnode_bip340_sign_digest(s_node, sigmsg_digest, signature);
+        memcpy(input->tap_key_sig, signature, sizeof(signature));
+        input->tap_key_sig_len = sizeof(signature);
+      } else {
+        hdnode_bip340_sign_digest_internal(s_node, sigmsg_digest, signature);
+        memcpy(input->tap_script_sig.leaf_hash, leaf_hash, sizeof(leaf_hash));
+        memcpy(input->tap_script_sig.signature, signature, sizeof(signature));
+        memcpy(input->tap_script_sig.x_only_pubkey,
+               input->tap_bip32_path.x_only_pubkey, 32);
+        input->tap_script_sig.signature_len = sizeof(signature);
+      }
+    }
+  }
+  size_t psbt_size = 0;
+  if (!psbt_serialize(&psbt, resp->psbt.bytes, sizeof(resp->psbt.bytes),
+                      &psbt_size)) {
+    fsm_sendFailure(FailureType_Failure_DataError, "PSBT serialization failed");
+    layoutHome();
+    return;
+  }
+  resp->psbt.size = psbt_size;
+  msg_write(MessageType_MessageType_SignedPsbt, resp);
   layoutHome();
 }

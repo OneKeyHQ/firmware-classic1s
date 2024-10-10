@@ -1,10 +1,10 @@
 #include "i18n.h"
 
 uint8_t langs_len = 6;
-const char* i18n_lang_keys[] = {
+const char* const i18n_lang_keys[] = {
     "en", "zh_CN", "zh_TW", "ja", "es", "pt",
 };
-const char* i18n_langs[] = {
+const char* const i18n_langs[] = {
     "English", "中文 (简体)", "中文 (繁體)", "日本語", "Español", "Português",
 };
 

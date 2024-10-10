@@ -1,4 +1,4 @@
-const char *languages_ja[] = {
+const char *const languages_ja[] = {
     "OneKey へようこそ！",
     "クイックスタート",
     "次に、画面に表示される指\n示に従って OneKey Classic\nを設定してください",

@@ -5,15 +5,15 @@
 #include <stdio.h>
 #include "keys.h"
 
-extern const char *i18n_lang_keys[];
-extern const char *i18n_langs[];
+extern const char *const i18n_lang_keys[];
+extern const char *const i18n_langs[];
 extern uint8_t langs_len;
 extern int I18N_LANGUAGE_ITEMS;
 
-extern const char *languages_en[];
-extern const char *languages_zh_cn[];
-extern const char *languages_zh_tw[];
-extern const char *languages_ja[];
-extern const char *languages_es[];
-extern const char *languages_pt_br[];
+extern const char *const languages_en[];
+extern const char *const languages_zh_cn[];
+extern const char *const languages_zh_tw[];
+extern const char *const languages_ja[];
+extern const char *const languages_es[];
+extern const char *const languages_pt_br[];
 #endif
