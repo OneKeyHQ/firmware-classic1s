@@ -16,13 +16,11 @@
 #include "messages.h"
 #include "messages.pb.h"
 #include "protect.h"
+#include "scdo_tokens.h"
 #include "secp256k1.h"
 #include "sha3.h"
 #include "transaction.h"
 #include "util.h"
-
-#include "SEGGER_RTT.h"
-#include "rtt_log.h"
 
 #define SCDO_CHAIN_ID 541
 
@@ -31,12 +29,6 @@ static uint32_t data_total, data_left;
 static ScdoSignedTx msg_tx_request;
 static CONFIDENTIAL HDNode *_node = NULL;
 struct SHA3_CTX keccak_ctx_scdo = {0};
-
-static const ScdoTokenType _UnknownToken = {
-    "\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff"
-    "\xff\xff",
-    " UNKN", 0};
-const ScdoTokenType *ScdoUnknownToken = &_UnknownToken;
 
 void scdo_eth_2_address(const uint8_t *pubkey, char *scdo_address,
                         size_t scdo_address_size) {
@@ -213,14 +205,14 @@ static void scdoFormatAmount(const bignum256 *amnt, char *buf, int buflen,
   const char *suffix = NULL;
   int decimals = 8;
 
-  if (token == ScdoUnknownToken) {
-    strlcpy(buf, "Unknown token value", buflen);
-    return;
+  if (token != NULL) {
+    suffix = token->symbol;
+    decimals = token->decimals;
   } else {
     suffix = " SCDO";
-    bn_format(amnt, NULL, suffix, decimals, 0, false, 0, buf, buflen);
-    return;
   }
+  bn_format(amnt, NULL, suffix, decimals, 0, false, 0, buf, buflen);
+  return;
 }
 
 static bool layoutScdoConfirmTx(char *to_str, const char *signer,
@@ -303,31 +295,26 @@ void scdo_sign_tx(ScdoSignTx *msg, const HDNode *node, char *from_str) {
   /* detect SRC-20 like token */
   const ScdoTokenType *token = NULL;
   char to_str[43] = {0};
-  uint8_t amount[4] = {0};
 
   if (msg->value.size == 0 && data_total == 68 &&
       msg->data_initial_chunk.size == 68 &&
       memcmp(msg->data_initial_chunk.bytes,
              "\xa9\x05\x9c\xbb\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
              16) == 0) {
-    SEGGER_RTT_printf(0, "src20 token\n");
-
     to_str[0] = '1';
     to_str[1] = 'S';
     data2hexaddr(msg->data_initial_chunk.bytes + 16, 20, to_str + 2);
-    SEGGER_RTT_printf(0, "to_str: %s\n", to_str);
 
-    memcpy(amount, msg->data_initial_chunk.bytes + 36, 4);
-
-    token = ScdoUnknownToken;
+    token = getTokenByAddress(to_str);
   }
 
   if (token != NULL) {
     /* token transfer*/
-    if (!layoutScdoConfirmTx(to_str, from_str, amount, 4, msg->gas_price.bytes,
-                             msg->gas_price.size, msg->gas_limit.bytes,
-                             msg->gas_limit.size, msg->data_initial_chunk.bytes,
-                             msg->data_initial_chunk.size, token)) {
+    if (!layoutScdoConfirmTx(
+            to_str, from_str, msg->data_initial_chunk.bytes + 36, 32,
+            msg->gas_price.bytes, msg->gas_price.size, msg->gas_limit.bytes,
+            msg->gas_limit.size, msg->data_initial_chunk.bytes,
+            msg->data_initial_chunk.size, token)) {
       fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
       scdo_signing_abort();
       return;

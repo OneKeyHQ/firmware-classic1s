@@ -7,7 +7,7 @@ static inline unsigned char to_uchar(char ch) { return ch; }
 void ton_base64_encode(const char *restrict in, size_t inlen,
                        char *restrict out, size_t outlen) {
   static const char b64str[64] =
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
   while (inlen && outlen) {
     *out++ = b64str[(to_uchar(in[0]) >> 2) & 0x3f];

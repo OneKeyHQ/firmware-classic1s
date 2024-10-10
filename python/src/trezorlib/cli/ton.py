@@ -14,13 +14,12 @@
 # You should have received a copy of the License along with this library.
 # If not, see <https://www.gnu.org/licenses/lgpl-3.0.html>.
 
-
 from typing import TYPE_CHECKING
 
 import click
 
-from trezorlib import messages, ton, tools
-from trezorlib.cli import ChoiceType, with_client
+from .. import messages, ton, tools
+from . import ChoiceType, with_client
 
 if TYPE_CHECKING:
     from ..client import TrezorClient

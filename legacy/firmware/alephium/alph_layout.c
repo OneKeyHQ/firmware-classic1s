@@ -60,7 +60,7 @@ void displayAddressPage(const char **str, int index, int rowcount,
   layoutHeader(header);
 
   if (0 == index) {
-    oledDrawStringAdapter(0, 13, "Send to:", FONT_STANDARD);
+    oledDrawStringAdapter(0, 13, _(I__SEND_TO_COLON), FONT_STANDARD);
     for (int i = 0; i < 3; i++) {
       oledDrawStringAdapter(0, 23 + i * 10, str[i], FONT_STANDARD);
     }
@@ -349,12 +349,12 @@ bool layoutOutput(const char *chain_name, const char *amount,
   }
 
   if (to_address) {
-    if (strlen(to_address) > 63) {  // 假设 63 是需要分页显示的阈值
+    if (strlen(to_address) > 63) {
       return displayAndNavigateAddress(to_address, tx_msg[0]);
     } else {
       oledClear();
       layoutHeader(tx_msg[0]);
-      oledDrawStringAdapter(0, 13, "Send to:", FONT_STANDARD);
+      oledDrawStringAdapter(0, 13, _(I__SEND_TO_COLON), FONT_STANDARD);
       oledDrawStringAdapter(0, 23, to_address, FONT_STANDARD);
       layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
       layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);

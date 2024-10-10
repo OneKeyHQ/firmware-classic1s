@@ -25,12 +25,6 @@
 #include "bip32.h"
 #include "messages-scdo.pb.h"
 
-typedef struct {
-  const char *const address;
-  const char *const symbol;
-  int decimals;
-} ScdoTokenType;
-
 void scdo_eth_2_address(const uint8_t *pubkey, char *scdo_address,
                         size_t scdo_address_size);
 
