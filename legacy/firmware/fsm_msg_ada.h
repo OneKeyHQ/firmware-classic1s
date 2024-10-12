@@ -36,11 +36,18 @@ void fsm_msgCardanoGetPublicKey(CardanoGetPublicKey *msg) {
   HDNode node = {0};
   uint32_t fingerprint;
 #if EMULATOR
-  fsm_getCardanoIcaruNode(&node, msg->address_n, msg->address_n_count,
-                          &fingerprint);
+
+  if (!fsm_getCardanoIcaruNode(&node, msg->address_n, msg->address_n_count,
+                               &fingerprint)) {
+    layoutHome();
+    return;
+  }
 #else
-  deriveCardanoIcaruNode(&node, msg->address_n, msg->address_n_count,
-                         &fingerprint);
+  if (!deriveCardanoIcaruNode(&node, msg->address_n, msg->address_n_count,
+                              &fingerprint)) {
+    layoutHome();
+    return;
+  }
 #endif
   resp->node.depth = node.depth;
   resp->node.fingerprint = fingerprint;
@@ -132,7 +139,12 @@ void fsm_msgCardanoGetAddress(CardanoGetAddress *msg) {
 
 void fsm_msgCardanoTxWitnessRequest(CardanoTxWitnessRequest *msg) {
   RESP_INIT(CardanoTxWitnessResponse);
-  cardano_txwitness(msg, resp);
+
+  if (!cardano_txwitness(msg, resp)) {
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Failed to sign tx");
+    layoutHome();
+    return;
+  }
   msg_write(MessageType_MessageType_CardanoTxWitnessResponse, resp);
   layoutHome();
 }
@@ -230,13 +242,20 @@ void fsm_msgCardanoTxReferenceInput(
   (void)msg;
 }
 
+static inline bool check_payment_path(const uint32_t *path, uint32_t count) {
+  const uint32_t ADA_PURPOSE = 1852 | PATH_HARDENED;
+
+  return (count == 5) && (path[0] == ADA_PURPOSE) && (path[3] <= 1);
+}
+
 void fsm_msgCardanoSignMessage(CardanoSignMessage *msg) {
   RESP_INIT(CardanoMessageSignature);
 
   CHECK_INITIALIZED
 
   CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,
-                                    COIN_TYPE, ED25519_CARDANO_NAME, false),
+                                    COIN_TYPE, ED25519_CARDANO_NAME, false) &&
+                  check_payment_path(msg->address_n, msg->address_n_count),
               "Invalid path");
   CHECK_PIN
 
@@ -244,13 +263,8 @@ void fsm_msgCardanoSignMessage(CardanoSignMessage *msg) {
     fsm_sendFailure(FailureType_Failure_ProcessError, "Invalid Networ ID");
     return;
   }
-  HDNode node = {0};
-  uint32_t fingerprint;
-  bool res = deriveCardanoIcaruNode(&node, msg->address_n, msg->address_n_count,
-                                    &fingerprint);
-
-  if (!res || !ada_sign_messages(&node, msg, resp)) {
-    fsm_sendFailure(FailureType_Failure_ProcessError, "Signing failed");
+  if (!ada_sign_messages(msg, resp)) {
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Failed to sign message");
     layoutHome();
     return;
   }
