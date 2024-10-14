@@ -304,16 +304,30 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
     }
   }
 
-  if (!ton_create_message_digest(
-          msg->expire_at, msg->seqno, parsed_dest.is_bounceable,
-          parsed_dest.workchain, parsed_dest.hash, msg->ton_amount, msg->mode,
-          NULL, payload, ext_destination_ptrs, msg->ext_ton_amount,
-          ext_payload_ptrs, ext_dest_count, digest, NULL, NULL)) {
-    fsm_sendFailure(FailureType_Failure_ProcessError,
-                    "Failed to create message digest");
-    layoutHome();
-    return false;
+  if (msg->jetton_amount != 0) {
+    if (!ton_create_message_digest(
+            msg->expire_at, msg->seqno, parsed_dest.is_bounceable,
+            parsed_dest.workchain, parsed_dest.hash, msg->ton_amount, msg->mode,
+            NULL, payload, NULL, ext_destination_ptrs, msg->ext_ton_amount,
+            ext_payload_ptrs, ext_dest_count, digest)) {
+      fsm_sendFailure(FailureType_Failure_ProcessError,
+                      "Failed to create message digest");
+      layoutHome();
+      return false;
+    }
+  } else {
+    if (!ton_create_message_digest(
+            msg->expire_at, msg->seqno, parsed_dest.is_bounceable,
+            parsed_dest.workchain, parsed_dest.hash, msg->ton_amount, msg->mode,
+            NULL, NULL, msg->comment, ext_destination_ptrs, msg->ext_ton_amount,
+            ext_payload_ptrs, ext_dest_count, digest)) {
+      fsm_sendFailure(FailureType_Failure_ProcessError,
+                      "Failed to create message digest");
+      layoutHome();
+      return false;
+    }
   }
+
 
 #if EMULATOR
   ed25519_sign((const unsigned char *)digest, SHA256_SIZE, node->private_key,
