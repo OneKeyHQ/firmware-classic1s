@@ -93,7 +93,7 @@ bool ton_create_jetton_transfer_body(uint8_t dest_workchain, uint8_t* dest_hash,
   bitstring_write_bit(&bits, 0);                 // no custom payload
   bitstring_write_coins(&bits, forward_amount);  // forward amount
   bitstring_write_bit(&bits, 0);  // forward payload in this cell, not separate
-  if (forward_payload != NULL){
+  if (forward_payload != NULL && strlen(forward_payload) > 0) {
     bitstring_write_uint(&bits, 0x00000000, 32);  // text comment op-code
     bitstring_write_buffer(&bits, (uint8_t*)forward_payload,
                            strlen(forward_payload));
@@ -103,7 +103,7 @@ bool ton_create_jetton_transfer_body(uint8_t dest_workchain, uint8_t* dest_hash,
 }
 
 bool build_message_ref(bool is_bounceable, uint8_t dest_workchain,
-                       uint8_t* dest_hash, uint64_t value, CellRef_t* init,
+                       uint8_t* dest_hash, uint64_t value,
                        CellRef_t* payload, const char* payload_str, CellRef_t* out_message_ref) {
   BitString_t bits;
   bitstring_init(&bits);
@@ -121,7 +121,6 @@ bool build_message_ref(bool is_bounceable, uint8_t dest_workchain,
   bitstring_write_uint(&bits, 0, 64);  // CreatedLT
   bitstring_write_uint(&bits, 0, 32);  // CreatedAt
 
-  init++;
   if (payload_str != NULL && strlen(payload_str) > 0) {
     bitstring_write_bit(&bits, 0);  // no state-init
     bitstring_write_bit(&bits, 0);  // body in line
@@ -148,7 +147,7 @@ bool build_message_ref(bool is_bounceable, uint8_t dest_workchain,
 bool ton_create_message_digest(uint32_t expire_at, uint32_t seqno,
                                bool is_bounceable, uint8_t dest_workchain,
                                uint8_t* dest_hash, uint64_t value, uint8_t mode,
-                               CellRef_t* init, CellRef_t* payload,
+                               CellRef_t* payload,
                                const char* payload_str,
                                const char** ext_dest,
                                const uint64_t* ext_ton_amount,
@@ -156,7 +155,7 @@ bool ton_create_message_digest(uint32_t expire_at, uint32_t seqno,
                                uint8_t* digest) {
   // Build Internal Message
   struct CellRef_t internalMessageRef;
-  if (!build_message_ref(is_bounceable, dest_workchain, dest_hash, value, init,
+  if (!build_message_ref(is_bounceable, dest_workchain, dest_hash, value,
                          payload, payload_str, &internalMessageRef)) {
     return false;
   }
@@ -195,7 +194,7 @@ bool ton_create_message_digest(uint32_t expire_at, uint32_t seqno,
 
     if (!build_message_ref(parsed_addr.is_bounceable,
                            (uint8_t)parsed_addr.workchain, parsed_addr.hash,
-                           ext_ton_amount[i], NULL,
+                           ext_ton_amount[i],
                            ext_payload[i] ? &ext_payload_ref : NULL, NULL,
                            &extMessageRefs[ext_message_count])) {
       return false;
