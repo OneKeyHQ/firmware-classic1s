@@ -12,8 +12,7 @@
 static const uint8_t REACH_BOC_MAGIC_PREFIX[4] = {0xb5, 0xee, 0x9c, 0x72};
 
 bool ton_hash_cell(BitString_t* bits, CellRef_t* refs, uint8_t refs_count,
-                   CellRef_t* out, uint8_t* signing_msg,
-                   size_t* signing_msg_len) {
+                   CellRef_t* out) {
   SHA256_CTX ctx;
   sha256_Init(&ctx);
 
@@ -24,65 +23,24 @@ bool ton_hash_cell(BitString_t* bits, CellRef_t* refs, uint8_t refs_count,
   uint8_t d[2] = {d1, d2};
   bitstring_final(bits);
 
-  if (signing_msg != NULL && signing_msg_len != NULL) {
-    size_t signing_msg_index = 0;
-    memcpy(&signing_msg[signing_msg_index], d, 2);
-    signing_msg_index += 2;
+  sha256_Update(&ctx, d, 2);
+  sha256_Update(&ctx, bits->data, (bits->data_cursor + 7) / 8);
 
-    sha256_Update(&ctx, d, 2);
-
-    memcpy(&signing_msg[signing_msg_index], bits->data,
-           (bits->data_cursor + 7) / 8);
-    signing_msg_index += (bits->data_cursor + 7) / 8;
-
-    sha256_Update(&ctx, bits->data, (bits->data_cursor + 7) / 8);
-
-    // Hash ref depths
-    for (int i = 0; i < refs_count; i++) {
-      struct CellRef_t md = refs[i];
-      uint8_t mdd[2] = {md.max_depth / 256, md.max_depth % 256};
-
-      memcpy(&signing_msg[signing_msg_index], mdd, 2);
-      signing_msg_index += 2;
-
-      sha256_Update(&ctx, mdd, 2);
-    }
-
-    // Hash ref digests
-    for (int i = 0; i < refs_count; i++) {
-      struct CellRef_t md = refs[i];
-
-      memcpy(&signing_msg[signing_msg_index], md.hash, HASH_LEN);
-      signing_msg_index += HASH_LEN;
-
-      sha256_Update(&ctx, md.hash, HASH_LEN);
-    }
-
-    *signing_msg_len = signing_msg_index;
-
-  } else {
-    sha256_Update(&ctx, d, 2);
-
-    sha256_Update(&ctx, bits->data, (bits->data_cursor + 7) / 8);
-
-    // Hash ref depths
-    for (int i = 0; i < refs_count; i++) {
-      struct CellRef_t md = refs[i];
-      uint8_t mdd[2] = {md.max_depth / 256, md.max_depth % 256};
-
-      sha256_Update(&ctx, mdd, 2);
-    }
-
-    // Hash ref digests
-    for (int i = 0; i < refs_count; i++) {
-      struct CellRef_t md = refs[i];
-
-      sha256_Update(&ctx, md.hash, HASH_LEN);
-    }
-
-    // Finalize
-    sha256_Final(&ctx, out->hash);
+  // Hash ref depths
+  for (int i = 0; i < refs_count; i++) {
+    struct CellRef_t md = refs[i];
+    uint8_t mdd[2] = {md.max_depth / 256, md.max_depth % 256};
+    sha256_Update(&ctx, mdd, 2);
   }
+
+  // Hash ref digests
+  for (int i = 0; i < refs_count; i++) {
+    struct CellRef_t md = refs[i];
+    sha256_Update(&ctx, md.hash, HASH_LEN);
+  }
+
+  // Finalize
+  sha256_Final(&ctx, out->hash);
 
   // Depth
   out->max_depth = 0;
@@ -110,7 +68,7 @@ bool ton_create_transfer_body(const char* memo, CellRef_t* payload) {
   bitstring_write_uint(&bits, 0, 32);  // text comment tag
   bitstring_write_buffer(&bits, (uint8_t*)memo, strlen(memo));
 
-  ton_hash_cell(&bits, NULL, 0, payload, NULL, NULL);
+  ton_hash_cell(&bits, NULL, 0, payload);
 
   char payload_ref_hash_hex[HASH_LEN * 2 + 1];
   data2hexaddr(payload->hash, HASH_LEN, payload_ref_hash_hex);
@@ -135,17 +93,18 @@ bool ton_create_jetton_transfer_body(uint8_t dest_workchain, uint8_t* dest_hash,
   bitstring_write_bit(&bits, 0);                 // no custom payload
   bitstring_write_coins(&bits, forward_amount);  // forward amount
   bitstring_write_bit(&bits, 0);  // forward payload in this cell, not separate
-  if (forward_payload != NULL)
+  if (forward_payload != NULL && strlen(forward_payload) > 0) {
+    bitstring_write_uint(&bits, 0x00000000, 32);  // text comment op-code
     bitstring_write_buffer(&bits, (uint8_t*)forward_payload,
                            strlen(forward_payload));
-
-  ton_hash_cell(&bits, NULL, 0, payload, NULL, NULL);
+  }
+  ton_hash_cell(&bits, NULL, 0, payload);
   return true;
 }
 
 bool build_message_ref(bool is_bounceable, uint8_t dest_workchain,
-                       uint8_t* dest_hash, uint64_t value, CellRef_t* init,
-                       CellRef_t* payload, CellRef_t* out_message_ref) {
+                       uint8_t* dest_hash, uint64_t value,
+                       CellRef_t* payload, const char* payload_str, CellRef_t* out_message_ref) {
   BitString_t bits;
   bitstring_init(&bits);
 
@@ -162,48 +121,42 @@ bool build_message_ref(bool is_bounceable, uint8_t dest_workchain,
   bitstring_write_uint(&bits, 0, 64);  // CreatedLT
   bitstring_write_uint(&bits, 0, 32);  // CreatedAt
 
-  // Handle init and payload
-  if (init != NULL && payload != NULL) {
-    bitstring_write_bit(&bits, 1);  // state-init
-    bitstring_write_bit(&bits, 1);  // state-init ref
-    bitstring_write_bit(&bits, 1);  // body in ref
+  if (payload_str != NULL && strlen(payload_str) > 0) {
+    bitstring_write_bit(&bits, 0);  // no state-init
+    bitstring_write_bit(&bits, 0);  // body in line
 
-    struct CellRef_t refs[2] = {*init, *payload};
-    return ton_hash_cell(&bits, refs, 2, out_message_ref, NULL, NULL);
+    bitstring_write_uint(&bits, 0x00000000, 32);  // text comment transfer op-code
+    bitstring_write_buffer(&bits, (uint8_t*)payload_str, strlen(payload_str));
+
+    return ton_hash_cell(&bits, NULL, 0, out_message_ref);
+
   } else if (payload != NULL) {
     bitstring_write_bit(&bits, 0);  // no state-init
     bitstring_write_bit(&bits, 1);  // body in ref
 
     struct CellRef_t refs[1] = {*payload};
-    return ton_hash_cell(&bits, refs, 1, out_message_ref, NULL, NULL);
-  } else if (init != NULL) {
-    bitstring_write_bit(&bits, 1);  // state-init
-    bitstring_write_bit(&bits, 1);  // state-init ref
-    bitstring_write_bit(&bits, 0);  // body inline
-
-    struct CellRef_t refs[1] = {*init};
-    return ton_hash_cell(&bits, refs, 1, out_message_ref, NULL, NULL);
+    return ton_hash_cell(&bits, refs, 1, out_message_ref);
   } else {
     bitstring_write_bit(&bits, 0);  // no state-init
     bitstring_write_bit(&bits, 0);  // body inline
 
-    return ton_hash_cell(&bits, NULL, 0, out_message_ref, NULL, NULL);
+    return ton_hash_cell(&bits, NULL, 0, out_message_ref);
   }
 }
 
 bool ton_create_message_digest(uint32_t expire_at, uint32_t seqno,
                                bool is_bounceable, uint8_t dest_workchain,
                                uint8_t* dest_hash, uint64_t value, uint8_t mode,
-                               CellRef_t* init, CellRef_t* payload,
+                               CellRef_t* payload,
+                               const char* payload_str,
                                const char** ext_dest,
                                const uint64_t* ext_ton_amount,
                                const char** ext_payload, uint8_t ext_dest_count,
-                               uint8_t* digest, uint8_t* signing_msg,
-                               size_t* signing_msg_len) {
+                               uint8_t* digest) {
   // Build Internal Message
   struct CellRef_t internalMessageRef;
-  if (!build_message_ref(is_bounceable, dest_workchain, dest_hash, value, init,
-                         payload, &internalMessageRef)) {
+  if (!build_message_ref(is_bounceable, dest_workchain, dest_hash, value,
+                         payload, payload_str, &internalMessageRef)) {
     return false;
   }
 
@@ -241,8 +194,8 @@ bool ton_create_message_digest(uint32_t expire_at, uint32_t seqno,
 
     if (!build_message_ref(parsed_addr.is_bounceable,
                            (uint8_t)parsed_addr.workchain, parsed_addr.hash,
-                           ext_ton_amount[i], NULL,
-                           ext_payload[i] ? &ext_payload_ref : NULL,
+                           ext_ton_amount[i],
+                           ext_payload[i] ? &ext_payload_ref : NULL, NULL,
                            &extMessageRefs[ext_message_count])) {
       return false;
     }
@@ -276,8 +229,7 @@ bool ton_create_message_digest(uint32_t expire_at, uint32_t seqno,
 
   // Hash the order
   struct CellRef_t orderRef;
-  if (!ton_hash_cell(&order_bits, allMessageRefs, total_refs, &orderRef,
-                     signing_msg, signing_msg_len)) {
+  if (!ton_hash_cell(&order_bits, allMessageRefs, total_refs, &orderRef)) {
     return false;
   }
 
@@ -416,7 +368,7 @@ bool ton_parse_boc(const uint8_t* input_boc, size_t input_boc_len,
       refs[j] = cell_data[cell_data[i].ref_indices[j]].cell_ref;
     }
     if (!ton_hash_cell(&cell_data[i].bits, refs, cell_data[i].refs_count,
-                       &cell_data[i].cell_ref, NULL, NULL)) {
+                       &cell_data[i].cell_ref)) {
       fsm_sendFailure(FailureType_Failure_ProcessError, "Hash cell failed");
       return false;
     }
