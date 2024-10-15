@@ -46,7 +46,7 @@ void aptos_sign_tx(const AptosSignTx *msg, const HDNode *node,
     return;
   }
 
-  uint8_t buf[sizeof(AptosSignTx_raw_tx_t) + 32] = {0};
+  uint8_t buf[sizeof(AptosSignTx_raw_tx_t) + 32];
   memcpy(buf, APTOS_RAW_TX_PREFIX, 32);
   memcpy(buf + 32, msg->raw_tx.bytes, msg->raw_tx.size);
 #if EMULATOR
