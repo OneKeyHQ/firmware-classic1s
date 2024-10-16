@@ -10,8 +10,8 @@
 #include <string.h>
 #include "base58.h"
 
-#define ALEPHIUM_MAX_INPUTS 16
-#define ALEPHIUM_MAX_OUTPUTS 64
+#define ALEPHIUM_MAX_INPUTS 8
+#define ALEPHIUM_MAX_OUTPUTS 32
 #define ALEPHIUM_MAX_TOKENS 8
 
 #define ALEPHIUM_ADDRESS_SIZE 33

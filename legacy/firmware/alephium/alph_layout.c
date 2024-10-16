@@ -9,7 +9,7 @@ bool layoutFee(const char *fee) {
 
   oledClear();
   layoutHeader(tx_msg[0]);
-  strcat(desc, "Fee:");
+  snprintf(desc, sizeof(desc), "%s", _(I__FEE_COLON));
 
   strlcpy(fee_with_unit, fee, sizeof(fee_with_unit));
   strlcat(fee_with_unit, " ALPH", sizeof(fee_with_unit));
@@ -179,7 +179,7 @@ bool layoutOutput(const char *chain_name, const char *amount,
     while (1) {
       oledClear();
       layoutHeader(tx_msg[0]);
-      snprintf(desc, sizeof(desc), "Data (%d/%d):", index + 1, total_pages);
+      snprintf(desc, sizeof(desc), "%s", _(I__DATA_COLON));
       oledDrawStringAdapter(0, 13, desc, FONT_STANDARD);
 
       for (int i = 0; i < lines_per_page; i++) {
@@ -236,13 +236,13 @@ bool layoutOutput(const char *chain_name, const char *amount,
       char amount_lines[5][64] = {0};
 
       if (token_id) {
-        snprintf(amount_lines[total_lines++], sizeof(amount_lines[0]),
-                 "Token Amount:");
+        snprintf(amount_lines[total_lines++], sizeof(amount_lines[0]), "%s",
+                 _(I__TOKEN_AMOUNT_COLON));
         snprintf(amount_lines[total_lines++], sizeof(amount_lines[0]), "%s",
                  token_amount);
       } else {
         snprintf(amount_lines[total_lines++], sizeof(amount_lines[0]),
-                 "ALPH Amount:");
+                 "ALPH %s", _(I__AMOUNT_COLON));
         snprintf(amount_lines[total_lines++], sizeof(amount_lines[0]),
                  "%s ALPH", amount);
       }
@@ -302,10 +302,8 @@ bool layoutOutput(const char *chain_name, const char *amount,
       while (1) {
         oledClear();
         layoutHeader(tx_msg[0]);
-        snprintf(desc, sizeof(desc), "Token ID (%d/%d):", index + 1,
-                 total_pages);
+        snprintf(desc, sizeof(desc), "%s", _(I__TOKEN_ID_COLON));
         oledDrawStringAdapter(0, 13, desc, FONT_STANDARD);
-
         for (int i = 0; i < lines_per_page; i++) {
           int start = (index * chars_per_page) + (i * chars_per_line);
           if (start >= total_chars) break;
