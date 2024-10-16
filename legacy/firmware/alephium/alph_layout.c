@@ -179,7 +179,7 @@ bool layoutOutput(const char *chain_name, const char *amount,
     while (1) {
       oledClear();
       layoutHeader(tx_msg[0]);
-      snprintf(desc, sizeof(desc), "Data (%d/%d):", index + 1, total_pages);
+      snprintf(desc, sizeof(desc), "%s", _(I__DATA_COLON));
       oledDrawStringAdapter(0, 13, desc, FONT_STANDARD);
 
       for (int i = 0; i < lines_per_page; i++) {
@@ -302,10 +302,8 @@ bool layoutOutput(const char *chain_name, const char *amount,
       while (1) {
         oledClear();
         layoutHeader(tx_msg[0]);
-        snprintf(desc, sizeof(desc), "Token ID (%d/%d):", index + 1,
-                 total_pages);
+        snprintf(desc, sizeof(desc), "%s", _(I__TOKEN_ID_COLON));
         oledDrawStringAdapter(0, 13, desc, FONT_STANDARD);
-
         for (int i = 0; i < lines_per_page; i++) {
           int start = (index * chars_per_page) + (i * chars_per_line);
           if (start >= total_chars) break;
