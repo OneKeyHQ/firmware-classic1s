@@ -1122,15 +1122,30 @@ bool is_valid_ascii(const uint8_t *data, uint32_t size) {
   return true;
 }
 
-void layoutConfirmOpReturn(const uint8_t *data, uint32_t size) {
-  const char **str = NULL;
+uint8_t layoutConfirmOpReturn(const CoinInfo *coin, uint8_t *data,
+                              uint32_t size) {
+  oledClear();
+  const char **tx_msg = format_tx_message(coin->coin_name);
+  layoutHeader(tx_msg[0]);
+
+  int y = 13;
+  oledDrawStringAdapter(0, y, _(I__BTC_OP_RETURN_COLON), FONT_STANDARD);
+  static char op_return_data[161] = {0};
   if (!is_valid_ascii(data, size)) {
-    str = split_message_hex(data, size);
+    data2hex(data, size, op_return_data);
   } else {
-    str = split_message(data, size, 20);
+    strlcpy(op_return_data, (const char *)data, size);
   }
-  layoutDialogSwipe(&bmp_icon_question, "Cancel", "Confirm", NULL,
-                    "Confirm OP_RETURN:", NULL, str[0], str[1], str[2], str[3]);
+  uint8_t bubble_key;
+  if (strlen(op_return_data) > 63) {
+    bubble_key = oledDrawPageableStringAdapter(
+        0, y + 10, op_return_data, FONT_STANDARD, &bmp_bottom_left_close,
+        &bmp_bottom_right_arrow);
+  } else {
+    oledDrawStringAdapter(0, y + 10, op_return_data, FONT_STANDARD);
+    bubble_key = protectWaitKey(0, 0);
+  }
+  return bubble_key;
 }
 
 static bool formatAmountDifference(const CoinInfo *coin, AmountUnit amount_unit,
@@ -1197,20 +1212,17 @@ bool layoutConfirmTx(const CoinInfo *coin, AmountUnit amount_unit,
   (void)tx_weight;
   (void)external_in;
   uint8_t key = KEY_NULL;
-  char title[32] = {0};
   char str_out[32] = {0};
   char str_fee[32] = {0};
   char desc[32] = {0};
-
-  snprintf(title, 32, "%s", _(T__STR_CHAIN_TRANSACTION));
-  bracket_replace(title, coin->coin_name);
+  const char **tx_msg = format_tx_message(coin->coin_name);
 
   formatAmountDifference(coin, amount_unit, total_in, change_out, str_out,
                          sizeof(str_out));
   formatAmountDifference(coin, amount_unit, total_in, total_out, str_fee,
                          sizeof(str_fee));
   oledClear();
-  layoutHeader(title);
+  layoutHeader(tx_msg[0]);
   strcat(desc, _(I__FEE_COLON));
   oledDrawStringAdapter(0, 13, desc, FONT_STANDARD);
   oledDrawStringAdapter(0, 13 + 10, str_fee, FONT_STANDARD);
@@ -1228,7 +1240,7 @@ bool layoutConfirmTx(const CoinInfo *coin, AmountUnit amount_unit,
   }
 
   oledClear();
-  layoutHeader(title);
+  layoutHeader(tx_msg[0]);
   oledDrawStringAdapter(0, 13, _(I__TOTAL_AMOUNT_COLON), FONT_STANDARD);
   oledDrawStringAdapter(0, 13 + 10, str_out, FONT_STANDARD);
   layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
@@ -1243,7 +1255,21 @@ bool layoutConfirmTx(const CoinInfo *coin, AmountUnit amount_unit,
       return false;
     }
   }
-
+  oledClear();
+  layoutHeader(_(T__SIGN_TRANSACTION));
+  layoutTxConfirmPage(tx_msg[1]);
+  layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
+  layoutButtonYesAdapter(NULL, &bmp_bottom_right_confirm);
+  oledRefresh();
+  while (1) {
+    key = protectWaitKey(0, 1);
+    if (key == KEY_CONFIRM) {
+      break;
+    }
+    if (key == KEY_CANCEL || key == KEY_NULL) {
+      return false;
+    }
+  }
   return true;
 }
 
@@ -1346,30 +1372,35 @@ void layoutConfirmUnverifiedExternalInputs(void) {
                     "external inputs.", "Continue?", NULL);
 }
 
-void layoutConfirmNondefaultLockTime(uint32_t lock_time,
+void layoutConfirmNondefaultLockTime(const CoinInfo *coin, uint32_t lock_time,
                                      bool lock_time_disabled) {
+  oledClear();
+  const char **tx_msg = format_tx_message(coin->coin_name);
+  layoutHeader(tx_msg[0]);
   if (lock_time_disabled) {
-    layoutDialogSwipe(&bmp_icon_question, "Cancel", "Confirm", NULL, "Warning!",
-                      "Locktime is set but", "will have no effect.", NULL,
-                      "Continue?", NULL);
-
+    oledDrawStringAdapter(0, 16, _(LOCKTIME_INVALID_WARNING_TEXT),
+                          FONT_STANDARD);
   } else {
     char str_locktime[20] = {0};
     char *str_type = NULL;
     if (lock_time < LOCKTIME_TIMESTAMP_MIN_VALUE) {
-      str_type = "blockheight:";
+      str_type = _(BLOCKHEIGHT);
       snprintf(str_locktime, sizeof(str_locktime), "%" PRIu32, lock_time);
     } else {
-      str_type = "timestamp (UTC):";
+      str_type = _(TIMESTAMP);
       time_t time = lock_time;
       const struct tm *tm = gmtime(&time);
       strftime(str_locktime, sizeof(str_locktime), "%F %T", tm);
     }
-
-    layoutDialogSwipe(&bmp_icon_question, "Cancel", "Confirm", NULL,
-                      "Locktime for this", "transaction is set to", str_type,
-                      str_locktime, "Continue?", NULL);
+    char desc[32] = {0};
+    strcat(desc, str_type);
+    strcat(desc, ":");
+    oledDrawStringAdapter(0, 13, desc, FONT_STANDARD);
+    oledDrawStringAdapter(0, 13 + 10, str_locktime, FONT_STANDARD);
   }
+  layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
+  layoutButtonYesAdapter(NULL, &bmp_bottom_right_confirm);
+  oledRefresh();
 }
 
 void layoutAuthorizeCoinJoin(const CoinInfo *coin, uint64_t max_rounds,
@@ -5155,7 +5186,7 @@ bool layoutSignMessage(const char *chain_name, bool verify, const char *signer,
     snprintf(title, 64, "%s", _(T__CHAIN_STR_MESSAGE));
     bracket_replace(title, chain_name);
     snprintf(title_tx, 64, "%s",
-             _(C__DO_YOU_WANT_TO_SIGN_THIS_CHAIN_STR_TRANSACTION_QUES));
+             _(C__DO_YOU_WANT_TO_SIGN_THIS_CHAIN_STR_MESSAGE_QUES));
     bracket_replace(title_tx, chain_name);
   }
 

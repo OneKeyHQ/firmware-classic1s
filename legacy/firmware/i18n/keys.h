@@ -716,5 +716,11 @@
 #define C__DO_YOU_WANT_TO_DECRYPT_CHAIN_STR_MESSAGE_QUES 343
 // The following transaction output contains contract data
 #define SIGN_TX_CONTAIN_CONTRACT_DATA_TEXT 344
+// Locktime is set but will have no effect. Continue?
+#define LOCKTIME_INVALID_WARNING_TEXT 345
+// Blockheight
+#define BLOCKHEIGHT 346
+// Timestamp (UTC)
+#define TIMESTAMP 347
 #endif
 // clang-format on

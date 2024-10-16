@@ -344,4 +344,7 @@ const char *const languages_en[] = {
     "Do you want to encrypt\{} message?",
     "Do you want to decrypt {} message?",
     "The following transaction output contains contract data",
+    "Locktime is set but will have no effect. Continue?",
+    "Blockheight",
+    "Timestamp (UTC)",
 };

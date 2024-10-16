@@ -1158,7 +1158,7 @@ bool compute_locktime(const PSBT* psbt, uint32_t* locktime) {
     *locktime = (uint32_t)height_lock;
   } else if (time_lock > 0) {
     *locktime = (uint32_t)time_lock;
-  } else if (psbt->fallback_locktime_lookuped) {
+  } else if (psbt->fallback_locktime > 0) {
     *locktime = psbt->fallback_locktime;
   } else {
     *locktime = 0;

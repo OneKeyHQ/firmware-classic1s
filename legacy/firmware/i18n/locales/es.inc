@@ -344,4 +344,7 @@ const char *const languages_es[] = {
     "¿Quieres cifrar el\nmensaje {}?",
     "¿Quieres descifrar el\nmensaje {}?",
     "La siguiente salida de transacción contiene datos de contrato",
+    "El tiempo de bloqueo está configurado, pero no tendrá efecto. ¿Continuar?",
+    "Altura de bloque",
+    "Marca de tiempo",
 };
