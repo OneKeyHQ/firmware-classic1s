@@ -9,7 +9,7 @@ bool layoutFee(const char *fee) {
 
   oledClear();
   layoutHeader(tx_msg[0]);
-  strcat(desc, "Fee:");
+  snprintf(desc, sizeof(desc), "%s", _(I__FEE_COLON));
 
   strlcpy(fee_with_unit, fee, sizeof(fee_with_unit));
   strlcat(fee_with_unit, " ALPH", sizeof(fee_with_unit));
