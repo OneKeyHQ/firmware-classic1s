@@ -103,8 +103,8 @@ bool ton_create_jetton_transfer_body(uint8_t dest_workchain, uint8_t* dest_hash,
 }
 
 bool build_message_ref(bool is_bounceable, uint8_t dest_workchain,
-                       uint8_t* dest_hash, uint64_t value,
-                       CellRef_t* payload, const char* payload_str, CellRef_t* out_message_ref) {
+                       uint8_t* dest_hash, uint64_t value, CellRef_t* payload,
+                       const char* payload_str, CellRef_t* out_message_ref) {
   BitString_t bits;
   bitstring_init(&bits);
 
@@ -125,7 +125,8 @@ bool build_message_ref(bool is_bounceable, uint8_t dest_workchain,
     bitstring_write_bit(&bits, 0);  // no state-init
     bitstring_write_bit(&bits, 0);  // body in line
 
-    bitstring_write_uint(&bits, 0x00000000, 32);  // text comment transfer op-code
+    bitstring_write_uint(&bits, 0x00000000,
+                         32);  // text comment transfer op-code
     bitstring_write_buffer(&bits, (uint8_t*)payload_str, strlen(payload_str));
 
     return ton_hash_cell(&bits, NULL, 0, out_message_ref);
@@ -147,8 +148,7 @@ bool build_message_ref(bool is_bounceable, uint8_t dest_workchain,
 bool ton_create_message_digest(uint32_t expire_at, uint32_t seqno,
                                bool is_bounceable, uint8_t dest_workchain,
                                uint8_t* dest_hash, uint64_t value, uint8_t mode,
-                               CellRef_t* payload,
-                               const char* payload_str,
+                               CellRef_t* payload, const char* payload_str,
                                const char** ext_dest,
                                const uint64_t* ext_ton_amount,
                                const char** ext_payload, uint8_t ext_dest_count,
