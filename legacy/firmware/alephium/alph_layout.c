@@ -236,13 +236,13 @@ bool layoutOutput(const char *chain_name, const char *amount,
       char amount_lines[5][64] = {0};
 
       if (token_id) {
-        snprintf(amount_lines[total_lines++], sizeof(amount_lines[0]),
-                 "Token Amount:");
+        snprintf(amount_lines[total_lines++], sizeof(amount_lines[0]), "%s",
+                 _(I__TOKEN_AMOUNT_COLON));
         snprintf(amount_lines[total_lines++], sizeof(amount_lines[0]), "%s",
                  token_amount);
       } else {
         snprintf(amount_lines[total_lines++], sizeof(amount_lines[0]),
-                 "ALPH Amount:");
+                 "ALPH %s", _(I__AMOUNT_COLON));
         snprintf(amount_lines[total_lines++], sizeof(amount_lines[0]),
                  "%s ALPH", amount);
       }

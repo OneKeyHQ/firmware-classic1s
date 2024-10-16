@@ -18,11 +18,6 @@ bool alephium_get_address(const AlephiumGetAddress *msg,
 
 void alephium_sign_tx(const HDNode *node, const AlephiumSignTx *msg) {
   char log_buffer[1024];
-  if (alephium_data_total_size > MAX_ALEPHIUM_DATA_SIZE) {
-    fsm_sendFailure(FailureType_Failure_DataError, "Data too large");
-    layoutHome();
-    return;
-  }
   memcpy(&global_node, node, sizeof(HDNode));
   alephium_data_total_size = msg->data_initial_chunk.size;
   alephium_data_left = alephium_data_total_size;
