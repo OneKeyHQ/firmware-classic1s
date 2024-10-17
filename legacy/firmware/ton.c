@@ -308,9 +308,8 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
       msg->expire_at, msg->seqno, parsed_dest.is_bounceable,
       parsed_dest.workchain, parsed_dest.hash, msg->ton_amount, msg->mode,
       msg->jetton_amount != 0 ? payload : NULL,
-      msg->jetton_amount == 0 ? msg->comment : NULL,
-      ext_destination_ptrs, msg->ext_ton_amount,
-      ext_payload_ptrs, ext_dest_count, digest);
+      msg->jetton_amount == 0 ? msg->comment : NULL, ext_destination_ptrs,
+      msg->ext_ton_amount, ext_payload_ptrs, ext_dest_count, digest);
 
   if (!create_digest) {
     fsm_sendFailure(FailureType_Failure_ProcessError,

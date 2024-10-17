@@ -18,8 +18,6 @@
  */
 
 #include "ada.h"
-#include <stdint.h>
-#include <string.h>
 #include "base58.h"
 #include "bip39.h"
 #include "buttons.h"
@@ -36,7 +34,6 @@
 #include "protect.h"
 #include "segwit_addr.h"
 #include "sha3.h"
-#include "usart.h"
 #include "util.h"
 
 struct AdaSigner ada_signer;
@@ -87,6 +84,7 @@ bool deriveCardanoIcaruNode(HDNode *node, const uint32_t *address_n,
   if (!node_temp) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
                     "Failed to derive private key");
+    return false;
   }
   if (node_temp->public_key[0] != 1) {
     return false;
@@ -169,8 +167,12 @@ bool derive_bytes(const CardanoAddressParametersType *address_parameters,
     uint8_t extpubkey[64] = {0};
     HDNode node = {0};
     uint32_t fingerprint;
-    deriveCardanoIcaruNode(&node, address_parameters->address_n,
-                           address_parameters->address_n_count, &fingerprint);
+
+    if (!deriveCardanoIcaruNode(&node, address_parameters->address_n,
+                                address_parameters->address_n_count,
+                                &fingerprint)) {
+      return false;
+    }
     memcpy(extpubkey, node.public_key + 1, 32);
     memcpy(extpubkey + 32, node.chain_code, 32);
 
@@ -271,8 +273,11 @@ bool derive_bytes(const CardanoAddressParametersType *address_parameters,
     if (address_parameters->address_n_count > 0) {
       HDNode node = {0};
       uint32_t fingerprint;
-      deriveCardanoIcaruNode(&node, address_parameters->address_n,
-                             address_parameters->address_n_count, &fingerprint);
+      if (!deriveCardanoIcaruNode(&node, address_parameters->address_n,
+                                  address_parameters->address_n_count,
+                                  &fingerprint)) {
+        return false;
+      }
       memcpy(public_key, node.public_key + 1, 32);
 
       uint8_t hash[ADDRESS_KEY_HASH_SIZE] = {0};
@@ -293,9 +298,11 @@ bool derive_bytes(const CardanoAddressParametersType *address_parameters,
     } else if (address_parameters->address_n_staking_count > 0) {
       HDNode node = {0};
       uint32_t fingerprint;
-      deriveCardanoIcaruNode(&node, address_parameters->address_n_staking,
-                             address_parameters->address_n_staking_count,
-                             &fingerprint);
+      if (!deriveCardanoIcaruNode(&node, address_parameters->address_n_staking,
+                                  address_parameters->address_n_staking_count,
+                                  &fingerprint)) {
+        return false;
+      }
       memcpy(public_key, node.public_key + 1, 32);
       uint8_t hash[ADDRESS_KEY_HASH_SIZE] = {0};
       blake2b(public_key, 32, hash, ADDRESS_KEY_HASH_SIZE);
@@ -323,34 +330,42 @@ bool derive_bytes(const CardanoAddressParametersType *address_parameters,
   return true;
 }
 
-bool ada_get_address(const CardanoGetAddress *msg, char *address) {
-  uint8_t address_bytes[128] = {0};
-  int address_bytes_len = 0;
-  derive_bytes(&msg->address_parameters, msg->network_id, msg->protocol_magic,
-               address_bytes, &address_bytes_len);
+static const char *get_bech32_hrp(CardanoAddressType address_type,
+                                  int network_id) {
+  if (address_type == CardanoAddressType_BYRON) {
+    return NULL;
+  }
 
-  // encode_human_readable
-  if (msg->address_parameters.address_type == CardanoAddressType_BYRON) {
+  if (address_type == CardanoAddressType_REWARD ||
+      address_type == CardanoAddressType_REWARD_SCRIPT) {
+    return network_id == NETWORK_ID_MAINNET ? HRP_REWARD_ADDRESS
+                                            : HRP_TESTNET_REWARD_ADDRESS;
+  }
+
+  return network_id == NETWORK_ID_MAINNET ? HRP_ADDRESS : HRP_TESTNET_ADDRESS;
+}
+
+static inline CardanoAddressType get_type(const uint8_t *address_bytes) {
+  return (CardanoAddressType)(address_bytes[0] >> 4);
+}
+
+static inline int get_network_id(const uint8_t *address_bytes) {
+  return (address_bytes[0] & 0x0F);
+}
+
+static bool encode_human_readable(const uint8_t *address_bytes,
+                                  size_t address_bytes_len, char *address) {
+  CardanoAddressType address_type = get_type(address_bytes);
+  if (address_type == CardanoAddressType_BYRON) {
     base58_encode(address_bytes, address_bytes_len, address, 128);
   } else {
+    const char *hrp =
+        get_bech32_hrp(address_type, get_network_id(address_bytes));
+    if (hrp == NULL) {
+      return false;
+    }
     uint8_t data[128] = {0};
     size_t datalen = 0;
-    char hrp[16] = {8};
-    if ((msg->address_parameters.address_type == CardanoAddressType_REWARD) ||
-        (msg->address_parameters.address_type ==
-         CardanoAddressType_REWARD_SCRIPT)) {
-      if (msg->network_id != 0) {  // is_mainnet
-        memcpy(hrp, HRP_REWARD_ADDRESS, 5);
-      } else {
-        memcpy(hrp, HRP_TESTNET_REWARD_ADDRESS, 10);
-      }
-    } else {
-      if (msg->network_id != 0) {  // is_mainnet
-        memcpy(hrp, HRP_ADDRESS, 4);
-      } else {
-        memcpy(hrp, HRP_TESTNET_ADDRESS, 9);
-      }
-    }
     convert_bits(data, &datalen, 5, address_bytes, address_bytes_len, 8, 1);
     if (1 !=
         bech32_encode(address, hrp, data, datalen, BECH32_ENCODING_BECH32)) {
@@ -359,6 +374,17 @@ bool ada_get_address(const CardanoGetAddress *msg, char *address) {
   }
 
   return true;
+}
+
+bool ada_get_address(const CardanoGetAddress *msg, char *address) {
+  uint8_t address_bytes[128] = {0};
+  int address_bytes_len = 0;
+  if (!derive_bytes(&msg->address_parameters, msg->network_id,
+                    msg->protocol_magic, address_bytes, &address_bytes_len)) {
+    return false;
+  }
+
+  return encode_human_readable(address_bytes, address_bytes_len, address);
 }
 
 #define BUILDER_APPEND_CBOR(type, value) \
@@ -386,6 +412,10 @@ void txHashBuilder_enterInputs(void) {
   {
     // Enter inputs
     BUILDER_APPEND_CBOR(CBOR_TYPE_UNSIGNED, TX_BODY_KEY_INPUTS);
+    if (ada_signer.signertx->has_tag_cbor_sets &&
+        ada_signer.signertx->tag_cbor_sets) {
+      BUILDER_APPEND_CBOR(CBOR_TYPE_TAG, CBOR_SET_TAG);
+    }
     BUILDER_APPEND_CBOR(CBOR_TYPE_ARRAY, ada_signer.remainingInputs);
   }
   ada_signer.state = TX_HASH_BUILDER_IN_INPUTS;
@@ -631,7 +661,7 @@ static bool layoutFee(void) {
   oledClear();
   layoutHeader(tx_msg[0]);
   strcat(desc, _(I__FEE_COLON));
-  bn_format_uint64(ada_signer.signertx.fee, NULL, " ADA", 6, 0, false, ',',
+  bn_format_uint64(ada_signer.signertx->fee, NULL, " ADA", 6, 0, false, ',',
                    str_amount, sizeof(str_amount));
   oledDrawStringAdapter(0, 13, desc, FONT_STANDARD);
   oledDrawStringAdapter(0, 13 + 10, str_amount, FONT_STANDARD);
@@ -670,11 +700,17 @@ bool txHashBuilder_addOutput(const CardanoTxOutput *output) {
     uint8_t address_bytes[128] = {0};
     int address_bytes_len = 64;
     if (output->has_address_parameters) {
-      derive_bytes(&output->address_parameters, ada_signer.signertx.network_id,
-                   ada_signer.signertx.protocol_magic, address_bytes,
-                   &address_bytes_len);
+      if (!derive_bytes(&output->address_parameters,
+                        ada_signer.signertx->network_id,
+                        ada_signer.signertx->protocol_magic, address_bytes,
+                        &address_bytes_len)) {
+        return false;
+      }
     } else {
-      get_bytes_unsafe(output->address, address_bytes, &address_bytes_len);
+      if (!get_bytes_unsafe(output->address, address_bytes,
+                            &address_bytes_len)) {
+        return false;
+      }
     }
     BUILDER_APPEND_CBOR(CBOR_TYPE_BYTES, address_bytes_len);
     BUILDER_APPEND_DATA(address_bytes, address_bytes_len);
@@ -831,20 +867,24 @@ void txHashBuilder_addFee(uint64_t fee) {
   ada_signer.state = TX_HASH_BUILDER_IN_FEE;
   ada_signer.tx_dict_items_count--;
 
-  if (ada_signer.signertx.has_ttl) {
-    txHashBuilder_addTtl(ada_signer.signertx.ttl);
+  if (ada_signer.signertx->has_ttl) {
+    txHashBuilder_addTtl(ada_signer.signertx->ttl);
   }
 }
 
-static void get_public_key_hash(const uint32_t *address_n,
+static bool get_public_key_hash(const uint32_t *address_n,
                                 size_t address_n_count,
                                 uint8_t hash[ADDRESS_KEY_HASH_SIZE]) {
   HDNode node = {0};
   uint32_t fingerprint;
   uint8_t public_key[32] = {0};
-  deriveCardanoIcaruNode(&node, address_n, address_n_count, &fingerprint);
+  if (!deriveCardanoIcaruNode(&node, address_n, address_n_count,
+                              &fingerprint)) {
+    return false;
+  }
   memcpy(public_key, node.public_key + 1, 32);
   blake2b(public_key, 32, hash, ADDRESS_KEY_HASH_SIZE);
+  return true;
 }
 
 // ============================== Certificate ==============================
@@ -931,7 +971,7 @@ static bool layoutCertificate(const CardanoTxCertificate *cert) {
 
 bool txHashBuilder_addCertificate(const CardanoTxCertificate *cert) {
   if (!ada_signer.is_feeed) {
-    txHashBuilder_addFee(ada_signer.signertx.fee);
+    txHashBuilder_addFee(ada_signer.signertx->fee);
     ada_signer.is_feeed = true;
   }
   if (!layoutCertificate(cert)) {
@@ -941,6 +981,10 @@ bool txHashBuilder_addCertificate(const CardanoTxCertificate *cert) {
   if (ada_signer.state != TX_HASH_BUILDER_IN_CERTIFICATES) {
     // enter Certificate
     BUILDER_APPEND_CBOR(CBOR_TYPE_UNSIGNED, TX_BODY_KEY_CERTIFICATES);
+    if (ada_signer.signertx->has_tag_cbor_sets &&
+        ada_signer.signertx->tag_cbor_sets) {
+      BUILDER_APPEND_CBOR(CBOR_TYPE_TAG, CBOR_SET_TAG);
+    }
     BUILDER_APPEND_CBOR(CBOR_TYPE_ARRAY, ada_signer.remainingCertificates);
 
     ada_signer.state = TX_HASH_BUILDER_IN_CERTIFICATES;
@@ -963,7 +1007,9 @@ bool txHashBuilder_addCertificate(const CardanoTxCertificate *cert) {
           BUILDER_APPEND_CBOR(CBOR_TYPE_UNSIGNED, 0);
 
           uint8_t hash[ADDRESS_KEY_HASH_SIZE] = {0};
-          get_public_key_hash(cert->path, cert->path_count, hash);
+          if (!get_public_key_hash(cert->path, cert->path_count, hash)) {
+            return false;
+          }
           BUILDER_APPEND_CBOR(CBOR_TYPE_BYTES, ADDRESS_KEY_HASH_SIZE);
           BUILDER_APPEND_DATA(hash, ADDRESS_KEY_HASH_SIZE);
         } else if (cert->has_script_hash) {
@@ -991,7 +1037,9 @@ bool txHashBuilder_addCertificate(const CardanoTxCertificate *cert) {
           BUILDER_APPEND_CBOR(CBOR_TYPE_UNSIGNED, 0);
 
           uint8_t hash[ADDRESS_KEY_HASH_SIZE] = {0};
-          get_public_key_hash(cert->path, cert->path_count, hash);
+          if (!get_public_key_hash(cert->path, cert->path_count, hash)) {
+            return false;
+          }
           BUILDER_APPEND_CBOR(CBOR_TYPE_BYTES, ADDRESS_KEY_HASH_SIZE);
           BUILDER_APPEND_DATA(hash, ADDRESS_KEY_HASH_SIZE);
         } else if (cert->has_script_hash) {
@@ -1026,7 +1074,7 @@ bool txHashBuilder_addCertificate(const CardanoTxCertificate *cert) {
 
 bool txHashBuilder_addWithdrawal(const CardanoTxWithdrawal *wdr) {
   if (!ada_signer.is_feeed) {
-    txHashBuilder_addFee(ada_signer.signertx.fee);
+    txHashBuilder_addFee(ada_signer.signertx->fee);
     ada_signer.is_feeed = true;
   }
   if (ada_signer.state != TX_HASH_BUILDER_IN_WITHDRAWALS) {
@@ -1062,9 +1110,11 @@ bool txHashBuilder_addWithdrawal(const CardanoTxWithdrawal *wdr) {
     address_parameters.script_staking_hash.size = 28;
     address_parameters.has_script_staking_hash = true;
   }
-  derive_bytes(&address_parameters, ada_signer.signertx.network_id,
-               ada_signer.signertx.protocol_magic, address_bytes,
-               &address_bytes_len);
+  if (!derive_bytes(&address_parameters, ada_signer.signertx->network_id,
+                    ada_signer.signertx->protocol_magic, address_bytes,
+                    &address_bytes_len)) {
+    return false;
+  }
 
   BUILDER_APPEND_CBOR(CBOR_TYPE_BYTES, address_bytes_len);
   BUILDER_APPEND_DATA(address_bytes, address_bytes_len);
@@ -1079,7 +1129,7 @@ bool txHashBuilder_addWithdrawal(const CardanoTxWithdrawal *wdr) {
 bool txHashBuilder_addAuxiliaryData(const CardanoTxAuxiliaryData *au) {
   CardanoTxAuxiliaryDataSupplement au_data_sup;
   if (!ada_signer.is_feeed) {
-    txHashBuilder_addFee(ada_signer.signertx.fee);
+    txHashBuilder_addFee(ada_signer.signertx->fee);
     ada_signer.is_feeed = true;
   }
 
@@ -1088,11 +1138,11 @@ bool txHashBuilder_addAuxiliaryData(const CardanoTxAuxiliaryData *au) {
   if (au->has_hash) {
     au_data_sup.type = CardanoTxAuxiliaryDataSupplementType_NONE;
     au_data_sup.has_auxiliary_data_hash = false;
-    au_data_sup.has_governance_signature = false;
+    au_data_sup.has_cvote_registration_signature = false;
     BUILDER_APPEND_CBOR(CBOR_TYPE_UNSIGNED, TX_BODY_KEY_AUX_DATA);
     BUILDER_APPEND_CBOR(CBOR_TYPE_BYTES, au->hash.size);
     BUILDER_APPEND_DATA(au->hash.bytes, au->hash.size);
-  } else if (au->has_governance_registration_parameters) {
+  } else if (au->has_cvote_registration_parameters) {
     return false;  // unsupport
   } else {
     return false;
@@ -1133,19 +1183,18 @@ bool hash_stage() {
       }
       break;
     case TX_HASH_BUILDER_IN_AUX_DATA:
-      if (ada_signer.signertx.has_auxiliary_data &&
+      if (ada_signer.signertx->has_auxiliary_data &&
           ada_signer.tx_dict_items_count > 0) {
         msg_write(MessageType_MessageType_CardanoTxItemAck, &ada_msg_item_ack);
       }
       break;
     case TX_HASH_BUILDER_IN_VALIDITY_INTERVAL_START:
-      if (ada_signer.signertx.has_validity_interval_start) {
+      if (ada_signer.signertx->has_validity_interval_start) {
         BUILDER_APPEND_CBOR(CBOR_TYPE_UNSIGNED,
                             TX_BODY_KEY_VALIDITY_INTERVAL_START);
         BUILDER_APPEND_CBOR(CBOR_TYPE_UNSIGNED,
-                            ada_signer.signertx.validity_interval_start);
-        ada_signer.signertx.has_validity_interval_start = false;
-        ada_signer.state = TX_HASH_BUILDER_IN_VALIDITY_INTERVAL_START;
+                            ada_signer.signertx->validity_interval_start);
+        ada_signer.state = TX_DUMMY_BREAK;
         ada_signer.tx_dict_items_count--;
       }
       //-fallthrough
@@ -1156,14 +1205,13 @@ bool hash_stage() {
       }
       //-fallthrough
     case TX_HASH_BUILDER_IN_SCRIPT_DATA_HASH:
-      if (ada_signer.signertx.has_script_data_hash) {
+      if (ada_signer.signertx->has_script_data_hash) {
         BUILDER_APPEND_CBOR(CBOR_TYPE_UNSIGNED, TX_BODY_KEY_SCRIPT_HASH_DATA);
         BUILDER_APPEND_CBOR(CBOR_TYPE_BYTES,
-                            ada_signer.signertx.script_data_hash.size);
-        BUILDER_APPEND_DATA(ada_signer.signertx.script_data_hash.bytes,
-                            ada_signer.signertx.script_data_hash.size);
-        ada_signer.signertx.has_script_data_hash = false;
-        ada_signer.state = TX_HASH_BUILDER_IN_SCRIPT_DATA_HASH;
+                            ada_signer.signertx->script_data_hash.size);
+        BUILDER_APPEND_DATA(ada_signer.signertx->script_data_hash.bytes,
+                            ada_signer.signertx->script_data_hash.size);
+        ada_signer.state = TX_DUMMY_BREAK;
         ada_signer.tx_dict_items_count--;
         // msg_write(MessageType_MessageType_CardanoTxItemAck,
         // &ada_msg_item_ack);
@@ -1225,14 +1273,16 @@ bool hash_stage() {
   return true;
 }
 
-bool _processs_tx_init(CardanoSignTxInit *msg) {
+bool _processs_tx_init(const CardanoSignTxInit *msg) {
   if (msg->signing_mode != CardanoTxSigningMode_ORDINARY_TRANSACTION) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
                     "Only support ORDINARY TRANSACTION");
     return false;
   }
   memset(&ada_signer, 0, sizeof(struct AdaSigner));
-  memcpy(&ada_signer.signertx, msg, sizeof(CardanoSignTxInit));
+  static CardanoSignTxInit ada_tx_context;
+  memcpy(&ada_tx_context, msg, sizeof(CardanoSignTxInit));
+  ada_signer.signertx = &ada_tx_context;
 
   // _validate_tx_init
   if ((msg->fee > LOVELACE_MAX_SUPPLY) ||
@@ -1255,51 +1305,51 @@ bool _processs_tx_init(CardanoSignTxInit *msg) {
   // Inputs, outputs and fee are mandatory, count the number of optional fields
   // present.
   ada_signer.tx_dict_items_count = 3;
-  if (ada_signer.signertx.has_ttl) ada_signer.tx_dict_items_count++;
-  if (ada_signer.signertx.certificates_count > 0)
+  if (ada_signer.signertx->has_ttl) ada_signer.tx_dict_items_count++;
+  if (ada_signer.signertx->certificates_count > 0)
     ada_signer.tx_dict_items_count++;
-  if (ada_signer.signertx.withdrawals_count > 0)
+  if (ada_signer.signertx->withdrawals_count > 0)
     ada_signer.tx_dict_items_count++;
-  if (ada_signer.signertx.has_auxiliary_data) ada_signer.tx_dict_items_count++;
-  if (ada_signer.signertx.has_validity_interval_start)
+  if (ada_signer.signertx->has_auxiliary_data) ada_signer.tx_dict_items_count++;
+  if (ada_signer.signertx->has_validity_interval_start)
     ada_signer.tx_dict_items_count++;
-  if (ada_signer.signertx.minting_asset_groups_count > 0)
+  if (ada_signer.signertx->minting_asset_groups_count > 0)
     ada_signer.tx_dict_items_count++;
-  if (ada_signer.signertx.has_include_network_id &&
-      ada_signer.signertx.include_network_id)
+  if (ada_signer.signertx->has_include_network_id &&
+      ada_signer.signertx->include_network_id)
     ada_signer.tx_dict_items_count++;
-  if (ada_signer.signertx.has_script_data_hash)
+  if (ada_signer.signertx->has_script_data_hash)
     ada_signer.tx_dict_items_count++;
-  if (ada_signer.signertx.collateral_inputs_count > 0)
+  if (ada_signer.signertx->collateral_inputs_count > 0)
     ada_signer.tx_dict_items_count++;
-  if (ada_signer.signertx.required_signers_count > 0)
+  if (ada_signer.signertx->required_signers_count > 0)
     ada_signer.tx_dict_items_count++;
-  if (ada_signer.signertx.has_has_collateral_return &&
-      ada_signer.signertx.has_collateral_return) {
+  if (ada_signer.signertx->has_has_collateral_return &&
+      ada_signer.signertx->has_collateral_return) {
     ada_signer.tx_dict_items_count++;
   }
-  if (ada_signer.signertx.has_total_collateral)
+  if (ada_signer.signertx->has_total_collateral)
     ada_signer.tx_dict_items_count++;
-  if (ada_signer.signertx.reference_inputs_count > 0)
+  if (ada_signer.signertx->reference_inputs_count > 0)
     ada_signer.tx_dict_items_count++;
   blake2b_256_append_cbor_tx_body(&ada_signer.ctx, CBOR_TYPE_MAP,
                                   ada_signer.tx_dict_items_count);
 
   ada_signer.state = TX_HASH_BUILDER_INIT;
-  ada_signer.remainingInputs = ada_signer.signertx.inputs_count;
-  ada_signer.remainingOutputs = ada_signer.signertx.outputs_count;
-  ada_signer.remainingWithdrawals = ada_signer.signertx.withdrawals_count;
-  ada_signer.remainingCertificates = ada_signer.signertx.certificates_count;
+  ada_signer.remainingInputs = ada_signer.signertx->inputs_count;
+  ada_signer.remainingOutputs = ada_signer.signertx->outputs_count;
+  ada_signer.remainingWithdrawals = ada_signer.signertx->withdrawals_count;
+  ada_signer.remainingCertificates = ada_signer.signertx->certificates_count;
   ada_signer.remainingCollateralInputs =
-      ada_signer.signertx.collateral_inputs_count;
+      ada_signer.signertx->collateral_inputs_count;
   ada_signer.remainingRequiredSigners =
-      ada_signer.signertx.required_signers_count;
+      ada_signer.signertx->required_signers_count;
   ada_signer.remainingMintingAssetGroupsCount =
-      ada_signer.signertx.minting_asset_groups_count;
+      ada_signer.signertx->minting_asset_groups_count;
 
-  if (ada_signer.signertx.has_reference_inputs_count)
+  if (ada_signer.signertx->has_reference_inputs_count)
     ada_signer.remainingReferenceInputs =
-        ada_signer.signertx.reference_inputs_count;
+        ada_signer.signertx->reference_inputs_count;
 
   ada_signer.is_feeed = false;
   ada_signer.is_finished = false;
@@ -1329,10 +1379,10 @@ void cardano_txack(void) {
   }
 }
 
-bool cardano_txwitness(CardanoTxWitnessRequest *msg,
+bool cardano_txwitness(const CardanoTxWitnessRequest *msg,
                        CardanoTxWitnessResponse *resp) {
   if (!ada_signer.is_feeed) {
-    txHashBuilder_addFee(ada_signer.signertx.fee);
+    txHashBuilder_addFee(ada_signer.signertx->fee);
     ada_signer.is_feeed = true;
   }
   if (!ada_signer.is_finished) {
@@ -1347,7 +1397,10 @@ bool cardano_txwitness(CardanoTxWitnessRequest *msg,
   }
   HDNode node = {0};
   uint32_t fingerprint;
-  deriveCardanoIcaruNode(&node, msg->path, msg->path_count, &fingerprint);
+  if (!deriveCardanoIcaruNode(&node, msg->path, msg->path_count,
+                              &fingerprint)) {
+    return false;
+  }
   resp->pub_key.size = 32;
   memcpy(resp->pub_key.bytes, node.public_key + 1, 32);
 #if EMULATOR
@@ -1358,6 +1411,7 @@ bool cardano_txwitness(CardanoTxWitnessRequest *msg,
 #else
   if (hdnode_sign(&node, ada_signer.digest, 32, 0, resp->signature.bytes, NULL,
                   NULL) != 0) {
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Failed to sign");
     return false;
   }
 #endif
@@ -1377,117 +1431,189 @@ bool cardano_txwitness(CardanoTxWitnessRequest *msg,
   return true;
 }
 
-bool ada_sign_messages(const HDNode *node, CardanoSignMessage *msg,
+#define STAKING_CHANGE 2
+#define STAKING_INDEX 0
+
+static inline void write_cbor_to_buffer(uint8_t *buffer, size_t *index,
+                                        const uint8_t *data, size_t data_size) {
+  memcpy(buffer + *index, data, data_size);
+  *index += data_size;
+}
+
+bool ada_sign_messages(const CardanoSignMessage *msg,
                        CardanoMessageSignature *resp) {
   uint8_t data[1024 + 128] = {0};
   uint8_t sig_structure[1024 + 128] = {0};
   uint8_t phdr_encoded[128] = {0};
-  uint8_t hash[29] = {0};
   uint8_t sig[64];
-  int data_index = 0, phdr_encoded_index = 0, sig_structure_index = 0;
+  size_t data_index = 0, phdr_encoded_index = 0, sig_structure_index = 0;
   size_t size = 0;
-
-  const uint8_t *verification_key = node->public_key + 1;
-  blake2b(verification_key, 32, hash + 1, 28);
-  hash[0] =
-      0x61;  // header = (KEY_NONE << 4 | msg.network_id).to_bytes(1, "big")
+  uint32_t *staking_path = NULL;
+  const uint32_t *address_n = msg->address_n;
+  uint32_t _staking_path[5];
+  CardanoAddressType address_type =
+      msg->has_address_type ? msg->address_type : CardanoAddressType_BASE;
+  switch (msg->address_type) {
+    case CardanoAddressType_BYRON:
+      fsm_sendFailure(FailureType_Failure_ProcessError,
+                      "BYRON ADDRESS NOT SUPPORTED");
+      return false;
+    case CardanoAddressType_BASE:
+    case CardanoAddressType_REWARD:
+      if (msg->address_n_count != 5) {
+        fsm_sendFailure(FailureType_Failure_DataError, "Invalid path");
+        return false;
+      }
+      memcpy(_staking_path, msg->address_n, 3 * sizeof(uint32_t));
+      _staking_path[3] = STAKING_CHANGE;
+      _staking_path[4] = STAKING_INDEX;
+      staking_path = _staking_path;
+      if (msg->address_type == CardanoAddressType_REWARD) {
+        address_n = NULL;
+      }
+      break;
+    case CardanoAddressType_ENTERPRISE:
+      break;
+    default:
+      fsm_sendFailure(FailureType_Failure_ProcessError,
+                      "UNSUPPORTED ADDRESS TYPE");
+      return false;
+  }
+  uint8_t address_bytes[57];
+  int address_bytes_len = 0;
+  CardanoAddressParametersType address_params = {
+      .address_type = address_type,
+      .address_n_count = address_n ? msg->address_n_count : 0,
+      .address_n_staking_count = staking_path ? 5 : 0,
+      .has_staking_key_hash = false,
+      .has_certificate_pointer = false,
+      .has_script_payment_hash = false,
+      .has_script_staking_hash = false};
+  if (address_params.address_n_count > 0) {
+    memcpy(address_params.address_n, address_n,
+           address_params.address_n_count * sizeof(uint32_t));
+  }
+  if (address_params.address_n_staking_count > 0) {
+    memcpy(address_params.address_n_staking, staking_path,
+           address_params.address_n_staking_count * sizeof(uint32_t));
+  }
+  if (!derive_bytes(&address_params, msg->network_id, MAINNET_PROTOCOL_MAGIC,
+                    address_bytes, &address_bytes_len)) {
+    return false;
+  }
+  if (address_bytes_len != sizeof(address_bytes)) {
+    fsm_sendFailure(FailureType_Failure_DataError,
+                    "Invalid address bytes length");
+    return false;
+  }
+  char address_str[128] = {0};
+  if (!encode_human_readable(address_bytes, address_bytes_len, address_str)) {
+    fsm_sendFailure(FailureType_Failure_DataError, "Invalid address");
+    return false;
+  }
+  if (!fsm_layoutSignMessage("ADA", address_str, msg->message.bytes,
+                             msg->message.size)) {
+    fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
+    layoutHome();
+    return false;
+  }
 
   // phdr={
   //     1: -8, # Algorithm: EdDSA,
-  //     "address": header + verification_key_hash
+  //     "address": address_bytes
   // }
   uint8_t buffer[10] = {0};
-  size = cbor_writeToken(CBOR_TYPE_MAP, 2, buffer, 10);
-  memcpy(phdr_encoded + phdr_encoded_index, buffer, size);
-  phdr_encoded_index += size;
+  size = cbor_writeToken(CBOR_TYPE_MAP, 2, buffer, sizeof(buffer));
+  write_cbor_to_buffer(phdr_encoded, &phdr_encoded_index, buffer, size);
 
-  size = cbor_writeToken(CBOR_TYPE_UNSIGNED, 1, buffer, 10);
-  memcpy(phdr_encoded + phdr_encoded_index, buffer, size);
-  phdr_encoded_index += size;
+  size = cbor_writeToken(CBOR_TYPE_UNSIGNED, 1, buffer, sizeof(buffer));
+  write_cbor_to_buffer(phdr_encoded, &phdr_encoded_index, buffer, size);
 
-  size = cbor_writeToken(CBOR_TYPE_NEGATIVE, -8, buffer, 10);
-  memcpy(phdr_encoded + phdr_encoded_index, buffer, size);
-  phdr_encoded_index += size;
+  size = cbor_writeToken(CBOR_TYPE_NEGATIVE, -8, buffer, sizeof(buffer));
+  write_cbor_to_buffer(phdr_encoded, &phdr_encoded_index, buffer, size);
 
-  size = cbor_writeToken(CBOR_TYPE_TEXT, 7, buffer, 10);
-  memcpy(phdr_encoded + phdr_encoded_index, buffer, size);
-  phdr_encoded_index += size;
-  memcpy(phdr_encoded + phdr_encoded_index, "address", 7);
-  phdr_encoded_index += 7;
+  size = cbor_writeToken(CBOR_TYPE_TEXT, 7, buffer, sizeof(buffer));
+  write_cbor_to_buffer(phdr_encoded, &phdr_encoded_index, buffer, size);
+  write_cbor_to_buffer(phdr_encoded, &phdr_encoded_index, (uint8_t *)"address",
+                       7);
 
-  size = cbor_writeToken(CBOR_TYPE_BYTES, 29, buffer, 10);
-  memcpy(phdr_encoded + phdr_encoded_index, buffer, size);
-  phdr_encoded_index += size;
-  memcpy(phdr_encoded + phdr_encoded_index, hash, 29);
-  phdr_encoded_index += 29;
+  size = cbor_writeToken(CBOR_TYPE_BYTES, address_bytes_len, buffer,
+                         sizeof(buffer));
+  write_cbor_to_buffer(phdr_encoded, &phdr_encoded_index, buffer, size);
+  write_cbor_to_buffer(phdr_encoded, &phdr_encoded_index, address_bytes,
+                       address_bytes_len);
+  // msg = [
+  //         "phdr": phdr,
+  //         "uhdr": {"hashed": False},
+  //         "payload": msg.message.bytes,
+  //         "sig": sig
+  // ]
+  size = cbor_writeToken(CBOR_TYPE_ARRAY, 4, buffer, sizeof(buffer));
+  write_cbor_to_buffer(data, &data_index, buffer, size);
 
-  size = cbor_writeToken(CBOR_TYPE_ARRAY, 4, buffer, 10);
-  memcpy(data + data_index, buffer, size);
-  data_index += size;
-
-  size = cbor_writeToken(CBOR_TYPE_BYTES, phdr_encoded_index, buffer, 10);
-  memcpy(data + data_index, buffer, size);
-  data_index += size;
-  memcpy(data + data_index, phdr_encoded, phdr_encoded_index);
-  data_index += phdr_encoded_index;
+  size = cbor_writeToken(CBOR_TYPE_BYTES, phdr_encoded_index, buffer,
+                         sizeof(buffer));
+  write_cbor_to_buffer(data, &data_index, buffer, size);
+  write_cbor_to_buffer(data, &data_index, phdr_encoded, phdr_encoded_index);
 
   // Sign1Message.uhdr  = {"hashed": False}
-  data[data_index++] = 0xa1;
-  size = cbor_writeToken(CBOR_TYPE_TEXT, 6, buffer, 10);
-  memcpy(data + data_index, buffer, size);
-  data_index += size;
-  memcpy(data + data_index, "hashed", 6);
-  data_index += 6;
-  data[data_index++] = 0xf4;
+  data[data_index++] = CBOR_TYPE_MAP | 1;
+  size = cbor_writeToken(CBOR_TYPE_TEXT, 6, buffer, sizeof(buffer));
+  write_cbor_to_buffer(data, &data_index, buffer, size);
+  write_cbor_to_buffer(data, &data_index, (uint8_t *)"hashed", 6);
+  data[data_index++] = CBOR_TYPE_FALSE;
 
   // Sign1Message.payload
-  size = cbor_writeToken(CBOR_TYPE_BYTES, msg->message.size, buffer, 10);
-  memcpy(data + data_index, buffer, size);
-  data_index += size;
-  memcpy(data + data_index, msg->message.bytes, msg->message.size);
-  data_index += msg->message.size;
+  size = cbor_writeToken(CBOR_TYPE_BYTES, msg->message.size, buffer,
+                         sizeof(buffer));
+  write_cbor_to_buffer(data, &data_index, buffer, size);
+  write_cbor_to_buffer(data, &data_index, msg->message.bytes,
+                       msg->message.size);
 
-  // Signature1
-  size = cbor_writeToken(CBOR_TYPE_ARRAY, 4, buffer, 10);
-  memcpy(sig_structure + sig_structure_index, buffer, size);
-  sig_structure_index += size;
+  // Signature1 sig_structure = ["Signature1", phdr_encoded, b"", payload]
+  size = cbor_writeToken(CBOR_TYPE_ARRAY, 4, buffer, sizeof(buffer));
+  write_cbor_to_buffer(sig_structure, &sig_structure_index, buffer, size);
 
-  size = cbor_writeToken(CBOR_TYPE_TEXT, 10, buffer, 10);
-  memcpy(sig_structure + sig_structure_index, buffer, size);
-  sig_structure_index += size;
-  memcpy(sig_structure + sig_structure_index, "Signature1", 10);
-  sig_structure_index += 10;
+  size = cbor_writeToken(CBOR_TYPE_TEXT, 10, buffer, sizeof(buffer));
+  write_cbor_to_buffer(sig_structure, &sig_structure_index, buffer, size);
+  write_cbor_to_buffer(sig_structure, &sig_structure_index,
+                       (uint8_t *)"Signature1", 10);
 
-  size = cbor_writeToken(CBOR_TYPE_BYTES, phdr_encoded_index, buffer, 10);
-  memcpy(sig_structure + sig_structure_index, buffer, size);
-  sig_structure_index += size;
-  memcpy(sig_structure + sig_structure_index, phdr_encoded, phdr_encoded_index);
-  sig_structure_index += phdr_encoded_index;
+  size = cbor_writeToken(CBOR_TYPE_BYTES, phdr_encoded_index, buffer,
+                         sizeof(buffer));
+  write_cbor_to_buffer(sig_structure, &sig_structure_index, buffer, size);
+  write_cbor_to_buffer(sig_structure, &sig_structure_index, phdr_encoded,
+                       phdr_encoded_index);
 
-  size = cbor_writeToken(CBOR_TYPE_BYTES, 0, buffer, 10);
-  memcpy(sig_structure + sig_structure_index, buffer, size);
-  sig_structure_index += size;
+  size = cbor_writeToken(CBOR_TYPE_BYTES, 0, buffer, sizeof(buffer));
+  write_cbor_to_buffer(sig_structure, &sig_structure_index, buffer, size);
 
-  size = cbor_writeToken(CBOR_TYPE_BYTES, msg->message.size, buffer, 10);
-  memcpy(sig_structure + sig_structure_index, buffer, size);
-  sig_structure_index += size;
-  memcpy(sig_structure + sig_structure_index, msg->message.bytes,
-         msg->message.size);
-  sig_structure_index += msg->message.size;
+  size = cbor_writeToken(CBOR_TYPE_BYTES, msg->message.size, buffer,
+                         sizeof(buffer));
+  write_cbor_to_buffer(sig_structure, &sig_structure_index, buffer, size);
+  write_cbor_to_buffer(sig_structure, &sig_structure_index, msg->message.bytes,
+                       msg->message.size);
+  HDNode node = {0};
+  uint32_t _fingerprint;
 
+  if (!deriveCardanoIcaruNode(&node, address_n ? address_n : staking_path, 5,
+                              &_fingerprint)) {
+    return false;
+  }
 #if EMULATOR
-  ed25519_sign(sig_structure, sig_structure_index, node->private_key, sig);
+  ed25519_sign_ext(sig_structure, sig_structure_index, node->private_key,
+                   node->private_key_extension, sig);
 #else
-  if (hdnode_sign(node, sig_structure, sig_structure_index, 0, sig, NULL,
+  if (hdnode_sign(&node, sig_structure, sig_structure_index, 0, sig, NULL,
                   NULL) != 0) {
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Failed to sign message");
     return false;
   }
 #endif
-  size = cbor_writeToken(CBOR_TYPE_BYTES, 64, buffer, 10);
-  memcpy(data + data_index, buffer, size);
-  data_index += size;
-  memcpy(data + data_index, sig, 64);
-  data_index += 64;
+
+  size = cbor_writeToken(CBOR_TYPE_BYTES, 64, buffer, sizeof(buffer));
+  write_cbor_to_buffer(data, &data_index, buffer, size);
+  write_cbor_to_buffer(data, &data_index, sig, 64);
 
   memcpy(resp->signature.bytes, data, data_index);
   resp->signature.size = data_index;
@@ -1500,37 +1626,14 @@ bool ada_sign_messages(const HDNode *node, CardanoSignMessage *msg,
         -2: verification_key,  # OKPKpX: public key
     }
   */
+  const uint8_t *verification_key = node.public_key + 1;
   data_index = 0;
-  size = cbor_writeToken(CBOR_TYPE_MAP, 4, buffer, 10);
-  memcpy(data + data_index, buffer, size);
-  data_index += size;
-  size = cbor_writeToken(CBOR_TYPE_UNSIGNED, 1, buffer, 10);
-  memcpy(data + data_index, buffer, size);
-  data_index += size;
-  size = cbor_writeToken(CBOR_TYPE_UNSIGNED, 1, buffer, 10);
-  memcpy(data + data_index, buffer, size);
-  data_index += size;
-  size = cbor_writeToken(CBOR_TYPE_UNSIGNED, 3, buffer, 10);
-  memcpy(data + data_index, buffer, size);
-  data_index += size;
-  size = cbor_writeToken(CBOR_TYPE_NEGATIVE, -8, buffer, 10);
-  memcpy(data + data_index, buffer, size);
-  data_index += size;
-  size = cbor_writeToken(CBOR_TYPE_NEGATIVE, -1, buffer, 10);
-  memcpy(data + data_index, buffer, size);
-  data_index += size;
-  size = cbor_writeToken(CBOR_TYPE_UNSIGNED, 6, buffer, 10);
-  memcpy(data + data_index, buffer, size);
-  data_index += size;
-  size = cbor_writeToken(CBOR_TYPE_NEGATIVE, -2, buffer, 10);
-  memcpy(data + data_index, buffer, size);
-  data_index += size;
+  size = cbor_writeToken(CBOR_TYPE_MAP, 4, buffer, sizeof(buffer));
+  write_cbor_to_buffer(data, &data_index, buffer, size);
 
-  size = cbor_writeToken(CBOR_TYPE_BYTES, 32, buffer, 10);
-  memcpy(data + data_index, buffer, size);
-  data_index += size;
-  memcpy(data + data_index, verification_key, 32);
-  data_index += 32;
+  uint8_t key_data[] = {0x01, 0x01, 0x03, 0x27, 0x20, 0x06, 0x21, 0x58, 0x20};
+  write_cbor_to_buffer(data, &data_index, key_data, sizeof(key_data));
+  write_cbor_to_buffer(data, &data_index, verification_key, 32);
 
   memcpy(resp->key.bytes, data, data_index);
   resp->key.size = data_index;

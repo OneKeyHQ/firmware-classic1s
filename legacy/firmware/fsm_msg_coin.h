@@ -1080,9 +1080,14 @@ void fsm_msgSignPsbt(const SignPsbt *msg) {
 
     if (!is_change) {
       if (op_return_data_len > 0) {
-        layoutConfirmOpReturn(op_return_data, op_return_data_len);
-        if (protectWaitKeyValue(ButtonRequestType_ButtonRequest_ConfirmOutput,
-                                true, 0, 1) != KEY_CONFIRM) {
+        if (!button_request(ButtonRequestType_ButtonRequest_ConfirmOutput)) {
+          fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
+          layoutHome();
+          return;
+        }
+        uint8_t bubble_key =
+            layoutConfirmOpReturn(coin, op_return_data, op_return_data_len);
+        if (bubble_key == KEY_CANCEL) {
           fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
           layoutHome();
           return;
@@ -1111,7 +1116,7 @@ void fsm_msgSignPsbt(const SignPsbt *msg) {
   }
   bool lkt_disabled = locktime_disabled(&psbt);
   if (locktime > 0) {
-    layoutConfirmNondefaultLockTime(locktime, lkt_disabled);
+    layoutConfirmNondefaultLockTime(coin, locktime, lkt_disabled);
     if (protectWaitKeyValue(ButtonRequestType_ButtonRequest_SignTx, true, 0,
                             1) != KEY_CONFIRM) {
       fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
@@ -1125,6 +1130,7 @@ void fsm_msgSignPsbt(const SignPsbt *msg) {
     layoutHome();
     return;
   }
+
   for (int i = 0; i < psbt.inputs_len; i++) {
     PartiallySignedInput *input = &psbt.inputs[i];
     if (input->tap_bip32_path_lookuped) {
@@ -1156,11 +1162,20 @@ void fsm_msgSignPsbt(const SignPsbt *msg) {
                           script_path_spending ? leaf_hash : NULL);
       uint8_t signature[64] = {0};
       if (!script_path_spending) {
-        hdnode_bip340_sign_digest(s_node, sigmsg_digest, signature);
+        if (hdnode_bip340_sign_digest(s_node, sigmsg_digest, signature)) {
+          fsm_sendFailure(FailureType_Failure_DataError, "sign failed");
+          layoutHome();
+          return;
+        }
         memcpy(input->tap_key_sig, signature, sizeof(signature));
         input->tap_key_sig_len = sizeof(signature);
       } else {
-        hdnode_bip340_sign_digest_internal(s_node, sigmsg_digest, signature);
+        if (hdnode_bip340_sign_digest_internal(s_node, sigmsg_digest,
+                                               signature)) {
+          fsm_sendFailure(FailureType_Failure_DataError, "sign failed");
+          layoutHome();
+          return;
+        }
         memcpy(input->tap_script_sig.leaf_hash, leaf_hash, sizeof(leaf_hash));
         memcpy(input->tap_script_sig.signature, signature, sizeof(signature));
         memcpy(input->tap_script_sig.x_only_pubkey,

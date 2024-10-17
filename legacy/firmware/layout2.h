@@ -60,7 +60,8 @@ void layoutHomeEx(void);
 bool layoutConfirmOutput(const CoinInfo *coin, AmountUnit amount_unit,
                          const TxOutputType *out);
 void layoutConfirmOmni(const uint8_t *data, uint32_t size);
-void layoutConfirmOpReturn(const uint8_t *data, uint32_t size);
+uint8_t layoutConfirmOpReturn(const CoinInfo *coin, uint8_t *data,
+                              uint32_t size);
 bool layoutConfirmTx(const CoinInfo *coin, AmountUnit amount_unit,
                      uint64_t total_in, uint64_t external_in,
                      uint64_t total_out, uint64_t change_out,
@@ -77,7 +78,7 @@ void layoutFeeOverThreshold(const CoinInfo *coin, AmountUnit amount_unit,
 void layoutFeeRateOverThreshold(const CoinInfo *coin, uint32_t fee_per_kvbyte);
 void layoutChangeCountOverThreshold(uint32_t change_count);
 void layoutConfirmUnverifiedExternalInputs(void);
-void layoutConfirmNondefaultLockTime(uint32_t lock_time,
+void layoutConfirmNondefaultLockTime(const CoinInfo *coin, uint32_t lock_time,
                                      bool lock_time_disabled);
 void layoutAuthorizeCoinJoin(const CoinInfo *coin, uint64_t max_rounds,
                              uint32_t max_fee_per_kvbyte);
@@ -253,6 +254,13 @@ uint8_t layoutStatusLogoEx(bool need_fresh, bool force_fresh);
 
 static inline void oledClear_ex(void) {
   oledClear();
+#if !EMULATOR
+  layoutStatusLogoEx(false, true);
+#endif
+}
+
+static inline void oledClear_ext(int x, int y) {
+  oledClearFrom_x_y(x, y);
 #if !EMULATOR
   layoutStatusLogoEx(false, true);
 #endif

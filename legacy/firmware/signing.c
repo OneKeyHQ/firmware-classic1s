@@ -2021,7 +2021,7 @@ static bool signing_check_prevtx_hash(void) {
 
   return true;
 }
-
+extern bool button_request(const ButtonRequestType code);
 static bool compile_output(TxOutputType *in, TxOutputBinType *out,
                            bool needs_confirm) {
   memzero(out, sizeof(TxOutputBinType));
@@ -2038,19 +2038,29 @@ static bool compile_output(TxOutputType *in, TxOutputBinType *out,
       return false;
     }
     if (needs_confirm) {
+      if (!button_request(ButtonRequestType_ButtonRequest_ConfirmOutput)) {
+        fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
+        signing_abort();
+        return false;
+      }
       if (in->op_return_data.size >= 8 &&
           memcmp(in->op_return_data.bytes, "omni", 4) ==
               0) {  // OMNI transaction
         layoutConfirmOmni(in->op_return_data.bytes, in->op_return_data.size);
+        if (protectWaitKeyValue(ButtonRequestType_ButtonRequest_ConfirmOutput,
+                                true, 0, 1) != KEY_CONFIRM) {
+          fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
+          signing_abort();
+          return false;
+        }
       } else {
-        layoutConfirmOpReturn(in->op_return_data.bytes,
-                              in->op_return_data.size);
-      }
-      if (protectWaitKeyValue(ButtonRequestType_ButtonRequest_ConfirmOutput,
-                              true, 0, 1) != KEY_CONFIRM) {
-        fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
-        signing_abort();
-        return false;
+        uint8_t bubble_key = layoutConfirmOpReturn(
+            coin, in->op_return_data.bytes, in->op_return_data.size);
+        if (bubble_key == KEY_CANCEL) {
+          fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
+          signing_abort();
+          return false;
+        }
       }
     }
     op_return_to_script_pubkey(
@@ -2548,7 +2558,7 @@ static bool payment_confirm_tx(void) {
 
     if (info.lock_time != 0) {
       bool lock_time_disabled = (info.min_sequence == SEQUENCE_FINAL);
-      layoutConfirmNondefaultLockTime(info.lock_time, lock_time_disabled);
+      layoutConfirmNondefaultLockTime(coin, info.lock_time, lock_time_disabled);
       if (protectWaitKeyValue(ButtonRequestType_ButtonRequest_SignTx, true, 0,
                               1) != KEY_CONFIRM) {
         fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);

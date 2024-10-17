@@ -186,6 +186,10 @@ void oledUpdateClk(void) {
  */
 void oledClear() { memzero(_oledbuffer, sizeof(_oledbuffer)); }
 
+void oledClearFrom_x_y(int x, int y) {
+  memzero(_oledbuffer, sizeof(_oledbuffer) -
+                           (OLED_OFFSET(OLED_WIDTH - x, OLED_HEIGHT - y - 8)));
+}
 void oledClearPart() {
   // do not clear logo status,logo line 12
   memzero(_oledbuffer, sizeof(_oledbuffer) - (OLED_WIDTH * (LOGO_HEIGHT / 8)));

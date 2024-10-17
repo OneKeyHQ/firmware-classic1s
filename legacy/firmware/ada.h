@@ -31,6 +31,8 @@
 #define SCRIPT_HASH_SIZE 28
 #define OUTPUT_DATUM_HASH_SIZE 32
 #define SCRIPT_DATA_HASH_SIZE 32
+#define NETWORK_ID_MAINNET 1
+#define NETWORK_ID_TESTNET 0
 
 #define HRP_SEPARATOR "1"
 // CIP-0005 prefixes -
@@ -95,6 +97,7 @@ typedef enum {
   TX_HASH_BUILDER_IN_REFERENCE_INPUTS = 1700,
   TX_HASH_BUILDER_FINISHED = 1800,
   TX_SIGN_FINISHED = 6000,
+  TX_DUMMY_BREAK = 0,
 } tx_hash_builder_state_t;
 
 typedef enum {
@@ -108,7 +111,7 @@ typedef enum {
 } tx_hash_builder_output_state_t;
 
 struct AdaSigner {
-  CardanoSignTxInit signertx;
+  const CardanoSignTxInit *signertx;
   BLAKE2B_CTX ctx;
   uint8_t digest[32];
   int tx_dict_items_count;
@@ -143,7 +146,7 @@ bool deriveCardanoIcaruNode(HDNode *node, const uint32_t *address_n,
 bool ada_get_address(const CardanoGetAddress *msg, char *address);
 bool validate_network_info(int network_id, int protocol_magic);
 
-bool _processs_tx_init(CardanoSignTxInit *msg);
+bool _processs_tx_init(const CardanoSignTxInit *msg);
 bool hash_stage(void);
 
 void txHashBuilder_addInput(const CardanoTxInput *input);
@@ -156,9 +159,9 @@ bool txHashBuilder_addAuxiliaryData(const CardanoTxAuxiliaryData *wdr);
 bool txHashBuilder_addMintingAssetGroups(const CardanoTxAuxiliaryData *wdr);
 
 void cardano_txack(void);
-bool cardano_txwitness(CardanoTxWitnessRequest *msg,
+bool cardano_txwitness(const CardanoTxWitnessRequest *msg,
                        CardanoTxWitnessResponse *resp);
-bool ada_sign_messages(const HDNode *node, CardanoSignMessage *msg,
+bool ada_sign_messages(const CardanoSignMessage *msg,
                        CardanoMessageSignature *resp);
 
 #endif  // __ADA_H__
