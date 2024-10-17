@@ -77,7 +77,8 @@ bool ton_create_transfer_body(const char* memo, CellRef_t* payload) {
 }
 
 bool ton_create_jetton_transfer_body(uint8_t dest_workchain, uint8_t* dest_hash,
-                                     uint64_t jetton_value,
+                                     const uint8_t* jetton_value,
+                                     uint8_t jetton_value_len,
                                      uint64_t forward_amount,
                                      const char* forward_payload,
                                      uint8_t resp_workchain, uint8_t* resp_hash,
@@ -87,7 +88,8 @@ bool ton_create_jetton_transfer_body(uint8_t dest_workchain, uint8_t* dest_hash,
   bitstring_init(&bits);
   bitstring_write_uint(&bits, 0xf8a7ea5, 32);  // jetton transfer op-code
   bitstring_write_uint(&bits, 0, 64);          // query id
-  bitstring_write_coins(&bits, jetton_value);
+  bitstring_write_coins_bytes(&bits, jetton_value, jetton_value_len);
+
   bitstring_write_address(&bits, dest_workchain, dest_hash);  // to addr
   bitstring_write_address(&bits, resp_workchain, resp_hash);  // response addr
   bitstring_write_bit(&bits, 0);                 // no custom payload

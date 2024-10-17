@@ -65,6 +65,12 @@ void fsm_msgTonSignMessage(const TonSignMessage *msg) {
               "Invalid path");
   CHECK_PIN
   RESP_INIT(TonSignedMessage);
+
+  if (msg->jetton_amount != 0) {
+    fsm_sendFailure(FailureType_Failure_DataError, "Upgrade app to support ton in 1s");
+    return;
+  }
+
   HDNode *node = fsm_getDerivedNode(ED25519_NAME, msg->address_n,
                                     msg->address_n_count, NULL);
   if (!node) return;

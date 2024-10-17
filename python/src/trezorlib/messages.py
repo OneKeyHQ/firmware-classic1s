@@ -10201,6 +10201,7 @@ class TonSignMessage(protobuf.MessageType):
         18: protobuf.Field("ext_destination", "string", repeated=True, required=False, default=None),
         19: protobuf.Field("ext_ton_amount", "uint64", repeated=True, required=False, default=None),
         20: protobuf.Field("ext_payload", "string", repeated=True, required=False, default=None),
+        21: protobuf.Field("jetton_amount_bytes", "bytes", repeated=False, required=False, default=None),
     }
 
     def __init__(
@@ -10226,6 +10227,7 @@ class TonSignMessage(protobuf.MessageType):
         workchain: Optional["TonWorkChain"] = TonWorkChain.BASECHAIN,
         is_bounceable: Optional["bool"] = False,
         is_testnet_only: Optional["bool"] = False,
+        jetton_amount_bytes: Optional["bytes"] = None,
     ) -> None:
         self.address_n: Sequence["int"] = address_n if address_n is not None else []
         self.ext_destination: Sequence["str"] = ext_destination if ext_destination is not None else []
@@ -10247,6 +10249,7 @@ class TonSignMessage(protobuf.MessageType):
         self.workchain = workchain
         self.is_bounceable = is_bounceable
         self.is_testnet_only = is_testnet_only
+        self.jetton_amount_bytes = jetton_amount_bytes
 
 
 class TonSignedMessage(protobuf.MessageType):

@@ -96,13 +96,29 @@ void ton_format_toncoin_amount(const uint64_t amount, char *buf, int buflen) {
   snprintf(buf, buflen, "%s TON", str_amount);
 }
 
-void ton_format_jetton_amount(const uint64_t amount, char *buf, int buflen,
-                              int decimals, const char *jetton_name) {
-  char str_amount[40] = {0};
-  bn_format_uint64(amount, NULL, NULL, decimals, 0, false, 0, str_amount,
-                   sizeof(str_amount));
+static bool ton_format_jetton_amount(const uint8_t *value, uint8_t value_len,
+                                     char *buf, size_t buflen,
+                                     const TonTokenType *token) {
+  bignum256 amnt;
+  uint8_t pad_val[32] = {0};
+  const char *suffix = NULL;
+  int decimals = 0;
 
-  snprintf(buf, buflen, "%s %s", str_amount, jetton_name);
+  memset(pad_val, 0, sizeof(pad_val));
+  memcpy(pad_val + (32 - value_len), value, value_len);
+
+  bn_read_be(pad_val, &amnt);
+
+  if (token != NULL) {
+    suffix = token->name;
+    decimals = token->decimals;
+  } else {
+    return false;
+  }
+
+  bn_format(&amnt, NULL, suffix, decimals, 0, false, 0, buf, buflen);
+
+  return true;
 }
 
 bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
@@ -140,7 +156,7 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
   size_t data_len = 0;
 
   // display
-  if (msg->jetton_amount == 0) {
+  if (msg->jetton_amount_bytes.size == 0) {
     char amount_str[60];
     ton_format_toncoin_amount(msg->ton_amount, amount_str, sizeof(amount_str));
 
@@ -202,8 +218,15 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
     token = ton_get_token_by_address(msg->jetton_master_address);
 
     char amount_str[60];
-    ton_format_jetton_amount(msg->jetton_amount, amount_str, sizeof(amount_str),
-                             token->decimals, token->name);
+    if (!ton_format_jetton_amount(msg->jetton_amount_bytes.bytes,
+                                  msg->jetton_amount_bytes.size, amount_str,
+                                  sizeof(amount_str), token)) {
+      fsm_sendFailure(FailureType_Failure_ProcessError,
+                      "Failed to format jetton amount");
+      layoutHome();
+      return false;
+    }
+
     if (msg->has_comment) {
       if (!layoutTonSign("Ton", true, amount_str, msg->jetton_master_address,
                          usr_friendly_address, msg->destination, NULL, NULL, 0,
@@ -226,13 +249,14 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
 
     if (!msg->has_comment) {
       ton_create_jetton_transfer_body(
-          parsed_dest.workchain, parsed_dest.hash, msg->jetton_amount, 0, NULL,
-          parsed_resp.workchain, parsed_resp.hash, payload);
+          parsed_dest.workchain, parsed_dest.hash, msg->jetton_amount_bytes.bytes,
+          msg->jetton_amount_bytes.size, 0, NULL, parsed_resp.workchain,
+          parsed_resp.hash, payload);
     } else {
-      ton_create_jetton_transfer_body(parsed_dest.workchain, parsed_dest.hash,
-                                      msg->jetton_amount, msg->fwd_fee,
-                                      msg->comment, parsed_resp.workchain,
-                                      parsed_resp.hash, payload);
+      ton_create_jetton_transfer_body(
+          parsed_dest.workchain, parsed_dest.hash, msg->jetton_amount_bytes.bytes,
+          msg->jetton_amount_bytes.size, msg->fwd_fee, msg->comment,
+          parsed_resp.workchain, parsed_resp.hash, payload);
     }
   }
 
@@ -294,7 +318,7 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
     return false;
   }
 
-  if (msg->jetton_amount != 0) {
+  if (msg->jetton_amount_bytes.size != 0) {
     memset(&parsed_dest, 0, sizeof(TON_PARSED_ADDRESS));
     if (!ton_parse_addr(msg->jetton_wallet_address, &parsed_dest)) {
       fsm_sendFailure(FailureType_Failure_ProcessError,
@@ -307,8 +331,8 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
   bool create_digest = ton_create_message_digest(
       msg->expire_at, msg->seqno, parsed_dest.is_bounceable,
       parsed_dest.workchain, parsed_dest.hash, msg->ton_amount, msg->mode,
-      msg->jetton_amount != 0 ? payload : NULL,
-      msg->jetton_amount == 0 ? msg->comment : NULL, ext_destination_ptrs,
+      msg->jetton_amount_bytes.size != 0 ? payload : NULL,
+      msg->jetton_amount_bytes.size == 0 ? msg->comment : NULL, ext_destination_ptrs,
       msg->ext_ton_amount, ext_payload_ptrs, ext_dest_count, digest);
 
   if (!create_digest) {

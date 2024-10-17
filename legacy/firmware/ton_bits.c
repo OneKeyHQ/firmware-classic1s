@@ -41,13 +41,26 @@ void bitstring_write_coins(BitString_t* self, uint64_t v) {
       break;
     }
   }
-
   // Write length
   bitstring_write_uint(self, len, 4);
 
   // Write remaining
   for (int i = 0; i < len; i++) {
     bitstring_write_uint(self, v >> ((len - i - 1) * 8), 8);
+  }
+}
+
+void bitstring_write_coins_bytes(BitString_t* self, const uint8_t* v,
+                                 uint8_t length) {
+  uint8_t effective_length = length;
+  while (effective_length > 0 && v[length - effective_length] == 0) {
+    effective_length--;
+  }
+
+  bitstring_write_uint(self, effective_length, 4);
+
+  for (int i = 0; i < effective_length; i++) {
+    bitstring_write_uint(self, v[length - effective_length + i], 8);
   }
 }
 
