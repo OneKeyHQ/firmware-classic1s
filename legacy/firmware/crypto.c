@@ -147,26 +147,25 @@ int cryptoMessageSign(const CoinInfo *coin, HDNode *node,
                       const uint8_t *message, size_t message_len,
                       uint8_t *signature) {
   uint8_t script_type_info = 0;
-  switch (script_type) {
-    case InputScriptType_SPENDADDRESS:
-      // p2pkh
-      script_type_info = 0;
-      break;
-    case InputScriptType_SPENDP2SHWITNESS:
-      // segwit-in-p2sh
-      script_type_info = 4;
-      break;
-    case InputScriptType_SPENDWITNESS:
-      // segwit
-      script_type_info = 8;
-      break;
-    default:
-      // unsupported script type
-      return 1;
-  }
 
-  if (no_script_type) {
-    script_type_info = 0;
+  if (!no_script_type) {
+    switch (script_type) {
+      case InputScriptType_SPENDADDRESS:
+        // p2pkh
+        script_type_info = 0;
+        break;
+      case InputScriptType_SPENDP2SHWITNESS:
+        // segwit-in-p2sh
+        script_type_info = 4;
+        break;
+      case InputScriptType_SPENDWITNESS:
+        // segwit
+        script_type_info = 8;
+        break;
+      default:
+        // unsupported script type
+        return 1;
+    }
   }
 
   uint8_t hash[HASHER_DIGEST_LENGTH] = {0};
