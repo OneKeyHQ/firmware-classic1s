@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#define TOKENS_COUNT 2
+#define TOKENS_COUNT 13
 
 typedef struct {
   const char *const address;
