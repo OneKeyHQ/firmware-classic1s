@@ -15,7 +15,8 @@ typedef struct {
 bool ton_create_transfer_body(const char* memo, CellRef_t* payload);
 
 bool ton_create_jetton_transfer_body(uint8_t dest_workchain, uint8_t* dest_hash,
-                                     uint64_t jetton_value,
+                                     const uint8_t* jetton_value,
+                                     uint8_t jetton_value_len,
                                      uint64_t forward_amount,
                                      const char* forward_payload,
                                      uint8_t resp_workchain, uint8_t* resp_hash,

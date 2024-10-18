@@ -8245,6 +8245,7 @@ if TYPE_CHECKING:
         ext_destination: "list[str]"
         ext_ton_amount: "list[int]"
         ext_payload: "list[str]"
+        jetton_amount_bytes: "bytes | None"
 
         def __init__(
             self,
@@ -8269,6 +8270,7 @@ if TYPE_CHECKING:
             workchain: "TonWorkChain | None" = None,
             is_bounceable: "bool | None" = None,
             is_testnet_only: "bool | None" = None,
+            jetton_amount_bytes: "bytes | None" = None,
         ) -> None:
             pass
 
