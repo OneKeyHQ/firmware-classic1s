@@ -305,7 +305,7 @@ void scdo_sign_tx(ScdoSignTx *msg, const HDNode *node, char *from_str) {
     to_str[1] = 'S';
     data2hexaddr(msg->data_initial_chunk.bytes + 16, 20, to_str + 2);
 
-    token = getTokenByAddress(to_str);
+    token = getTokenByAddress(msg->to);
   }
 
   if (token != NULL) {
