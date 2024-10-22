@@ -19,7 +19,7 @@ static int ble_request_state = -1;
 static uint8_t ble_response_buf[64];
 static char ble_name[BLE_NAME_LEN + 1] = {0};
 static char ble_ver[6] = {0};
-static char ble_build_id[7] = {0};
+static char ble_build_id[8] = {0};
 static uint8_t ble_hash[32] = {0};
 
 static uint8_t ble_update_buffer[256] = {0};

@@ -67,7 +67,8 @@ void fsm_msgTonSignMessage(const TonSignMessage *msg) {
   RESP_INIT(TonSignedMessage);
 
   if (msg->jetton_amount != 0) {
-    fsm_sendFailure(FailureType_Failure_DataError, "Upgrade app to support ton in 1s");
+    fsm_sendFailure(FailureType_Failure_DataError,
+                    "Upgrade app to support ton in 1s");
     return;
   }
 

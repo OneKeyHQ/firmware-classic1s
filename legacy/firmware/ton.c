@@ -249,14 +249,15 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
 
     if (!msg->has_comment) {
       ton_create_jetton_transfer_body(
-          parsed_dest.workchain, parsed_dest.hash, msg->jetton_amount_bytes.bytes,
-          msg->jetton_amount_bytes.size, 0, NULL, parsed_resp.workchain,
-          parsed_resp.hash, payload);
+          parsed_dest.workchain, parsed_dest.hash,
+          msg->jetton_amount_bytes.bytes, msg->jetton_amount_bytes.size, 0,
+          NULL, parsed_resp.workchain, parsed_resp.hash, payload);
     } else {
       ton_create_jetton_transfer_body(
-          parsed_dest.workchain, parsed_dest.hash, msg->jetton_amount_bytes.bytes,
-          msg->jetton_amount_bytes.size, msg->fwd_fee, msg->comment,
-          parsed_resp.workchain, parsed_resp.hash, payload);
+          parsed_dest.workchain, parsed_dest.hash,
+          msg->jetton_amount_bytes.bytes, msg->jetton_amount_bytes.size,
+          msg->fwd_fee, msg->comment, parsed_resp.workchain, parsed_resp.hash,
+          payload);
     }
   }
 
@@ -332,8 +333,9 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
       msg->expire_at, msg->seqno, parsed_dest.is_bounceable,
       parsed_dest.workchain, parsed_dest.hash, msg->ton_amount, msg->mode,
       msg->jetton_amount_bytes.size != 0 ? payload : NULL,
-      msg->jetton_amount_bytes.size == 0 ? msg->comment : NULL, ext_destination_ptrs,
-      msg->ext_ton_amount, ext_payload_ptrs, ext_dest_count, digest);
+      msg->jetton_amount_bytes.size == 0 ? msg->comment : NULL,
+      ext_destination_ptrs, msg->ext_ton_amount, ext_payload_ptrs,
+      ext_dest_count, digest);
 
   if (!create_digest) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
