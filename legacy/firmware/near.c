@@ -202,6 +202,7 @@ static int borsh_read_buffer(const NearSignTx *msg, uint32_t *buffer_len,
     return -1;
   }
   *buffer = &msg->raw_tx.bytes[*processed];
+  __asm__("" : : "r"(*buffer) : "memory");
   *processed += *buffer_len;
   return 0;
 }
