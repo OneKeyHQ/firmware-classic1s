@@ -151,6 +151,13 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
   CellRef_t payload_data;
   CellRef_t *payload = &payload_data;
 
+  BitString_t payload_bits_data;
+  bitstring_init(&payload_bits_data);
+  BitString_t *payload_bits = &payload_bits_data;
+
+  CellRef_t payload_ref_data;
+  CellRef_t *payload_ref = &payload_ref_data;
+
   unsigned char raw_data[1024];
   bool is_raw_data = false;
   size_t data_len = 0;
@@ -203,7 +210,7 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
 
     // create payload
     if (is_raw_data) {
-      if (!ton_parse_boc(raw_data, data_len, payload)) {
+      if (!ton_parse_boc(raw_data, data_len, payload, payload_bits, payload_ref)) {
         fsm_sendFailure(FailureType_Failure_ProcessError,
                         "Failed to create raw data body");
         return false;
@@ -328,14 +335,15 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
       return false;
     }
   }
+  bool comment_inline = (msg->jetton_amount_bytes.size == 0) && (!is_raw_data);
+  bool is_jetton = msg->jetton_amount_bytes.size != 0;
 
   bool create_digest = ton_create_message_digest(
       msg->expire_at, msg->seqno, parsed_dest.is_bounceable,
       parsed_dest.workchain, parsed_dest.hash, msg->ton_amount, msg->mode,
-      msg->jetton_amount_bytes.size != 0 ? payload : NULL,
-      msg->jetton_amount_bytes.size == 0 ? msg->comment : NULL,
-      ext_destination_ptrs, msg->ext_ton_amount, ext_payload_ptrs,
-      ext_dest_count, digest);
+      !comment_inline ? payload : NULL, is_jetton,
+      comment_inline ? msg->comment : NULL, payload_bits, payload_ref, ext_destination_ptrs,
+      msg->ext_ton_amount, ext_payload_ptrs, ext_dest_count, digest);
 
   if (!create_digest) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
@@ -355,8 +363,8 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
   resp->signature.size = 64;
   resp->has_signature = true;
 
-  resp->signning_message.size = 0;
-  memset(resp->signning_message.bytes, 0, resp->signning_message.size);
+  resp->signning_message.size = 32;
+  memcpy(resp->signning_message.bytes, digest, resp->signning_message.size);
   resp->has_signning_message = true;
 
   return true;
