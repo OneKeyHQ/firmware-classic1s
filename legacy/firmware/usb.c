@@ -31,7 +31,7 @@
 #include "trans_fifo.h"
 #include "trezor.h"
 #if U2F_ENABLED
-#include "u2f.h"
+#include "fido2/ctap_hid.h"
 #endif
 #include "ble.h"
 #include "layout2.h"

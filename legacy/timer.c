@@ -48,7 +48,7 @@ void delay_us(uint32_t uiDelay_us) {
   }
 }
 
-#define TIMER_NUM 4
+#define TIMER_NUM 5
 typedef struct {
   char name[32];
   uint32_t current;
