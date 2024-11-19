@@ -7,6 +7,10 @@ set -e
 
 cd "$(dirname "$0")/.."
 
+if [ "$BITCOIN_ONLY" != 1 ]; then
+    vendor/trezor-common/tools/cointool.py render firmware/fido2
+fi
+
 if [ "$EMULATOR" = 1 ]; then
     make -C emulator
 else

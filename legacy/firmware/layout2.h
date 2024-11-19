@@ -318,4 +318,7 @@ void layoutTxConfirmPage(const char *data);
 void onboarding(uint8_t key);
 void hide_icons(bool hide);
 
+void layout_fido2_resident_credential(int index, int count,
+                                      const char *app_name,
+                                      const char *user_name);
 #endif

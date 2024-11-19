@@ -709,5 +709,6 @@ bool fsm_common_path_check(const uint32_t *address_n, uint32_t address_n_count,
 #include "fsm_msg_sui.h"
 #include "fsm_msg_ton.h"
 #include "fsm_msg_tron.h"
+#include "fsm_msg_webauthn.h"
 
 #endif

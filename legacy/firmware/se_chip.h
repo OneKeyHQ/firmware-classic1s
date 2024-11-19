@@ -19,6 +19,11 @@ enum {
   CANONICAL_SIG_EOS = 2,
 };
 
+#define SE_FIDO2_SLOT_DATA_OK 0
+#define SE_FIDO2_SLOT_DATA_NULL 1
+#define SE_FIDO2_SLOT_DATA_BUFFER_TOO_SMALL 2
+#define SE_FIDO2_SLOT_DATA_INVALID 3
+
 typedef void (*UI_WAIT_CALLBACK)(const char *message, int progress);
 void se_set_ui_callback(UI_WAIT_CALLBACK callback);
 UI_WAIT_CALLBACK se_get_ui_callback(void);
@@ -146,6 +151,20 @@ secbool se_u2f_authenticate(const uint8_t app_id[32],
                             const uint8_t key_handle[64],
                             const uint8_t challenge[32], uint8_t *u2f_counter,
                             uint8_t sign[64]);
+bool check_se_fido_seed(void (*callback)(void));
+int se_slip21_fido_node(uint8_t *data);
+secbool se_derive_fido_keys(HDNode *out, const char *curve,
+                            const uint32_t *address_n, size_t address_n_count,
+                            uint32_t *fingerprint);
+secbool se_fido_hdnode_sign_digest(const uint8_t *hash, uint8_t *sig);
+secbool se_fido_att_sign_digest(const uint8_t *hash, uint8_t *sig);
+int se_get_fido2_resident_credentials(uint32_t index, uint8_t *dest,
+                                      uint16_t *dst_len);
+int se_check_fido2_resident_credential_simple(uint32_t index);
+secbool se_set_fido2_resident_credentials(uint32_t index, const uint8_t *src,
+                                          uint16_t len);
+secbool se_delete_fido2_resident_credentials(uint32_t index);
+secbool se_delete_all_fido2_credentials(void);
 #else
 #define se_transmit(...) 0
 #define se_get_sn(...) false

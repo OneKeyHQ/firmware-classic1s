@@ -7,6 +7,7 @@
 // #define HZ_CODE_LEN 2  // GBK
 #define HZ_CODE_LEN 3  // UTF-8
 
+int oledCharWidthEx(const char text, uint8_t font);
 int oledStringWidthAdapter(const char *text, uint8_t font);
 void oledDrawNumber_zh(int x, int y, const char font);
 void oledDrawStringAdapter(int x, int y, const char *text, uint8_t font);

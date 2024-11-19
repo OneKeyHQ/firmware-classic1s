@@ -14,6 +14,8 @@ import "messages.proto";
  * @next Failure
  */
 message WebAuthnListResidentCredentials {
+    optional uint32 index = 100;
+    optional bool request_list_index = 101;
 }
 
 /**
@@ -58,4 +60,5 @@ message WebAuthnCredentials {
         optional sint32 algorithm = 11;
         optional sint32 curve = 12;
     }
+    repeated bytes id_map = 100;
 }

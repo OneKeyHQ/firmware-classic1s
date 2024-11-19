@@ -50,6 +50,7 @@
 #include "messages-sui.pb.h"
 #include "messages-ton.pb.h"
 #include "messages-tron.pb.h"
+#include "messages-webauthn.pb.h"
 
 // CoinJoin fee rate multiplier.
 #define FEE_RATE_DECIMALS (1000000)
@@ -338,4 +339,12 @@ void fsm_msgLnurlAuth(const LnurlAuth *msg);
 void fsm_msgTonGetAddress(const TonGetAddress *msg);
 void fsm_msgTonSignMessage(const TonSignMessage *msg);
 void fsm_msgTonSignProof(const TonSignProof *msg);
+
+// webauthn
+void fsm_msgWebAuthnListResidentCredentials(
+    const WebAuthnListResidentCredentials *msg);
+void fsm_msgWebAuthnAddResidentCredential(
+    const WebAuthnAddResidentCredential *msg);
+void fsm_msgWebAuthnRemoveResidentCredential(
+    const WebAuthnRemoveResidentCredential *msg);
 #endif

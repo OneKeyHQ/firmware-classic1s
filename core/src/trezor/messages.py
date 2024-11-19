@@ -8641,6 +8641,16 @@ if TYPE_CHECKING:
             return isinstance(msg, cls)
 
     class WebAuthnListResidentCredentials(protobuf.MessageType):
+        index: "int | None"
+        request_list_index: "bool | None"
+
+        def __init__(
+            self,
+            *,
+            index: "int | None" = None,
+            request_list_index: "bool | None" = None,
+        ) -> None:
+            pass
 
         @classmethod
         def is_type_of(cls, msg: Any) -> TypeGuard["WebAuthnListResidentCredentials"]:
@@ -8676,11 +8686,13 @@ if TYPE_CHECKING:
 
     class WebAuthnCredentials(protobuf.MessageType):
         credentials: "list[WebAuthnCredential]"
+        id_map: "list[bytes]"
 
         def __init__(
             self,
             *,
             credentials: "list[WebAuthnCredential] | None" = None,
+            id_map: "list[bytes] | None" = None,
         ) -> None:
             pass
 

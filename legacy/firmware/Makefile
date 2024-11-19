@@ -85,7 +85,10 @@ OBJS += crypto.o
 OBJS += se_chip.o
 
 ifneq ($(BITCOIN_ONLY),1)
-OBJS += u2f.o
+OBJS += fido2/ctap_trans.o
+OBJS += fido2/ctap.o
+OBJS += fido2/ctap_parse.o
+OBJS += fido2/resident_credential.o
 OBJS += ethereum.o
 OBJS += ethereum_definitions.o
 OBJS += ethereum_networks.o
@@ -112,8 +115,6 @@ OBJS += algo/parser.o
 OBJS += algo/tx.o
 OBJS += ripple.o
 OBJS += filecoin.o
-OBJS += filecoin/cborparser.o
-OBJS += filecoin/cborvalidation.o
 OBJS += filecoin/parser_impl.o
 OBJS += filecoin/tx.o
 OBJS += filecoin/parser.o
@@ -222,6 +223,11 @@ OBJS += ../vendor/trezor-crypto/schnorr_bch.o
 
 OBJS += ../vendor/QR-Code-generator/c/qrcodegen.o
 
+OBJS += ../vendor/tiny_cbor/src/cborencoder.o
+OBJS += ../vendor/tiny_cbor/src/cborparser.o
+OBJS += ../vendor/tiny_cbor/src/cborvalidation.o
+OBJS += ../vendor/tiny_cbor/src/cborerrorstrings.o
+
 ifeq ($(EMULATOR),1)
 OBJS += ../vendor/trezor-storage/storage.o
 OBJS += ../vendor/trezor-storage/norcow.o
@@ -266,6 +272,7 @@ OBJS += protob/messages-scdo.pb.o
 OBJS += protob/messages-lnurl.pb.o
 OBJS += protob/messages-alephium.pb.o
 OBJS += protob/messages-ton.pb.o
+OBJS += protob/messages-webauthn.pb.o
 endif
 
 OPTFLAGS ?= -Os
@@ -290,6 +297,7 @@ CFLAGS += -I../vendor/nanopb -Iprotob -DPB_FIELD_16BIT=1 -DPB_ENCODE_ARRAYS_UNPA
 CFLAGS += -DSCM_REVISION='"$(shell git rev-parse HEAD | sed 's:\(..\):\\x\1:g')"'
 CFLAGS += -DBUILD_ID='"$(NAME)"'
 CFLAGS += -DUSE_MONERO=0
+CFLAGS += -I./
 ifneq ($(BITCOIN_ONLY),1)
 CFLAGS += -DUSE_ETHEREUM=1
 CFLAGS += -DUSE_NEM=1

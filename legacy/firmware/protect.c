@@ -50,7 +50,7 @@ bool protectAbortedBySleep = false;
 bool protectAbortedByInitializeOnboarding = false;
 bool protectAbortedByInitialize = false;
 bool protectAbortedByTimeout = false;
-extern bool exitBlindSignByInitialize;
+bool exitBlindSignByInitialize = false;
 extern bool msg_command_inprogress;
 
 static uint8_t device_sleep_state = SLEEP_NONE;
@@ -769,12 +769,12 @@ extern bool u2f_init_command;
 
 uint8_t protectWaitKey(uint32_t time_out, uint8_t mode) {
   uint8_t key = KEY_NULL;
+  uint32_t start = timer_ms();
 
   protectAbortedByInitialize = false;
   protectAbortedByInitializeOnboarding = false;
   protectAbortedBySleep = false;
   usbTiny(1);
-  timer_out_set(timer_out_oper, time_out);
   while (1) {
     if (layoutEnterSleep(1) && (layoutLast != layoutScreensaver)) {
       if (layoutLast == onboarding) {
@@ -797,7 +797,7 @@ uint8_t protectWaitKey(uint32_t time_out, uint8_t mode) {
       return KEY_NULL;
     }
 #endif
-    if (time_out > 0 && timer_out_get(timer_out_oper) == 0) break;
+    if (time_out > 0 && (timer_ms() - start) >= time_out) break;
     protectAbortedByInitialize =
         (msg_tiny_id == MessageType_MessageType_Initialize);
     if (protectAbortedByInitialize) {
@@ -810,6 +810,8 @@ uint8_t protectWaitKey(uint32_t time_out, uint8_t mode) {
         break;
       }
     }
+
+    loop_callback_handler();
 
     key = keyScan();
     if (key != KEY_NULL) {

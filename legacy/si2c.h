@@ -35,6 +35,7 @@ void i2c_slave_init(void);
 void i2c_set_wait(bool flag);
 bool i2c_slave_send(uint32_t data_len);
 void i2c_slave_send_ex(uint32_t data_len);
+bool i2c_slave_send_fido(uint8_t *data, uint32_t data_len);
 #else
 #define i2c_set_wait(...)
 #endif

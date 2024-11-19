@@ -73,6 +73,7 @@ typedef struct __attribute__((packed)) {
 // U2FHID native commands
 
 #define U2FHID_PING         (TYPE_INIT | 0x01)  // Echo data through local processor only
+#define U2FHID_KEEPALIVE    (TYPE_INIT | 0x02)  // Keepalive
 #define U2FHID_MSG          (TYPE_INIT | 0x03)  // Send U2F message frame
 #define U2FHID_LOCK         (TYPE_INIT | 0x04)  // Send lock channel command
 #define U2FHID_INIT         (TYPE_INIT | 0x06)  // Channel initialization
@@ -125,6 +126,14 @@ typedef struct __attribute__((packed)) {
 #define ERR_LOCK_REQUIRED       0x0a    // Command requires channel lock
 #define ERR_INVALID_CID         0x0b    // Message on CID 0
 #define ERR_OTHER               0x7f    // Other unspecified error
+
+// FIDO2
+#define U2FHID_CBOR             (TYPE_INIT | 0x10)  // Send CBOR message
+#define CTAPHID_KEEPALIVE       (TYPE_INIT | 0x3b)  // Keepalive
+
+#define CTAPHID_STATUS_IDLE         0
+#define CTAPHID_STATUS_PROCESSING   1
+#define CTAPHID_STATUS_UPNEEDED     2
 
 #ifdef __cplusplus
 }

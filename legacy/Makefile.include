@@ -104,6 +104,7 @@ CFLAGS   += $(OPTFLAGS) \
             -I$(TOOLCHAIN_DIR)/lib/gd32/f4xx/CMSIS \
             -I$(TOOLCHAIN_DIR)/lib/gd32/f4xx/CMSIS/GD/GD32F4xx/Include \
             -I$(TOOLCHAIN_DIR)/lib/gd32/f4xx/GD32F4xx_standard_peripheral/Include \
+            -I$(TOP_DIR)vendor/tiny_cbor/src \
             -ffunction-sections -fdata-sections
 
 LDFLAGS  += -L$(TOP_DIR) \

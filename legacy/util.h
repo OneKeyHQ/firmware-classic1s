@@ -65,6 +65,7 @@ void uint2str(uint32_t num, char *str);
 uint32_t version_string_to_int(const char *version_str);
 
 bool bracket_replace(char *orig, const char *with);
+int compare_str_version(const char *version1, const char *version2);
 
 // defined in startup.s (or setup.c for emulator)
 extern void __attribute__((noreturn)) shutdown(void);

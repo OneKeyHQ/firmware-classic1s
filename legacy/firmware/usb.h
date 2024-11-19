@@ -56,4 +56,6 @@ void waitAndProcessUSBRequests(uint32_t millis);
  */
 void usbFlush(uint32_t millis);
 
+void usb_u2f_data_send(void);
+
 #endif
