@@ -17,13 +17,13 @@
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __U2F_H__
-#define __U2F_H__
+#ifndef CTAP_HID_H
+#define CTAP_HID_H
 
 #include <stdbool.h>
 #include <stdint.h>
 #include "trezor.h"
-#include "u2f/u2f_hid.h"
+#include "u2f_hid.h"
 
 #define U2F_KEY_PATH 0x80553246
 
@@ -51,6 +51,8 @@ void u2fhid_lock(const uint8_t *buf, uint32_t len);
 void u2fhid_msg(const APDU *a, uint32_t len);
 void queue_u2f_pkt(const U2FHID_FRAME *u2f_pkt);
 
+void getReadableAppId(const uint8_t appid[32], const char **appname);
+
 uint8_t *u2f_out_data(void);
 void u2f_register(const APDU *a);
 void u2f_version(const APDU *a);
@@ -62,5 +64,8 @@ void send_u2f_error(uint16_t err);
 void send_u2fhid_msg(const uint8_t cmd, const uint8_t *data,
                      const uint32_t len);
 void send_u2fhid_error(uint32_t fcid, uint8_t err);
+
+// FIDO2
+uint8_t u2fhid_cbor_cmd(const uint8_t *data, const uint32_t len);
 
 #endif

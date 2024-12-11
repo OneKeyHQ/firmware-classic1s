@@ -5,7 +5,7 @@
 #define __U2F_KNOWNAPPS_H__
 
 #include <stdint.h>
-#include "u2f/u2f.h"
+#include "u2f.h"
 
 typedef struct {
   const uint8_t appid[U2F_APPID_SIZE];

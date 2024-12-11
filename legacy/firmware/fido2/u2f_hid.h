@@ -126,6 +126,14 @@ typedef struct __attribute__((packed)) {
 #define ERR_INVALID_CID         0x0b    // Message on CID 0
 #define ERR_OTHER               0x7f    // Other unspecified error
 
+// FIDO2
+#define U2FHID_CBOR             (TYPE_INIT | 0x10)  // Send CBOR message
+#define U2FHID_KEEPALIVE        (TYPE_INIT | 0x3b)  // Keepalive
+
+#define CTAPHID_STATUS_IDLE         0
+#define CTAPHID_STATUS_PROCESSING   1
+#define CTAPHID_STATUS_UPNEEDED     2
+
 #ifdef __cplusplus
 }
 #endif
