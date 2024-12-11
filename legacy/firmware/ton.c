@@ -210,7 +210,8 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
 
     // create payload
     if (is_raw_data) {
-      if (!ton_parse_boc(raw_data, data_len, payload, payload_bits, payload_ref)) {
+      if (!ton_parse_boc(raw_data, data_len, payload, payload_bits,
+                         payload_ref)) {
         fsm_sendFailure(FailureType_Failure_ProcessError,
                         "Failed to create raw data body");
         return false;
@@ -342,8 +343,9 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
       msg->expire_at, msg->seqno, parsed_dest.is_bounceable,
       parsed_dest.workchain, parsed_dest.hash, msg->ton_amount, msg->mode,
       !comment_inline ? payload : NULL, is_jetton,
-      comment_inline ? msg->comment : NULL, payload_bits, payload_ref, ext_destination_ptrs,
-      msg->ext_ton_amount, ext_payload_ptrs, ext_dest_count, digest);
+      comment_inline ? msg->comment : NULL, payload_bits, payload_ref,
+      ext_destination_ptrs, msg->ext_ton_amount, ext_payload_ptrs,
+      ext_dest_count, digest);
 
   if (!create_digest) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
