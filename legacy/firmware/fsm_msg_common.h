@@ -114,12 +114,23 @@ bool get_features(Features *resp) {
   resp->capabilities[6] = Capability_Capability_U2F;
 #endif
   if (ble_name_state()) {
-    resp->has_ble_name = true;
-    strlcpy(resp->ble_name, ble_get_name(), sizeof(resp->ble_name));
+    char *ble_name = ble_get_name();
+    if (ble_name) {
+      resp->has_ble_name = true;
+      strlcpy(resp->ble_name, ble_name, sizeof(resp->ble_name));
+      resp->has_onekey_ble_name = true;
+      strlcpy(resp->onekey_ble_name, ble_name, sizeof(resp->onekey_ble_name));
+    }
   }
   if (ble_ver_state()) {
-    resp->has_ble_ver = true;
-    strlcpy(resp->ble_ver, ble_get_ver(), sizeof(resp->ble_ver));
+    char *ble_ver = ble_get_ver();
+    if (ble_ver) {
+      resp->has_ble_ver = true;
+      strlcpy(resp->ble_ver, ble_ver, sizeof(resp->ble_ver));
+      resp->has_onekey_ble_version = true;
+      strlcpy(resp->onekey_ble_version, ble_ver,
+              sizeof(resp->onekey_ble_version));
+    }
   }
   if (ble_switch_state()) {
     resp->has_ble_enable = true;

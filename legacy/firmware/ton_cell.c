@@ -105,8 +105,10 @@ bool ton_create_jetton_transfer_body(uint8_t dest_workchain, uint8_t* dest_hash,
 }
 
 bool build_message_ref(bool is_bounceable, uint8_t dest_workchain,
-                       uint8_t* dest_hash, uint64_t value, CellRef_t* payload, bool is_jetton, 
-                       const char* payload_str, BitString_t* payload_bits, CellRef_t* payload_ref, CellRef_t* out_message_ref) {
+                       uint8_t* dest_hash, uint64_t value, CellRef_t* payload,
+                       bool is_jetton, const char* payload_str,
+                       BitString_t* payload_bits, CellRef_t* payload_ref,
+                       CellRef_t* out_message_ref) {
   BitString_t bits;
   bitstring_init(&bits);
 
@@ -134,34 +136,34 @@ bool build_message_ref(bool is_bounceable, uint8_t dest_workchain,
     return ton_hash_cell(&bits, NULL, 0, out_message_ref);
 
   } else if (payload != NULL) {
-      // check if raw data inline
-      // if (false) {
-      if (bits.data_cursor + payload_bits->data_cursor <= 1023 && !is_jetton) {
-        bitstring_write_bit(&bits, 0);  // no state-init
-        bitstring_write_bit(&bits, 0);  // body in line
-        
-        for (int i = 0; i < payload_bits->data_cursor; i++) {
-          int src_byte = i / 8;
-          int src_bit = 7 - (i % 8);
-          int src_value = (payload_bits->data[src_byte] >> src_bit) & 1;
-          bitstring_write_bit(&bits, src_value);
-        }
-        
-        // append payload ref in message ref
-        if (payload->max_depth > 0) {
-          struct CellRef_t refs[1] = {*payload_ref};
-          return ton_hash_cell(&bits, refs, 1, out_message_ref);
+    // check if raw data inline
+    // if (false) {
+    if (bits.data_cursor + payload_bits->data_cursor <= 1023 && !is_jetton) {
+      bitstring_write_bit(&bits, 0);  // no state-init
+      bitstring_write_bit(&bits, 0);  // body in line
 
-        } else {
-          return ton_hash_cell(&bits, NULL, 0, out_message_ref);
-        }
+      for (int i = 0; i < payload_bits->data_cursor; i++) {
+        int src_byte = i / 8;
+        int src_bit = 7 - (i % 8);
+        int src_value = (payload_bits->data[src_byte] >> src_bit) & 1;
+        bitstring_write_bit(&bits, src_value);
+      }
+
+      // append payload ref in message ref
+      if (payload->max_depth > 0) {
+        struct CellRef_t refs[1] = {*payload_ref};
+        return ton_hash_cell(&bits, refs, 1, out_message_ref);
 
       } else {
-        bitstring_write_bit(&bits, 0);  // no state-init
-        bitstring_write_bit(&bits, 1);  // body in ref
+        return ton_hash_cell(&bits, NULL, 0, out_message_ref);
+      }
 
-        struct CellRef_t refs[1] = {*payload};
-        return ton_hash_cell(&bits, refs, 1, out_message_ref);
+    } else {
+      bitstring_write_bit(&bits, 0);  // no state-init
+      bitstring_write_bit(&bits, 1);  // body in ref
+
+      struct CellRef_t refs[1] = {*payload};
+      return ton_hash_cell(&bits, refs, 1, out_message_ref);
     }
   } else {
     bitstring_write_bit(&bits, 0);  // no state-init
@@ -171,18 +173,18 @@ bool build_message_ref(bool is_bounceable, uint8_t dest_workchain,
   }
 }
 
-bool ton_create_message_digest(uint32_t expire_at, uint32_t seqno,
-                               bool is_bounceable, uint8_t dest_workchain,
-                               uint8_t* dest_hash, uint64_t value, uint8_t mode,
-                               CellRef_t* payload, bool is_jetton, const char* payload_str,
-                               BitString_t* payload_bits, CellRef_t* payload_ref, const char** ext_dest,
-                               const uint64_t* ext_ton_amount,
-                               const char** ext_payload, uint8_t ext_dest_count,
-                               uint8_t* digest) {
+bool ton_create_message_digest(
+    uint32_t expire_at, uint32_t seqno, bool is_bounceable,
+    uint8_t dest_workchain, uint8_t* dest_hash, uint64_t value, uint8_t mode,
+    CellRef_t* payload, bool is_jetton, const char* payload_str,
+    BitString_t* payload_bits, CellRef_t* payload_ref, const char** ext_dest,
+    const uint64_t* ext_ton_amount, const char** ext_payload,
+    uint8_t ext_dest_count, uint8_t* digest) {
   // Build Internal Message
   struct CellRef_t internalMessageRef;
   if (!build_message_ref(is_bounceable, dest_workchain, dest_hash, value,
-                         payload, is_jetton, payload_str, payload_bits, payload_ref, &internalMessageRef)) {
+                         payload, is_jetton, payload_str, payload_bits,
+                         payload_ref, &internalMessageRef)) {
     return false;
   }
 
@@ -218,11 +220,11 @@ bool ton_create_message_digest(uint32_t expire_at, uint32_t seqno,
       memset(&ext_payload_ref, 0, sizeof(CellRef_t));
     }
 
-    if (!build_message_ref(parsed_addr.is_bounceable,
-                           (uint8_t)parsed_addr.workchain, parsed_addr.hash,
-                           ext_ton_amount[i],
-                           ext_payload[i] ? &ext_payload_ref : NULL, false, NULL, NULL,
-                           NULL, &extMessageRefs[ext_message_count])) {
+    if (!build_message_ref(
+            parsed_addr.is_bounceable, (uint8_t)parsed_addr.workchain,
+            parsed_addr.hash, ext_ton_amount[i],
+            ext_payload[i] ? &ext_payload_ref : NULL, false, NULL, NULL, NULL,
+            &extMessageRefs[ext_message_count])) {
       return false;
     }
     ext_message_count++;
@@ -292,7 +294,8 @@ void set_top_upped_array(uint8_t* array, size_t array_len,
 }
 
 bool ton_parse_boc(const uint8_t* input_boc, size_t input_boc_len,
-                   CellRef_t* payload, BitString_t* payload_bits, CellRef_t* payload_ref) {
+                   CellRef_t* payload, BitString_t* payload_bits,
+                   CellRef_t* payload_ref) {
   if (input_boc_len < 5 || input_boc_len > 1024) {
     return false;
   }

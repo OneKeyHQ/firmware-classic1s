@@ -1131,6 +1131,7 @@ void fsm_msgSignPsbt(const SignPsbt *msg) {
     return;
   }
 
+  sig_hasher_final(&hasher);
   for (int i = 0; i < psbt.inputs_len; i++) {
     PartiallySignedInput *input = &psbt.inputs[i];
     if (input->tap_bip32_path_lookuped) {
@@ -1156,7 +1157,6 @@ void fsm_msgSignPsbt(const SignPsbt *msg) {
           coin->curve_name, input->tap_bip32_path.key_origin.path,
           input->tap_bip32_path.key_origin.path_len, NULL);
       if (!s_node) return;
-      sig_hasher_final(&hasher);
       sig_hasher_hash_341(&hasher, i, SIGHASH_ALL_TAPROOT, sigmsg_digest,
                           psbt.tx_version, locktime,
                           script_path_spending ? leaf_hash : NULL);
