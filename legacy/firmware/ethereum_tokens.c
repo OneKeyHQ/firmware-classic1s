@@ -5,7 +5,7 @@
 #include <string.h>
 #include "ethereum.h"
 
-#define TOKENS_COUNT 24
+#define TOKENS_COUNT 33
 
 static const EthereumTokenInfo tokens[TOKENS_COUNT] = {
     {
@@ -222,6 +222,87 @@ static const EthereumTokenInfo tokens[TOKENS_COUNT] = {
                     .bytes = "\x2c\x89\xbb\xc9\x2b\xd8\x6f\x80\x75\xd1\xde\xcc"
                              "\x58\xc7\xf4\xe0\x10\x7f\x28\x6b"},
         .chain_id = 137,
+        .name = "",
+    },
+    {
+        .symbol = "HLT",
+        .decimals = 2,
+        .address = {.size = 20,
+                    .bytes = "\xE5\x2a\x73\x68\x28\xc7\x82\xC2\xa4\xA3\x45\xbB"
+                             "\xE8\x05\x2a\xed\x01\x0f\xc8\x2D"},
+        .chain_id = 9798,
+        .name = "",
+    },
+    {
+        .symbol = "BV",
+        .decimals = 2,
+        .address = {.size = 20,
+                    .bytes = "\x8E\x79\x85\x0C\x50\xE5\x25\xeB\x6B\xa6\x3e\x60"
+                             "\x1E\x7b\x41\x88\x8A\x1c\x91\x02"},
+        .chain_id = 9798,
+        .name = "",
+    },
+    {
+        .symbol = "dUSDT",
+        .decimals = 6,
+        .address = {.size = 20,
+                    .bytes = "\x36\xE6\x50\x4c\x96\x8f\x5C\x2A\x31\x0B\x6A\xF7"
+                             "\xB9\x7B\xC2\x2c\xdd\x34\x02\xcc"},
+        .chain_id = 9798,
+        .name = "",
+    },
+    {
+        .symbol = "dBTC",
+        .decimals = 8,
+        .address = {.size = 20,
+                    .bytes = "\xE8\x95\xc5\x77\xD7\x47\xbB\x5d\xbB\xc1\xF0\x6c"
+                             "\xb4\x4d\x60\x67\x68\x0b\xE4\xbe"},
+        .chain_id = 9798,
+        .name = "",
+    },
+    {
+        .symbol = "dETH",
+        .decimals = 18,
+        .address = {.size = 20,
+                    .bytes = "\x8B\x71\x60\xC1\xE9\xfD\xb6\x89\xA0\x60\xFF\x09"
+                             "\x19\xE8\x49\x15\xB0\xdF\xa0\x4a"},
+        .chain_id = 9798,
+        .name = "",
+    },
+    {
+        .symbol = "DOS",
+        .decimals = 2,
+        .address = {.size = 20,
+                    .bytes = "\x74\x5C\x11\xFb\x47\x83\xBd\x00\xA8\x8a\x0B\x99"
+                             "\x42\x02\x62\xf4\x09\xFA\x8B\xb8"},
+        .chain_id = 9798,
+        .name = "",
+    },
+    {
+        .symbol = "CNV",
+        .decimals = 2,
+        .address = {.size = 20,
+                    .bytes = "\x89\x9f\x0B\x9d\x67\xDD\x1B\x83\x3f\xda\xa9\x0c"
+                             "\x8b\x09\xea\x61\x6d\x0e\x9E\x98"},
+        .chain_id = 9798,
+        .name = "",
+    },
+    {
+        .symbol = "FEC",
+        .decimals = 4,
+        .address = {.size = 20,
+                    .bytes = "\xb8\x8a\xd7\x67\xB4\x16\x19\x7e\x62\x93\x9d\xEc"
+                             "\x20\x74\x31\xb5\x61\xA9\x38\x3B"},
+        .chain_id = 9798,
+        .name = "",
+    },
+    {
+        .symbol = "STC08375",
+        .decimals = 0,
+        .address = {.size = 20,
+                    .bytes = "\x6d\x88\x5b\x0B\x37\xC6\x2B\xe0\xc7\x2E\xcd\x6a"
+                             "\x61\xAf\x2b\xfF\xf6\x81\x41\x9e"},
+        .chain_id = 9798,
         .name = "",
     },
 };
