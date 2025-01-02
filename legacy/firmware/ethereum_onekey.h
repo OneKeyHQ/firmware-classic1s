@@ -83,6 +83,9 @@ bool ethereum_parse_onekey(const char *address, uint8_t pubkeyhash[20]);
     case 42170:                                    \
       chain_name = "Arbitrum Nova";                \
       break;                                       \
+    case 9798:                                     \
+      chain_name = "DTC";                          \
+      break;                                       \
     default:                                       \
       chain_name = "EVM";                          \
       break; /* unknown chain */                   \

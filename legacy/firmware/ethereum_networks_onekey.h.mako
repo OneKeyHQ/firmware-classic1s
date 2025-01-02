@@ -35,6 +35,7 @@ def align_suffix(n):
 % for n in networks:
     case ${align_chain_id(n)}: suffix = ${align_suffix(n)} break;  /* ${n.name} */ ${BKSL}
 % endfor
+    case ${"{:>{w}}".format(9798, w=max_chain_id_length)}: suffix = " DTT";     break;  /* DTC */ ${BKSL}
     default: suffix = " UNKN"; break;  /* unknown chain */ ${BKSL}
   }
 
@@ -43,6 +44,7 @@ static bool is_ethereum_slip44(uint32_t slip44) {
 % for slip44 in sorted(set(n.slip44 for n in networks)):
     case ${slip44}:
 % endfor
+    case 9798:
       return true;
     default:
       return false;
@@ -54,6 +56,7 @@ static int32_t ethereum_slip44_by_chain_id(uint64_t chain_id) {
 % for n in networks:
     case ${align_chain_id(n)}: return ${align_slip44(n)};  /* ${n.name} */
 % endfor
+    case ${"{:>{w}}".format(9798, w=max_chain_id_length)}: return ${"{:>{w}}".format(9798, w=max_slip44_length)};  /* DTC */
     default: return SLIP44_UNKNOWN;  /* unknown chain */
   }
 }
