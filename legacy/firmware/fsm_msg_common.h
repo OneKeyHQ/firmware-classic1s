@@ -189,9 +189,14 @@ bool get_features(Features *resp) {
     }
   }
 #ifdef BUILD_ID
+#define BUILD_ID_LEN sizeof(BUILD_ID) - 1
+  _Static_assert(BUILD_ID_LEN >= 7, "build_id_len is less than 7");
+  _Static_assert(sizeof(resp->onekey_firmware_build_id) >= 7,
+                 "buffer is too small");
   resp->has_onekey_firmware_build_id = true;
-  strlcpy(resp->onekey_firmware_build_id, BUILD_ID,
-          sizeof(resp->onekey_firmware_build_id));
+  const char *full_build_id = BUILD_ID;
+  strlcpy(resp->onekey_firmware_build_id, full_build_id + (BUILD_ID_LEN - 7),
+          7);
 #endif
 #if !EMULATOR
   resp->has_onekey_boot_version = true;

@@ -74,7 +74,8 @@ void data2hexaddr(const uint8_t *data, uint32_t len, char *str);
 int hex2data(const char *hexStr, unsigned char *output,
              unsigned int *outputLen);
 
-void uint2str(uint32_t num, char *str);
+void uint2str(uint64_t num, char *str);
+void int2str(int64_t num, char *str);
 uint32_t version_string_to_int(const char *version_str);
 
 bool bracket_replace(char *orig, const char *with);
