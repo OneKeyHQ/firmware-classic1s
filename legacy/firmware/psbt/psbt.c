@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <string.h>
 #include "hasher.h"
+#include "util.h"
 
 static const uint8_t PSBT_MAGIC_BYTES[5] = {'p', 's', 'b', 't', 0xff};
 
@@ -50,37 +51,6 @@ const uint8_t PSBT_OUT_TAP_INTERNAL_KEY = 0x05;
 const uint8_t PSBT_OUT_TAP_TREE = 0x06;
 const uint8_t PSBT_OUT_TAP_BIP32_DERIVATION = 0x07;
 
-void init_buffer_reader(BufferReader* reader, const uint8_t* buffer,
-                        size_t length) {
-  reader->buffer = buffer;
-  reader->length = length;
-  reader->position = 0;
-}
-void init_buffer_writer(BufferWriter* writer, uint8_t* buffer, size_t length) {
-  writer->buffer = buffer;
-  writer->length = length;
-  writer->position = 0;
-}
-int read_bytes(BufferReader* reader, uint8_t* dest, size_t count) {
-  if (reader->position + count > reader->length) {
-    return 0;
-  }
-  memcpy(dest, reader->buffer + reader->position, count);
-  reader->position += count;
-  return 1;
-}
-int write_bytes(const uint8_t* src, size_t count, BufferWriter* writer) {
-  if (writer->buffer == NULL && writer->length == 0) {
-    writer->position += count;
-    return 1;
-  }
-  if (writer->position + count > writer->length) {
-    return 0;
-  }
-  memcpy(writer->buffer + writer->position, src, count);
-  writer->position += count;
-  return 1;
-}
 uint64_t deser_compact_size(BufferReader* s) {
   uint8_t first;
   if (!read_bytes(s, &first, 1)) {
@@ -209,7 +179,7 @@ bool deser_transaction(BufferReader* reader, CTransaction* tx) {
     if (flag == 0) return false;  // flag must be 1
     vin_count = deser_compact_size(reader);
   }
-  if (vin_count == 0 || vin_count > sizeof(tx->vin)) {
+  if (vin_count == 0 || vin_count > MAX_INPUTS) {
     return false;
   }
   tx->vin_len = vin_count;
@@ -221,7 +191,7 @@ bool deser_transaction(BufferReader* reader, CTransaction* tx) {
 
   // Read output count
   uint64_t vout_count = deser_compact_size(reader);
-  if (vout_count > sizeof(tx->vout)) {
+  if (vout_count > MAX_OUTPUTS) {
     return false;
   }
   tx->vout_len = vout_count;
@@ -261,9 +231,11 @@ bool deser_hd_keypath(BufferReader* key_origin_info_reader,
 bool deser_tap_bip32_derivation(BufferReader* reader,
                                 TAP_BIP32_DERIVATION* tap_bip32_derivation) {
   BufferReader value_reader = {0};
-  deser_string_to_buffer_reader(reader, &value_reader);
+  if (!deser_string_to_buffer_reader(reader, &value_reader)) return false;
   uint64_t num_hashes = deser_compact_size(&value_reader);
-  if (num_hashes > 10) return false;
+  if (num_hashes > (sizeof(tap_bip32_derivation->tap_leaf_hashs) /
+                    sizeof(tap_bip32_derivation->tap_leaf_hashs[0])))
+    return false;
   for (size_t i = 0; i < num_hashes; i++) {
     if (!read_bytes(&value_reader, tap_bip32_derivation->tap_leaf_hashs[i], 32))
       return false;
@@ -361,7 +333,7 @@ bool deser_psbt_input(BufferReader* reader, PartiallySignedInput* input) {
       case PSBT_IN_NON_WITNESS_UTXO:
         if (input->non_witness_utxo_lookuped || key_len > 1) return false;
         BufferReader tx_reader = {0};
-        deser_string_to_buffer_reader(reader, &tx_reader);
+        if (!deser_string_to_buffer_reader(reader, &tx_reader)) return false;
         if (!deser_transaction(&tx_reader, &input->non_witness_utxo))
           return false;
         input->non_witness_utxo_lookuped = true;
@@ -369,12 +341,13 @@ bool deser_psbt_input(BufferReader* reader, PartiallySignedInput* input) {
       case PSBT_IN_WITNESS_UTXO:
         if (input->witness_utxo_lookuped || key_len > 1) return false;
         BufferReader out_reader = {0};
-        deser_string_to_buffer_reader(reader, &out_reader);
+        if (!deser_string_to_buffer_reader(reader, &out_reader)) return false;
         if (!deser_ctx_out(&out_reader, &input->witness_utxo)) return false;
         input->witness_utxo_lookuped = true;
         break;
       case PSBT_IN_PARTIAL_SIG:
         // TODO: check the duplicate partial_sig
+        if (input->partial_sigs_len >= MAX_INPUTS - 1) return false;
         if (!deser_partial_sig(reader, &key_reader,
                                &input->partial_sigs[input->partial_sigs_len]))
           return false;
@@ -409,17 +382,15 @@ bool deser_psbt_input(BufferReader* reader, PartiallySignedInput* input) {
         input->witness_script_lookuped = true;
         break;
       case PSBT_IN_BIP32_DERIVATION:
-        if (key_len != 34 && key_len != 66) return false;
-        if (!read_bytes(
-                &key_reader,
-                (uint8_t*)input->hd_keypaths[input->hd_keypaths_len].pubkey,
-                key_len - 1))
+        if (input->bip32_path_lookuped || (key_len != 34 && key_len != 66))
           return false;
-        input->hd_keypaths[input->hd_keypaths_len].pubkey_len = key_len - 1;
-        if (!deser_hd_keypath(
-                reader, &input->hd_keypaths[input->hd_keypaths_len].key_origin))
+        if (!read_bytes(&key_reader, (uint8_t*)input->bip32_path.pubkey,
+                        key_len - 1))
           return false;
-        input->hd_keypaths_len++;
+        input->bip32_path.pubkey_len = key_len - 1;
+        if (!deser_hd_keypath(reader, &input->bip32_path.key_origin))
+          return false;
+        input->bip32_path_lookuped = true;
         break;
       case PSBT_IN_FINAL_SCRIPTSIG:
         // ignore
@@ -565,18 +536,15 @@ bool deser_psbt_output(BufferReader* reader, PartiallySignedOutput* output) {
         output->witness_script_lookuped = true;
         break;
       case PSBT_OUT_BIP32_DERIVATION:
-        if (key_len != 34 && key_len != 66) return false;
-        if (!read_bytes(
-                &key_reader,
-                (uint8_t*)output->hd_keypaths[output->hd_keypaths_len].pubkey,
-                key_len - 1))
+        if (output->bip32_path_lookuped || (key_len != 34 && key_len != 66))
           return false;
-        output->hd_keypaths[output->hd_keypaths_len].pubkey_len = key_len - 1;
-        if (!deser_hd_keypath(
-                reader,
-                &output->hd_keypaths[output->hd_keypaths_len].key_origin))
+        if (!read_bytes(&key_reader, (uint8_t*)output->bip32_path.pubkey,
+                        key_len - 1))
           return false;
-        output->hd_keypaths_len++;
+        output->bip32_path.pubkey_len = key_len - 1;
+        if (!deser_hd_keypath(reader, &output->bip32_path.key_origin))
+          return false;
+        output->bip32_path_lookuped = true;
         break;
       case PSBT_OUT_AMOUNT:
         if (output->amount_lookuped || key_len > 1) return false;
@@ -700,21 +668,19 @@ bool ser_psbt_input(BufferWriter* writer, const PartiallySignedInput* input) {
       if (!ser_string(input->witness_script, input->witness_script_len, writer))
         return false;
     }
-    for (size_t i = 0; i < input->hd_keypaths_len; i++) {
+    if (input->bip32_path_lookuped && input->bip32_path.pubkey_len > 0) {
       uint8_t key[66] = {0};
-      uint8_t key_len = input->hd_keypaths[i].pubkey_len + 1;
+      uint8_t key_len = input->bip32_path.pubkey_len + 1;
       key[0] = PSBT_IN_BIP32_DERIVATION;
-      memcpy(key + 1, input->hd_keypaths[i].pubkey,
-             input->hd_keypaths[i].pubkey_len);
+      memcpy(key + 1, input->bip32_path.pubkey, input->bip32_path.pubkey_len);
       if (!ser_string(key, key_len, writer)) return false;
       BufferWriter dummy_writer = {0};
       init_buffer_writer(&dummy_writer, NULL, 0);
-      if (!ser_key_origin(&input->hd_keypaths[i].key_origin, &dummy_writer))
+      if (!ser_key_origin(&input->bip32_path.key_origin, &dummy_writer))
         return false;
       if (dummy_writer.position % 4 != 0) return false;
       if (!ser_compact_size(dummy_writer.position, writer)) return false;
-      if (!ser_key_origin(&input->hd_keypaths[i].key_origin, writer))
-        return false;
+      if (!ser_key_origin(&input->bip32_path.key_origin, writer)) return false;
     }
     if (input->tap_key_sig_len != 0) {
       if (!ser_string((uint8_t*)&PSBT_IN_TAP_KEY_SIG, 1, writer)) return false;
@@ -816,21 +782,19 @@ bool ser_psbt_output(BufferWriter* writer,
     if (!ser_string(output->witness_script, output->witness_script_len, writer))
       return false;
   }
-  for (size_t i = 0; i < output->hd_keypaths_len; i++) {
+  if (output->bip32_path_lookuped && output->bip32_path.pubkey_len > 0) {
     uint8_t key[66] = {0};
-    uint8_t key_len = output->hd_keypaths[i].pubkey_len + 1;
+    uint8_t key_len = output->bip32_path.pubkey_len + 1;
     key[0] = PSBT_OUT_BIP32_DERIVATION;
-    memcpy(key + 1, output->hd_keypaths[i].pubkey,
-           output->hd_keypaths[i].pubkey_len);
+    memcpy(key + 1, output->bip32_path.pubkey, output->bip32_path.pubkey_len);
     if (!ser_string(key, key_len, writer)) return false;
     BufferWriter dummy_writer = {0};
     init_buffer_writer(&dummy_writer, NULL, 0);
-    if (!ser_key_origin(&output->hd_keypaths[i].key_origin, &dummy_writer))
+    if (!ser_key_origin(&output->bip32_path.key_origin, &dummy_writer))
       return false;
     if (dummy_writer.position % 4 != 0) return false;
     if (!ser_compact_size(dummy_writer.position, writer)) return false;
-    if (!ser_key_origin(&output->hd_keypaths[i].key_origin, writer))
-      return false;
+    if (!ser_key_origin(&output->bip32_path.key_origin, writer)) return false;
   }
   if (output->version >= 2) {
     if (!ser_string((uint8_t*)&PSBT_OUT_AMOUNT, 1, writer)) return false;
@@ -894,20 +858,23 @@ bool psbt_deserialize(const uint8_t* psbt_bytes, size_t psbt_len, PSBT* psbt) {
       case PSBT_GLOBAL_UNSIGNED_TX:
         if (psbt->tx_lookuped || key_len > 1) return false;
         BufferReader tx_reader = {0};
-        deser_string_to_buffer_reader(&reader, &tx_reader);
-        deser_transaction(&tx_reader, &psbt->tx);
+        if (!deser_string_to_buffer_reader(&reader, &tx_reader)) return false;
+        if (!deser_transaction(&tx_reader, &psbt->tx)) return false;
         psbt->tx_lookuped = true;
         break;
       case PSBT_GLOBAL_XPUB:
         // not support
         return false;
         if (key_reader.length != 79) return false;
+        if (psbt->xpubs_len >= (sizeof(psbt->xpubs) / sizeof(psbt->xpubs[0])))
+          return false;
         if (!read_bytes(&key_reader, psbt->xpubs[psbt->xpubs_len].pubkey, 78)) {
           return false;
         }
         psbt->xpubs[psbt->xpubs_len].pubkey_len = 78;
         BufferReader key_origin_reader = {0};
-        deser_string_to_buffer_reader(&reader, &key_origin_reader);
+        if (!deser_string_to_buffer_reader(&reader, &key_origin_reader))
+          return false;
         if (!deser_hd_keypath(&key_origin_reader,
                               &psbt->xpubs[psbt->xpubs_len].key_origin))
           return false;
@@ -933,7 +900,7 @@ bool psbt_deserialize(const uint8_t* psbt_bytes, size_t psbt_len, PSBT* psbt) {
         if (psbt->inputs_len_lookuped || key_len > 1) return false;
         deser_compact_size(&reader);
         uint16_t inputs_len = deser_compact_size(&reader);
-        if (inputs_len > 10) return false;
+        if (inputs_len > MAX_INPUTS) return false;
         psbt->inputs_len = inputs_len;
         break;
       case PSBT_GLOBAL_OUTPUT_COUNT:
@@ -941,7 +908,7 @@ bool psbt_deserialize(const uint8_t* psbt_bytes, size_t psbt_len, PSBT* psbt) {
         if (psbt->outputs_len_lookuped || key_len > 1) return false;
         deser_compact_size(&reader);
         uint16_t outputs_len = deser_compact_size(&reader);
-        if (outputs_len > 5) return false;
+        if (outputs_len > MAX_OUTPUTS) return false;
         psbt->outputs_len = outputs_len;
         break;
       case PSBT_GLOBAL_TX_MODIFIABLE:
@@ -1005,7 +972,7 @@ bool psbt_deserialize(const uint8_t* psbt_bytes, size_t psbt_len, PSBT* psbt) {
       uint8_t tx_buffer[1024] = {0};
       uint8_t calc_prev_txid[32] = {0};
       init_buffer_writer(&tx_writer, tx_buffer, sizeof(tx_buffer));
-      ser_transaction(&tx_writer, &input->non_witness_utxo);
+      if (!ser_transaction(&tx_writer, &input->non_witness_utxo)) return false;
       hasher_Raw(HASHER_SHA2D, tx_buffer, tx_writer.position, calc_prev_txid);
       if (memcmp(calc_prev_txid, prev_txid, 32) != 0) return false;
     }
@@ -1122,8 +1089,6 @@ bool psbt_serialize(const PSBT* psbt, uint8_t* buffer, size_t buffer_size,
   *psbt_size = writer.position;
   return true;
 }
-
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 bool locktime_disabled(const PSBT* psbt) {
   for (size_t i = 0; i < psbt->inputs_len; i++) {

@@ -1055,9 +1055,9 @@ void fsm_msgSignPsbt(const SignPsbt *msg) {
       return;
     }
     if (!is_wit || (is_wit && witness_version == 0)) {
-      for (size_t j = 0; j < output->hd_keypaths_len; j++) {
+      if (output->bip32_path_lookuped) {
         uint8_t mfp[4] = {0};
-        memcpy(mfp, output->hd_keypaths[j].key_origin.fingerprint, 4);
+        memcpy(mfp, output->bip32_path.key_origin.fingerprint, 4);
         uint32_t mfp_u32 = mfp[0] << 24 | mfp[1] << 16 | mfp[2] << 8 | mfp[3];
         CHECK_PARAM(mfp_u32 == root_fingerprint,
                     "invalid psbt, fingerprint mismatch");
