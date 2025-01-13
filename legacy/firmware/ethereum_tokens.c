@@ -5,7 +5,7 @@
 #include <string.h>
 #include "ethereum.h"
 
-#define TOKENS_COUNT 33
+#define TOKENS_COUNT 38
 
 static const EthereumTokenInfo tokens[TOKENS_COUNT] = {
     {
@@ -207,6 +207,15 @@ static const EthereumTokenInfo tokens[TOKENS_COUNT] = {
         .name = "",
     },
     {
+        .symbol = "HSK",
+        .decimals = 18,
+        .address = {.size = 20,
+                    .bytes = "\xe7\xc6\xbf\x46\x9e\x97\xee\xb0\xbf\xb7\x4c\x8d"
+                             "\xbf\xf5\xbd\x47\xd4\xc1\xc9\x8a"},
+        .chain_id = 1,
+        .name = "",
+    },
+    {
         .symbol = "ATOM",
         .decimals = 18,
         .address = {.size = 20,
@@ -223,6 +232,42 @@ static const EthereumTokenInfo tokens[TOKENS_COUNT] = {
                              "\x58\xc7\xf4\xe0\x10\x7f\x28\x6b"},
         .chain_id = 137,
         .name = "",
+    },
+    {
+        .symbol = "WHSK",
+        .decimals = 18,
+        .address = {.size = 20,
+                    .bytes = "\xb2\x10\xd2\x12\x0d\x57\xb7\x58\xee\x16\x3c\xff"
+                             "\xb4\x3e\x73\x72\x8c\x47\x1c\xf1"},
+        .chain_id = 177,
+        .name = "Wrapped HSK",
+    },
+    {
+        .symbol = "WETH",
+        .decimals = 18,
+        .address = {.size = 20,
+                    .bytes = "\xef\xd4\xbc\x9a\xfd\x21\x05\x17\x80\x3f\x29\x3a"
+                             "\xba\xbd\x70\x1c\xae\xec\xdf\xd0"},
+        .chain_id = 177,
+        .name = "Wrapped ETH",
+    },
+    {
+        .symbol = "USDT",
+        .decimals = 6,
+        .address = {.size = 20,
+                    .bytes = "\xf1\xb5\x0e\xd6\x7a\x9e\x2c\xc9\x4a\xd3\xc4\x77"
+                             "\x77\x9e\x2d\x4c\xbf\xff\x90\x29"},
+        .chain_id = 177,
+        .name = "",
+    },
+    {
+        .symbol = "WBTC",
+        .decimals = 8,
+        .address = {.size = 20,
+                    .bytes = "\x61\x19\xca\x49\xa7\x9f\x58\x25\xc8\xb3\x45\xf8"
+                             "\xd7\xac\x36\xb2\x72\x56\x5b\x14"},
+        .chain_id = 177,
+        .name = "Wrapped BTC",
     },
     {
         .symbol = "HLT",
