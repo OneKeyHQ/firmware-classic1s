@@ -324,19 +324,25 @@ uint8_t refreshBleIcon(bool force_flag) {
   static bool ble_icon_status_old = false;
   static bool usb_status = false;
   uint8_t ret = 0;
+  int offset_x = 16;
   usb_status = sys_usbState();
+
+  if (ble_hw_ver_is_pure()) {
+    // pure version has no battery icon
+    offset_x = 0;
+  }
 
   if (ble_get_switch() == true) {
     if (sys_bleState() == true) {
       if (force_flag || false == ble_conn_status_old) {
         ble_conn_status_old = true;
-        oledClearBitmap(OLED_WIDTH - 2 * LOGO_WIDTH - 16, 0,
+        oledClearBitmap(OLED_WIDTH - 2 * LOGO_WIDTH - offset_x, 0,
                         &bmp_status_ble_connect);
         if (usb_status) {
-          oledDrawBitmap(OLED_WIDTH - 2 * LOGO_WIDTH - 16, 0,
+          oledDrawBitmap(OLED_WIDTH - 2 * LOGO_WIDTH - offset_x, 0,
                          &bmp_status_ble_connect);
         } else {
-          oledDrawBitmap(OLED_WIDTH - LOGO_WIDTH - 16, 0,
+          oledDrawBitmap(OLED_WIDTH - LOGO_WIDTH - offset_x, 0,
                          &bmp_status_ble_connect);
         }
         layout_refresh = true;
@@ -346,11 +352,13 @@ uint8_t refreshBleIcon(bool force_flag) {
         ble_conn_status_old = false;
         ret = 1;
       }
-      oledClearBitmap(OLED_WIDTH - 2 * LOGO_WIDTH - 16, 0, &bmp_status_ble);
+      oledClearBitmap(OLED_WIDTH - 2 * LOGO_WIDTH - offset_x, 0,
+                      &bmp_status_ble);
       if (usb_status) {
-        oledDrawBitmap(OLED_WIDTH - 2 * LOGO_WIDTH - 16, 0, &bmp_status_ble);
+        oledDrawBitmap(OLED_WIDTH - 2 * LOGO_WIDTH - offset_x, 0,
+                       &bmp_status_ble);
       } else {
-        oledDrawBitmap(OLED_WIDTH - LOGO_WIDTH - 16, 0, &bmp_status_ble);
+        oledDrawBitmap(OLED_WIDTH - LOGO_WIDTH - offset_x, 0, &bmp_status_ble);
       }
       layout_refresh = true;
     }
@@ -362,9 +370,10 @@ uint8_t refreshBleIcon(bool force_flag) {
     }
     ble_icon_status_old = false;
     if (usb_status) {
-      oledClearBitmap(OLED_WIDTH - 2 * LOGO_WIDTH - 16, 0, &bmp_status_ble);
+      oledClearBitmap(OLED_WIDTH - 2 * LOGO_WIDTH - offset_x, 0,
+                      &bmp_status_ble);
     } else {
-      oledClearBitmap(OLED_WIDTH - LOGO_WIDTH - 16, 0, &bmp_status_ble);
+      oledClearBitmap(OLED_WIDTH - LOGO_WIDTH - offset_x, 0, &bmp_status_ble);
     }
     layout_refresh = true;
   }
@@ -401,6 +410,9 @@ void disPowerChargeTips(void) {
       _(C__SPEED_UP_CHARGING_WITH_5V_AND_200MA_CHARGE_HEAD_EXCLAM));
 }
 void disUsbConnectTips(void) {
+  if (ble_hw_ver_is_pure()) {
+    return;
+  }
   oledClear();
   if (usb_connect_status == 1) {
     disPcConnectTips();
@@ -440,6 +452,10 @@ void refreshUsbConnectTips(void) {
 }
 void disUsbConnectSomething(uint8_t force_flag) {
   static bool usb_status_old = false;
+  int offset_x = 16;
+  if (ble_hw_ver_is_pure()) {
+    offset_x = 0;
+  }
   if (sys_usbState() == false) {
     usb_connect_status = 0;
   }
@@ -448,13 +464,13 @@ void disUsbConnectSomething(uint8_t force_flag) {
 
     if (force_flag || false == usb_status_old || layoutLast == layoutHome) {
       usb_status_old = true;
-      oledClearBitmap(OLED_WIDTH - LOGO_WIDTH - 16, 0, &bmp_status_usb);
-      oledDrawBitmap(OLED_WIDTH - LOGO_WIDTH - 16, 0, &bmp_status_usb);
+      oledClearBitmap(OLED_WIDTH - LOGO_WIDTH - offset_x, 0, &bmp_status_usb);
+      oledDrawBitmap(OLED_WIDTH - LOGO_WIDTH - offset_x, 0, &bmp_status_usb);
       layout_refresh = true;
     }
   } else if (true == usb_status_old) {
     usb_status_old = false;
-    oledClearBitmap(OLED_WIDTH - LOGO_WIDTH - 16, 0, &bmp_status_usb);
+    oledClearBitmap(OLED_WIDTH - LOGO_WIDTH - offset_x, 0, &bmp_status_usb);
     layout_refresh = true;
     cur_level_dis = battery_old;
     dis_power_flag = 0;

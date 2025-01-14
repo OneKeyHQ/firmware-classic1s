@@ -28,8 +28,17 @@ enum {
   BLE_CMD_DEVICE_PUBKEY = 0x0B,
   BLE_CMD_DEVICE_SIGN = 0x0C,
   BLE_CMD_BUILD_ID = 0x0D,
-  BLE_CMD_HASH = 0x0E
+  BLE_CMD_HASH = 0x0E,
+  BLE_CMD_HW_VER = 0x0F
 };
+
+typedef enum {
+  HW_VER_INVALID = 0xFFFF,
+  HW_VER_V_1_X = 3300,
+  HW_VER_V_2_0 = 2072,
+  HW_VER_V_PURE = 984,
+  HW_VER_V_ERROR = 0,
+} HW_VER_t;
 
 enum { BLE_PBUKEY_GET = 0x00, BLE_PBUKEY_LOCK = 0x01 };
 
@@ -45,7 +54,8 @@ bool ble_get_pubkey(uint8_t *pubkey);
 bool ble_lock_pubkey(void);
 bool ble_sign_msg(uint8_t *msg, uint32_t msg_len, uint8_t *sign);
 bool ble_get_version(char **ver);
-
+bool ble_get_hw_version(HW_VER_t *ver);
+bool ble_hw_ver_is_pure(void);
 #if !EMULATOR
 
 bool ble_is_enable(void);

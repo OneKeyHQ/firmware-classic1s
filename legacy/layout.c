@@ -254,6 +254,9 @@ void layoutProgress(const char *desc, int permil) {
 
 #if !EMULATOR
 void disBatteryLevel(uint8_t cur_level) {
+  if (ble_hw_ver_is_pure()) {
+    return;
+  }
   switch (cur_level) {
     case 0:
       oledDrawBitmap(OLED_WIDTH - 16, 0, &bmp_status_battery_0);

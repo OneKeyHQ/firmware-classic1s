@@ -8,6 +8,7 @@
 static usart_msg ble_usart_msg;
 static bool get_ble_name = false;
 static bool get_ble_ver = false;
+static bool get_ble_hw_ver = false;
 static bool get_ble_battery = false;
 static bool get_ble_build_id = false;
 static bool get_ble_hash = false;
@@ -21,7 +22,7 @@ static char ble_name[BLE_NAME_LEN + 1] = {0};
 static char ble_ver[6] = {0};
 static char ble_build_id[8] = {0};
 static uint8_t ble_hash[32] = {0};
-
+static HW_VER_t ble_hw_ver = HW_VER_INVALID;
 static uint8_t ble_update_buffer[256] = {0};
 
 trans_fifo ble_update_fifo = {.p_buf = ble_update_buffer,
@@ -174,6 +175,27 @@ bool ble_get_version(char **ver) {
   return true;
 }
 
+bool ble_get_hw_version(HW_VER_t *ver) {
+  if (get_ble_hw_ver) {
+    *ver = ble_hw_ver;
+    return true;
+  }
+  ble_request_info(BLE_CMD_HW_VER);
+  uint8_t counter = 0;
+  while (!get_ble_hw_ver) {
+    counter++;
+    delay_ms(100);
+    if (counter > 20) {
+      return false;
+    }
+    ble_request_info(BLE_CMD_HW_VER);
+  }
+  *ver = ble_hw_ver;
+  return true;
+}
+
+bool ble_hw_ver_is_pure(void) { return ble_hw_ver == HW_VER_V_PURE; }
+
 bool ble_connect_state(void) { return ble_connect; }
 bool ble_name_state(void) { return get_ble_name; }
 bool ble_ver_state(void) { return get_ble_ver; }
@@ -313,6 +335,12 @@ void ble_uart_poll(uint8_t *buf) {
       if (ble_usart_msg.cmd_len == 32) {
         memcpy(ble_hash, ble_usart_msg.cmd_vale, 32);
         get_ble_hash = true;
+      }
+      break;
+    case BLE_CMD_HW_VER:
+      if (ble_usart_msg.cmd_len == 2) {
+        ble_hw_ver = ble_usart_msg.cmd_vale[1] << 8 | ble_usart_msg.cmd_vale[0];
+        get_ble_hw_ver = true;
       }
       break;
     default:
