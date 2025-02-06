@@ -5169,9 +5169,15 @@ refresh_menu:
   bubble_key = KEY_NULL;
   if (0 == index) {
     oledDrawStringAdapter(0, y, _(I__SIGNER_COLON), FONT_STANDARD);
-    bubble_key = oledDrawPageableStringAdapter(0, y + 10, signer, FONT_STANDARD,
-                                               &bmp_bottom_left_close,
-                                               &bmp_bottom_right_arrow);
+    if (strlen(signer) > 63) {
+      bubble_key = oledDrawPageableStringAdapter(
+          0, y + 10, signer, FONT_STANDARD, &bmp_bottom_left_close,
+          &bmp_bottom_right_arrow);
+    } else {
+      oledDrawStringAdapter(0, y + 10, signer, FONT_STANDARD);
+      layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
+      layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
+    }
   } else if (index == max_index - 1) {
     char message_colon[16] = {0};
     strcat(message_colon, _(MESSAGE));
@@ -5185,14 +5191,26 @@ refresh_menu:
     } else {
       data2hex(data, len, message);
     }
-    bubble_key = oledDrawPageableStringAdapter(
-        0, y + 10, message, FONT_STANDARD, &bmp_bottom_left_arrow,
-        &bmp_bottom_right_arrow);
+    if (strlen(message) > 63) {
+      bubble_key = oledDrawPageableStringAdapter(
+          0, y + 10, message, FONT_STANDARD, &bmp_bottom_left_arrow,
+          &bmp_bottom_right_arrow);
+    } else {
+      oledDrawStringAdapter(0, y + 10, message, FONT_STANDARD);
+      layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
+      layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
+    }
   } else if (index == max_index - 2 && item_name != NULL) {
     oledDrawStringAdapter(0, y, item_name, FONT_STANDARD);
-    bubble_key = oledDrawPageableStringAdapter(
-        0, y + 10, item_value, FONT_STANDARD, &bmp_bottom_left_arrow,
-        &bmp_bottom_right_arrow);
+    if (strlen(item_value) > 63) {
+      bubble_key = oledDrawPageableStringAdapter(
+          0, y + 10, item_value, FONT_STANDARD, &bmp_bottom_left_arrow,
+          &bmp_bottom_right_arrow);
+    } else {
+      oledDrawStringAdapter(0, y + 10, item_value, FONT_STANDARD);
+      layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
+      layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
+    }
   } else {
     oledDrawStringAdapter(0, y, warning_content, FONT_STANDARD);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
