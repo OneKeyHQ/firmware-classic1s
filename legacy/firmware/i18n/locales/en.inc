@@ -366,4 +366,8 @@ const char *const languages_en[] = {
     "Remove",
     "Registering...",
     "FIDO Key Registered",
+    "Solana Raw Signing",
+    "Are you sure to enable Solana Raw Signing?",
+    "This may expose you to phishing, blind signing, and unauthorized transactions. Enable only if you fully understand the risks.",
+    "Risk of phishing & blind signing. Proceed only if you trust the source.",
 };

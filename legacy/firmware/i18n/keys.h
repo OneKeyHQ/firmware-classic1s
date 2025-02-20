@@ -760,5 +760,14 @@
 #define FIDO_KEY_REGISTERING_TITLE 365
 // FIDO Key Registered
 #define FIDO_KEY_REGISTERED_TITLE 366
+// Solana Raw Signing
+#define SECURITY__SOLANA_RAW_SIGNING_TITLE 367
+// Are you sure to enable Solana Raw Signing?
+#define SECURITY__SOLANA_RAW_SIGNING_ENABLE_TITLE 368
+// This may expose you to phishing, blind signing, and unauthorized transaction
+// s. Enable only if you fully understand the risks.
+#define SECURITY__SOLANA_RAW_SIGNING_ENABLE_DESC 369
+// Risk of phishing & blind signing. Proceed only if you trust the source.
+#define SECURITY__SOLANA_RAW_SIGNING_TX_WARNING 370
 #endif
 // clang-format on

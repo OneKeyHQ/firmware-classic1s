@@ -190,6 +190,15 @@ int compare_str_version(const char *version1, const char *version2) {
   return 0;
 }
 
+bool is_valid_ascii(const uint8_t *data, uint32_t length) {
+  for (uint32_t i = 0; i < length; i++) {
+    if (data[i] < ' ' || data[i] > '~') {
+      return false;
+    }
+  }
+  return true;
+}
+
 /**
  * Checks if data is in UTF-8 format.
  * Adapted from: https://www.cl.cam.ac.uk/~mgk25/ucs/utf8_check.c
@@ -239,6 +248,10 @@ bool is_valid_utf8(const uint8_t *data, size_t length) {
     }
   }
   return true;
+}
+
+bool is_printable(const uint8_t *data, uint32_t length) {
+  return is_valid_ascii(data, length) || is_valid_utf8(data, length);
 }
 
 void init_buffer_reader(BufferReader *reader, const uint8_t *buffer,

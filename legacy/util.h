@@ -80,7 +80,9 @@ uint32_t version_string_to_int(const char *version_str);
 
 bool bracket_replace(char *orig, const char *with);
 int compare_str_version(const char *version1, const char *version2);
+bool is_valid_ascii(const uint8_t *data, uint32_t length);
 bool is_valid_utf8(const uint8_t *data, size_t length);
+bool is_printable(const uint8_t *data, uint32_t length);
 void init_buffer_reader(BufferReader *reader, const uint8_t *buffer,
                         size_t length);
 void init_buffer_writer(BufferWriter *writer, uint8_t *buffer, size_t length);
