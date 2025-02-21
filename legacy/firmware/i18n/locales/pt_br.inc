@@ -370,4 +370,7 @@ const char *const languages_pt_br[] = {
     "Ativar Assinatura Bruta Solana?",
     "Isso pode expor você a phishing, assinaturas cegas e transações não autorizadas. Ative apenas se você compreender totalmente os riscos.",
     "Risco de phishing e assinatura cega. Prossiga apenas se confiar na fonte.",
+    "Candidato",
+    "Rede alvo",
+    "Remover voto",
 };

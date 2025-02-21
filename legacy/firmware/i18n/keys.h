@@ -769,5 +769,11 @@
 #define SECURITY__SOLANA_RAW_SIGNING_ENABLE_DESC 369
 // Risk of phishing & blind signing. Proceed only if you trust the source.
 #define SECURITY__SOLANA_RAW_SIGNING_TX_WARNING 370
+// Candidate
+#define GLOBAL_CANDIDATE 371
+// Target network
+#define GLOBAL_TARGET_NETWORK 372
+// Remove vote
+#define TITLE_REMOVE_VOTE 373
 #endif
 // clang-format on
