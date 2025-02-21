@@ -326,18 +326,26 @@ uint8_t oledDrawPageableStringAdapter(int x, int y, const char *text,
                                       const BITMAP *btn_yes_icon) {
   // NOTE: 21 is the max width of a line. CAUTION: This function uses VLA
   // (Variable Length Array). Be aware of potential stack overflow risks.
-  size_t text_len = strlen(text);
   size_t rowlen = 21;
-  int index = 0, rowcount = text_len / rowlen + 1;
+  size_t rowcount = 0, index = 0;
+
+  const char *p = text;
+
+  while (*p) {
+    const char *next = memchr(p, '\n', MIN(rowlen, strlen(p)));
+    p = next ? (next + 1) : (p + MIN(rowlen, strlen(p)));
+    rowcount++;
+  }
   if (rowcount > 3) {
     char str[rowcount][rowlen + 1];
     memzero(str, sizeof(str));
-    for (int i = 0; i < rowcount; ++i) {
-      size_t show_len = strnlen((char *)text, MIN(rowlen, text_len));
-      memcpy(str[i], (char *)text, show_len);
-      str[i][show_len] = '\0';
-      text += show_len;
-      text_len -= show_len;
+    p = text;
+    for (size_t i = 0; i < rowcount && *p; i++) {
+      const char *next = memchr(p, '\n', MIN(rowlen, strlen(p)));
+      size_t line_len = next ? (size_t)(next - p) : MIN(rowlen, strlen(p));
+      memcpy(str[i], p, line_len);
+      str[i][line_len] = '\0';
+      p = next ? (next + 1) : (p + line_len);
     }
 #if !EMULATOR
     enableLongPress(true);
