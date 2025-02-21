@@ -75,6 +75,7 @@ extern const BITMAP bmp_status_battery_3;
 extern const BITMAP bmp_status_battery_4;
 extern const BITMAP bmp_status_ble;
 extern const BITMAP bmp_status_ble_connect;
+extern const BITMAP bmp_status_charge;
 extern const BITMAP bmp_status_locked;
 extern const BITMAP bmp_status_usb;
 extern const BITMAP bmp_webauthn;

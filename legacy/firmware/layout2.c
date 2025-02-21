@@ -322,29 +322,19 @@ void getBleDevInformation(void) {
 uint8_t refreshBleIcon(bool force_flag) {
   static bool ble_conn_status_old = false;
   static bool ble_icon_status_old = false;
-  static bool usb_status = false;
   uint8_t ret = 0;
-  int offset_x = 16;
-  usb_status = sys_usbState();
 
-  if (ble_hw_ver_is_pure()) {
-    // pure version has no battery icon
-    offset_x = 0;
-  }
+  int offset_x = ble_hw_ver_is_pure() ? 0 : 16;
+
+  // usb/charge icon
+  offset_x += 2 * LOGO_WIDTH;
 
   if (ble_get_switch() == true) {
     if (sys_bleState() == true) {
       if (force_flag || false == ble_conn_status_old) {
         ble_conn_status_old = true;
-        oledClearBitmap(OLED_WIDTH - 2 * LOGO_WIDTH - offset_x, 0,
-                        &bmp_status_ble_connect);
-        if (usb_status) {
-          oledDrawBitmap(OLED_WIDTH - 2 * LOGO_WIDTH - offset_x, 0,
-                         &bmp_status_ble_connect);
-        } else {
-          oledDrawBitmap(OLED_WIDTH - LOGO_WIDTH - offset_x, 0,
-                         &bmp_status_ble_connect);
-        }
+        oledDrawBitmap(OLED_WIDTH - LOGO_WIDTH - offset_x, 0,
+                       &bmp_status_ble_connect);
         layout_refresh = true;
       }
     } else if (force_flag || true == ble_icon_status_old) {
@@ -352,14 +342,7 @@ uint8_t refreshBleIcon(bool force_flag) {
         ble_conn_status_old = false;
         ret = 1;
       }
-      oledClearBitmap(OLED_WIDTH - 2 * LOGO_WIDTH - offset_x, 0,
-                      &bmp_status_ble);
-      if (usb_status) {
-        oledDrawBitmap(OLED_WIDTH - 2 * LOGO_WIDTH - offset_x, 0,
-                       &bmp_status_ble);
-      } else {
-        oledDrawBitmap(OLED_WIDTH - LOGO_WIDTH - offset_x, 0, &bmp_status_ble);
-      }
+      oledDrawBitmap(OLED_WIDTH - LOGO_WIDTH - offset_x, 0, &bmp_status_ble);
       layout_refresh = true;
     }
     ble_icon_status_old = true;
@@ -369,12 +352,7 @@ uint8_t refreshBleIcon(bool force_flag) {
       ret = 1;
     }
     ble_icon_status_old = false;
-    if (usb_status) {
-      oledClearBitmap(OLED_WIDTH - 2 * LOGO_WIDTH - offset_x, 0,
-                      &bmp_status_ble);
-    } else {
-      oledClearBitmap(OLED_WIDTH - LOGO_WIDTH - offset_x, 0, &bmp_status_ble);
-    }
+    oledClearBitmap(OLED_WIDTH - LOGO_WIDTH - offset_x, 0, &bmp_status_ble);
     layout_refresh = true;
   }
   return ret;
@@ -452,19 +430,33 @@ void refreshUsbConnectTips(void) {
 }
 void disUsbConnectSomething(uint8_t force_flag) {
   static bool usb_status_old = false;
-  int offset_x = 16;
-  if (ble_hw_ver_is_pure()) {
-    offset_x = 0;
-  }
+  static bool charge_status_old = false;
+  int offset_x = ble_hw_ver_is_pure() ? 0 : 16;
+
   if (sys_usbState() == false) {
     usb_connect_status = 0;
   }
   if (sys_usbState() == true) {
     refreshBatteryFlash();
+    if (force_flag || false == charge_status_old || layoutLast == layoutHome) {
+      charge_status_old = true;
+      oledDrawBitmap(OLED_WIDTH - LOGO_WIDTH, 0, &bmp_status_charge);
+      layout_refresh = true;
+    }
+  } else if (charge_status_old) {
+    charge_status_old = false;
+    oledClearBitmap(OLED_WIDTH - LOGO_WIDTH, 0, &bmp_status_charge);
+    layout_refresh = true;
+    cur_level_dis = battery_old;
+    dis_power_flag = 0;
+    dis_hint_timer_counter = 0;
+  }
 
+  offset_x += LOGO_WIDTH;
+
+  if (usb_connect_status) {
     if (force_flag || false == usb_status_old || layoutLast == layoutHome) {
       usb_status_old = true;
-      oledClearBitmap(OLED_WIDTH - LOGO_WIDTH - offset_x, 0, &bmp_status_usb);
       oledDrawBitmap(OLED_WIDTH - LOGO_WIDTH - offset_x, 0, &bmp_status_usb);
       layout_refresh = true;
     }
@@ -472,9 +464,7 @@ void disUsbConnectSomething(uint8_t force_flag) {
     usb_status_old = false;
     oledClearBitmap(OLED_WIDTH - LOGO_WIDTH - offset_x, 0, &bmp_status_usb);
     layout_refresh = true;
-    cur_level_dis = battery_old;
-    dis_power_flag = 0;
-    dis_hint_timer_counter = 0;
+
     layoutRefreshSet(true);
   }
 }
@@ -3803,7 +3793,7 @@ void layoutDeviceParameters(int num) {
   char bt_ver[32] = "";
   char boot_version[32] = "";
   uint8_t hash[32] = {0};
-  char hash_str[8] = {0};
+  char hash_str[12] = {0};
   const image_header *hdr = (const image_header *)FLASH_PTR(
       FLASH_FWHEADER_START);  // allow both v2 and v3 signatures
 

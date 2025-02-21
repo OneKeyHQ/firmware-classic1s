@@ -175,6 +175,8 @@ bool ble_get_version(char **ver) {
   return true;
 }
 
+bool ble_hw_ver_state(void) { return get_ble_hw_ver; }
+
 bool ble_get_hw_version(HW_VER_t *ver) {
   if (get_ble_hw_ver) {
     *ver = ble_hw_ver;

@@ -74,6 +74,7 @@ bool ble_get_switch(void);
 void ble_request_switch_state(void);
 void change_ble_sta(uint8_t mode);
 bool ble_passkey_state(void);
+bool ble_hw_ver_state(void);
 #else
 #define ble_name_state(...) false
 #define ble_ver_state(...) false
