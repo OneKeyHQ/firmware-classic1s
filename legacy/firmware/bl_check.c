@@ -53,11 +53,11 @@ static int known_bootloader(int r, const uint8_t *hash) {
   }
   if (0 ==
       memcmp(hash,
-             "\xf8\xb3\xba\x58\x52\x0a\x96\xfa\xd2\x67\x34\x42\x8a\xbd\x1d\xdb"
-             "\x53\x4e\xee\x89\x2f\x82\x3c\xbe\xe6\x85\xea\xbf\x94\xe5\x9b\x59",
+             "\x6d\x1a\x6c\x8d\x90\x74\xb2\x05\x07\x43\x1b\x84\xed\x94\xb5\x5d"
+             "\x31\x48\xe4\x32\x9a\x79\xb4\x7e\xaa\xf1\x0e\xe4\x9b\x1f\x75\xd7",
              32)) {
-    memcpy(bootloader_version, "2.0.7", strlen("2.0.7"));
-    return 1;  // 2.0.7 shipped with fw 3.7.0
+    memcpy(bootloader_version, "2.0.8", strlen("2.0.8"));
+    return 1;  // 2.0.8 shipped with fw 3.11.3
   }
   // END AUTO-GENERATED QA BOOTLOADER ENTRIES (bl_check_qa.txt)
 
@@ -92,6 +92,14 @@ static int known_bootloader(int r, const uint8_t *hash) {
              32)) {
     memcpy(bootloader_version, "2.0.7", strlen("2.0.7"));
     return 1;  // 2.0.7 shipped with fw 3.7.0
+  }
+  if (0 ==
+      memcmp(hash,
+             "\xf5\xa6\x86\x65\x92\x2e\x94\x02\x84\x18\xee\xe9\x3a\xd8\xe0\xf6"
+             "\xe1\xe9\x97\x5c\x54\x8d\x92\x55\x1a\x5c\x91\xa8\xba\xbb\x6b\x34",
+             32)) {
+    memcpy(bootloader_version, "2.0.8", strlen("2.0.8"));
+    return 1;  // 2.0.8 shipped with fw 3.11.0
   }
   // END AUTO-GENERATED BOOTLOADER ENTRIES (bl_check.txt)
   return 0;
