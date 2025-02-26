@@ -1,0 +1,11 @@
+WebAuthnCredential.id                    max_size:512
+WebAuthnCredential.rp_id                 max_size:256
+WebAuthnCredential.rp_name               max_size:64
+WebAuthnCredential.user_id               max_size:64
+WebAuthnCredential.user_name             max_size:64
+WebAuthnCredential.user_display_name     max_size:64
+WebAuthnCredentials.id_map               max_count:1 max_size:60
+
+WebAuthnCredentials.credentials             max_count:1
+
+WebAuthnAddResidentCredential.credential_id             max_size:512

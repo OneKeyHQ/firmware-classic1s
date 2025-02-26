@@ -10659,6 +10659,19 @@ class TronUnDelegateResourceContract(protobuf.MessageType):
 
 class WebAuthnListResidentCredentials(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = 800
+    FIELDS = {
+        100: protobuf.Field("index", "uint32", repeated=False, required=False, default=None),
+        101: protobuf.Field("request_list_index", "bool", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        index: Optional["int"] = None,
+        request_list_index: Optional["bool"] = None,
+    ) -> None:
+        self.index = index
+        self.request_list_index = request_list_index
 
 
 class WebAuthnAddResidentCredential(protobuf.MessageType):
@@ -10693,14 +10706,17 @@ class WebAuthnCredentials(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = 801
     FIELDS = {
         1: protobuf.Field("credentials", "WebAuthnCredential", repeated=True, required=False, default=None),
+        100: protobuf.Field("id_map", "bytes", repeated=True, required=False, default=None),
     }
 
     def __init__(
         self,
         *,
         credentials: Optional[Sequence["WebAuthnCredential"]] = None,
+        id_map: Optional[Sequence["bytes"]] = None,
     ) -> None:
         self.credentials: Sequence["WebAuthnCredential"] = credentials if credentials is not None else []
+        self.id_map: Sequence["bytes"] = id_map if id_map is not None else []
 
 
 class WebAuthnCredential(protobuf.MessageType):

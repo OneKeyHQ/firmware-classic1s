@@ -123,6 +123,9 @@ void i2c2_ev_isr() {
     i2c_disable_interrupt(I2C2, I2C_IRQ_FLAG);
     while (1) {
       sr1 = I2C_SR1(I2C2);
+      if (sr1 & I2C_SR1_ADDR) {  // EV1
+        sr2 = I2C_SR2(I2C2);     // clear flag
+      }
       if (sr1 & I2C_SR1_STOPF) {
         I2C_CR1(I2C2) |= I2C_CR1_PE;
         fifo_lockpos_set(&i2c_fifo_in);
@@ -293,4 +296,21 @@ void i2c_slave_send_ex(uint32_t data_len) {
     oledBufferResume();
     oledRefresh();
   }
+}
+
+bool i2c_slave_send_fido(uint8_t *data, uint32_t data_len) {
+  i2c_data_out_pos = 0;
+  i2c_data_outlen = data_len + 3;
+  memcpy(i2c_data_out, "fid", 3);
+  memcpy(i2c_data_out + 3, data, data_len);
+  SET_COMBUS_HIGH();
+  uint32_t start_time = timer_ms();
+  while (i2c_data_outlen > 0) {
+    if (timer_ms() - start_time > 1000) {
+      SET_COMBUS_LOW();
+      return false;
+    }
+  }
+  SET_COMBUS_LOW();
+  return true;
 }

@@ -257,6 +257,8 @@ int main(void) {
   set_thd89_session_key();
 #if !EMULATOR
   verify_ble_firmware();
+  HW_VER_t ble_hw_ver;
+  ensure(ble_get_hw_version(&ble_hw_ver) ? sectrue : secfalse, NULL);
 #endif
   if (!is_mode_unprivileged()) {
     cpu_mode = PRIVILEGED;

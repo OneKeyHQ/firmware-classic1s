@@ -30,3 +30,6 @@
 [submodule "vendor/libopencm3"]
 	path = vendor/libopencm3
 	url = https://github.com/JubiterWallet/libopencm3-gd32.git
+[submodule "vendor/tiny_cbor"]
+	path = vendor/tiny_cbor
+	url = https://github.com/intel/tinycbor.git

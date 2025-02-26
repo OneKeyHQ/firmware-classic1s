@@ -48,7 +48,7 @@ void delay_us(uint32_t uiDelay_us) {
   }
 }
 
-#define TIMER_NUM 4
+#define TIMER_NUM 5
 typedef struct {
   char name[32];
   uint32_t current;
@@ -141,3 +141,35 @@ void sys_tick_handler(void) {
 void timer_sleep_start_reset(void) { system_millis_sleep_start = 0; }
 
 uint32_t timer_get_sleep_count(void) { return system_millis_sleep_start; }
+
+typedef struct {
+  void (*callback)(void);
+  uint32_t start;
+  uint32_t last;
+  uint32_t interval;
+} loop_callback_t;
+
+static loop_callback_t loop_callback = {NULL, 0, 0, 0};
+
+void register_loop_callback(void (*callback)(void), uint32_t start,
+                            uint32_t interval) {
+  loop_callback.callback = callback;
+  loop_callback.start = start;
+  loop_callback.last = start;
+  loop_callback.interval = interval;
+}
+
+void unregister_loop_callback(void) {
+  loop_callback.callback = NULL;
+  loop_callback.start = 0;
+  loop_callback.interval = 0;
+}
+
+void loop_callback_handler(void) {
+  if (loop_callback.callback) {
+    if ((timer_ms() - loop_callback.last) >= loop_callback.interval) {
+      loop_callback.last = timer_ms();
+      loop_callback.callback();
+    }
+  }
+}

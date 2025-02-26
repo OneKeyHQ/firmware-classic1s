@@ -31,7 +31,7 @@
 #include "trans_fifo.h"
 #include "trezor.h"
 #if U2F_ENABLED
-#include "u2f.h"
+#include "fido2/ctap_trans.h"
 #endif
 #include "ble.h"
 #include "layout2.h"
@@ -318,10 +318,14 @@ static void u2f_rx_callback(usbd_device *dev, uint8_t ep) {
   (void)ep;
   static CONFIDENTIAL uint8_t buf[USB_PACKET_SIZE] __attribute__((aligned(4)));
 
-  debugLog(0, "", "u2f_rx_callback");
-  if (usbd_ep_read_packet(dev, ENDPOINT_ADDRESS_U2F_OUT, buf, sizeof(buf)) !=
-      USB_PACKET_SIZE)
-    return;
+  if (dev != NULL) {
+    if (usbd_ep_read_packet(dev, ENDPOINT_ADDRESS_U2F_OUT, buf, sizeof(buf)) !=
+        USB_PACKET_SIZE)
+      return;
+  } else {
+    memcpy(buf, packet_buf, USB_PACKET_SIZE);
+  }
+
   u2fhid_read(tiny, (const U2FHID_FRAME *)(void *)buf);
 }
 
@@ -440,11 +444,25 @@ void usbInit(void) {
 
 static void i2c_slave_poll(void) {
   uint32_t total_len, len;
-  while ((total_len = fifo_lockdata_len(&i2c_fifo_in)) > 0) {
-    memset(packet_buf, 0x00, sizeof(packet_buf));
-    len = total_len > 64 ? 64 : total_len;
-    fifo_read_lock(&i2c_fifo_in, packet_buf, len);
-    main_rx_callback(NULL, 0);
+  uint8_t header[3];
+
+  total_len = fifo_lockdata_len(&i2c_fifo_in);
+  if (total_len > 0) {
+    fifo_read_peek(&i2c_fifo_in, header, sizeof(header));
+    if (memcmp(header, "fid", 3) == 0) {
+      uint8_t *fido_data = get_ble_fido_data_ptr();
+      fifo_read_lock(&i2c_fifo_in, header, sizeof(header));
+      fifo_read_lock(&i2c_fifo_in, fido_data, total_len - 3);
+      set_ble_fido_data_len(total_len - 3);
+      ctap_ble_cmd();
+    } else {
+      while ((total_len = fifo_lockdata_len(&i2c_fifo_in)) > 0) {
+        memset(packet_buf, 0x00, sizeof(packet_buf));
+        len = total_len > 64 ? 64 : total_len;
+        fifo_read_lock(&i2c_fifo_in, packet_buf, len);
+        main_rx_callback(NULL, 0);
+      }
+    }
   }
 }
 
@@ -544,6 +562,20 @@ void usbPoll(void) {
     }
   }
 #endif
+}
+
+void usb_u2f_data_send(void) {
+  static const uint8_t *data;
+  while (1) {
+    data = u2f_out_data();
+    if (data) {
+      while (usbd_ep_write_packet(usbd_dev, ENDPOINT_ADDRESS_U2F_IN, data,
+                                  USB_PACKET_SIZE) != USB_PACKET_SIZE) {
+      }
+    } else {
+      break;
+    }
+  }
 }
 
 void usbReconnect(void) {

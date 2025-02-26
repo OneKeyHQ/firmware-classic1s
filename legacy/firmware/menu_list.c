@@ -16,7 +16,7 @@
 #include "usb.h"
 #include "util.h"
 
-bool exitBlindSignByInitialize;
+#include "fido2/resident_credential.h"
 
 static struct menu settings_menu, main_menu, security_set_menu, about_menu;
 
@@ -166,7 +166,7 @@ void menu_set_input_direction(int index) {
   config_setInputDirection(index ? true : false);
 }
 
-static struct menu_item ble_set_menu_items[] = {
+static const struct menu_item ble_set_menu_items[] = {
     {"Enable", NULL, true, menu_para_set_ble, NULL, true, NULL},
     {"Disable", NULL, true, menu_para_set_ble, NULL, true, NULL}};
 
@@ -175,11 +175,11 @@ static struct menu ble_set_menu = {
     .current = 0,
     .counts = COUNT_OF(ble_set_menu_items),
     .title = "Bluetooth",
-    .items = ble_set_menu_items,
+    .items = (struct menu_item *)ble_set_menu_items,
     .previous = &settings_menu,
 };
 
-static struct menu_item language_set_menu_items[] = {
+static const struct menu_item language_set_menu_items[] = {
     {"English", NULL, true, menu_para_set_language, NULL, true, NULL},
     {"中文 (简体)", NULL, true, menu_para_set_language, NULL, true, NULL},
     {"中文 (繁體)", NULL, true, menu_para_set_language, NULL, true, NULL},
@@ -192,11 +192,11 @@ static struct menu language_set_menu = {
     .current = 0,
     .counts = COUNT_OF(language_set_menu_items),
     .title = "Language",
-    .items = language_set_menu_items,
+    .items = (struct menu_item *)language_set_menu_items,
     .previous = &settings_menu,
 };
 
-static struct menu_item autolock_set_menu_items[] = {
+static const struct menu_item autolock_set_menu_items[] = {
     {"1", "minute", true, menu_para_set_sleep, NULL, true, NULL},
     {"2", "minutes", true, menu_para_set_sleep, NULL, true, NULL},
     {"5", "minutes", true, menu_para_set_sleep, NULL, true, NULL},
@@ -216,11 +216,11 @@ static struct menu autolock_set_menu = {
     .current = 0,
     .counts = COUNT_OF(autolock_set_menu_items),
     .title = "Auto-Lock",
-    .items = autolock_set_menu_items,
+    .items = (struct menu_item *)autolock_set_menu_items,
     .previous = &settings_menu,
 };
 
-static struct menu_item shutdown_set_menu_items[] = {
+static const struct menu_item shutdown_set_menu_items[] = {
     {"1", "minute", true, menu_para_set_shutdown, NULL, true, NULL},
     {"3", "minutes", true, menu_para_set_shutdown, NULL, true, NULL},
     {"5", "minutes", true, menu_para_set_shutdown, NULL, true, NULL},
@@ -232,11 +232,11 @@ static struct menu shutdown_set_menu = {
     .current = 0,
     .counts = COUNT_OF(shutdown_set_menu_items),
     .title = "Shutdown",
-    .items = shutdown_set_menu_items,
+    .items = (struct menu_item *)shutdown_set_menu_items,
     .previous = &settings_menu,
 };
 
-static struct menu_item usb_lock_set_menu_items[] = {
+static const struct menu_item usb_lock_set_menu_items[] = {
     {"Enable", NULL, true, menu_set_usb_lock, NULL, true, NULL},
     {"Disable", NULL, true, menu_set_usb_lock, NULL, true, NULL}};
 
@@ -245,11 +245,11 @@ static struct menu usb_lock_set_menu = {
     .current = 0,
     .counts = COUNT_OF(usb_lock_set_menu_items),
     .title = "USB Lock",
-    .items = usb_lock_set_menu_items,
+    .items = (struct menu_item *)usb_lock_set_menu_items,
     .previous = &settings_menu,
 };
 
-static struct menu_item input_direction_set_menu_items[] = {
+static const struct menu_item input_direction_set_menu_items[] = {
     {"Default", NULL, true, menu_set_input_direction, NULL, true, NULL},
     {"Reverse", NULL, true, menu_set_input_direction, NULL, true, NULL}};
 
@@ -258,11 +258,11 @@ static struct menu input_direction_set_menu = {
     .current = 0,
     .counts = COUNT_OF(input_direction_set_menu_items),
     .title = "Input Direction",
-    .items = input_direction_set_menu_items,
+    .items = (struct menu_item *)input_direction_set_menu_items,
     .previous = &settings_menu,
 };
 
-static struct menu_item passphrase_set_menu_items[] = {
+static const struct menu_item passphrase_set_menu_items[] = {
     {"Enable", NULL, true, menu_set_passphrase, NULL, true, NULL},
     {"Disable", NULL, true, menu_set_passphrase, NULL, true, NULL}};
 
@@ -271,11 +271,11 @@ static struct menu passphrase_set_menu = {
     .current = 0,
     .counts = COUNT_OF(passphrase_set_menu_items),
     .title = "Passphrase",
-    .items = passphrase_set_menu_items,
+    .items = (struct menu_item *)passphrase_set_menu_items,
     .previous = &security_set_menu,
 };
 
-static struct menu_item settings_menu_items[] = {
+static const struct menu_item settings_menu_items[] = {
     {"Bluetooth", NULL, false, .sub_menu = &ble_set_menu, menu_para_ble_state,
      false, menu_para_ble_index},
     {"Language", NULL, false, .sub_menu = &language_set_menu,
@@ -288,13 +288,12 @@ static struct menu_item settings_menu_items[] = {
      menu_para_usb_lock, false, menu_para_usb_lock_index},
     {"Input Direction", NULL, false, .sub_menu = &input_direction_set_menu,
      menu_para_input_direction, false, menu_para_input_direction_index}};
-
 static struct menu settings_menu = {
     .start = 0,
     .current = 0,
     .counts = COUNT_OF(settings_menu_items),
     .title = NULL,
-    .items = settings_menu_items,
+    .items = (struct menu_item *)settings_menu_items,
     .previous = &main_menu,
     .button_type = BTN_TYPE_NEXT,
 };
@@ -346,12 +345,132 @@ refresh_menu:
   }
 }
 
-static struct menu_item security_set_menu_items[] = {
+static CTAP_UserInfo user_info[FIDO2_RESIDENT_CREDENTIALS_COUNT]
+    __attribute__((section(".secMessageSection"))) = {0};
+
+static struct menu_item
+    fido_resident_credential_menu_items[FIDO2_RESIDENT_CREDENTIALS_COUNT] = {0};
+
+static struct menu fido_resident_credential_menu = {
+    .start = 0,
+    .current = 0,
+    .counts = 0,
+    .title = NULL,
+    .items = fido_resident_credential_menu_items,
+    .previous = &security_set_menu,
+    .button_type = BTN_TYPE_NEXT,
+};
+
+bool menu_fido2_remove_credential(const char *title, int index) {
+  uint8_t key = KEY_NULL;
+  layoutMenuItemsEx(NULL, &bmp_bottom_right_arrow, 0, 0, title, NULL,
+                    _(ACTION__REMOVE), NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                    NULL);
+  key = protectWaitKey(0, 1);
+  if (key != KEY_CONFIRM) {
+    return false;
+  }
+  layoutDialogCenterAdapterV2(NULL, &bmp_icon_warning, &bmp_bottom_left_arrow,
+                              &bmp_bottom_right_arrow, NULL, NULL, NULL,
+                              _(FIDO_REMOVE_KEY_DESC), NULL, NULL, NULL);
+  key = protectWaitKey(0, 1);
+  if (key != KEY_CONFIRM) {
+    return false;
+  }
+  resident_credential_delete(index);
+  layoutDialogCenterAdapterV2(NULL, NULL, NULL, &bmp_bottom_right_confirm, NULL,
+                              NULL, NULL, NULL,
+                              _(FIDO_REMOVE_KEY_SUCCESS_TITLE), NULL, NULL);
+  protectWaitKey(timer1s * 2, 0);
+  return true;
+}
+
+void menu_fido2_resident_credential_display(int index) {
+  uint8_t key = KEY_NULL;
+  layout_fido2_resident_credential(0, 0, user_info[index].rp_id,
+                                   user_info[index].user_name);
+  key = protectWaitKey(0, 1);
+  if (key == KEY_CONFIRM) {
+    if (menu_fido2_remove_credential(user_info[index].rp_id,
+                                     user_info[index].index)) {
+      if (fido_resident_credential_menu.counts > 1) {
+        if (index < fido_resident_credential_menu.counts - 1) {
+          memset(&user_info[index], 0, sizeof(CTAP_UserInfo));
+          memmove(&user_info[index], &user_info[index + 1],
+                  (fido_resident_credential_menu.counts - index - 1) *
+                      sizeof(CTAP_UserInfo));
+        }
+        fido_resident_credential_menu.counts--;
+        if (fido_resident_credential_menu.current) {
+          fido_resident_credential_menu.current--;
+        }
+        menu_refresh();
+      } else {
+        fido_resident_credential_menu_items[0].go_prev = true;
+      }
+    }
+    return;
+  }
+}
+
+static int cred_cmp_func(const void *_a, const void *_b) {
+  CTAP_UserInfo *a = (CTAP_UserInfo *)_a;
+  CTAP_UserInfo *b = (CTAP_UserInfo *)_b;
+  return a->creation_time - b->creation_time;
+}
+
+void menu_fido2_resident_credential(int index) {
+  (void)index;
+
+  uint8_t indexs[FIDO2_RESIDENT_CREDENTIALS_COUNT] = {0};
+  uint8_t count = resident_credential_info(indexs, 30);
+  if (count == 0) {
+    layoutDialogCenterAdapterV2(NULL, NULL, &bmp_bottom_left_arrow,
+                                &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL,
+                                _(FIDO_LIST_EMPTY_TEXT), NULL, NULL);
+    protectWaitKey(timer1s * 2, 0);
+    return;
+  }
+  CTAP_credentialDescriptor cred_desc = {0};
+
+  uint8_t percent = 0;
+  for (int i = 0; i < count; i++) {
+    percent = 30 + ((i + 1) * 100 / count) * 70 / 100;
+    layoutProgressAdapter(_(C__PROCESSING_ETC), percent * 10);
+    memset(&cred_desc, 0, sizeof(CTAP_credentialDescriptor));
+    resident_credential_get_desc(indexs[i], &cred_desc);
+    char *account_name = get_account_name(&cred_desc.credential.user);
+
+    strlcpy(user_info[i].rp_id, cred_desc.credential.rp.id,
+            sizeof(user_info[i].rp_id));
+    strlcpy(user_info[i].user_name, account_name,
+            sizeof(user_info[i].user_name));
+    user_info[i].creation_time = cred_desc.credential.creation_time;
+    user_info[i].index = indexs[i];
+
+    fido_resident_credential_menu_items[i].name = user_info[i].rp_id;
+    fido_resident_credential_menu_items[i].is_function = true;
+    fido_resident_credential_menu_items[i].func =
+        menu_fido2_resident_credential_display;
+    fido_resident_credential_menu_items[i].go_prev = false;
+  }
+  qsort(user_info, count, sizeof(CTAP_UserInfo), cred_cmp_func);
+  fido_resident_credential_menu.counts = count;
+  fido_resident_credential_menu.current = 0;
+  fido_resident_credential_menu.start = 0;
+  fido_resident_credential_menu.items = fido_resident_credential_menu_items;
+  fido_resident_credential_menu.previous = &security_set_menu;
+  menu_init(&fido_resident_credential_menu);
+}
+
+static const struct menu_item security_set_menu_items[] = {
     {"Change PIN", NULL, true, menu_changePin, NULL, false, NULL},
     {"Check Recovery Phrase", NULL, true, menu_check_all_words, NULL, false,
      NULL},
     {"Passphrase", NULL, false, .sub_menu = &passphrase_set_menu,
      menu_para_passphrase, true, menu_para_passphrase_index},
+    {"FIDO Keys", NULL, true, menu_fido2_resident_credential, NULL, false,
+     NULL},
     {"Reset Device", NULL, true, menu_erase_device, NULL, false, NULL},
 };
 
@@ -360,7 +479,7 @@ static struct menu security_set_menu = {
     .current = 0,
     .counts = COUNT_OF(security_set_menu_items),
     .title = NULL,
-    .items = security_set_menu_items,
+    .items = (struct menu_item *)security_set_menu_items,
     .previous = &main_menu,
     .button_type = BTN_TYPE_NEXT,
 };
@@ -439,7 +558,7 @@ void menu_set_trezor_compatibility(int index) {
 #endif
 }
 
-static struct menu_item trezor_compatibility_set_menu_items[] = {
+static const struct menu_item trezor_compatibility_set_menu_items[] = {
     {"Enable", NULL, true, menu_set_trezor_compatibility, NULL, true, NULL},
     {"Disable", NULL, true, menu_set_trezor_compatibility, NULL, true, NULL}};
 
@@ -448,7 +567,7 @@ static struct menu trezor_compatibility_set_menu = {
     .current = 0,
     .counts = COUNT_OF(trezor_compatibility_set_menu_items),
     .title = "Trezor Compatibility",
-    .items = trezor_compatibility_set_menu_items,
+    .items = (struct menu_item *)trezor_compatibility_set_menu_items,
     .previous = &about_menu,
 };
 
@@ -467,7 +586,7 @@ void menu_set_safety_checks(int index) {
                                    : SafetyCheckLevel_Strict);
 }
 
-static struct menu_item safety_checks_set_menu_items[] = {
+static const struct menu_item safety_checks_set_menu_items[] = {
     {"On", NULL, true, menu_set_safety_checks, NULL, true, NULL},
     {"Off", NULL, true, menu_set_safety_checks, NULL, true, NULL}};
 
@@ -476,11 +595,11 @@ static struct menu safety_checks_set_menu = {
     .current = 0,
     .counts = COUNT_OF(safety_checks_set_menu_items),
     .title = "Safety Checks",
-    .items = safety_checks_set_menu_items,
+    .items = (struct menu_item *)safety_checks_set_menu_items,
     .previous = &about_menu,
 };
 
-static struct menu_item about_menu_items[] = {
+static const struct menu_item about_menu_items[] = {
     {"Device Info", NULL, true, layoutDeviceParameters, NULL, false, NULL},
     {"Certification", NULL, true, layoutAboutCertifications, NULL, false, NULL},
     {"Trezor Compat", NULL, false, .sub_menu = &trezor_compatibility_set_menu,
@@ -494,12 +613,12 @@ static struct menu about_menu = {
     .current = 0,
     .counts = COUNT_OF(about_menu_items),
     .title = NULL,
-    .items = about_menu_items,
+    .items = (struct menu_item *)about_menu_items,
     .previous = &main_menu,
     .button_type = BTN_TYPE_NEXT,
 };
 
-static struct menu_item main_menu_items[] = {
+static const struct menu_item main_menu_items[] = {
     {"General", NULL, false, .sub_menu = &settings_menu, NULL, false},
     {"Security", NULL, false, .sub_menu = &security_set_menu, NULL, false},
     {"About Device", NULL, false, .sub_menu = &about_menu, NULL, false}};
@@ -509,7 +628,7 @@ static struct menu main_menu = {
     .current = 0,
     .counts = COUNT_OF(main_menu_items),
     .title = NULL,
-    .items = main_menu_items,
+    .items = (struct menu_item *)main_menu_items,
     .previous = NULL,
     .button_type = BTN_TYPE_NEXT,
 };
@@ -528,7 +647,7 @@ void menu_autolock_added_custom(void) {
     autolock_set_menu_items_added_custom[5].name = autolock_custom_name;
   } else {
     autolock_set_menu.counts = COUNT_OF(autolock_set_menu_items);
-    autolock_set_menu.items = autolock_set_menu_items;
+    autolock_set_menu.items = (struct menu_item *)autolock_set_menu_items;
   }
 }
 

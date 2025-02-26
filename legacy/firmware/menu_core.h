@@ -40,7 +40,7 @@ void menu_up(void);
 void menu_down(void);
 void menu_enter(void);
 void menu_run(uint8_t key, uint32_t time);
-
+void menu_refresh(void);
 #define menu_update(menu, field, value) (menu)->field = value
 
 #endif

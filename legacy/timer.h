@@ -54,6 +54,10 @@ void timer_out_set(TimerOut type, uint32_t val);
 uint32_t timer_out_get(TimerOut type);
 void timer_sleep_start_reset(void);
 uint32_t timer_get_sleep_count(void);
+void register_loop_callback(void (*callback)(void), uint32_t start,
+                            uint32_t interval);
+void unregister_loop_callback(void);
+void loop_callback_handler(void);
 
 #if EMULATOR
 uint32_t timer_ms(void);

@@ -144,3 +144,40 @@ int hex2data(const char *hexStr, unsigned char *output,
   output[finalLen] = '\0';
   return 0;
 }
+
+int compare_str_version(const char *version1, const char *version2) {
+  int vnum1 = 0, vnum2 = 0;
+
+  // Loop until both strings are processed
+  while (*version1 != '\0' || *version2 != '\0') {
+    // Store numeric part of version1 in vnum1
+    while (*version1 != '\0' && *version1 != '.') {
+      vnum1 = vnum1 * 10 + (*version1 - '0');
+      version1++;
+    }
+
+    // Store numeric part of version2 in vnum2
+    while (*version2 != '\0' && *version2 != '.') {
+      vnum2 = vnum2 * 10 + (*version2 - '0');
+      version2++;
+    }
+
+    // If version1 is greater than version2
+    if (vnum1 > vnum2) {
+      return 1;
+    }
+    if (vnum1 < vnum2) {
+      return -1;
+    }
+
+    // If equal, reset variables and go for next numeric part
+    vnum1 = vnum2 = 0;
+    if (*version1 != '\0') {
+      version1++;
+    }
+    if (*version2 != '\0') {
+      version2++;
+    }
+  }
+  return 0;
+}

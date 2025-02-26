@@ -628,7 +628,7 @@
 #define C__PLEASE_ENTER_YOUR_PIN 299
 // Enter new wipe code
 #define C__ENTER_NEW_WIPE_CODE 300
-// Data Transfer Mode, use a charger if you wanna fast charging
+// Data Transfer Mode, use a charger to allow fast charging
 #define C__DATA_TRANSFER_MODE_USE_A_CHARGER_IF_YOU_WANNA_FASTER_CHARGING 301
 // word
 #define O__WORD 302
@@ -722,5 +722,43 @@
 #define BLOCKHEIGHT 346
 // Timestamp (UTC)
 #define TIMESTAMP 347
+// Message
+#define MESSAGE 348
+// FIDO2 Register
+#define FIDO_INFO_CONFIRMATION_TITLE 349
+// App Name
+#define GLOBAL_APP_NAME 350
+// Account
+#define GLOBAL_ACCOUNT 351
+// FIDO2 Authenticate
+#define FIDO_2_AUTHENTICATE 352
+// Import Credential
+#define FIDO_2_IMPORT_CREDENTIAL 353
+// List Credentials
+#define FIDO_2_LIST_CREDENTIALS 354
+// Remove Credentials
+#define FIDO_2_REMOVE_CREDENTIALS 355
+// FIDO Keys
+#define FIDO_FIDO_KEYS_LABEL 356
+// Secure accounts with FIDO security keys
+#define FIDO_FIDO_KEYS_DESC 357
+// Remove FIDO Key?
+#define FIDO_REMOVE_KEY_TITLE 358
+// This FIDO key will be removed permanently
+#define FIDO_REMOVE_KEY_DESC 359
+// FIDO Key Removed
+#define FIDO_REMOVE_KEY_SUCCESS_TITLE 360
+// Key Limit Reached
+#define FIDO_ADD_KEY_LIMIT_REACHED_TITLE 361
+// 60 FIDO keys limit reached. Remove unused to add new
+#define FIDO_ADD_KEY_LIMIT_REACHED_DESC 362
+// No FIDO keys yet
+#define FIDO_LIST_EMPTY_TEXT 363
+// Remove
+#define ACTION__REMOVE 364
+// Registering...
+#define FIDO_KEY_REGISTERING_TITLE 365
+// FIDO Key Registered
+#define FIDO_KEY_REGISTERED_TITLE 366
 #endif
 // clang-format on

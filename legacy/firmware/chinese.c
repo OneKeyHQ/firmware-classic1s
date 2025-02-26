@@ -118,6 +118,12 @@ int oledStringWidthEx(const char *text, uint8_t font) {
   return l;
 }
 
+int oledCharWidthEx(const char text, uint8_t font) {
+  char text_array[2] = {0};
+  text_array[0] = text;
+  return oledStringWidthEx(text_array, font);
+}
+
 void oledDrawStringEx(int x, int y, const char *text, uint8_t font) {
   int steps = 0;
   int l = 0;
