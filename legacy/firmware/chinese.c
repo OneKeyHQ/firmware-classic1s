@@ -324,9 +324,8 @@ void oledDrawStringRightAdapter(int x, int y, const char *text, uint8_t font) {
 uint8_t oledDrawPageableStringAdapter(int x, int y, const char *text,
                                       uint8_t font, const BITMAP *btn_no_icon,
                                       const BITMAP *btn_yes_icon) {
-  // NOTE: 21 is the max width of a line, only used for text length bigger than
-  // 63. CAUTION: This function uses VLA (Variable Length Array). Be aware of
-  // potential stack overflow risks.
+  // NOTE: 21 is the max width of a line. CAUTION: This function uses VLA
+  // (Variable Length Array). Be aware of potential stack overflow risks.
   size_t text_len = strlen(text);
   size_t rowlen = 21;
   int index = 0, rowcount = text_len / rowlen + 1;
@@ -340,6 +339,9 @@ uint8_t oledDrawPageableStringAdapter(int x, int y, const char *text,
       text += show_len;
       text_len -= show_len;
     }
+#if !EMULATOR
+    enableLongPress(true);
+#endif
   refresh_text:
     oledClear_ext(x, y);
     int y1 = y;
@@ -372,6 +374,17 @@ uint8_t oledDrawPageableStringAdapter(int x, int y, const char *text,
     oledRefresh();
     uint8_t key = KEY_NULL;
     key = protectWaitKey(0, 0);
+
+#if !EMULATOR
+    if (isLongPress(KEY_UP_OR_DOWN) && getLongPressStatus()) {
+      if (isLongPress(KEY_UP)) {
+        key = KEY_UP;
+      } else if (isLongPress(KEY_DOWN)) {
+        key = KEY_DOWN;
+      }
+      delay_ms(75);
+    }
+#endif
     switch (key) {
       case KEY_UP:
         if (index > 0) {
@@ -384,8 +397,15 @@ uint8_t oledDrawPageableStringAdapter(int x, int y, const char *text,
         }
         goto refresh_text;
       default:
+#if !EMULATOR
+        enableLongPress(false);
+#endif
         return key;
     }
+  } else {
+    oledDrawStringAdapter(0, y, text, FONT_STANDARD);
+    layoutButtonNoAdapter(NULL, btn_no_icon);
+    layoutButtonYesAdapter(NULL, btn_yes_icon);
   }
   return KEY_NULL;
 }
