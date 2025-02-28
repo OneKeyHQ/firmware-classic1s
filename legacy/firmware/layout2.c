@@ -2826,6 +2826,8 @@ void layoutDialogCenterAdapterV2(const char *title, const BITMAP *icon,
       lines += countlines((char *)desc);
       if (lines <= 3) {
         y = 17;
+      } else {
+        y = 13;
       }
     }
     lines = 0;
@@ -3706,7 +3708,7 @@ bool layoutInputDirection(int direction) {
   } else {
     strcat(title, _(T__DEFAULT_INPUT_DIRECTION));
   }
-  strcat(title, _(T__INPUT_DIRECTION));
+  // strcat(title, _(T__INPUT_DIRECTION));
   layoutHeader(title);
 
   if (direction) {
@@ -3757,6 +3759,15 @@ bool layoutInputDirection(int direction) {
         oledDrawBitmap(70, 32, &bmp_icon_down);
       } else {
         oledDrawBitmap(66, 32, &bmp_icon_down);
+      }
+      break;
+    case 6:
+      if (direction) {
+        oledDrawBitmap(71, 17, &bmp_icon_up);
+        oledDrawBitmap(71, 28, &bmp_icon_down);
+      } else {
+        oledDrawBitmap(23, 22, &bmp_icon_down);
+        oledDrawBitmap(103, 32, &bmp_icon_up);
       }
       break;
     default:
