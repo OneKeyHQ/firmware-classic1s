@@ -196,7 +196,7 @@ static void verify_ble_firmware(void) {
 #endif
   if (!flash_otp_is_locked(FLASH_OTP_BLOCK_BLE_PUBLIC_KEY1) ||
       !flash_otp_is_locked(FLASH_OTP_BLOCK_BLE_PUBLIC_KEY2)) {
-    if (memcmp(ble_ver, "1.5.1", 5) < 0) {
+    if (compare_str_version(ble_ver, "1.5.1") < 0) {
       layoutDialogCenterAdapterEx(NULL, NULL, NULL, NULL, NULL,
                                   "Please update BLE", NULL, NULL);
       while (1) {
@@ -258,7 +258,12 @@ int main(void) {
 #if !EMULATOR
   verify_ble_firmware();
   HW_VER_t ble_hw_ver;
-  ensure(ble_get_hw_version(&ble_hw_ver) ? sectrue : secfalse, NULL);
+  char *ble_ver = NULL;
+  ble_get_version(&ble_ver);
+  if (compare_str_version(ble_ver, "1.5.3") >= 0) {
+    ensure(ble_get_hw_version(&ble_hw_ver) ? sectrue : secfalse, NULL);
+  }
+
 #endif
   if (!is_mode_unprivileged()) {
     cpu_mode = PRIVILEGED;

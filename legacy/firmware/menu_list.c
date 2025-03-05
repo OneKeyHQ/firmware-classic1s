@@ -19,6 +19,7 @@
 #include "fido2/resident_credential.h"
 
 static struct menu settings_menu, main_menu, security_set_menu, about_menu;
+static bool resident_credential_refresh = true;
 
 void menu_erase_device(int index) {
   (void)index;
@@ -346,6 +347,8 @@ refresh_menu:
   }
 }
 
+void menu_fido2_resident_credential(int index);
+
 static CTAP_UserInfo user_info[FIDO2_RESIDENT_CREDENTIALS_COUNT]
     __attribute__((section(".secMessageSection"))) = {0};
 
@@ -407,7 +410,10 @@ void menu_fido2_resident_credential_display(int index) {
         }
         menu_refresh();
       } else {
-        fido_resident_credential_menu_items[0].go_prev = true;
+        fido_resident_credential_menu.counts = 0;
+        resident_credential_refresh = false;
+        menu_fido2_resident_credential(0);
+        // fido_resident_credential_menu_items[0].go_prev = true;
       }
     }
     return;
@@ -424,7 +430,15 @@ void menu_fido2_resident_credential(int index) {
   (void)index;
 
   uint8_t indexs[FIDO2_RESIDENT_CREDENTIALS_COUNT] = {0};
-  uint8_t count = resident_credential_info(indexs, 30);
+  uint8_t count = 0;
+  if (resident_credential_refresh) {
+    count = resident_credential_info(indexs, 30);
+  } else {
+    resident_credential_refresh = true;
+    count = fido_resident_credential_menu.counts;
+    menu_init(&security_set_menu);
+  }
+
   if (count == 0) {
     layoutDialogCenterAdapterV2(NULL, NULL, &bmp_bottom_left_arrow,
                                 &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL,

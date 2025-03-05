@@ -14,6 +14,7 @@ void menu_refresh(void) { refresh_menu = true; }
 void menu_init(struct menu *menu) {
   currentMenu = menu;
   currentMenu->current = currentMenu->start;
+  refresh_menu = true;
 }
 
 static const char *_gettext(char *en_str) {
