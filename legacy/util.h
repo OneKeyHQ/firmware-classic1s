@@ -88,6 +88,7 @@ void init_buffer_reader(BufferReader *reader, const uint8_t *buffer,
 void init_buffer_writer(BufferWriter *writer, uint8_t *buffer, size_t length);
 int read_bytes(BufferReader *reader, uint8_t *dest, size_t count);
 int write_bytes(const uint8_t *src, size_t count, BufferWriter *writer);
+uint64_t deser_compact_size(BufferReader *s);
 
 // defined in startup.s (or setup.c for emulator)
 extern void __attribute__((noreturn)) shutdown(void);
@@ -147,5 +148,13 @@ static inline bool is_mode_unprivileged(void) {
 
 static inline bool is_mode_unprivileged(void) { return true; }
 #endif
+
+static inline void reverse_bytes(uint8_t *data, size_t length) {
+  for (size_t i = 0; i < length / 2; i++) {
+    uint8_t temp = data[i];
+    data[i] = data[length - i - 1];
+    data[length - i - 1] = temp;
+  }
+}
 
 #endif

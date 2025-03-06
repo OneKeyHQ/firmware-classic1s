@@ -775,5 +775,7 @@
 #define GLOBAL_TARGET_NETWORK 372
 // Remove vote
 #define TITLE_REMOVE_VOTE 373
+// Unknown Token
+#define GLOBAL_UNKNOWN_TOKEN 374
 #endif
 // clang-format on

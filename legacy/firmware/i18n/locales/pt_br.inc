@@ -373,4 +373,5 @@ const char *const languages_pt_br[] = {
     "Candidato",
     "Rede alvo",
     "Remover voto",
+    "Token Desconhecido",
 };

@@ -1,0 +1,10 @@
+NeoGetAddress.address_n                                                     max_count:8
+
+NeoAddress.address                                                          max_size:35
+NeoAddress.public_key                                                       max_size:33
+
+NeoSignTx.address_n                                                        max_count:8
+NeoSignTx.raw_tx                                                         max_size:16327
+
+NeoSignedTx.public_key                                                      max_size:33
+NeoSignedTx.signature                                                      max_size:64

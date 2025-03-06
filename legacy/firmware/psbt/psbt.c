@@ -51,26 +51,6 @@ const uint8_t PSBT_OUT_TAP_INTERNAL_KEY = 0x05;
 const uint8_t PSBT_OUT_TAP_TREE = 0x06;
 const uint8_t PSBT_OUT_TAP_BIP32_DERIVATION = 0x07;
 
-uint64_t deser_compact_size(BufferReader* s) {
-  uint8_t first;
-  if (!read_bytes(s, &first, 1)) {
-    return 0;
-  }
-
-  if (first < 253) {
-    return first;
-  }
-
-  uint64_t value = 0;
-  size_t bytes_to_read = 1 << (first - 252);
-
-  if (!read_bytes(s, (uint8_t*)&value, bytes_to_read)) {
-    return 0;
-  }
-
-  return value;
-}
-
 int ser_compact_size(uint64_t value, BufferWriter* writer) {
   uint8_t buffer[9] = {0};
   size_t size;

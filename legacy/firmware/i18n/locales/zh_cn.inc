@@ -373,4 +373,5 @@ const char *const languages_zh_cn[] = {
     "候选人",
     "目标网络",
     "移除投票",
+    "未知代币",
 };

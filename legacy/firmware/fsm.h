@@ -39,6 +39,7 @@
 #include "messages-management.pb.h"
 #include "messages-near.pb.h"
 #include "messages-nem.pb.h"
+#include "messages-neo.pb.h"
 #include "messages-nervos.pb.h"
 #include "messages-nexa.pb.h"
 #include "messages-nostr.pb.h"
@@ -355,4 +356,7 @@ void fsm_msgBenfenGetAddress(const BenfenGetAddress *msg);
 void fsm_msgBenfenSignTx(const BenfenSignTx *msg);
 void fsm_msgBenfenSignMessage(BenfenSignMessage *msg);
 void fsm_msgBenfenTxAck(BenfenTxAck *msg);
+// neo
+void fsm_msgNeoGetAddress(const NeoGetAddress *msg);
+void fsm_msgNeoSignTx(const NeoSignTx *msg);
 #endif
