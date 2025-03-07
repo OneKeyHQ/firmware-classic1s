@@ -4,7 +4,7 @@
 #include "ethereum_networks.h"
 #include "ethereum.h"
 
-#define NETWORKS_COUNT 8
+#define NETWORKS_COUNT 10
 
 static const EthereumNetworkInfo networks[NETWORKS_COUNT] = {
     {
@@ -50,9 +50,21 @@ static const EthereumNetworkInfo networks[NETWORKS_COUNT] = {
         .name = "",
     },
     {
+        .chain_id = 146,
+        .slip44 = 60,
+        .symbol = "S", /* Sonic */
+        .name = "",
+    },
+    {
+        .chain_id = 177,
+        .slip44 = 60,
+        .symbol = "HSK", /* HashKey Chain */
+        .name = "",
+    },
+    {
         .chain_id = 9798,
         .slip44 = 9798,
-        .symbol = "DTT",
+        .symbol = "DTT", /* Data Trade Chain */
         .name = "",
     },
 };

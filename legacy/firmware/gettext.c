@@ -22,6 +22,8 @@ char *gettextX(int msgid) {
       return (char *)languages_es[msgid];
     case 5:
       return (char *)languages_pt_br[msgid];
+    case 6:
+      return (char *)languages_de[msgid];
     default:
       break;
   }

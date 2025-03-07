@@ -16,4 +16,5 @@ extern const char *const languages_zh_tw[];
 extern const char *const languages_ja[];
 extern const char *const languages_es[];
 extern const char *const languages_pt_br[];
+extern const char *const languages_de[];
 #endif

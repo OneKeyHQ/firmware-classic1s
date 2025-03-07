@@ -7,7 +7,7 @@
 #include <stdint.h>
 
 <% erc20_list = list(erc20) %>\
-#define TOKENS_COUNT ${len(erc20_list) + 9}
+#define TOKENS_COUNT ${len(erc20_list)}
 
 typedef struct {
 	uint64_t chain_id;

@@ -366,4 +366,11 @@ const char *const languages_es[] = {
     "Eliminar",
     "Registrando...",
     "Clave FIDO Registrada",
+    "Firma en bruto de Solana",
+    "¿Habilitar la firma en bruto de Solana?",
+    "Esto puede exponerte a phishing, firma ciega y transacciones no autorizadas. Activa solo si comprendes completamente los riesgos.",
+    "Riesgo de phishing y firma a ciegas. Proceda solo si confía en la fuente.",
+    "Candidato",
+    "Red objetivo",
+    "Eliminar voto",
 };

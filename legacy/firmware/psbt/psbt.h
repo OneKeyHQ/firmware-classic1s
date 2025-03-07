@@ -3,6 +3,9 @@
 #include "../crypto.h"
 #include "segwit_addr.h"
 
+#define MAX_INPUTS 5
+#define MAX_OUTPUTS 5
+
 typedef struct {
   uint8_t fingerprint[4];
   size_t path_len;
@@ -28,8 +31,8 @@ typedef struct {
 } CTxOut;
 
 typedef struct {
-  CTxIn vin[5];
-  CTxOut vout[5];
+  CTxIn vin[MAX_INPUTS];
+  CTxOut vout[MAX_OUTPUTS];
   int32_t nVersion;
   size_t vin_len;
   size_t vout_len;
@@ -72,11 +75,11 @@ typedef struct {
 typedef struct {
   CTransaction non_witness_utxo;
   CTxOut witness_utxo;
-  Partial_Sig partial_sigs[4];
+  Partial_Sig partial_sigs[MAX_INPUTS - 1];
   TAP_SCRIPT_SIG tap_script_sig;
   TAP_LEAF_SCRIPT tap_leaf_script;
   TAP_BIP32_DERIVATION tap_bip32_path;
-  HD_KEYPATH hd_keypaths[5];
+  HD_KEYPATH bip32_path;
 
   uint8_t redeem_script[1];         // ignore, assume it's empty
   uint8_t witness_script[1];        // ignore, assume it's empty
@@ -98,7 +101,6 @@ typedef struct {
   size_t partial_sigs_len;
   size_t redeem_script_len;
   size_t witness_script_len;
-  size_t hd_keypaths_len;
   size_t tap_key_sig_len;
   size_t final_script_witness_len;
   size_t final_script_sig_len;
@@ -117,6 +119,7 @@ typedef struct {
   bool time_locktime_lookuped : 1;
   bool height_locktime_lookuped : 1;
   bool tap_bip32_path_lookuped : 1;
+  bool bip32_path_lookuped : 1;
   bool tap_internal_key_lookuped : 1;
   bool tap_merkle_root_lookuped : 1;
   bool final_script_witness_lookuped : 1;
@@ -128,14 +131,13 @@ typedef struct {
   uint8_t tap_tree[1];        // ignore, assume it's empty
   uint8_t witness_script[1];  // ignore, assume it's empty
   uint8_t script[83];         // the limit of OP_RETURN is 83 bytes
-  HD_KEYPATH hd_keypaths[5];
+  HD_KEYPATH bip32_path;
   TAP_BIP32_DERIVATION tap_bip32_path;
   int64_t amount;
   size_t redeem_script_len;
   size_t tap_tree_len;
   size_t witness_script_len;
   size_t script_len;
-  size_t hd_keypaths_len;
   uint8_t tap_internal_key[32];
   uint8_t version;
   bool redeem_script_lookuped : 1;
@@ -145,12 +147,13 @@ typedef struct {
   bool tap_internal_key_lookuped : 1;
   bool tap_tree_lookuped : 1;
   bool tap_bip32_path_lookuped : 1;
+  bool bip32_path_lookuped : 1;
 } PartiallySignedOutput;
 
 typedef struct {
   CTransaction tx;
-  PartiallySignedInput inputs[5];
-  PartiallySignedOutput outputs[5];
+  PartiallySignedInput inputs[MAX_INPUTS];
+  PartiallySignedOutput outputs[MAX_OUTPUTS];
   HD_KEYPATH xpubs[5];
   size_t xpubs_len;
   uint32_t tx_version;
@@ -168,18 +171,6 @@ typedef struct {
   bool global_version_lookuped : 1;
   bool explicit_version : 1;
 } PSBT;
-
-typedef struct {
-  const uint8_t *buffer;
-  size_t length;
-  size_t position;
-} BufferReader;
-
-typedef struct {
-  uint8_t *buffer;
-  size_t length;
-  size_t position;
-} BufferWriter;
 
 typedef struct {
   Hasher hasher_prevouts;
