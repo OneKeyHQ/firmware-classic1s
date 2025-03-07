@@ -301,13 +301,17 @@ uint8_t layoutStatusLogo(bool force_fresh) {
     ble_request_info(BLE_CMD_VER);
     delay_ms(5);
   }
-  if (!ble_battery_state()) {
-    ble_request_info(BLE_CMD_BATTERY);
-    delay_ms(5);
-  }
+
   if (!ble_hw_ver_state()) {
     ble_request_info(BLE_CMD_HW_VER);
     delay_ms(5);
+  }
+
+  if (!ble_hw_ver_is_pure()) {
+    if (!ble_battery_state()) {
+      ble_request_info(BLE_CMD_BATTERY);
+      delay_ms(5);
+    }
   }
 
   if (sys_usbState()) {
