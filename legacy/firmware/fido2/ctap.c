@@ -676,7 +676,9 @@ static int ctap_make_auth_data(CTAP_makeCredential mc, uint32_t counter,
   authData->head.flags =
       AUTH_DATA_FLAG_UP | AUTH_DATA_FLAG_UV | AUTH_DATA_FLAG_AT;
 
-  authData->head.signCount = counter;
+  authData->head.signCount =
+      ((counter & 0xFF) << 24) | ((counter & 0xFF00) << 8) |
+      ((counter & 0xFF0000) >> 8) | ((counter & 0xFF000000) >> 24);
 
   memcpy(authData->attest.aaguid, CTAP_AAGUID, sizeof(CTAP_AAGUID) - 1);
   authData->attest.credLenL = cred_id_len & 0x00FF;
@@ -1013,10 +1015,34 @@ uint8_t ctap_make_credential(CborEncoder *encoder, uint8_t *request,
 
   char *account_name = get_account_name(&MC.credInfo.user);
 
-  layoutDialogAdapterEx(_(FIDO_INFO_CONFIRMATION_TITLE), NULL, NULL,
-                        &bmp_bottom_right_confirm, NULL, NULL,
+  int position_history[10] = {0};
+  int history_index = 0;
+
+  bool is_end;
+  int truncate_pos = 0;
+  char account_name_buf[64] = {0};
+  int current_position = 0;
+
+refresh:
+  truncate_pos =
+      get_truncate_position(account_name + current_position, &is_end);
+  strncpy(account_name_buf, account_name + current_position, truncate_pos);
+  account_name_buf[truncate_pos] = '\0';
+
+  layoutDialogAdapterEx(_(FIDO_INFO_CONFIRMATION_TITLE), &bmp_bottom_left_close,
+                        NULL, &bmp_bottom_right_confirm, NULL, NULL,
                         _(GLOBAL_APP_NAME), MC.rp.id, _(GLOBAL_ACCOUNT),
-                        account_name);
+                        account_name_buf);
+
+  if (!is_end) {
+    oledDrawBitmap(3 * OLED_WIDTH / 4, OLED_HEIGHT - 8,
+                   &bmp_bottom_middle_arrow_down);
+  }
+  if (history_index > 0) {
+    oledDrawBitmap(OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8,
+                   &bmp_bottom_middle_arrow_up);
+  }
+  oledRefresh();
 
   uint32_t start_time = svc_timer_ms();
   bool yes_up = false;
@@ -1028,6 +1054,20 @@ uint8_t ctap_make_credential(CborEncoder *encoder, uint8_t *request,
       break;
     } else if (button.NoUp) {
       break;
+    } else if (button.UpUp) {
+      if (history_index > 0) {
+        history_index--;
+        current_position -= position_history[history_index];
+        goto refresh;
+      }
+    } else if (button.DownUp) {
+      if (!is_end) {
+        if (history_index < 10 - 1) {
+          position_history[history_index++] = truncate_pos;
+        }
+        current_position += truncate_pos;
+        goto refresh;
+      }
     }
     loop_callback_handler();
     if (svc_timer_ms() - start_time > USER_PRESENCE_TIMEOUT) {
@@ -1108,10 +1148,10 @@ uint8_t ctap_make_credential(CborEncoder *encoder, uint8_t *request,
     if (!resident_credential_store(rp_id_hash, MC.credInfo.user.id, cred_id_buf,
                                    cred_id_len)) {
       layoutDialogCenterAdapterV2(_(FIDO_ADD_KEY_LIMIT_REACHED_TITLE), NULL,
-                                  NULL, &bmp_bottom_right_arrow, NULL, NULL,
+                                  NULL, &bmp_bottom_right_confirm, NULL, NULL,
                                   NULL, _(FIDO_ADD_KEY_LIMIT_REACHED_DESC),
                                   NULL, NULL, NULL);
-      protectWaitKey(timer1s * 2, 0);
+      waitKey(timer1s * 5, 0);
       return CTAP2_ERR_KEY_STORE_FULL;
     }
   }
@@ -1811,18 +1851,45 @@ uint8_t ctap_get_assertion(CborEncoder *encoder, uint8_t *request, int length) {
   if (GA.up || GA.uv) {
     const char *appname = NULL;
     uint8_t rp_id_hash[32];
+
+    int position_history[10] = {0};
+    int history_index = 0;
+
+    bool is_end;
+    int truncate_pos = 0;
+    char account_name_buf[64] = {0};
+    int current_position = 0;
+    char *account_name = NULL;
+
+    if (cred->type == PUB_KEY_CRED_PUB_KEY) {
+      account_name = get_account_name(&cred->credential.user);
+    }
+
+  refresh:
     if (cred->type == PUB_KEY_CRED_CTAP1) {
       sha256_Raw((uint8_t *)GA.rp.id, GA.rp.size, rp_id_hash);
       getReadableAppId(rp_id_hash, &appname);
-      layoutDialogAdapterEx(_(T__U2F_AUTHENTICATE), NULL, NULL,
-                            &bmp_bottom_right_confirm, NULL, NULL,
+      layoutDialogAdapterEx(_(T__U2F_AUTHENTICATE), &bmp_bottom_left_close,
+                            NULL, &bmp_bottom_right_confirm, NULL, NULL,
                             _(I__APP_NAME_COLON), appname, NULL, NULL);
     } else {
-      char *account_name = get_account_name(&cred->credential.user);
-      layoutDialogAdapterEx(_(FIDO_2_AUTHENTICATE), NULL, NULL,
-                            &bmp_bottom_right_confirm, NULL, NULL,
+      truncate_pos =
+          get_truncate_position(account_name + current_position, &is_end);
+      strncpy(account_name_buf, account_name + current_position, truncate_pos);
+      account_name_buf[truncate_pos] = '\0';
+      layoutDialogAdapterEx(_(FIDO_2_AUTHENTICATE), &bmp_bottom_left_close,
+                            NULL, &bmp_bottom_right_confirm, NULL, NULL,
                             _(GLOBAL_APP_NAME), cred->credential.rp.id,
-                            _(GLOBAL_ACCOUNT), account_name);
+                            _(GLOBAL_ACCOUNT), account_name_buf);
+      if (!is_end) {
+        oledDrawBitmap(3 * OLED_WIDTH / 4, OLED_HEIGHT - 8,
+                       &bmp_bottom_middle_arrow_down);
+      }
+      if (history_index > 0) {
+        oledDrawBitmap(OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8,
+                       &bmp_bottom_middle_arrow_up);
+      }
+      oledRefresh();
     }
     uint32_t start_time = svc_timer_ms();
     bool yes_up = false;
@@ -1835,6 +1902,20 @@ uint8_t ctap_get_assertion(CborEncoder *encoder, uint8_t *request, int length) {
         break;
       } else if (button.NoUp) {
         break;
+      } else if (button.UpUp) {
+        if (history_index > 0) {
+          history_index--;
+          current_position -= position_history[history_index];
+          goto refresh;
+        }
+      } else if (button.DownUp) {
+        if (!is_end) {
+          if (history_index < 10 - 1) {
+            position_history[history_index++] = truncate_pos;
+          }
+          current_position += truncate_pos;
+          goto refresh;
+        }
       }
       loop_callback_handler();
       if (svc_timer_ms() - start_time > USER_PRESENCE_TIMEOUT) {

@@ -19,7 +19,7 @@ static bool passkey_state = false;
 static int ble_request_state = -1;
 static uint8_t ble_response_buf[64];
 static char ble_name[BLE_NAME_LEN + 1] = {0};
-static char ble_ver[6] = {0};
+static char ble_ver[16] = {0};
 static char ble_build_id[8] = {0};
 static uint8_t ble_hash[32] = {0};
 static HW_VER_t ble_hw_ver = HW_VER_INVALID;
@@ -296,8 +296,8 @@ void ble_uart_poll(uint8_t *buf) {
         battery_cap = ble_usart_msg.cmd_vale[0];
       break;
     case BLE_CMD_VER:
-      if (ble_usart_msg.cmd_len == 5) {
-        memcpy(ble_ver, ble_usart_msg.cmd_vale, 5);
+      if (ble_usart_msg.cmd_len < sizeof(ble_ver) - 1) {
+        memcpy(ble_ver, ble_usart_msg.cmd_vale, ble_usart_msg.cmd_len);
         get_ble_ver = true;
       }
       break;
@@ -342,7 +342,10 @@ void ble_uart_poll(uint8_t *buf) {
     case BLE_CMD_HW_VER:
       if (ble_usart_msg.cmd_len == 2) {
         ble_hw_ver = ble_usart_msg.cmd_vale[1] << 8 | ble_usart_msg.cmd_vale[0];
-        get_ble_hw_ver = true;
+        if (ble_hw_ver == HW_VER_V_1_X || ble_hw_ver == HW_VER_V_2_0 ||
+            ble_hw_ver == HW_VER_V_PURE) {
+          get_ble_hw_ver = true;
+        }
       }
       break;
     default:

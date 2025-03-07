@@ -193,6 +193,21 @@ void short_line_message(const char *msg, char *buf) {
   }
 }
 
+int get_truncate_position(const char *msg, bool *is_end) {
+  int width = 0;
+  int index = 0;
+  while (msg[index] != '\0' && width <= OLED_WIDTH) {
+    width += oledCharWidthEx(msg[index], FONT_STANDARD);
+    if (width > OLED_WIDTH) {
+      *is_end = false;
+      return index;
+    }
+    index++;
+  }
+  *is_end = (msg[index] == '\0');
+  return index;  // Return the position where the string fits in one line
+}
+
 static int countlines(char *text) {
   int lines = 0, steps = 0;
   while (*text) {
@@ -5656,8 +5671,8 @@ refresh_layout:
 void layout_fido2_resident_credential(int index, int count,
                                       const char *app_name,
                                       const char *user_name) {
-  char app_name_buf[32] = {0};
-  char user_name_buf[32] = {0};
+  char app_name_buf[64] = {0};
+  char user_name_buf[64] = {0};
 
   short_line_message(app_name, app_name_buf);
   short_line_message(user_name, user_name_buf);

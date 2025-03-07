@@ -100,6 +100,7 @@ bool u2f_init_command = false;
 static bool next_page = false;
 static bool se_seed_cached = false;
 static volatile bool usb_hid_tiny = false;
+extern bool protectAbortedByFIDO;
 
 typedef enum {
   TRANSPORT_NULL = 0,
@@ -287,6 +288,8 @@ void u2fhid_read_start(const U2FHID_FRAME *f) {
     usb_hid_tiny = false;
 
     ctap_printf("ctap usb cmd\n");
+
+    protectAbortedByFIDO = true;
 
     // We have all the data
     switch (reader->cmd) {
@@ -1706,6 +1709,8 @@ void ctap_ble_cmd(void) {
     transport_type = TRANSPORT_NULL;
     return;
   }
+
+  protectAbortedByFIDO = true;
 
   ctap_printf("ctap_ble_cmd cmd: %d\n", cmd);
   dump_hex1(NULL, data_ptr, data_len);

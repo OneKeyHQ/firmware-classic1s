@@ -51,6 +51,7 @@ bool protectAbortedByInitializeOnboarding = false;
 bool protectAbortedByInitialize = false;
 bool protectAbortedByTimeout = false;
 bool exitBlindSignByInitialize = false;
+bool protectAbortedByFIDO = false;
 extern bool msg_command_inprogress;
 
 static uint8_t device_sleep_state = SLEEP_NONE;
@@ -809,6 +810,11 @@ uint8_t protectWaitKey(uint32_t time_out, uint8_t mode) {
         u2f_init_command = false;
         break;
       }
+    }
+
+    if (protectAbortedByFIDO && layoutLast == layoutHome) {
+      protectAbortedByFIDO = false;
+      break;
     }
 
     loop_callback_handler();
