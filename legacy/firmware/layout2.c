@@ -67,9 +67,7 @@ static volatile uint8_t charge_dis_timer_counter = 0;
 static volatile uint8_t dis_hint_timer_counter = 0;
 static uint8_t charge_dis_counter_bak = 0;
 static uint8_t cur_level_dis = 0xff;
-static uint8_t battery_old = 0xff;
 static uint8_t dis_power_flag = 0;
-static bool layout_refresh = false;
 #endif
 static bool hide_icon = false;
 
@@ -334,64 +332,6 @@ void getBleDevInformation(void) {
   }
 }
 
-uint8_t refreshBleIcon(bool force_flag) {
-  static bool ble_conn_status_old = false;
-  static bool ble_icon_status_old = false;
-  uint8_t ret = 0;
-
-  int offset_x = ble_hw_ver_is_pure() ? 0 : 16;
-
-  // usb/charge icon
-  offset_x += 2 * LOGO_WIDTH;
-
-  if (ble_get_switch() == true) {
-    if (sys_bleState() == true) {
-      if (force_flag || false == ble_conn_status_old) {
-        ble_conn_status_old = true;
-        oledDrawBitmap(OLED_WIDTH - LOGO_WIDTH - offset_x, 0,
-                       &bmp_status_ble_connect);
-        layout_refresh = true;
-      }
-    } else if (force_flag || true == ble_icon_status_old) {
-      if (ble_conn_status_old) {
-        ble_conn_status_old = false;
-        ret = 1;
-      }
-      oledDrawBitmap(OLED_WIDTH - LOGO_WIDTH - offset_x, 0, &bmp_status_ble);
-      layout_refresh = true;
-    }
-    ble_icon_status_old = true;
-  } else if (true == ble_icon_status_old) {
-    if (ble_conn_status_old) {
-      ble_conn_status_old = false;
-      ret = 1;
-    }
-    ble_icon_status_old = false;
-    oledClearBitmap(OLED_WIDTH - LOGO_WIDTH - offset_x, 0, &bmp_status_ble);
-    layout_refresh = true;
-  }
-  return ret;
-}
-void disLongPressBleTips(void) {
-  if (change_ble_sta_flag == BUTTON_PRESS_BLE_ON) {
-    oledClearPart();
-    oledDrawStringCenter(60, 20, "Bluetooth enabled,press", FONT_STANDARD);
-    oledDrawStringCenter(60, 30, "and hold up button ^", FONT_STANDARD);
-    oledDrawStringCenter(60, 40, "to turn it off.", FONT_STANDARD);
-  } else if (change_ble_sta_flag == BUTTON_PRESS_BLE_OFF) {
-    oledClearPart();
-    oledDrawStringCenter(60, 20, (char *)" Bluetooth disabled,", FONT_STANDARD);
-    oledDrawStringCenter(60, 30, "press and hold up button^", FONT_STANDARD);
-    oledDrawStringCenter(60, 40, "to turn it on.", FONT_STANDARD);
-  }
-  if ((change_ble_sta_flag == BUTTON_PRESS_BLE_OFF) ||
-      (change_ble_sta_flag == BUTTON_PRESS_BLE_ON)) {
-    oledRefresh();
-    waitButtonResponse(0, timer1s * 3);
-    layoutRefreshSet(true);
-  }
-  change_ble_sta_flag = 0;
-}
 void disPcConnectTips(void) {
   layoutDialogCenterAdapterV2(
       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
@@ -413,25 +353,17 @@ void disUsbConnectTips(void) {
     disPowerChargeTips();
   }
 }
-void refreshBatteryFlash(void) {
+void refreshBatteryFlash(int offset_x) {
   if (charge_dis_counter_bak != charge_dis_timer_counter) {
     charge_dis_counter_bak = charge_dis_timer_counter;
     if (cur_level_dis == 0xff) {
       cur_level_dis = battery_cap;
     }
-    disBatteryLevel(cur_level_dis);
     cur_level_dis = cur_level_dis >= 4 ? battery_cap : cur_level_dis + 1;
-    layout_refresh = true;
   }
+  disBatteryLevel(offset_x, cur_level_dis);
 }
-void refreshBatteryLevel(uint8_t force_flag) {
-  if (battery_old != battery_cap || force_flag) {
-    battery_old = battery_cap;
-    cur_level_dis = battery_old;
-    layout_refresh = true;
-    disBatteryLevel(battery_old);
-  }
-}
+
 void refreshUsbConnectTips(void) {
   if ((dis_power_flag == 0) && (dis_hint_timer_counter == 4)) {
     dis_power_flag = 1;
@@ -443,78 +375,51 @@ void refreshUsbConnectTips(void) {
     layoutRefreshSet(true);
   }
 }
-void disUsbConnectSomething(uint8_t force_flag) {
-  static bool usb_status_old = false;
-  static bool charge_status_old = false;
-  int offset_x = ble_hw_ver_is_pure() ? 0 : 16;
+void layoutStatusLogoEx(void) {
+#if !EMULATOR
+  if (hide_icon) return;
+  if (ble_passkey_state()) return;
+#endif
 
+  static int logo_width = 0;
+  int offset_x = 0;
+
+  if (logo_width == 0) {
+    logo_width = ble_hw_ver_is_pure()
+                     ? STATUS_LOGO_WIDTH_MAX - BATTERY_LOGO_WIDTH
+                     : STATUS_LOGO_WIDTH_MAX;
+  }
+
+  getBleDevInformation();
+
+  oledBox(OLED_WIDTH - logo_width, 0, OLED_WIDTH, LOGO_HEIGHT - 1, false);
+
+  if (sys_usbState()) {
+    offset_x += LOGO_WIDTH;
+    oledDrawBitmap(OLED_WIDTH - offset_x, 0, &bmp_status_charge);
+    offset_x += BATTERY_LOGO_WIDTH;
+    refreshBatteryFlash(OLED_WIDTH - offset_x);
+  } else {
+    offset_x += BATTERY_LOGO_WIDTH;
+    disBatteryLevel(OLED_WIDTH - offset_x, battery_cap);
+  }
   if (sys_usbState() == false) {
     usb_connect_status = 0;
   }
-  if (sys_usbState() == true) {
-    refreshBatteryFlash();
-    if (force_flag || false == charge_status_old || layoutLast == layoutHome) {
-      charge_status_old = true;
-      oledDrawBitmap(OLED_WIDTH - LOGO_WIDTH, 0, &bmp_status_charge);
-      layout_refresh = true;
-    }
-  } else if (charge_status_old) {
-    charge_status_old = false;
-    oledClearBitmap(OLED_WIDTH - LOGO_WIDTH, 0, &bmp_status_charge);
-    layout_refresh = true;
-    cur_level_dis = battery_old;
-    dis_power_flag = 0;
-    dis_hint_timer_counter = 0;
+  if (usb_connect_status) {
+    offset_x += LOGO_WIDTH;
+    oledDrawBitmap(OLED_WIDTH - offset_x, 0, &bmp_status_usb);
   }
 
   offset_x += LOGO_WIDTH;
 
-  if (usb_connect_status) {
-    if (force_flag || false == usb_status_old || layoutLast == layoutHome) {
-      usb_status_old = true;
-      oledDrawBitmap(OLED_WIDTH - LOGO_WIDTH - offset_x, 0, &bmp_status_usb);
-      layout_refresh = true;
-    }
-  } else if (true == usb_status_old) {
-    usb_status_old = false;
-    oledClearBitmap(OLED_WIDTH - LOGO_WIDTH - offset_x, 0, &bmp_status_usb);
-    layout_refresh = true;
-
-    layoutRefreshSet(true);
-  }
-}
-
-uint8_t layoutStatusLogoEx(bool need_fresh, bool force_fresh) {
-  uint8_t ret = 0;
-#if !EMULATOR
-  if (hide_icon) return ret;
-  if (ble_passkey_state()) return ret;
-#endif
-  getBleDevInformation();
-
-  if (layoutLast == layoutHome) {
-    refreshBleIcon(true);
-  } else {
-    refreshBleIcon(force_fresh);
+  if (sys_bleState() == true) {
+    oledDrawBitmap(OLED_WIDTH - offset_x, 0, &bmp_status_ble_connect);
+  } else if (ble_get_switch() == true) {
+    oledDrawBitmap(OLED_WIDTH - offset_x, 0, &bmp_status_ble);
   }
 
-  disLongPressBleTips();
-
-  disUsbConnectSomething(force_fresh);
-#if !EMULATOR
-  if (sys_usbState() == false) {
-    refreshBatteryLevel(true);
-  } else {
-    refreshBatteryLevel(force_fresh);
-  }
-#endif
-
-  if (need_fresh) {
-    if (layout_refresh) oledRefresh();
-    layout_refresh = false;
-  }
-
-  return ret;
+  oledRefresh();
 }
 
 #endif
@@ -4069,7 +3974,7 @@ bool layoutEnterSleep(int mode) {
   if (layoutLast != layoutScreensaver) {
     // 1000 ms refresh
     if ((timer_ms() - system_millis_logo_refresh) >= 1000) {
-      layoutStatusLogoEx(true, false);
+      layoutStatusLogoEx();
       system_millis_logo_refresh = timer_ms();
     }
   }
