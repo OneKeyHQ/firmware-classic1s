@@ -1,0 +1,21 @@
+BenfenGetAddress.address_n                                   max_count:8
+BenfenAddress.address                                        max_size:72
+
+BenfenSignTx.address_n                                       max_count:8
+BenfenSignTx.raw_tx                                          max_size:6144
+BenfenSignTx.data_initial_chunk                              max_size:1024
+BenfenSignTx.coin_type                                       max_size:1024
+
+BenfenTxRequest.public_key                                   max_size:32
+BenfenTxRequest.signature                                    max_size:64
+
+BenfenTxAck.data_chunk                                       max_size:1024
+
+BenfenSignedTx.public_key                                    max_size:32
+BenfenSignedTx.signature                                     max_size:64
+
+BenfenSignMessage.address_n	                                  max_count:8
+BenfenSignMessage.message		                              max_size:1024
+
+BenfenMessageSignature.address	                              max_size:72
+BenfenMessageSignature.signature	                          max_size:64

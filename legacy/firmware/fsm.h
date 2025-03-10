@@ -24,6 +24,7 @@
 #include "messages-alephium.pb.h"
 #include "messages-algorand.pb.h"
 #include "messages-aptos.pb.h"
+#include "messages-benfen.pb.h"
 #include "messages-bitcoin.pb.h"
 #include "messages-cardano.pb.h"
 #include "messages-conflux.pb.h"
@@ -348,4 +349,10 @@ void fsm_msgWebAuthnAddResidentCredential(
     const WebAuthnAddResidentCredential *msg);
 void fsm_msgWebAuthnRemoveResidentCredential(
     const WebAuthnRemoveResidentCredential *msg);
+
+// benfen
+void fsm_msgBenfenGetAddress(const BenfenGetAddress *msg);
+void fsm_msgBenfenSignTx(const BenfenSignTx *msg);
+void fsm_msgBenfenSignMessage(BenfenSignMessage *msg);
+void fsm_msgBenfenTxAck(BenfenTxAck *msg);
 #endif

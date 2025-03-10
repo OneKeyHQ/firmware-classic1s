@@ -34,6 +34,7 @@ from . import (
     alephium,
     algorand,
     aptos,
+    benfen,
     binance,
     bixin,
     btc,
@@ -110,6 +111,7 @@ COMMAND_ALIASES = {
     "sui": sui.cli,
     "nervos": nervos.cli,
     "alephium": alephium.cli,
+    "benfen": benfen.cli,
     # firmware aliases:
     "fw": firmware.cli,
     "update-firmware": firmware.update,
@@ -460,6 +462,7 @@ cli.add_command(kaspa.cli)
 cli.add_command(sui.cli)
 cli.add_command(nervos.cli)
 cli.add_command(alephium.cli)
+cli.add_command(benfen.cli)
 
 
 #
