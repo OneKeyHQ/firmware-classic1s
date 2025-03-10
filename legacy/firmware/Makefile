@@ -160,6 +160,7 @@ OBJS += ton_address.o
 OBJS += ton_layout.o
 OBJS += psbt/psbt.o
 OBJS += bip322_simple/bip322_simple.o
+OBJS += benfen.o
 endif
 
 OBJS += debug.o
@@ -273,6 +274,7 @@ OBJS += protob/messages-lnurl.pb.o
 OBJS += protob/messages-alephium.pb.o
 OBJS += protob/messages-ton.pb.o
 OBJS += protob/messages-webauthn.pb.o
+OBJS += protob/messages-benfen.pb.o
 endif
 
 OPTFLAGS ?= -Os
