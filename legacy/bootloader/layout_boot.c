@@ -26,7 +26,7 @@ void layoutBootHome(void) {
   // 1000 ms refresh
   if ((timer_ms() - system_millis_logo_refresh) >= 1000) {
 #if !EMULATOR
-    layoutStatusLogo(true);
+    layoutStatusLogo();
     system_millis_logo_refresh = timer_ms();
     if (se_state == THD89_STATE_BOOT) {
       oledDrawStringCenter(OLED_WIDTH / 2, 50, "se in boot state",

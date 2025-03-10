@@ -291,9 +291,10 @@ void ble_uart_poll(uint8_t *buf) {
       }
       break;
     case BLE_CMD_BATTERY:
-      get_ble_battery = true;
-      if (ble_usart_msg.cmd_vale[0] <= 5)
+      if (ble_usart_msg.cmd_vale[0] <= 5) {
+        get_ble_battery = true;
         battery_cap = ble_usart_msg.cmd_vale[0];
+      }
       break;
     case BLE_CMD_VER:
       if (ble_usart_msg.cmd_len < sizeof(ble_ver) - 1) {

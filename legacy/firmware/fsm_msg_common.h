@@ -37,13 +37,10 @@ bool get_features(Features *resp) {
   strlcpy(resp->fw_vendor, "EMULATOR", sizeof(resp->fw_vendor));
   strlcpy(resp->vendor, "onekey.so", sizeof(resp->vendor));
 #else
-  const image_header *hdr = (const image_header *)FLASH_PTR(
-      FLASH_FWHEADER_START);  // allow both v2 and v3 signatures
-  if (SIG_OK == signatures_match(hdr, NULL)) {
-    strlcpy(resp->fw_vendor, "OneKey", sizeof(resp->fw_vendor));
-  } else {
-    strlcpy(resp->fw_vendor, "UNSAFE, DO NOT USE!", sizeof(resp->fw_vendor));
-  }
+  const image_header *hdr =
+      (const image_header *)FLASH_PTR(FLASH_FWHEADER_START);
+  // No signature verification needed, unofficial firmware cannot be started
+  strlcpy(resp->fw_vendor, "OneKey", sizeof(resp->fw_vendor));
   bool trezor_comp_mode = false;
   config_getTrezorCompMode(&trezor_comp_mode);
   if (trezor_comp_mode) {
@@ -792,7 +789,7 @@ void fsm_msgApplySettings(const ApplySettings *msg) {
   layoutHome();
 #if !EMULATOR
   if (msg->has_homescreen) {
-    layoutStatusLogoEx(true, true);
+    layoutStatusLogoEx();
   }
 #endif
 }

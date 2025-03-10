@@ -38,9 +38,7 @@ struct buttonState {
   volatile bool DownUp;
   volatile int DownDown;
 };
-#if !EMULATOR
-extern uint8_t change_ble_sta_flag;
-#endif
+
 extern struct buttonState button;
 
 enum {

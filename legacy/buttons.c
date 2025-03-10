@@ -37,10 +37,6 @@ static volatile bool btn_up_long = false, btn_down_long = false;
 
 #include <libopencm3/cm3/scb.h>
 
-#if !EMULATOR
-uint8_t change_ble_sta_flag = 0;
-#endif
-
 static volatile int button_timer_enable = 0;
 static volatile uint32_t button_timer_counter = 0;
 static volatile uint32_t up_btn_timer_counter = 0;

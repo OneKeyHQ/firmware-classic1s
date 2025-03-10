@@ -25,6 +25,10 @@
 #include <string.h>
 #include "bitmaps.h"
 
+#define BATTERY_LOGO_WIDTH 16
+// USB/BLE/BATTERY/CHARGE
+#define STATUS_LOGO_WIDTH_MAX 5 * LOGO_WIDTH
+
 #if !EMULATOR
 void chargeDisTimer(void);
 #endif
@@ -49,8 +53,8 @@ void layoutDialogCenterAdapterEx(const BITMAP *icon, const BITMAP *bmp_no,
 void layoutProgressUpdate(bool refresh);
 void layoutProgressPercent(int permil);
 void layoutProgress(const char *desc, int permil);
-uint8_t layoutStatusLogo(bool force_fresh);
-void disBatteryLevel(uint8_t cur_level);
+void layoutStatusLogo(void);
+void disBatteryLevel(int offset_x, uint8_t cur_level);
 void layoutBlePasskey(uint8_t *passkey);
 void layoutFillBleName(uint8_t line);
 void layoutFillBleVersion(uint8_t line);
