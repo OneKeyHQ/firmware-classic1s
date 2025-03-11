@@ -44,4 +44,4 @@ const NeoToken *neo_token_by_contract_script_hash(
   return &UNK_TOKEN;
 }
 
-bool is_unknown_token(const NeoToken *token) { return token == &UNK_TOKEN; }
+bool neo_is_unknown_token(const NeoToken *token) { return token == &UNK_TOKEN; }
