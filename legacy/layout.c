@@ -253,45 +253,37 @@ void layoutProgress(const char *desc, int permil) {
 }
 
 #if !EMULATOR
-void disBatteryLevel(uint8_t cur_level) {
+void disBatteryLevel(int offset_x, uint8_t cur_level) {
   if (ble_hw_ver_is_pure()) {
     return;
   }
-  int offset_x = 16 + LOGO_WIDTH;
 
   switch (cur_level) {
     case 0:
-      oledDrawBitmap(OLED_WIDTH - offset_x, 0, &bmp_status_battery_0);
+      oledDrawBitmap(offset_x, 0, &bmp_status_battery_0);
       break;
     case 1:
-      oledDrawBitmap(OLED_WIDTH - offset_x, 0, &bmp_status_battery_1);
+      oledDrawBitmap(offset_x, 0, &bmp_status_battery_1);
       break;
     case 2:
-      oledDrawBitmap(OLED_WIDTH - offset_x, 0, &bmp_status_battery_2);
+      oledDrawBitmap(offset_x, 0, &bmp_status_battery_2);
       break;
     case 3:
-      oledDrawBitmap(OLED_WIDTH - offset_x, 0, &bmp_status_battery_3);
+      oledDrawBitmap(offset_x, 0, &bmp_status_battery_3);
       break;
     case 4:
-      oledDrawBitmap(OLED_WIDTH - offset_x, 0, &bmp_status_battery_4);
+      oledDrawBitmap(offset_x, 0, &bmp_status_battery_4);
       break;
     default:
-      oledClearBitmap(OLED_WIDTH - offset_x, 0, &bmp_status_battery_4);
+      oledClearBitmap(offset_x, 0, &bmp_status_battery_4);
       break;
   }
 }
 
-uint8_t layoutStatusLogo(bool force_fresh) {
-  static bool ble_status_bak = false;
-  static bool ble_adv_status_bak = false;
-  static bool usb_status_bak = false;
-  static bool charge_status_bak = false;
-  static uint8_t battery_bak = 0xff;
+void layoutStatusLogo(void) {
+  static int logo_width = 0;
 
-  bool refresh = false;
-  uint8_t ret = 0;
-
-  int offset_x = LOGO_WIDTH;
+  int offset_x = 0;
 
   if (!ble_name_state()) {
     ble_request_info(BLE_CMD_BT_NAME);
@@ -301,77 +293,56 @@ uint8_t layoutStatusLogo(bool force_fresh) {
     ble_request_info(BLE_CMD_VER);
     delay_ms(5);
   }
-  if (!ble_battery_state()) {
-    ble_request_info(BLE_CMD_BATTERY);
-    delay_ms(5);
-  }
+
   if (!ble_hw_ver_state()) {
     ble_request_info(BLE_CMD_HW_VER);
     delay_ms(5);
   }
 
-  if (sys_usbState()) {
-    if (!charge_status_bak || force_fresh) {
-      oledDrawBitmap(OLED_WIDTH - LOGO_WIDTH, 0, &bmp_status_charge);
-      charge_status_bak = true;
-    }
-  } else if (charge_status_bak) {
-    oledClearBitmap(OLED_WIDTH - LOGO_WIDTH, 0, &bmp_status_charge);
-    charge_status_bak = false;
+  if (logo_width == 0) {
+    logo_width = ble_hw_ver_is_pure()
+                     ? STATUS_LOGO_WIDTH_MAX - BATTERY_LOGO_WIDTH
+                     : STATUS_LOGO_WIDTH_MAX;
   }
 
   if (!ble_hw_ver_is_pure()) {
-    if (battery_bak != battery_cap || force_fresh) {
-      battery_bak = battery_cap;
-      refresh = true;
-      disBatteryLevel(battery_bak);
+    if (!ble_battery_state()) {
+      ble_request_info(BLE_CMD_BATTERY);
+      delay_ms(5);
     }
-    offset_x += 2 * LOGO_WIDTH;
+  }
+
+  oledBox(OLED_WIDTH - logo_width, 0, OLED_WIDTH, LOGO_HEIGHT, false);
+
+  if (sys_usbState()) {
+    offset_x += LOGO_WIDTH;
+    oledDrawBitmap(OLED_WIDTH - offset_x, 0, &bmp_status_charge);
+  }
+
+  if (!ble_hw_ver_is_pure()) {
+    if (battery_cap != 0xff) {
+      offset_x += BATTERY_LOGO_WIDTH;
+      disBatteryLevel(OLED_WIDTH - offset_x, battery_cap);
+    }
   }
 
   if (sys_usbState() == false) {
     usb_connect_status = 0;
   }
   if (usb_connect_status) {
-    if (force_fresh || false == usb_status_bak) {
-      usb_status_bak = true;
-      oledDrawBitmap(OLED_WIDTH - LOGO_WIDTH - offset_x, 0, &bmp_status_usb);
-      refresh = true;
-    }
-  } else if (true == usb_status_bak) {
-    usb_status_bak = false;
-    oledClearBitmap(OLED_WIDTH - LOGO_WIDTH - offset_x, 0, &bmp_status_usb);
-    refresh = true;
+    offset_x += LOGO_WIDTH;
+    oledDrawBitmap(OLED_WIDTH - offset_x, 0, &bmp_status_usb);
   }
+
+  offset_x += LOGO_WIDTH;
 
   if (sys_bleState() == true) {
-    if (force_fresh || false == ble_status_bak) {
-      ble_status_bak = true;
-      oledDrawBitmap(OLED_WIDTH - 2 * LOGO_WIDTH - offset_x, 0,
-                     &bmp_status_ble_connect);
-      refresh = true;
-    }
-  } else if (true == ble_status_bak) {
-    ble_status_bak = false;
-    oledDrawBitmap(OLED_WIDTH - 2 * LOGO_WIDTH - offset_x, 0, &bmp_status_ble);
-    refresh = true;
-    ret = 1;
+    oledDrawBitmap(OLED_WIDTH - offset_x, 0, &bmp_status_ble_connect);
   } else if (ble_get_switch() == true) {
-    if (force_fresh || false == ble_adv_status_bak) {
-      ble_adv_status_bak = true;
-      oledDrawBitmap(OLED_WIDTH - 2 * LOGO_WIDTH - offset_x, 0,
-                     &bmp_status_ble);
-      refresh = true;
-    }
-  } else if (true == ble_adv_status_bak) {
-    ble_adv_status_bak = false;
-    oledClearBitmap(OLED_WIDTH - 2 * LOGO_WIDTH - offset_x, 0, &bmp_status_ble);
-    refresh = true;
-    ret = 1;
+    oledDrawBitmap(OLED_WIDTH - offset_x, 0, &bmp_status_ble);
   }
 
-  if (refresh || force_fresh) oledRefresh();
-  return ret;
+  oledRefresh();
 }
 
 void layoutBlePasskey(uint8_t *passkey) {

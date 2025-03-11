@@ -250,19 +250,19 @@ bool layoutInputDirection(int index);
       desc, current, name2, param, previous, pre_previous, pre_pre_previous, \
       next, next_next, next_next_next, true, true)
 
-uint8_t layoutStatusLogoEx(bool need_fresh, bool force_fresh);
+void layoutStatusLogoEx(void);
 
 static inline void oledClear_ex(void) {
   oledClear();
 #if !EMULATOR
-  layoutStatusLogoEx(false, true);
+  layoutStatusLogoEx();
 #endif
 }
 
 static inline void oledClear_ext(int x, int y) {
   oledClearFrom_x_y(x, y);
 #if !EMULATOR
-  layoutStatusLogoEx(false, true);
+  layoutStatusLogoEx();
 #endif
 }
 
@@ -272,7 +272,7 @@ static inline void oledClear_ext(int x, int y) {
 static inline void layoutSwipe(void) {
   oledClear();
 #if !EMULATOR
-  layoutStatusLogoEx(false, true);
+  layoutStatusLogoEx();
 #endif
 }
 #endif
