@@ -161,6 +161,8 @@ OBJS += ton_layout.o
 OBJS += psbt/psbt.o
 OBJS += bip322_simple/bip322_simple.o
 OBJS += benfen.o
+OBJS += neo.o
+OBJS += neo_tokens.o
 endif
 
 OBJS += debug.o
@@ -275,6 +277,7 @@ OBJS += protob/messages-alephium.pb.o
 OBJS += protob/messages-ton.pb.o
 OBJS += protob/messages-webauthn.pb.o
 OBJS += protob/messages-benfen.pb.o
+OBJS += protob/messages-neo.pb.o
 endif
 
 OPTFLAGS ?= -Os

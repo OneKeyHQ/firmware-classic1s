@@ -373,4 +373,5 @@ const char *const languages_en[] = {
     "Candidate",
     "Target network",
     "Remove vote",
+    "Unknown Token",
 };

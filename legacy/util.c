@@ -285,3 +285,23 @@ int write_bytes(const uint8_t *src, size_t count, BufferWriter *writer) {
   writer->position += count;
   return 1;
 }
+
+uint64_t deser_compact_size(BufferReader *s) {
+  uint8_t first;
+  if (!read_bytes(s, &first, 1)) {
+    return 0;
+  }
+
+  if (first < 253) {
+    return first;
+  }
+
+  uint64_t value = 0;
+  size_t bytes_to_read = 1 << (first - 252);
+
+  if (!read_bytes(s, (uint8_t *)&value, bytes_to_read)) {
+    return 0;
+  }
+
+  return value;
+}

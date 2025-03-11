@@ -373,4 +373,5 @@ const char *const languages_de[] = {
     "Kandidat",
     "Zielnetzwerk",
     "Stimme entfernen",
+    "Unbekanntes Token",
 };
