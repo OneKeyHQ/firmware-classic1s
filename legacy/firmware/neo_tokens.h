@@ -12,5 +12,5 @@ typedef struct {
 extern const NeoToken UNK_TOKEN;
 const NeoToken *neo_token_by_contract_script_hash(
     const uint8_t *contract_script_hash);
-bool is_unknown_token(const NeoToken *token);
+bool neo_is_unknown_token(const NeoToken *token);
 #endif  // __NEO_TOKENS_H__

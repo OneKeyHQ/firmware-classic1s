@@ -503,7 +503,7 @@ static bool layout_token_transfer(const Transaction *transaction,
   if (is_unknown_network(network_magic)) {
     max_index = 5;
   }
-  if (is_unknown_token(token)) {
+  if (neo_is_unknown_token(token)) {
     char contract_str[43] = {'0', 'x'};
     uint8_t contract_script_hash[20];
     memcpy(contract_script_hash, transaction->contract_script_hash,
