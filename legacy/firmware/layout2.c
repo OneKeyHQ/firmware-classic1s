@@ -375,7 +375,7 @@ void refreshUsbConnectTips(void) {
     layoutRefreshSet(true);
   }
 }
-void layoutStatusLogoEx(void) {
+void layoutStatusLogoEx(bool fresh) {
 #if !EMULATOR
   if (hide_icon) return;
   if (ble_passkey_state()) return;
@@ -419,7 +419,9 @@ void layoutStatusLogoEx(void) {
     oledDrawBitmap(OLED_WIDTH - offset_x, 0, &bmp_status_ble);
   }
 
-  oledRefresh();
+  if (fresh) {
+    oledRefresh();
+  }
 }
 
 #endif
@@ -3974,7 +3976,7 @@ bool layoutEnterSleep(int mode) {
   if (layoutLast != layoutScreensaver) {
     // 1000 ms refresh
     if ((timer_ms() - system_millis_logo_refresh) >= 1000) {
-      layoutStatusLogoEx();
+      layoutStatusLogoEx(true);
       system_millis_logo_refresh = timer_ms();
     }
   }

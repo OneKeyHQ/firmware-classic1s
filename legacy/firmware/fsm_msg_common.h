@@ -789,7 +789,7 @@ void fsm_msgApplySettings(const ApplySettings *msg) {
   layoutHome();
 #if !EMULATOR
   if (msg->has_homescreen) {
-    layoutStatusLogoEx();
+    layoutStatusLogoEx(true);
   }
 #endif
 }
