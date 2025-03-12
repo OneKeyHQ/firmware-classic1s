@@ -185,9 +185,19 @@ int main(void) {
 #endif
   }
 
-  se_get_state(&se_state);
-  gd32_flash_init();
   layoutBootHome();
+
+  se_get_state(&se_state);
+
+  HW_VER_t ble_hw_ver;
+  char *ble_ver = NULL;
+  if (ble_get_version(&ble_ver)) {
+    if (compare_str_version(ble_ver, "1.5.3") >= 0) {
+      ensure(ble_get_hw_version(&ble_hw_ver) ? sectrue : secfalse, NULL);
+    }
+  }
+
+  gd32_flash_init();
   bootloader_loop();
 
   return 0;

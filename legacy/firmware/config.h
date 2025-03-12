@@ -98,6 +98,8 @@ const AuthorizeCoinJoin *config_getCoinJoinAuthorization(void);
 bool config_getLabel(char *dest, uint16_t dest_size);
 void config_setLabel(const char *label);
 
+char *config_get_device_model(void);
+
 bool config_getLanguage(char *dest, uint16_t dest_size);
 void config_setLanguage(const char *lang);
 

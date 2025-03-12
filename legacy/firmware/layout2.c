@@ -397,12 +397,17 @@ void layoutStatusLogoEx(bool fresh) {
   if (sys_usbState()) {
     offset_x += LOGO_WIDTH;
     oledDrawBitmap(OLED_WIDTH - offset_x, 0, &bmp_status_charge);
-    offset_x += BATTERY_LOGO_WIDTH;
-    refreshBatteryFlash(OLED_WIDTH - offset_x);
-  } else {
-    offset_x += BATTERY_LOGO_WIDTH;
-    disBatteryLevel(OLED_WIDTH - offset_x, battery_cap);
   }
+
+  if (!ble_hw_ver_is_pure()) {
+    offset_x += BATTERY_LOGO_WIDTH;
+    if (sys_usbState()) {
+      refreshBatteryFlash(OLED_WIDTH - offset_x);
+    } else {
+      disBatteryLevel(OLED_WIDTH - offset_x, battery_cap);
+    }
+  }
+
   if (sys_usbState() == false) {
     usb_connect_status = 0;
   }
@@ -555,7 +560,7 @@ static void layoutWelcome(int index) {
                      &bmp_bottom_middle_arrow_up);
       oledDrawStringAdapter(0, 16, _(I__PRODUCT_NAME_UPPERCASE_COLON),
                             FONT_STANDARD);
-      oledDrawStringAdapter(0, 25, "OneKey Classic 1S", FONT_STANDARD);
+      oledDrawStringAdapter(0, 25, config_get_device_model(), FONT_STANDARD);
       oledDrawStringAdapter(0, 34, _(I__MODEL_UPPERCASE_COLON), FONT_STANDARD);
       oledDrawStringAdapter(0, 43, "C1", FONT_STANDARD);
     } else if (6 == index) {
@@ -3756,7 +3761,7 @@ refresh_menu:
 
       oledDrawStringAdapter(0, y, _(I__MODEL_UPPERCASE_COLON), FONT_STANDARD);
       y += font->pixel + 1;
-      oledDrawStringAdapter(0, y, "OneKey Classic 1S", FONT_STANDARD);
+      oledDrawStringAdapter(0, y, config_get_device_model(), FONT_STANDARD);
       y += font->pixel + 4;
 
       oledDrawStringAdapter(0, y, _(I__BLUETOOTH_NAME_UPPERCASE_COLON),
