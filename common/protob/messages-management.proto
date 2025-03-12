@@ -149,7 +149,10 @@ message Features {
         CLASSIC1S = 0x01;
         MINI = 0x02;
         TOUCH = 0x03;
+        // deprecated
         TOUCH_PRO = 0x04;
+        PRO = 0x05;
+        PURE = 0x06;
     }
     optional OneKeyDeviceType onekey_device_type = 600;
     enum OneKeySeType {

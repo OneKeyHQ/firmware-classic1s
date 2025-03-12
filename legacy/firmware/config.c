@@ -372,13 +372,17 @@ bool config_genSessionSeed(void) {
   return true;
 }
 
+char *config_get_device_model(void) {
+  return ble_hw_ver_is_pure() ? "OneKey Pure" : "OneKey Classic 1S";
+}
+
 bool config_getLabel(char *dest, uint16_t dest_size) {
   if (secfalse == config_get_string(KEY_LABEL, dest, &dest_size)) {
-    memcpy(dest, "OneKey Classic 1S", 18 /*strlen("OneKey Classic 1S") + 1*/);
+    strncpy(dest, config_get_device_model(), dest_size);
   } else {
     int len = strlen(dest);
     if (0 == len) {
-      memcpy(dest, "OneKey Classic 1S", 18);
+      strncpy(dest, config_get_device_model(), dest_size);
     }
   }
   return true;

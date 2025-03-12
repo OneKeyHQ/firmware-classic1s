@@ -588,6 +588,8 @@ if TYPE_CHECKING:
         MINI = 2
         TOUCH = 3
         TOUCH_PRO = 4
+        PRO = 5
+        PURE = 6
 
     class OneKeySeType(IntEnum):
         THD89 = 0

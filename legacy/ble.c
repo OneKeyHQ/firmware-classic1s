@@ -96,8 +96,8 @@ bool ble_get_pubkey(uint8_t *pubkey) {
   ble_request_state = -1;
   while (ble_request_state == -1) {
     counter++;
-    delay_ms(100);
-    if (counter > 20) {
+    delay_ms(500);
+    if (counter > 5) {
       return false;
     }
     ble_cmd_packet(cmd, 2);
@@ -119,8 +119,8 @@ bool ble_lock_pubkey(void) {
   ble_request_state = -1;
   while (ble_request_state == -1) {
     counter++;
-    delay_ms(100);
-    if (counter > 20) {
+    delay_ms(500);
+    if (counter > 5) {
       return false;
     }
     ble_cmd_packet(cmd, 2);
@@ -165,8 +165,8 @@ bool ble_get_version(char **ver) {
   uint8_t counter = 0;
   while (!get_ble_ver) {
     counter++;
-    delay_ms(100);
-    if (counter > 20) {
+    delay_ms(500);
+    if (counter > 5) {
       return false;
     }
     ble_request_info(BLE_CMD_VER);
@@ -186,8 +186,8 @@ bool ble_get_hw_version(HW_VER_t *ver) {
   uint8_t counter = 0;
   while (!get_ble_hw_ver) {
     counter++;
-    delay_ms(100);
-    if (counter > 20) {
+    delay_ms(500);
+    if (counter > 5) {
       return false;
     }
     ble_request_info(BLE_CMD_HW_VER);

@@ -145,7 +145,8 @@ bool get_features(Features *resp) {
   }
 
   resp->has_onekey_device_type = true;
-  resp->onekey_device_type = OneKeyDeviceType_CLASSIC1S;
+  resp->onekey_device_type =
+      ble_hw_ver_is_pure() ? OneKeyDeviceType_PURE : OneKeyDeviceType_CLASSIC1S;
   resp->has_onekey_se_type = true;
   resp->onekey_se_type = OneKeySeType_THD89;
   resp->has_se_enable = true;
@@ -217,7 +218,8 @@ bool get_features(Features *resp) {
   }
 #endif
   resp->has_product = true;
-  strlcpy(resp->product, "classic2", sizeof(resp->product));
+  strlcpy(resp->product, ble_hw_ver_is_pure() ? "pure" : "classic1s",
+          sizeof(resp->product));
   return resp;
 }
 

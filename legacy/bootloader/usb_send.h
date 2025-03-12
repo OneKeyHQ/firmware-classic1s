@@ -62,6 +62,8 @@ static void send_msg_features(usbd_device *dev) {
   const image_header *current_hdr = (const image_header *)FLASH_FWHEADER_START;
   uint32_t version = firmware_present ? current_hdr->version : 0;
 
+  bool is_pure = ble_hw_ver_is_pure();
+
   // clang-format off
   const uint8_t feature_bytes[] = {
     0x0a,  // vendor field
@@ -97,13 +99,19 @@ static void send_msg_features(usbd_device *dev) {
     battery_level[2]=battery_cap;
   }
 
-  uint8_t product[]={
+  uint8_t product_1s[]={
     0xca, 0x20, 0x09,'c','l','a','s','s','i','c','1','s',
+  };
+  uint8_t product_pure[]={
+    0xca, 0x20, 0x04,'p','u','r','e',
   };
 
 
-  uint8_t onekey_device_type[]={
+  uint8_t onekey_device_type_1s[]={
     0xc0, 0x25, 0x01,
+  };
+  uint8_t onekey_device_type_pure[]={
+    0xc0, 0x25, 0x06,
   };
   uint8_t onekey_se_type[]={
     0xc8, 0x25, 0x00,
@@ -194,8 +202,14 @@ static void send_msg_features(usbd_device *dev) {
     firmware_hash_len=3;
   }
 
+  uint8_t *product = is_pure ? product_pure : product_1s;
+  uint8_t *onekey_device_type = is_pure ? onekey_device_type_pure : onekey_device_type_1s;
+
+  int product_len = is_pure ? sizeof(product_pure) : sizeof(product_1s);
+  int onekey_device_type_len = is_pure ? sizeof(onekey_device_type_pure) : sizeof(onekey_device_type_1s);
+
   int len =  sizeof(feature_bytes) + (firmware_present ? sizeof(version_bytes) : 0) + sizeof(battery_level)
-    + sizeof(product) + sizeof(onekey_device_type) + sizeof(onekey_se_type) + se_ver_len + se_build_id_len + se_hash_len
+    + product_len + onekey_device_type_len + sizeof(onekey_se_type) + se_ver_len + se_build_id_len + se_hash_len
     + boot_version_len + boot_hash_len + firmware_version_len + firmware_hash_len;
   uint8_t header_bytes[] = {
     // header
@@ -222,11 +236,11 @@ static void send_msg_features(usbd_device *dev) {
   memcpy(response + offset, battery_level, sizeof(battery_level));
   offset += sizeof(battery_level);
 
-  memcpy(response + offset, product, sizeof(product));
-  offset += sizeof(product);
+  memcpy(response + offset, product, product_len);
+  offset += product_len;
 
-  memcpy(response + offset, onekey_device_type, sizeof(onekey_device_type));
-  offset += sizeof(onekey_device_type);
+  memcpy(response + offset, onekey_device_type, onekey_device_type_len);
+  offset += onekey_device_type_len;
 
   memcpy(response + offset, onekey_se_type, sizeof(onekey_se_type));
   offset += sizeof(onekey_se_type);
