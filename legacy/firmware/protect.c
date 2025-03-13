@@ -408,7 +408,7 @@ bool protectPin(bool use_cached) {
   if (!ret) {
     fsm_sendFailure(FailureType_Failure_PinInvalid, NULL);
     msg_command_inprogress = false;
-    protectPinCheck(false);
+    protectPinErrorTips(false);
     msg_command_inprogress = true;
   }
   return ret;
@@ -436,7 +436,7 @@ bool protectChangePin(bool removal) {
     usbTiny(0);
     if (ret == false) {
       fsm_sendFailure(FailureType_Failure_PinInvalid, NULL);
-      protectPinCheck(false);
+      protectPinErrorTips(false);
       return false;
     }
 
@@ -690,7 +690,7 @@ bool protectSeedPin(bool force_pin, bool setpin, bool update_pin) {
       bool ret = config_unlock(pin);
       if (!ret) {
         fsm_sendFailure(FailureType_Failure_PinInvalid, NULL);
-        protectPinCheck(false);
+        protectPinErrorTips(false);
         return false;
       }
     } else {
@@ -775,6 +775,7 @@ uint8_t protectWaitKey(uint32_t time_out, uint8_t mode) {
   protectAbortedByInitialize = false;
   protectAbortedByInitializeOnboarding = false;
   protectAbortedBySleep = false;
+  protectAbortedByCancel = false;
   usbTiny(1);
   while (1) {
     if (layoutEnterSleep(1) && (layoutLast != layoutScreensaver)) {
@@ -801,7 +802,8 @@ uint8_t protectWaitKey(uint32_t time_out, uint8_t mode) {
     if (time_out > 0 && (timer_ms() - start) >= time_out) break;
     protectAbortedByInitialize =
         (msg_tiny_id == MessageType_MessageType_Initialize);
-    if (protectAbortedByInitialize) {
+    protectAbortedByCancel = (msg_tiny_id == MessageType_MessageType_Cancel);
+    if (protectAbortedByInitialize || protectAbortedByCancel) {
       msg_tiny_id = 0xFFFF;
       break;
     }
@@ -839,7 +841,7 @@ uint8_t protectWaitKey(uint32_t time_out, uint8_t mode) {
   }
   usbTiny(0);
   protectAbortedByInitializeOnboarding = protectAbortedByInitialize;
-  if (protectAbortedByInitialize) {
+  if (protectAbortedByInitialize || protectAbortedByCancel) {
     if (device_sleep_state) device_sleep_state = SLEEP_CANCEL_BY_USB;
     // this error code will be sent when the message processing fails
     if (false == msg_command_inprogress) {
@@ -1012,10 +1014,8 @@ input:
 
   bool ret = config_unlock(pin);
   if (ret == false) {
-    if (protectPinCheck(true)) {
-      goto input;
-    } else
-      return false;
+    protectPinErrorTips(true);
+    goto input;
   }
   return ret;
 }
@@ -1040,10 +1040,8 @@ pin_set:
 
     bool ret = config_unlock(pin);
     if (ret == false) {
-      if (protectPinCheck(true)) {
-        goto input;
-      } else
-        return false;
+      protectPinErrorTips(true);
+      goto input;
     }
     layoutDialogCenterAdapterV2(
         _(T__SET_PIN), NULL, NULL, &bmp_bottom_right_arrow, NULL, NULL, NULL,
@@ -1178,19 +1176,13 @@ refresh_menu:
   }
 }
 
-bool protectPinCheck(bool retry) {
+void protectPinErrorTips(bool retry) {
   char desc[128] = "";
   char times_str[3] = {0};
   snprintf(desc, 128, "%s", _(C__INCORRECT_PIN_STR_ATTEMPT_LEFT_TRY_AGAIN));
 
   uint32_t fails = config_getPinFails();
-  if (fails == 1) {
-    bracket_replace(desc, "9");
-    layoutDialogCenterAdapterV2(
-        NULL, &bmp_icon_warning, NULL,
-        retry ? &bmp_bottom_right_retry : &bmp_bottom_right_confirm, NULL, NULL,
-        NULL, NULL, NULL, NULL, desc);
-  } else if (fails > 1 && fails < 10) {
+  if (fails > 0 && fails < 10) {
     uint2str(10 - fails, times_str);
     bracket_replace(desc, times_str);
     layoutDialogCenterAdapterV2(
@@ -1220,7 +1212,8 @@ bool protectPinCheck(bool retry) {
   }
   protectWaitKey(0, 0);
 
-  if (fails >= 5) {
+  if (fails >= 5 && !(protectAbortedByInitialize || protectAbortedByCancel)) {
+    fsm_sendFailure(FailureType_Failure_PinCancelled, NULL);
     memset(desc, 0, 128);
     memset(times_str, 0, 3);
     snprintf(desc, 128, "%s",
@@ -1232,8 +1225,6 @@ bool protectPinCheck(bool retry) {
                                 NULL, NULL, desc);
     protectWaitKey(0, 0);
   }
-
-  return true;
 }
 
 #if !EMULATOR
