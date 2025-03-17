@@ -520,8 +520,9 @@ void st_version(void) {
 }
 
 void gd32_protect(void) {
-  // memory protect later
-  // memory_protect();
+#if PRODUCTION
+  memory_protect();
+#endif
   send_u2f_error(U2F_SW_NO_ERROR);
 }
 
