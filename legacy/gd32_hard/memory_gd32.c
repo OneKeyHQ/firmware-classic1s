@@ -26,12 +26,14 @@
 
 void memory_protect(void) {
   /* enable security protection */
+#if PRODUCTION
   fmc_unlock();
   ob_unlock();
   ob_security_protection_config(FMC_HSPC);
   ob_start();
   ob_lock();
   fmc_lock();
+#endif
 }
 
 uint8_t memory_protect_state(void) { return (FMC_OBCTL0 >> 8) & 0xff; }
