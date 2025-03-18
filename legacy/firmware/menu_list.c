@@ -2,6 +2,7 @@
 #include "menu_core.h"
 #include "menu_para.h"
 
+#include "ble.h"
 #include "buttons.h"
 #include "common.h"
 #include "config.h"
@@ -290,6 +291,17 @@ static const struct menu_item settings_menu_items[] = {
      menu_para_usb_lock, false, menu_para_usb_lock_index},
     {"Input Direction", NULL, false, .sub_menu = &input_direction_set_menu,
      menu_para_input_direction, false, menu_para_input_direction_index}};
+
+static const struct menu_item settings_menu_items_pure[] = {
+    {"Bluetooth", NULL, false, .sub_menu = &ble_set_menu, menu_para_ble_state,
+     false, menu_para_ble_index},
+    {"Language", NULL, false, .sub_menu = &language_set_menu,
+     menu_para_language, false, menu_para_language_index},
+    {"Auto-Lock", NULL, false, .sub_menu = &autolock_set_menu,
+     menu_para_autolock, false, menu_para_autolock_index},
+    {"Input Direction", NULL, false, .sub_menu = &input_direction_set_menu,
+     menu_para_input_direction, false, menu_para_input_direction_index}};
+
 static struct menu settings_menu = {
     .start = 0,
     .current = 0,
@@ -299,6 +311,16 @@ static struct menu settings_menu = {
     .previous = &main_menu,
     .button_type = BTN_TYPE_NEXT,
 };
+
+void menu_init_settings_menu(void) {
+  if (ble_hw_ver_is_pure()) {
+    settings_menu.items = (struct menu_item *)settings_menu_items_pure;
+    settings_menu.counts = COUNT_OF(settings_menu_items_pure);
+  } else {
+    settings_menu.items = (struct menu_item *)settings_menu_items;
+    settings_menu.counts = COUNT_OF(settings_menu_items);
+  }
+}
 
 void menu_check_all_words(int index) {
   (void)index;
@@ -674,4 +696,7 @@ void main_menu_init(bool state) {
   }
 }
 
-void menu_default(void) { menu_init(&main_menu); }
+void menu_default(void) {
+  menu_init_settings_menu();
+  menu_init(&main_menu);
+}
