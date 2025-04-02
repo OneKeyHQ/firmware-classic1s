@@ -374,4 +374,8 @@ const char *const languages_es[] = {
     "Red objetivo",
     "Eliminar voto",
     "Token desconocido",
+    "Habilitar claves FIDO",
+    "Desactivar claves FIDO",
+    "Credenciales no\ndisponibles al desactivar.\n¿Proceder?",
+    "Conteo de votos",
 };

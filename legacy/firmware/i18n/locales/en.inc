@@ -374,4 +374,8 @@ const char *const languages_en[] = {
     "Target network",
     "Remove vote",
     "Unknown Token",
+    "Enable FIDO Keys",
+    "Disable FIDO Keys",
+    "Credentials will be\nunavailable when\ndisabled. Proceed?",
+    "Vote count",
 };

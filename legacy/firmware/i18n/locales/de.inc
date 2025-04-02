@@ -374,4 +374,8 @@ const char *const languages_de[] = {
     "Zielnetzwerk",
     "Stimme entfernen",
     "Unbekanntes Token",
+    "FIDO aktivieren",
+    "FIDO deaktivieren",
+    "Anmeldedaten nicht\nverfügbar, wenn\ndeaktiviert. Fortfahren?",
+    "Stimmenauszählung",
 };

@@ -777,5 +777,13 @@
 #define TITLE_REMOVE_VOTE 373
 // Unknown Token
 #define GLOBAL_UNKNOWN_TOKEN 374
+// Enable FIDO Keys
+#define FIDO_ENABLE_FIDO_KEYS 375
+// Disable FIDO Keys
+#define FIDO_DISABLE_PROMPT_TITLE 376
+// Credentials will be unavailable when disabled. Proceed?
+#define FIDO_DISABLE_PROMPT_DESC 377
+// Vote count
+#define GLOBAL__VOTE_COUNT 378
 #endif
 // clang-format on
