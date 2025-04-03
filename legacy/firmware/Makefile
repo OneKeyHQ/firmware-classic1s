@@ -7,7 +7,11 @@ NAME = onekey_emu
 else
 ifndef BUILD_ID
 BUILD_COMMIT=$(shell git rev-parse HEAD | cut -c1-7)
+ifneq ($(BITCOIN_ONLY),1)
 NAME=classic1s.$(FIRMWARE_BUILD_VERSION)-Stable-$(FIRMWARE_BUILD_DATE)-$(BUILD_COMMIT)
+else
+NAME=classic1s.$(FIRMWARE_BUILD_VERSION)-Stable-bc-only-$(FIRMWARE_BUILD_DATE)-$(BUILD_COMMIT)
+endif
 else
 NAME=classic1s.$(FIRMWARE_BUILD_VERSION)-Alpha-$(FIRMWARE_BUILD_DATE)-$(BUILD_ID)
 endif
@@ -83,6 +87,8 @@ OBJS += reset.o
 OBJS += signing.o
 OBJS += crypto.o
 OBJS += se_chip.o
+OBJS += psbt/psbt.o
+OBJS += bip322_simple/bip322_simple.o
 
 ifneq ($(BITCOIN_ONLY),1)
 OBJS += fido2/ctap_trans.o
@@ -158,8 +164,6 @@ OBJS += ton_cell.o
 OBJS += ton_tokens.o
 OBJS += ton_address.o
 OBJS += ton_layout.o
-OBJS += psbt/psbt.o
-OBJS += bip322_simple/bip322_simple.o
 OBJS += benfen.o
 OBJS += neo.o
 OBJS += neo_tokens.o

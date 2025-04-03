@@ -17,10 +17,12 @@
 #include "usb.h"
 #include "util.h"
 
+#if !BITCOIN_ONLY
 #include "fido2/resident_credential.h"
+static bool resident_credential_refresh = true;
+#endif
 
 static struct menu settings_menu, main_menu, security_set_menu, about_menu;
-static bool resident_credential_refresh = true;
 
 void menu_erase_device(int index) {
   (void)index;
@@ -369,6 +371,7 @@ refresh_menu:
   }
 }
 
+#if !BITCOIN_ONLY
 void menu_fido2_resident_credential(int index);
 
 static CTAP_UserInfo user_info[FIDO2_RESIDENT_CREDENTIALS_COUNT]
@@ -499,15 +502,17 @@ void menu_fido2_resident_credential(int index) {
   fido_resident_credential_menu.previous = &security_set_menu;
   menu_init(&fido_resident_credential_menu);
 }
-
+#endif
 static const struct menu_item security_set_menu_items[] = {
     {"Change PIN", NULL, true, menu_changePin, NULL, false, NULL},
     {"Check Recovery Phrase", NULL, true, menu_check_all_words, NULL, false,
      NULL},
     {"Passphrase", NULL, false, .sub_menu = &passphrase_set_menu,
      menu_para_passphrase, true, menu_para_passphrase_index},
+#if !BITCOIN_ONLY
     {"FIDO Keys", NULL, true, menu_fido2_resident_credential, NULL, false,
      NULL},
+#endif
     {"Reset Device", NULL, true, menu_erase_device, NULL, false, NULL},
 };
 

@@ -14,7 +14,8 @@ SKIPPED_MESSAGES := Binance DebugMonero Eos Monero Ontology SdProtect Tezos \
 
 ifeq ($(BITCOIN_ONLY), 1)
 SKIPPED_MESSAGES += Ethereum NEM Stellar Solana Starcoin Aptos Near Conflux Algorand \
-	Filecoin Cosmos Polkadot Sui Kaspa Nexa Alephium Nervos Ton WebAuthn Benfen Neo
+	Filecoin Cosmos Polkadot Sui Kaspa Nexa Alephium Nervos Ton WebAuthn Benfen Neo \
+	Cardano Scdo Nostr Tron Ripple Lnurl
 endif
 
 PROTO_NAMES = messages messages-bitcoin messages-common messages-crypto messages-debug \

@@ -449,13 +449,16 @@ static void i2c_slave_poll(void) {
   total_len = fifo_lockdata_len(&i2c_fifo_in);
   if (total_len > 0) {
     fifo_read_peek(&i2c_fifo_in, header, sizeof(header));
+#if !BITCOIN_ONLY
     if (memcmp(header, "fid", 3) == 0) {
       uint8_t *fido_data = get_ble_fido_data_ptr();
       fifo_read_lock(&i2c_fifo_in, header, sizeof(header));
       fifo_read_lock(&i2c_fifo_in, fido_data, total_len - 3);
       set_ble_fido_data_len(total_len - 3);
       ctap_ble_cmd();
-    } else {
+    } else
+#endif
+    {
       while ((total_len = fifo_lockdata_len(&i2c_fifo_in)) > 0) {
         memset(packet_buf, 0x00, sizeof(packet_buf));
         len = total_len > 64 ? 64 : total_len;
@@ -564,6 +567,7 @@ void usbPoll(void) {
 #endif
 }
 
+#if !BITCOIN_ONLY
 void usb_u2f_data_send(void) {
   static const uint8_t *data;
   while (1) {
@@ -577,7 +581,7 @@ void usb_u2f_data_send(void) {
     }
   }
 }
-
+#endif
 void usbReconnect(void) {
   if (usbd_dev != NULL) {
     usbd_disconnect(usbd_dev, 1);
