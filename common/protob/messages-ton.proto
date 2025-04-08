@@ -69,6 +69,9 @@ message TonSignMessage {
     repeated uint64 ext_ton_amount = 19;
     repeated string ext_payload = 20;
     optional bytes jetton_amount_bytes = 21;                        // jetton value in bytes
+    optional bytes init_data_initial_chunk=22;
+    optional uint32 init_data_length = 23;                         // data length
+    optional bytes signing_message_repr = 24;                       // signing message hash
 }
 
 /**
