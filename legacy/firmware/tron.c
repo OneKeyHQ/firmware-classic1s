@@ -495,6 +495,19 @@ int pack_contract(TronSignTx *msg, uint8_t *buf, int *index,
       cmessage_len +=
           write_bytes_with_length(cmessage, &cmessage_index, receiver_raw, len);
     }
+  } else if (msg->contract.has_cancel_all_unfreeze_v2_contract) {
+    write_varint(buf, index, 59);
+    capi_len += add_field(capi, &capi_index, 1, PROTO_TYPE_STRING);
+    capi_len += write_bytes_with_length(
+        capi, &capi_index,
+        (uint8_t *)"type.googleapis.com/protocol.CancelAllUnfreezeV2Contract",
+        56);
+
+    cmessage_len += add_field(cmessage, &cmessage_index, 1, PROTO_TYPE_STRING);
+    len = base58_decode_check(owner_address, HASHER_SHA2D, addr_raw,
+                              MAX_ADDR_RAW_SIZE);
+    cmessage_len +=
+        write_bytes_with_length(cmessage, &cmessage_index, addr_raw, len);
   }
 
   uint8_t tmp[8] = {0};
@@ -993,6 +1006,49 @@ refresh_menu:
   HANDLE_KEY(bubble_key)
 }
 
+bool layoutCancelAllUnfreezeV2Sign(const char *signer_str) {
+  bool result = false;
+  int index = 0;
+  int y = 0;
+  uint8_t max_index = 2;
+  uint8_t bubble_key;
+  const char **tx_msg = format_tx_message("TRON");
+
+  ButtonRequest resp = {0};
+  memzero(&resp, sizeof(ButtonRequest));
+  resp.has_code = true;
+  resp.code = ButtonRequestType_ButtonRequest_SignTx;
+  msg_write(MessageType_MessageType_ButtonRequest, &resp);
+
+refresh_menu:
+  layoutSwipe();
+  oledClear();
+  y = 13;
+  bubble_key = KEY_NULL;
+
+  if (index == 0) {
+    layoutHeader(tx_msg[0]);
+    oledDrawStringAdapter(0, y, _(I__TYPE_COLON), FONT_STANDARD);
+    oledDrawStringAdapter(0, y + 10, "Cancel All UnStaking", FONT_STANDARD);
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
+    layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
+  } else if (index == 1) {
+    layoutHeader(tx_msg[0]);
+    oledDrawStringAdapter(0, y, _(I__SIGNER_COLON), FONT_STANDARD);
+    oledDrawStringAdapter(0, y + 10, signer_str, FONT_STANDARD);
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
+    layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
+  } else if (index == max_index) {
+    layoutHeader(_(T__SIGN_TRANSACTION));
+    oledDrawStringAdapter(0, 13, tx_msg[1], FONT_STANDARD);
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
+    layoutButtonYesAdapter(NULL, &bmp_bottom_right_confirm);
+  }
+  oledRefresh();
+
+  HANDLE_KEY(bubble_key)
+}
+
 bool tron_sign_tx(TronSignTx *msg, const char *owner_address,
                   const HDNode *node, TronSignedTx *resp) {
   ConstTronTokenPtr token = NULL;
@@ -1104,6 +1160,11 @@ bool tron_sign_tx(TronSignTx *msg, const char *owner_address,
   } else if (msg->contract.has_vote_witness_contract) {
     if (!layoutVoteWitnessSign(&msg->contract.vote_witness_contract,
                                signer_str)) {
+      fsm_sendFailure(FailureType_Failure_ActionCancelled, "Signing cancelled");
+      return false;
+    }
+  } else if (msg->contract.has_cancel_all_unfreeze_v2_contract) {
+    if (!layoutCancelAllUnfreezeV2Sign(signer_str)) {
       fsm_sendFailure(FailureType_Failure_ActionCancelled, "Signing cancelled");
       return false;
     }
