@@ -56,6 +56,9 @@ bool ethereum_parse_onekey(const char *address, uint8_t pubkeyhash[20]);
     case 10:                                       \
       chain_name = "Optimistic";                   \
       break;                                       \
+    case 30:                                       \
+      chain_name = "Rootstock";                    \
+      break;                                       \
     case 56:                                       \
       chain_name = "BSC";                          \
       break;                                       \
@@ -83,14 +86,20 @@ bool ethereum_parse_onekey(const char *address, uint8_t pubkeyhash[20]);
     case 1030:                                     \
       chain_name = "Conflux eSpace";               \
       break;                                       \
+    case 8453:                                     \
+      chain_name = "Base";                         \
+      break;                                       \
+    case 9798:                                     \
+      chain_name = "DTC";                          \
+      break;                                       \
     case 42161:                                    \
       chain_name = "Arbitrum One";                 \
       break;                                       \
     case 42170:                                    \
       chain_name = "Arbitrum Nova";                \
       break;                                       \
-    case 9798:                                     \
-      chain_name = "DTC";                          \
+    case 43114:                                    \
+      chain_name = "Avalanche C-Chain";            \
       break;                                       \
     default:                                       \
       chain_name = "EVM";                          \
