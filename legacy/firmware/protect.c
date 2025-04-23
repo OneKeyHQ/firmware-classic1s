@@ -292,14 +292,14 @@ const char *requestPin(PinMatrixRequestType type, const char *text,
       else
         return 0;
     } else if (msg_tiny_id == MessageType_MessageType_BixinPinInputOnDevice) {
-      uint8_t min_pin_len = MIN_PIN_LEN;
-      if (PinMatrixRequestType_PinMatrixRequestType_NewFirst == type ||
-          PinMatrixRequestType_PinMatrixRequestType_NewSecond == type) {
-        min_pin_len = DEFAULT_PIN_LEN;
-      }
+      // uint8_t min_pin_len = MIN_PIN_LEN;
+      // if (PinMatrixRequestType_PinMatrixRequestType_NewFirst == type ||
+      //     PinMatrixRequestType_PinMatrixRequestType_NewSecond == type) {
+      //   min_pin_len = DEFAULT_PIN_LEN;
+      // }
       msg_tiny_id = 0xFFFF;
       usbTiny(0);
-      return protectInputPin(text, min_pin_len, MAX_PIN_LEN, true);
+      return protectInputPin(text, DEFAULT_PIN_LEN, MAX_PIN_LEN, true);
     }
     if (button.NoUp) {
       timer_out_set(timer_out_oper, 0);
@@ -871,7 +871,7 @@ const char *protectInputPin(const char *text, uint8_t min_pin_len,
   uint8_t key = KEY_NULL;
   uint8_t counter = 0;
   int index = 0, max_index = 0;
-  bool update = true, first_num = false;
+  bool update = true;
   static char pin[10] = "";
   bool d = false;
   config_getInputDirection(&d);
@@ -885,25 +885,15 @@ const char *protectInputPin(const char *text, uint8_t min_pin_len,
 refresh_menu:
   if (update) {
     update = false;
-    first_num = false;
-    if (counter >= min_pin_len) {
-      max_index = 10;
-    } else {
-      max_index = 9;
-    }
+    max_index = (counter >= min_pin_len) ? 10 : 9;
     if (counter >= DEFAULT_PIN_LEN) {
-      do {
-        index = random_uniform(10);
-      } while (index == 0);
-      first_num = true;
+      index = 10;
     } else {
       do {
         index = random_uniform(10);
       } while (index == 0);
     }
-  } else if (first_num) {
   }
-
   layoutInputPin(counter, text, index, cancel_allowed);
   key = protectWaitKey(0, 0);
 #if !EMULATOR
@@ -1004,7 +994,7 @@ bool protectPinOnDevice(bool use_cached, bool cancel_allowed) {
 input:
   if (config_hasPin()) {
     // input_pin = true;
-    pin = protectInputPin(_(T__ENTER_PIN), MIN_PIN_LEN, MAX_PIN_LEN,
+    pin = protectInputPin(_(T__ENTER_PIN), DEFAULT_PIN_LEN, MAX_PIN_LEN,
                           cancel_allowed);
     // input_pin = false;
     if (!pin) {
@@ -1032,7 +1022,7 @@ pin_set:
   if (config_hasPin()) {
     is_change = true;
   input:
-    pin = protectInputPin(_(T__ENTER_PIN), MIN_PIN_LEN, MAX_PIN_LEN, true);
+    pin = protectInputPin(_(T__ENTER_PIN), DEFAULT_PIN_LEN, MAX_PIN_LEN, true);
 
     if (pin == NULL) {
       return false;
