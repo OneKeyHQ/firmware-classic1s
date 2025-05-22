@@ -33,15 +33,16 @@ void fsm_msgKaspaGetAddress(const KaspaGetAddress *msg) {
   if (!node) return;
   hdnode_fill_public_key(node);
 
-  CHECK_PARAM(msg->has_schema && (strcmp(msg->schema, "schnorr") == 0 ||
-                                  strcmp(msg->schema, "ecdsa") == 0),
-              "Invalid schema");
+  CHECK_PARAM(msg->has_scheme && (strcmp(msg->scheme, "schnorr") == 0 ||
+                                  strcmp(msg->scheme, "ecdsa") == 0),
+              "Invalid scheme");
 
-  if (strcmp(msg->schema, "schnorr") == 0) {
-    kaspa_get_address(node->public_key + 1, 32, msg->prefix, resp->address);
-  } else {
-    kaspa_get_address(node->public_key, 33, msg->prefix, resp->address);
-  }
+  bool is_schnorr = (strcmp(msg->scheme, "schnorr") == 0);
+  uint8_t *pub_key = node->public_key + (is_schnorr ? 1 : 0);
+  uint32_t key_len = is_schnorr ? 32 : 33;
+  bool use_tweak = (msg->has_use_tweak && !msg->use_tweak) ? false : true;
+
+  kaspa_get_address(pub_key, key_len, msg->prefix, resp->address, use_tweak);
 
   if (msg->has_show_display && msg->show_display) {
     char desc[64] = {0};
@@ -85,9 +86,9 @@ void fsm_msgKaspaSignTx(const KaspaSignTx *msg) {
   CHECK_PIN
   CHECK_PARAM(msg->has_input_count && msg->input_count >= 1,
               "Invalid input count");
-  CHECK_PARAM(msg->has_schema && (strcmp(msg->schema, "schnorr") == 0 ||
-                                  strcmp(msg->schema, "ecdsa") == 0),
-              "Invalid schema");
+  CHECK_PARAM(msg->has_scheme && (strcmp(msg->scheme, "schnorr") == 0 ||
+                                  strcmp(msg->scheme, "ecdsa") == 0),
+              "Invalid scheme");
 
   kaspa_signing_init(msg);
   SIGN_DYNAMIC;
