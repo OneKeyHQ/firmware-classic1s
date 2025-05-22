@@ -17,8 +17,10 @@ TronUnfreezeBalanceContract.receiver_address    max_size:36
 TronWithdrawBalanceContract.owner_address   max_size:36
 TronDelegateResourceContract.receiver_address   max_size:36
 TronUnDelegateResourceContract.receiver_address max_size:36
-
-
+TronVoteWitnessContract.votes                   max_count: 10
+Vote.vote_address                               max_size:36
+TronContract.provider                           max_size: 64
+TronContract.contract_name                      max_size: 64
 TronSignedTx.signature                      max_size:65
 TronSignedTx.serialized_tx                  max_size:2048
 

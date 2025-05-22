@@ -191,9 +191,46 @@ int pack_contract(TronSignTx *msg, uint8_t *buf, int *index,
     cmessage_len += add_field(cmessage, &cmessage_index, 3, PROTO_TYPE_VARINT);
     cmessage_len += write_varint(cmessage, &cmessage_index,
                                  msg->contract.transfer_contract.amount);
-  }
+  } else if (msg->contract.has_vote_witness_contract) {
+    write_varint(buf, index, 4);
+    capi_len += add_field(capi, &capi_index, 1, PROTO_TYPE_STRING);
+    capi_len += write_bytes_with_length(
+        capi, &capi_index,
+        (uint8_t *)"type.googleapis.com/protocol.VoteWitnessContract", 48);
 
-  if (msg->contract.has_trigger_smart_contract) {
+    cmessage_len += add_field(cmessage, &cmessage_index, 1, PROTO_TYPE_STRING);
+    len = base58_decode_check(owner_address, HASHER_SHA2D, addr_raw,
+                              MAX_ADDR_RAW_SIZE);
+    cmessage_len +=
+        write_bytes_with_length(cmessage, &cmessage_index, addr_raw, len);
+    int votes_count = msg->contract.vote_witness_contract.votes_count;
+    for (int i = 0; i < votes_count; i++) {
+      cmessage_len +=
+          add_field(cmessage, &cmessage_index, 2, PROTO_TYPE_STRING);
+      uint8_t v_message[64] = {0};
+      int v_message_index = 0, v_message_len = 0;
+      Vote vote = msg->contract.vote_witness_contract.votes[i];
+      v_message_len +=
+          add_field(v_message, &v_message_index, 1, PROTO_TYPE_STRING);
+      len = base58_decode_check(vote.vote_address, HASHER_SHA2D, addr_raw,
+                                MAX_ADDR_RAW_SIZE);
+      v_message_len +=
+          write_bytes_with_length(v_message, &v_message_index, addr_raw, len);
+      v_message_len +=
+          add_field(v_message, &v_message_index, 2, PROTO_TYPE_VARINT);
+      v_message_len +=
+          write_varint(v_message, &v_message_index, vote.vote_count);
+      cmessage_len += write_bytes_with_length(cmessage, &cmessage_index,
+                                              v_message, v_message_len);
+    }
+    if (msg->contract.vote_witness_contract.has_support) {
+      cmessage_len +=
+          add_field(cmessage, &cmessage_index, 3, PROTO_TYPE_VARINT);
+      cmessage_len +=
+          write_varint(cmessage, &cmessage_index,
+                       (uint8_t)msg->contract.vote_witness_contract.support);
+    }
+  } else if (msg->contract.has_trigger_smart_contract) {
     capi_len += add_field(capi, &capi_index, 1, PROTO_TYPE_STRING);
     capi_len += write_bytes_with_length(
         capi, &capi_index,
@@ -240,9 +277,7 @@ int pack_contract(TronSignTx *msg, uint8_t *buf, int *index,
           write_varint(cmessage, &cmessage_index,
                        msg->contract.trigger_smart_contract.asset_id);
     }
-  }
-
-  if (msg->contract.has_freeze_balance_contract) {
+  } else if (msg->contract.has_freeze_balance_contract) {
     capi_len += add_field(capi, &capi_index, 1, PROTO_TYPE_STRING);
     capi_len += write_bytes_with_length(
         capi, &capi_index,
@@ -281,9 +316,7 @@ int pack_contract(TronSignTx *msg, uint8_t *buf, int *index,
       cmessage_len +=
           write_bytes_with_length(cmessage, &cmessage_index, receiver_raw, len);
     }
-  }
-
-  if (msg->contract.has_unfreeze_balance_contract) {
+  } else if (msg->contract.has_unfreeze_balance_contract) {
     capi_len += add_field(capi, &capi_index, 1, PROTO_TYPE_STRING);
     capi_len += write_bytes_with_length(
         capi, &capi_index,
@@ -314,9 +347,7 @@ int pack_contract(TronSignTx *msg, uint8_t *buf, int *index,
       cmessage_len +=
           write_bytes_with_length(cmessage, &cmessage_index, receiver_raw, len);
     }
-  }
-
-  if (msg->contract.has_withdraw_balance_contract) {
+  } else if (msg->contract.has_withdraw_balance_contract) {
     capi_len += add_field(capi, &capi_index, 1, PROTO_TYPE_STRING);
     capi_len += write_bytes_with_length(
         capi, &capi_index,
@@ -328,9 +359,7 @@ int pack_contract(TronSignTx *msg, uint8_t *buf, int *index,
                               MAX_ADDR_RAW_SIZE);
     cmessage_len +=
         write_bytes_with_length(cmessage, &cmessage_index, addr_raw, len);
-  }
-
-  if (msg->contract.has_freeze_balance_v2_contract) {
+  } else if (msg->contract.has_freeze_balance_v2_contract) {
     capi_len += add_field(capi, &capi_index, 1, PROTO_TYPE_STRING);
     capi_len += write_bytes_with_length(
         capi, &capi_index,
@@ -356,9 +385,7 @@ int pack_contract(TronSignTx *msg, uint8_t *buf, int *index,
           write_varint(cmessage, &cmessage_index,
                        msg->contract.freeze_balance_v2_contract.resource);
     }
-  }
-
-  if (msg->contract.has_unfreeze_balance_v2_contract) {
+  } else if (msg->contract.has_unfreeze_balance_v2_contract) {
     capi_len += add_field(capi, &capi_index, 1, PROTO_TYPE_STRING);
     capi_len += write_bytes_with_length(
         capi, &capi_index,
@@ -384,9 +411,7 @@ int pack_contract(TronSignTx *msg, uint8_t *buf, int *index,
           write_varint(cmessage, &cmessage_index,
                        msg->contract.unfreeze_balance_v2_contract.resource);
     }
-  }
-
-  if (msg->contract.has_withdraw_expire_unfreeze_contract) {
+  } else if (msg->contract.has_withdraw_expire_unfreeze_contract) {
     capi_len += add_field(capi, &capi_index, 1, PROTO_TYPE_STRING);
     capi_len += write_bytes_with_length(
         capi, &capi_index,
@@ -400,9 +425,7 @@ int pack_contract(TronSignTx *msg, uint8_t *buf, int *index,
                               MAX_ADDR_RAW_SIZE);
     cmessage_len +=
         write_bytes_with_length(cmessage, &cmessage_index, addr_raw, len);
-  }
-
-  if (msg->contract.has_delegate_resource_contract) {
+  } else if (msg->contract.has_delegate_resource_contract) {
     capi_len += add_field(capi, &capi_index, 1, PROTO_TYPE_STRING);
     capi_len += write_bytes_with_length(
         capi, &capi_index,
@@ -440,9 +463,7 @@ int pack_contract(TronSignTx *msg, uint8_t *buf, int *index,
           write_varint(cmessage, &cmessage_index,
                        msg->contract.delegate_resource_contract.lock);
     }
-  }
-
-  if (msg->contract.has_undelegate_resource_contract) {
+  } else if (msg->contract.has_undelegate_resource_contract) {
     capi_len += add_field(capi, &capi_index, 1, PROTO_TYPE_STRING);
     capi_len += write_bytes_with_length(
         capi, &capi_index,
@@ -474,6 +495,19 @@ int pack_contract(TronSignTx *msg, uint8_t *buf, int *index,
       cmessage_len +=
           write_bytes_with_length(cmessage, &cmessage_index, receiver_raw, len);
     }
+  } else if (msg->contract.has_cancel_all_unfreeze_v2_contract) {
+    write_varint(buf, index, 59);
+    capi_len += add_field(capi, &capi_index, 1, PROTO_TYPE_STRING);
+    capi_len += write_bytes_with_length(
+        capi, &capi_index,
+        (uint8_t *)"type.googleapis.com/protocol.CancelAllUnfreezeV2Contract",
+        56);
+
+    cmessage_len += add_field(cmessage, &cmessage_index, 1, PROTO_TYPE_STRING);
+    len = base58_decode_check(owner_address, HASHER_SHA2D, addr_raw,
+                              MAX_ADDR_RAW_SIZE);
+    cmessage_len +=
+        write_bytes_with_length(cmessage, &cmessage_index, addr_raw, len);
   }
 
   uint8_t tmp[8] = {0};
@@ -487,6 +521,20 @@ int pack_contract(TronSignTx *msg, uint8_t *buf, int *index,
   write_varint(buf, index, cmessage_len);
   write_bytes_without_length(buf, index, cmessage, cmessage_len);
 
+  if (msg->contract.has_provider) {
+    add_field(buf, index, 3, PROTO_TYPE_STRING);
+    write_bytes_with_length(buf, index, msg->contract.provider.bytes,
+                            msg->contract.provider.size);
+  }
+  if (msg->contract.has_contract_name) {
+    add_field(buf, index, 4, PROTO_TYPE_STRING);
+    write_bytes_with_length(buf, index, msg->contract.contract_name.bytes,
+                            msg->contract.contract_name.size);
+  }
+  if (msg->contract.has_permission_id) {
+    add_field(buf, index, 5, PROTO_TYPE_VARINT);
+    write_varint(buf, index, msg->contract.permission_id);
+  }
   return *index - ret;
 }
 
@@ -503,8 +551,7 @@ void serialize(TronSignTx *msg, uint8_t *buf, int *index,
   write_varint(buf, index, msg->expiration);
   if (msg->has_data) {
     add_field(buf, index, 10, PROTO_TYPE_STRING);
-    write_bytes_with_length(buf, index, (uint8_t *)msg->data,
-                            strlen(msg->data));
+    write_bytes_with_length(buf, index, msg->data.bytes, msg->data.size);
   }
 
   // add Contract
@@ -883,6 +930,125 @@ refresh_menu:
   return result;
 }
 
+bool layoutVoteWitnessSign(const TronVoteWitnessContract *contract,
+                           const char *signer_str) {
+  bool result = false;
+  int index = 0;
+  int y = 0;
+  uint8_t vote_count = contract->votes_count;
+  uint8_t max_index = vote_count * 2 + 2;
+  uint8_t bubble_key;
+  const char **tx_msg = format_tx_message("TRON");
+
+  ButtonRequest resp = {0};
+  memzero(&resp, sizeof(ButtonRequest));
+  resp.has_code = true;
+  resp.code = ButtonRequestType_ButtonRequest_SignTx;
+  msg_write(MessageType_MessageType_ButtonRequest, &resp);
+
+refresh_menu:
+  layoutSwipe();
+  oledClear();
+  y = 13;
+  bubble_key = KEY_NULL;
+
+  if (index == 0) {
+    layoutHeader(tx_msg[0]);
+    oledDrawStringAdapter(0, y, _(I__TYPE_COLON), FONT_STANDARD);
+    if (contract->has_support && !contract->support) {
+      oledDrawStringAdapter(0, y + 10, "Remove Vote Witness", FONT_STANDARD);
+    } else {
+      oledDrawStringAdapter(0, y + 10, "Vote Witness", FONT_STANDARD);
+    }
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
+    layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
+  } else if (index == 1) {
+    layoutHeader(tx_msg[0]);
+    oledDrawStringAdapter(0, y, _(I__VOTER_COLON), FONT_STANDARD);
+    oledDrawStringAdapter(0, y + 10, signer_str, FONT_STANDARD);
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
+    layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
+  } else if (index == max_index) {
+    layoutHeader(_(T__SIGN_TRANSACTION));
+    oledDrawStringAdapter(0, 13, tx_msg[1], FONT_STANDARD);
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
+    layoutButtonYesAdapter(NULL, &bmp_bottom_right_confirm);
+  } else if (index % 2 == 0) {
+    layoutHeader(tx_msg[0]);
+    char candidate_item_name[64];
+    if (vote_count > 1) {
+      uint8_t candidate_item_index = (index - 2) / 2 + 1;
+      snprintf(candidate_item_name, sizeof(candidate_item_name), "%s #%d",
+               _(GLOBAL_CANDIDATE), candidate_item_index);
+    } else {
+      strlcpy(candidate_item_name, _(GLOBAL_CANDIDATE),
+              sizeof(candidate_item_name));
+    }
+    oledDrawStringAdapter(0, y, candidate_item_name, FONT_STANDARD);
+    oledDrawStringAdapter(0, y + 10,
+                          contract->votes[(index - 2) / 2].vote_address,
+                          FONT_STANDARD);
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
+    layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
+
+  } else {
+    layoutHeader(tx_msg[0]);
+    oledDrawStringAdapter(0, y, _(GLOBAL__VOTE_COUNT), FONT_STANDARD);
+    char vote_count_str[64] = {0};
+    snprintf(vote_count_str, sizeof(vote_count_str), "%ld",
+             (contract->votes[(index - 3) / 2].vote_count));
+    oledDrawStringAdapter(0, y + 10, vote_count_str, FONT_STANDARD);
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
+    layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
+  }
+  oledRefresh();
+
+  HANDLE_KEY(bubble_key)
+}
+
+bool layoutCancelAllUnfreezeV2Sign(const char *signer_str) {
+  bool result = false;
+  int index = 0;
+  int y = 0;
+  uint8_t max_index = 2;
+  uint8_t bubble_key;
+  const char **tx_msg = format_tx_message("TRON");
+
+  ButtonRequest resp = {0};
+  memzero(&resp, sizeof(ButtonRequest));
+  resp.has_code = true;
+  resp.code = ButtonRequestType_ButtonRequest_SignTx;
+  msg_write(MessageType_MessageType_ButtonRequest, &resp);
+
+refresh_menu:
+  layoutSwipe();
+  oledClear();
+  y = 13;
+  bubble_key = KEY_NULL;
+
+  if (index == 0) {
+    layoutHeader(tx_msg[0]);
+    oledDrawStringAdapter(0, y, _(I__TYPE_COLON), FONT_STANDARD);
+    oledDrawStringAdapter(0, y + 10, "Cancel All UnStaking", FONT_STANDARD);
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
+    layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
+  } else if (index == 1) {
+    layoutHeader(tx_msg[0]);
+    oledDrawStringAdapter(0, y, _(I__SIGNER_COLON), FONT_STANDARD);
+    oledDrawStringAdapter(0, y + 10, signer_str, FONT_STANDARD);
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
+    layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
+  } else if (index == max_index) {
+    layoutHeader(_(T__SIGN_TRANSACTION));
+    oledDrawStringAdapter(0, 13, tx_msg[1], FONT_STANDARD);
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
+    layoutButtonYesAdapter(NULL, &bmp_bottom_right_confirm);
+  }
+  oledRefresh();
+
+  HANDLE_KEY(bubble_key)
+}
+
 bool tron_sign_tx(TronSignTx *msg, const char *owner_address,
                   const HDNode *node, TronSignedTx *resp) {
   ConstTronTokenPtr token = NULL;
@@ -991,14 +1157,20 @@ bool tron_sign_tx(TronSignTx *msg, const char *owner_address,
       fsm_sendFailure(FailureType_Failure_ActionCancelled, "Signing cancelled");
       return false;
     }
-  } else {
-    if (!layoutBlindSign("TRON", true, to_str, signer_str,
-                         msg->contract.trigger_smart_contract.data.bytes,
-                         msg->contract.trigger_smart_contract.data.size, NULL,
-                         NULL, NULL, NULL, NULL, NULL)) {
+  } else if (msg->contract.has_vote_witness_contract) {
+    if (!layoutVoteWitnessSign(&msg->contract.vote_witness_contract,
+                               signer_str)) {
       fsm_sendFailure(FailureType_Failure_ActionCancelled, "Signing cancelled");
       return false;
     }
+  } else if (msg->contract.has_cancel_all_unfreeze_v2_contract) {
+    if (!layoutCancelAllUnfreezeV2Sign(signer_str)) {
+      fsm_sendFailure(FailureType_Failure_ActionCancelled, "Signing cancelled");
+      return false;
+    }
+  } else {
+    fsm_sendFailure(FailureType_Failure_DataError, "Invalid parameters");
+    return false;
   }
 
   if (msg->contract.has_transfer_contract ||
