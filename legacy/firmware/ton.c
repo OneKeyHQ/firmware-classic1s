@@ -38,9 +38,6 @@
 #include "ton_tokens.h"
 #include "util.h"
 
-// #include "SEGGER_RTT.h"
-// #include "rtt_log.h"
-
 #define V4R2_SIZE 39
 #define DATA_PREFIX_SIZE 10
 #define SHA256_SIZE 32
@@ -126,11 +123,6 @@ static bool ton_format_jetton_amount(const uint8_t *value, uint8_t value_len,
 
 bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
                       TonSignedMessage *resp) {
-
-
-  // rtt_log_init();
-  // SEGGER_RTT_printf(0, "DBG\n");
-
   // get address
   char raw_address[32] = {0};
   char usr_friendly_address[49] = {0};
@@ -170,32 +162,33 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
   bool is_raw_data = false;
   size_t data_len = 0;
 
-
-  if(msg->has_init_data_initial_chunk) {
-    if(!msg->has_signing_message_repr) {
+  if (msg->has_init_data_initial_chunk) {
+    if (!msg->has_signing_message_repr) {
       fsm_sendFailure(FailureType_Failure_ProcessError,
-                      "init data and signing message repr are required");
+                      "signing message representation is required");
       layoutHome();
       return false;
-    } 
+    }
 
     SHA256_CTX ctx;
     sha256_Init(&ctx);
-    sha256_Update(&ctx, msg->signing_message_repr.bytes, msg->signing_message_repr.size);
+    sha256_Update(&ctx, msg->signing_message_repr.bytes,
+                  msg->signing_message_repr.size);
     sha256_Final(&ctx, digest);
 
-    if (!layoutBlindSign("Ton", false, NULL, usr_friendly_address, (const uint8_t *)msg->signing_message_repr.bytes,
-                        msg->signing_message_repr.size, NULL, NULL, NULL, NULL, NULL, NULL)) {
+    if (!layoutBlindSign("Ton", false, NULL, usr_friendly_address,
+                         (const uint8_t *)msg->signing_message_repr.bytes,
+                         msg->signing_message_repr.size, NULL, NULL, NULL, NULL,
+                         NULL, NULL)) {
       fsm_sendFailure(FailureType_Failure_ActionCancelled,
                       "Signing cancelled by user");
       layoutHome();
       return false;
     }
 
-
 #if EMULATOR
     ed25519_sign((const unsigned char *)digest, SHA256_SIZE, node->private_key,
-                resp->signature.bytes);
+                 resp->signature.bytes);
 #else
     hdnode_sign(node, (const unsigned char *)digest, SHA256_SIZE, 0,
                 resp->signature.bytes, NULL, NULL);
@@ -206,9 +199,9 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
 
     resp->signning_message.size = 32;
     memcpy(resp->signning_message.bytes, digest, resp->signning_message.size);
-      resp->has_signning_message = true;
+    resp->has_signning_message = true;
 
-      return true;
+    return true;
   }
 
   // display
