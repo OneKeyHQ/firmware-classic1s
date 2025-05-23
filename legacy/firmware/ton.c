@@ -162,6 +162,48 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
   bool is_raw_data = false;
   size_t data_len = 0;
 
+  if (msg->has_init_data_initial_chunk) {
+    if (!msg->has_signing_message_repr) {
+      fsm_sendFailure(FailureType_Failure_ProcessError,
+                      "signing message representation is required");
+      layoutHome();
+      return false;
+    }
+
+    SHA256_CTX ctx;
+    sha256_Init(&ctx);
+    sha256_Update(&ctx, msg->signing_message_repr.bytes,
+                  msg->signing_message_repr.size);
+    sha256_Final(&ctx, digest);
+
+    if (!layoutBlindSign("Ton", false, NULL, usr_friendly_address,
+                         (const uint8_t *)msg->signing_message_repr.bytes,
+                         msg->signing_message_repr.size, NULL, NULL, NULL, NULL,
+                         NULL, NULL)) {
+      fsm_sendFailure(FailureType_Failure_ActionCancelled,
+                      "Signing cancelled by user");
+      layoutHome();
+      return false;
+    }
+
+#if EMULATOR
+    ed25519_sign((const unsigned char *)digest, SHA256_SIZE, node->private_key,
+                 resp->signature.bytes);
+#else
+    hdnode_sign(node, (const unsigned char *)digest, SHA256_SIZE, 0,
+                resp->signature.bytes, NULL, NULL);
+#endif
+
+    resp->signature.size = 64;
+    resp->has_signature = true;
+
+    resp->signning_message.size = 32;
+    memcpy(resp->signning_message.bytes, digest, resp->signning_message.size);
+    resp->has_signning_message = true;
+
+    return true;
+  }
+
   // display
   if (msg->jetton_amount_bytes.size == 0) {
     char amount_str[60];

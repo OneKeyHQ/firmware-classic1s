@@ -16,6 +16,8 @@ TonSignMessage.ext_destination              max_count:3 max_size:49
 TonSignMessage.ext_ton_amount               max_count:3 max_size:4
 TonSignMessage.ext_payload                  max_count:3 max_size:1024
 TonSignMessage.jetton_amount_bytes          max_size:32
+TonSignMessage.init_data_initial_chunk      max_size:1024
+TonSignMessage.signing_message_repr         max_size:1024
 
 TonSignedMessage.signature                  max_size:64
 TonSignedMessage.signning_message           max_size:1024
