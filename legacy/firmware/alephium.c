@@ -46,9 +46,16 @@ void alephium_sign_tx(const HDNode *node, const AlephiumSignTx *msg) {
     AlephiumDecodedTx decoded_tx;
     AlephiumError err = decode_alephium_tx(
         alephium_data_buffer, alephium_data_total_size, &decoded_tx);
+
     if (err != ALEPHIUM_OK) {
-      fsm_sendFailure(FailureType_Failure_DataError,
-                      "Failed to decode transaction");
+      char error_msg[128];
+      if (err == ALEPHIUM_ERROR_TOO_MANY_INPUTS) {
+        snprintf(error_msg, sizeof(error_msg),
+                 "Too many inputs (max %d supported)", ALEPHIUM_MAX_INPUTS);
+      } else {
+        snprintf(error_msg, sizeof(error_msg), "Failed to decode transaction");
+      }
+      fsm_sendFailure(FailureType_Failure_DataError, error_msg);
       alephium_signing_abort();
       return;
     }
@@ -127,8 +134,14 @@ void alephium_signing_txack(const AlephiumTxAck *tx) {
     AlephiumError err = decode_alephium_tx(
         alephium_data_buffer, alephium_data_total_size, &decoded_tx);
     if (err != ALEPHIUM_OK) {
-      fsm_sendFailure(FailureType_Failure_DataError,
-                      "Failed to decode transaction");
+      char error_msg[128];
+      if (err == ALEPHIUM_ERROR_TOO_MANY_INPUTS) {
+        snprintf(error_msg, sizeof(error_msg),
+                 "Too many inputs (max %d supported)", ALEPHIUM_MAX_INPUTS);
+      } else {
+        snprintf(error_msg, sizeof(error_msg), "Failed to decode transaction");
+      }
+      fsm_sendFailure(FailureType_Failure_DataError, error_msg);
       alephium_signing_abort();
       return;
     }
@@ -184,8 +197,14 @@ void alephium_handle_bytecode_ack(const AlephiumBytecodeAck *msg) {
     AlephiumError err = decode_alephium_tx(
         remove_bytecode_data_buffer, remove_bytecode_data_size, &decoded_tx);
     if (err != ALEPHIUM_OK) {
-      fsm_sendFailure(FailureType_Failure_DataError,
-                      "Failed to decode transaction");
+      char error_msg[128];
+      if (err == ALEPHIUM_ERROR_TOO_MANY_INPUTS) {
+        snprintf(error_msg, sizeof(error_msg),
+                 "Too many inputs (max %d supported)", ALEPHIUM_MAX_INPUTS);
+      } else {
+        snprintf(error_msg, sizeof(error_msg), "Failed to decode transaction");
+      }
+      fsm_sendFailure(FailureType_Failure_DataError, error_msg);
       alephium_signing_abort();
       return;
     }
