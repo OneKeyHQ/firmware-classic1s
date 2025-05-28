@@ -161,6 +161,7 @@ struct AdaSigner {
   uint16_t datum_hash_size;
   uint32_t inline_datum_size;
   uint32_t reference_script_size;
+  uint8_t output_type;
 };
 #if EMULATOR
 bool fsm_getCardanoIcaruNode(HDNode *node, const uint32_t *address_n,

@@ -32,6 +32,7 @@ const CosmosNetworkType cosmos_networks[COSMOS_NETWORK_COUNT] = {
     {"quicksilver-1", "quick", "Quicksilver", "QCK", "uqck", 6},
     {"fetchhub-4", "fetch", "Fetch.ai", "FET", "afet", 18},
     {"celestia", "celestia", "Celestia", "TIA", "utia", 6},
+    {"bbn-1", "bbn", "BABYLON", "BABY", "ubbn", 6},
 };
 
 const CosmosNetworkType *cosmosnetworkByChainId(const char *chain_id) {

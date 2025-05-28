@@ -27,7 +27,8 @@ static const uint8_t TRANSACTION_SIGNING_ECDSA_DOMAIN_HASH[32] = {
 uint16_t input_count;
 uint16_t input_index;
 static bool kaspa_signing = false;
-static char schema[8] = {0};
+static bool use_tweak_g = true;
+static bool is_schnorr = true;
 static char prefix[10] = {0};
 // static char *allowed_prefixs[] = {"kaspa", "kaspatest", "kaspasim",
 // "kaspadev"};
@@ -53,7 +54,8 @@ void kaspa_signing_init(const KaspaSignTx *msg) {
   kaspa_signing = true;
   input_count = msg->input_count;
   input_index = 1;
-  memcpy(schema, msg->schema, sizeof(msg->schema));
+  use_tweak_g = (msg->has_use_tweak && !msg->use_tweak) ? false : true;
+  is_schnorr = strcmp(msg->scheme, "schnorr") == 0;
   memcpy(prefix, msg->prefix, sizeof(msg->prefix));
 }
 
@@ -62,7 +64,8 @@ void kaspa_signing_abort(void) {
     kaspa_signing = false;
     input_count = 0;
     input_index = 0;
-    memzero(schema, sizeof(schema));
+    use_tweak_g = true;
+    is_schnorr = true;
     memzero(prefix, sizeof(prefix));
     memzero(previous_address, sizeof(previous_address));
     layoutHome();
@@ -76,20 +79,24 @@ static bool show_confirm_signing(const char *address, uint8_t address_len) {
     return true;
   }
 }
-void kaspa_get_address(uint8_t *pubkey, const uint8_t pubkey_len,
-                       const char *addr_prefix, char *addr) {
+void kaspa_get_address(const uint8_t *pubkey, const uint8_t pubkey_len,
+                       const char *addr_prefix, char *addr, bool use_tweak) {
   uint8_t payload[pubkey_len + 1];
   if (pubkey_len == PUBKEY_ECDSA_LEN) {
     payload[0] = PUBKEY_ECDSA_VERSION;
+    memcpy(payload + 1, pubkey, pubkey_len);
   } else if (pubkey_len == PUBKEY_LEN) {
     payload[0] = PUBKEY_VERSION;
-    uint8_t tweaked_pubkey[32];
-    zkp_bip340_tweak_public_key(pubkey, NULL, tweaked_pubkey);
-    memcpy(pubkey, tweaked_pubkey, sizeof(tweaked_pubkey));
+    if (use_tweak) {
+      uint8_t tweaked_pubkey[32];
+      zkp_bip340_tweak_public_key(pubkey, NULL, tweaked_pubkey);
+      memcpy(payload + 1, tweaked_pubkey, sizeof(tweaked_pubkey));
+    } else {
+      memcpy(payload + 1, pubkey, pubkey_len);
+    }
   } else {
     fsm_sendFailure(FailureType_Failure_DataError, "Invalid pubkey length");
   }
-  memcpy(payload + 1, pubkey, pubkey_len);
   cash_addr_encode(addr, addr_prefix, payload, sizeof(payload));
 }
 
@@ -104,11 +111,9 @@ void kaspa_sign_sighash(HDNode *node, const uint8_t *raw_message,
   }
   input_count--;
   char address[72] = {0};
-  if (strcmp(schema, "schnorr") == 0) {
-    kaspa_get_address(node->public_key + 1, PUBKEY_LEN, prefix, address);
-  } else {
-    kaspa_get_address(node->public_key, PUBKEY_ECDSA_LEN, prefix, address);
-  }
+  uint8_t *pub_key = node->public_key + (is_schnorr ? 1 : 0);
+  uint32_t key_len = is_schnorr ? 32 : 33;
+  kaspa_get_address(pub_key, key_len, prefix, address, use_tweak_g);
   // show display
   if (show_confirm_signing(address, sizeof(address))) {
     if (!layoutBlindSign("Kaspa", false, NULL, address, raw_message,
@@ -121,11 +126,22 @@ void kaspa_sign_sighash(HDNode *node, const uint8_t *raw_message,
   }
 
   CALCULATE_SIGNING_HASH(raw_message, raw_message_len);
-  if (strcmp(schema, "schnorr") == 0) {
+  if (is_schnorr) {
 #if EMULATOR
-    tx_sign_bip340(node->private_key, schnorr_digest, signature, signature_len);
+    if (use_tweak) {
+      tx_sign_bip340(node->private_key, schnorr_digest, signature,
+                     signature_len);
+    } else {
+      tx_sign_bip340_internal(node->private_key, schnorr_digest, signature,
+                              signature_len);
+    }
 #else
-    int ret = hdnode_bip340_sign_digest(node, schnorr_digest, signature);
+    int ret = 0;
+    if (use_tweak_g) {
+      ret = hdnode_bip340_sign_digest(node, schnorr_digest, signature);
+    } else {
+      ret = hdnode_bip340_sign_digest_internal(node, schnorr_digest, signature);
+    }
     if (ret != 0) {
       fsm_sendFailure(FailureType_Failure_ProcessError, "Signing failed");
       kaspa_signing_abort();
@@ -135,12 +151,11 @@ void kaspa_sign_sighash(HDNode *node, const uint8_t *raw_message,
 #endif
   } else {
     // ecdsa sign
+    CALCULATE_SIGNING_HASH_ECDSA;
 #if EMULATOR
-    CALCULATE_SIGNING_HASH_ECDSA
     tx_sign_ecdsa(&secp256k1, node->private_key, ecdsa_digest, signature,
                   signature_len);
 #else
-    CALCULATE_SIGNING_HASH_ECDSA;
     uint8_t sig[64];
     int ret = hdnode_sign_digest(node, ecdsa_digest, sig, NULL, NULL);
     if (ret != 0) {

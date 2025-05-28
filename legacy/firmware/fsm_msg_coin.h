@@ -957,7 +957,7 @@ void fsm_msgSignPsbt(const SignPsbt *msg) {
   int64_t total_in = 0;
   int64_t total_out = 0;
   int64_t change_out = 0;
-
+  bool contains_script_path_spending = false;
   for (int i = 0; i < psbt.inputs_len; i++) {
     PartiallySignedInput *input = &psbt.inputs[i];
     CHECK_PARAM(input->prev_txid_lookuped || psbt.tx_lookuped,
@@ -1015,6 +1015,9 @@ void fsm_msgSignPsbt(const SignPsbt *msg) {
                         input->tap_leaf_script.script_len,
                         input->tap_bip32_path.x_only_pubkey, 32) != NULL,
           "invalid script")
+      if (!contains_script_path_spending) {
+        contains_script_path_spending = true;
+      }
     }
     total_in += amount;
     sig_hasher_add_input(&hasher, input);
@@ -1046,7 +1049,10 @@ void fsm_msgSignPsbt(const SignPsbt *msg) {
       base58_encode_check(raw, 20 + prefix_len, coin->curve->hasher_base58,
                           out_addr, MAX_ADDR_SIZE);
     } else if (is_opreturn(output->script, output->script_len)) {
-      CHECK_PARAM(output->amount == 0, "OpReturn output should have 0 value");
+      if (output->amount != 0) {
+        CHECK_PARAM(contains_script_path_spending && psbt.inputs_len == 1,
+                    "OpReturn output should have 0 value");
+      }
       op_return_data_len = output->script_len - 2;
       memcpy(op_return_data, output->script + 2, op_return_data_len);
     } else {
@@ -1085,8 +1091,8 @@ void fsm_msgSignPsbt(const SignPsbt *msg) {
           layoutHome();
           return;
         }
-        uint8_t bubble_key =
-            layoutConfirmOpReturn(coin, op_return_data, op_return_data_len);
+        uint8_t bubble_key = layoutConfirmOpReturn(
+            coin, op_return_data, op_return_data_len, output->amount);
         if (bubble_key == KEY_CANCEL) {
           fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
           layoutHome();
