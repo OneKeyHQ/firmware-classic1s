@@ -28,7 +28,7 @@
  * Size of Public key in bytes
  */
 #define SIZE_PUBKEY 32
-
+#define MAX_INSTRUCTIONS 6
 void solana_get_address_from_public_key(const uint8_t *public_key,
                                         char *address);
 void solana_sign_tx(const SolanaSignTx *msg, const HDNode *node,

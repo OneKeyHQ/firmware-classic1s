@@ -2055,7 +2055,7 @@ static bool compile_output(TxOutputType *in, TxOutputBinType *out,
         }
       } else {
         uint8_t bubble_key = layoutConfirmOpReturn(
-            coin, in->op_return_data.bytes, in->op_return_data.size);
+            coin, in->op_return_data.bytes, in->op_return_data.size, 0);
         if (bubble_key == KEY_CANCEL) {
           fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
           signing_abort();

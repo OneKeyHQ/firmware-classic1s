@@ -85,7 +85,9 @@ void chargeDisTimer(void) {
 #endif
 #define LOCKTIME_TIMESTAMP_MIN_VALUE 500000000
 
+bool button_request(const ButtonRequestType code);
 void hide_icons(bool hide) { hide_icon = hide; }
+static uint8_t layoutPagination(char *title, char *content);
 
 const char *address_n_str(const uint32_t *address_n, size_t address_n_count,
                           bool address_is_account) {
@@ -433,7 +435,7 @@ void layoutStatusLogoEx(bool fresh) {
 
 void drawScrollbar(int pages, int index) {
   int i, bar_start = 12, bar_end = 52;
-  int bar_heght = 40 - 2 * (pages - 1);
+  int bar_heght = MAX((40 - 2 * (pages - 1)), 6);
   for (i = bar_start; i < bar_end; i += 2) {  // 40 pixel
     oledDrawPixel(OLED_WIDTH - 1, i);
   }
@@ -441,6 +443,27 @@ void drawScrollbar(int pages, int index) {
        i < (bar_start + bar_heght + 2 * ((int)index)) - 1; i++) {
     oledDrawPixel(OLED_WIDTH - 1, i);
     oledDrawPixel(OLED_WIDTH - 2, i);
+  }
+}
+
+void drawScrollbar_ext(int pages, int index, int bar_start) {
+  int i, bar_end = 52;
+  int bar_heght = MAX((40 - 2 * (pages - 1)), 6);
+  for (i = bar_start; i < bar_end; i += 2) {  // 40 pixel
+    oledDrawPixel(OLED_WIDTH - 1, i);
+  }
+  if (index <= 12) {
+    for (i = bar_start + 2 * ((int)index);
+         i < (bar_start + bar_heght + 2 * ((int)index)) - 1; i++) {
+      oledDrawPixel(OLED_WIDTH - 1, i);
+      oledDrawPixel(OLED_WIDTH - 2, i);
+    }
+  } else {
+    for (i = bar_start + 2 * 12; i < (bar_start + bar_heght + 2 * (12 - 1)) - 1;
+         i++) {
+      oledDrawPixel(OLED_WIDTH - 1, i);
+      oledDrawPixel(OLED_WIDTH - 2, i);
+    }
   }
 }
 
@@ -994,13 +1017,13 @@ bool layoutConfirmOutput(const CoinInfo *coin, AmountUnit amount_unit,
 refresh_menu:
   oledClear();
   layoutHeader(title);
-  if (0 == index) {
+  if (((bool)extra_line ? 2 : 1) == index) {
     oledDrawStringAdapter(0, 13, desc, FONT_STANDARD);
     oledDrawStringAdapter(0, 13 + 10, str_out, FONT_STANDARD);
-  } else if (1 == index) {
+  } else if (0 == index) {
     oledDrawStringAdapter(0, 13, _(I__SEND_TO_COLON), FONT_STANDARD);
     oledDrawStringAdapter(0, 13 + 10, address, FONT_STANDARD);
-  } else if (2 == index) {
+  } else if (1 == index && (bool)extra_line) {
     oledDrawStringAdapter(0, 13, _(I__SEND_TO_COLON), FONT_STANDARD);
     oledDrawStringAdapter(0, 13 + 10, extra_line, FONT_STANDARD);
   }
@@ -1075,29 +1098,38 @@ void layoutConfirmOmni(const uint8_t *data, uint32_t size) {
 }
 
 uint8_t layoutConfirmOpReturn(const CoinInfo *coin, uint8_t *data,
-                              uint32_t size) {
+                              uint32_t size, int64_t amount) {
   oledClear();
-  const char **tx_msg = format_tx_message(coin->coin_name);
-  layoutHeader(tx_msg[0]);
+  if (amount != 0) {
+    oledDrawBitmap(56, 2, &bmp_icon_warning);
+    uint8_t key = oledDrawPageableStringAdapter(
+        0, 23, _(TITLE__OP_RETURN_DESC), FONT_STANDARD, &bmp_bottom_left_close,
+        &bmp_bottom_right_arrow);
+    if (key == KEY_CANCEL) {
+      return KEY_CANCEL;
+    }
+  }
+  oledClear();
+  layoutHeader("OP_RETURN");
 
   int y = 13;
-  oledDrawStringAdapter(0, y, _(I__BTC_OP_RETURN_COLON), FONT_STANDARD);
-  static char op_return_data[161] = {0};
+  if (amount != 0) {
+    char str_amount[32] = {0};
+    format_coin_amount((uint64_t)amount, NULL, coin, AmountUnit_BITCOIN,
+                       str_amount, sizeof(str_amount));
+    oledDrawStringAdapter(0, y, _(I__AMOUNT_COLON), FONT_STANDARD);
+    oledDrawStringAdapter(0, y + 10, str_amount, FONT_STANDARD);
+    y += 20;
+  }
+  char op_return_data[161] = {0};
   if (!is_printable(data, size)) {
     data2hex(data, size, op_return_data);
   } else {
-    strlcpy(op_return_data, (const char *)data, size);
+    memcpy(op_return_data, (const char *)data, size);
   }
-  uint8_t bubble_key;
-  if (strlen(op_return_data) > 63) {
-    bubble_key = oledDrawPageableStringAdapter(
-        0, y + 10, op_return_data, FONT_STANDARD, &bmp_bottom_left_close,
-        &bmp_bottom_right_arrow);
-  } else {
-    oledDrawStringAdapter(0, y + 10, op_return_data, FONT_STANDARD);
-    bubble_key = protectWaitKey(0, 0);
-  }
-  return bubble_key;
+  return oledDrawPageableStringAdapter(
+      0, amount != 0 ? y + 5 : y, op_return_data, FONT_STANDARD,
+      &bmp_bottom_left_close, &bmp_bottom_right_arrow);
 }
 
 static bool formatAmountDifference(const CoinInfo *coin, AmountUnit amount_unit,
@@ -1173,38 +1205,54 @@ bool layoutConfirmTx(const CoinInfo *coin, AmountUnit amount_unit,
                          sizeof(str_out));
   formatAmountDifference(coin, amount_unit, total_in, total_out, str_fee,
                          sizeof(str_fee));
-  oledClear();
-  layoutHeader(tx_msg[0]);
-  strcat(desc, _(I__FEE_COLON));
-  oledDrawStringAdapter(0, 13, desc, FONT_STANDARD);
-  oledDrawStringAdapter(0, 13 + 10, str_fee, FONT_STANDARD);
-  layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
-  layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
-  oledRefresh();
+  int total_index = 2;
+  int current_index = 0;
   while (1) {
-    key = protectWaitKey(0, 1);
-    if (key == KEY_CONFIRM) {
-      break;
-    }
-    if (key == KEY_CANCEL || key == KEY_NULL) {
-      return false;
-    }
-  }
+    oledClear();
+    layoutHeader(tx_msg[0]);
+    // index indicator
+    char index_str[16] = {0};
+    memzero(index_str, sizeof(index_str));
+    uint2str(current_index + 1, index_str);
+    strcat(index_str + strlen(index_str), "/");
+    uint2str(total_index, index_str + strlen(index_str));
+    int l = oledStringWidthAdapter(index_str, FONT_SMALL);
+    oledDrawStringAdapter(OLED_WIDTH / 2 - l / 2, OLED_HEIGHT - 8, index_str,
+                          FONT_SMALL);
 
-  oledClear();
-  layoutHeader(tx_msg[0]);
-  oledDrawStringAdapter(0, 13, _(I__TOTAL_AMOUNT_COLON), FONT_STANDARD);
-  oledDrawStringAdapter(0, 13 + 10, str_out, FONT_STANDARD);
-  layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
-  layoutButtonYesAdapter(NULL, &bmp_bottom_right_confirm);
-  oledRefresh();
-  while (1) {
-    key = protectWaitKey(0, 1);
-    if (key == KEY_CONFIRM) {
-      break;
+    if (current_index == 0) {  // total amount
+      oledDrawStringAdapter(0, 13, _(I__TOTAL_AMOUNT_COLON), FONT_STANDARD);
+      oledDrawStringAdapter(0, 13 + 10, str_out, FONT_STANDARD);
+      oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 7,
+                     &bmp_bottom_middle_arrow_down);
+    } else if (current_index == total_index - 1) {  // fee
+      strcat(desc, _(I__FEE_COLON));
+      oledDrawStringAdapter(0, 13, desc, FONT_STANDARD);
+      oledDrawStringAdapter(0, 13 + 10, str_fee, FONT_STANDARD);
+      oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 7,
+                     &bmp_bottom_middle_arrow_up);
     }
-    if (key == KEY_CANCEL || key == KEY_NULL) {
-      return false;
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
+    layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
+    oledRefresh();
+    while (1) {
+      key = protectWaitKey(0, 0);
+      if (key == KEY_CONFIRM) {
+        return true;
+      } else if (key == KEY_CANCEL || key == KEY_NULL) {
+        return false;
+      } else if (key == KEY_DOWN) {
+        if (current_index < total_index - 1) {
+          current_index++;
+          break;
+        }
+      } else if (key == KEY_UP) {
+        if (current_index > 0) {
+          current_index--;
+          break;
+        }
+      }
+      delay_ms(10);
     }
   }
   oledClear();
@@ -1221,6 +1269,7 @@ bool layoutConfirmTx(const CoinInfo *coin, AmountUnit amount_unit,
     if (key == KEY_CANCEL || key == KEY_NULL) {
       return false;
     }
+    delay_ms(10);
   }
   return true;
 }
@@ -4019,45 +4068,21 @@ bool layoutTransactionSign(const char *chain_name, uint64_t chain_id,
                            const char *value2, const char *key3,
                            const char *value3, const char *key4,
                            const char *value4) {
-  bool result = false, has_chain_id = false;
-  int index = 0, sub_index = 0, tokenid_len = 0, token_id_rowcount = 0;
-  int i, y = 0, bar_heght, bar_start = 12, bar_end = 52;
-  uint8_t key = KEY_NULL;
-  uint8_t max_index = 4;
-  char desc[64] = {0};
+  (void)signer;
+  (void)recipient;
+  (void)chain_id;
+  bool result = false;
+  int index = 0, y = 0;
+  uint8_t max_index = 2;
   char title[64] = {0};
   char title_data[32] = {0}, bytes_buf[16] = {0};
-  char lines[21] = {0};
-  char chain_id_str[21] = {0};
-  int data_rowcount = len % 10 ? len / 10 + 1 : len / 10;
-  uint32_t rowlen = 21;
-  const char **str;
-  int to_str_rowcount = strlen(to_str) / rowlen;
-  int signer_rowcount = strlen(signer) / rowlen;
-  if (strlen(to_str) / rowlen) to_str_rowcount++;
-  if (strlen(signer) / rowlen) signer_rowcount++;
-  if (token_id) {
-    tokenid_len = strlen(token_id);
-    token_id_rowcount = tokenid_len / rowlen + 1;
-  }
-  if (strncmp(chain_name, "EVM", 3) == 0) {
-    has_chain_id = true;
-    max_index++;
-#if EMULATOR
-    snprintf(chain_id_str, 21, "%u", (uint32_t)chain_id);
-#else
-    snprintf(chain_id_str, 21, "%lu", (uint32_t)chain_id);
-#endif
-  }
+  uint8_t bubble_key;
 
   const char **tx_msg = format_tx_message(chain_name);
   if (token_transfer && (token_id == NULL)) {
     strcat(title, _(T__TOKEN_TRANSFER));
-  } else if (token_transfer && (token_id != NULL)) {
-    strcat(title, _(T__NFT_TRANSFER));
   } else {
-    snprintf(title, 64, "%s", _(T__STR_CHAIN_TRANSACTION));
-    bracket_replace(title, chain_name);
+    strcpy(title, tx_msg[0]);
   }
   strcat(title_data, _(T__VIEW_DATA_BRACKET_STR));
   uint2str(len, bytes_buf);
@@ -4069,275 +4094,58 @@ bool layoutTransactionSign(const char *chain_name, uint64_t chain_id,
   if (key2) max_index++;
   if (key3) max_index++;
   if (key4) max_index++;
-  if (token_transfer && token_id) max_index += 2;  // nft transfer
-
-  ButtonRequest resp = {0};
-  memzero(&resp, sizeof(ButtonRequest));
-  resp.has_code = true;
-  resp.code = ButtonRequestType_ButtonRequest_SignTx;
-  msg_write(MessageType_MessageType_ButtonRequest, &resp);
+  if (!button_request(ButtonRequestType_ButtonRequest_SignTx)) {
+    return false;
+  }
 
 refresh_menu:
   layoutSwipe();
   oledClear();
   y = 13;
-  if ((has_chain_id == true) && (0 == index)) {
-    sub_index = 0;
-    char warning[64] = {0};
-    snprintf(warning, 64, "%s", _(C__UNKNOWN_EVM_CHAIN_THE_CHAIN_ID_IS_STR));
-    bracket_replace(warning, chain_id_str);
-    layoutDialogCenterAdapterV2(NULL, &bmp_icon_warning, &bmp_bottom_left_close,
-                                &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL,
-                                NULL, NULL, warning);
-  } else if (((has_chain_id == false) && (0 == index)) ||
-             ((has_chain_id == true) && (1 == index))) {
-    sub_index = 0;
+  bubble_key = KEY_NULL;
+  if (1 == index) {  // amount
     layoutHeader(title);
-    memset(desc, 0, 64);
-    strcat(desc, _(I__AMOUNT_COLON));
-    oledDrawStringAdapter(0, y, desc, FONT_STANDARD);
+    oledDrawStringAdapter(0, y, _(I__AMOUNT_COLON), FONT_STANDARD);
     oledDrawStringAdapter(0, y + 10, amount, FONT_STANDARD);
-    if (has_chain_id) {
-      layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
-    } else {
-      layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
-    }
-    layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
-  } else if (((has_chain_id == false && 1 == index) ||
-              (has_chain_id == true && 2 == index)) &&
-             token_transfer && token_id) {  // nft contract address
-    sub_index = 0;
-    layoutHeader(title);
-    oledDrawStringAdapter(0, y, _(I__TOKEN_CONTRACT_COLON), FONT_STANDARD);
-    oledDrawStringAdapter(0, y + 10, to_str, FONT_STANDARD);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
-  } else if (((has_chain_id == false && 2 == index) ||
-              (has_chain_id == true && 3 == index)) &&
-             token_transfer && token_id) {  // nft token id
-    layoutHeader(title);
-    if (token_id_rowcount > 3) {
-      str = split_message((const uint8_t *)token_id, tokenid_len, rowlen);
-      if (0 == sub_index) {
-        oledDrawStringAdapter(0, 13, _(I__TOKEN_ID_COLON), FONT_STANDARD);
-        oledDrawStringAdapter(0, 13 + 1 * 10, str[0], FONT_STANDARD);
-        oledDrawStringAdapter(0, 13 + 2 * 10, str[1], FONT_STANDARD);
-        oledDrawStringAdapter(0, 13 + 3 * 10, str[2], FONT_STANDARD);
-        oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8,
-                       &bmp_bottom_middle_arrow_down);
-      } else {
-        oledDrawStringAdapter(0, 13, str[sub_index - 1], FONT_STANDARD);
-        oledDrawStringAdapter(0, 13 + 1 * 10, str[sub_index], FONT_STANDARD);
-        oledDrawStringAdapter(0, 13 + 2 * 10, str[sub_index + 1],
-                              FONT_STANDARD);
-        oledDrawStringAdapter(0, 13 + 3 * 10, str[sub_index + 2],
-                              FONT_STANDARD);
-        if (sub_index == token_id_rowcount - 3) {
-          oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8,
-                         &bmp_bottom_middle_arrow_up);
-        } else {
-          oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8,
-                         &bmp_bottom_middle_arrow_up);
-          oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8,
-                         &bmp_bottom_middle_arrow_down);
-        }
-      }
-
-      // scrollbar
-      drawScrollbar(2, sub_index);
-
-    } else {
-      oledDrawStringAdapter(0, y, _(I__TOKEN_ID_COLON), FONT_STANDARD);
-      oledDrawStringAdapter(0, y + 10, token_id, FONT_STANDARD);
-    }
-
-    layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
-    layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
-  } else if (((has_chain_id == false && 3 == index) ||
-              (has_chain_id == true && 4 == index)) &&
-             token_transfer && token_id) {  // nft recipient
-    sub_index = 0;
+  } else if (0 == index) {  // To
     layoutHeader(title);
     oledDrawStringAdapter(0, y, _(I__SEND_TO_COLON), FONT_STANDARD);
-    oledDrawStringAdapter(0, y + 10, recipient, FONT_STANDARD);
-    layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
-    layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
-  } else if ((has_chain_id == false && 1 == index && token_id == NULL) ||
-             (has_chain_id == true && 2 == index && token_id == NULL)) {  // To
-    layoutHeader(title);
-    oledDrawStringAdapter(0, y, _(I__SEND_TO_COLON), FONT_STANDARD);
-    if (to_str_rowcount > 3) {
-      str = split_message((const uint8_t *)to_str, strlen(to_str), rowlen);
-      if (sub_index == 0) {
-        oledDrawStringAdapter(0, y + 1 * 10, str[0], FONT_STANDARD);
-        oledDrawStringAdapter(0, y + 2 * 10, str[1], FONT_STANDARD);
-        oledDrawStringAdapter(0, y + 3 * 10, str[2], FONT_STANDARD);
-        oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8,
-                       &bmp_bottom_middle_arrow_down);
-      } else {
-        oledDrawStringAdapter(0, y + 1 * 10, str[sub_index], FONT_STANDARD);
-        oledDrawStringAdapter(0, y + 2 * 10, str[sub_index + 1], FONT_STANDARD);
-        oledDrawStringAdapter(0, y + 3 * 10, str[sub_index + 2], FONT_STANDARD);
-        if (sub_index == to_str_rowcount - 3) {
-          oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8,
-                         &bmp_bottom_middle_arrow_up);
-        } else {
-          oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8,
-                         &bmp_bottom_middle_arrow_up);
-          oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8,
-                         &bmp_bottom_middle_arrow_down);
-        }
-      }
-      drawScrollbar(to_str_rowcount - 2, sub_index);
-    } else {
-      sub_index = 0;
-      oledDrawStringAdapter(0, y + 10, to_str, FONT_STANDARD);
-    }
-
-    layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
-    layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
-  } else if ((has_chain_id == false &&
-              ((2 == index && token_id == NULL) || (4 == index && token_id))) ||
-             (has_chain_id == true && ((3 == index && token_id == NULL) ||
-                                       (5 == index && token_id)))) {  // From
-    layoutHeader(title);
-    memset(desc, 0, 64);
-    strcat(desc, _(I__FROM_COLON));
-    oledDrawStringAdapter(0, y, desc, FONT_STANDARD);
-    if (signer_rowcount > 3) {
-      str = split_message((const uint8_t *)signer, strlen(signer), rowlen);
-      if (sub_index == 0) {
-        oledDrawStringAdapter(0, y + 1 * 10, str[0], FONT_STANDARD);
-        oledDrawStringAdapter(0, y + 2 * 10, str[1], FONT_STANDARD);
-        oledDrawStringAdapter(0, y + 3 * 10, str[2], FONT_STANDARD);
-        oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8,
-                       &bmp_bottom_middle_arrow_down);
-      } else {
-        oledDrawStringAdapter(0, y + 1 * 10, str[sub_index], FONT_STANDARD);
-        oledDrawStringAdapter(0, y + 2 * 10, str[sub_index + 1], FONT_STANDARD);
-        oledDrawStringAdapter(0, y + 3 * 10, str[sub_index + 2], FONT_STANDARD);
-        if (sub_index == signer_rowcount - 3) {
-          oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8,
-                         &bmp_bottom_middle_arrow_up);
-        } else {
-          oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8,
-                         &bmp_bottom_middle_arrow_up);
-          oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8,
-                         &bmp_bottom_middle_arrow_down);
-        }
-      }
-      drawScrollbar(signer_rowcount - 2, sub_index);
-    } else {
-      sub_index = 0;
-      oledDrawStringAdapter(0, y + 10, signer, FONT_STANDARD);
-    }
-
-    layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
-    layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
-  } else if ((has_chain_id == false &&
-              ((3 == index && len > 0 && token_id == NULL) ||
-               (5 == index && len > 0 && token_id))) ||
-             (has_chain_id == true &&
-              ((4 == index && len > 0 && token_id == NULL) ||
-               (6 == index && len > 0 && token_id)))) {  // data
+    bubble_key = oledDrawPageableStringAdapter(0, y + 10, to_str, FONT_STANDARD,
+                                               &bmp_bottom_left_close,
+                                               &bmp_bottom_right_arrow);
+  } else if (len > 0 && 2 == index) {  // data
     layoutHeader(title_data);
-    if (data_rowcount > 4) {
-      data2hexaddr(data + 10 * (sub_index), 10, lines);
-      oledDrawStringAdapter(0, 13, lines, FONT_STANDARD);
-      data2hexaddr(data + 10 * (sub_index + 1), 10, lines);
-      oledDrawStringAdapter(0, 13 + 1 * 10, lines, FONT_STANDARD);
-      data2hexaddr(data + 10 * (sub_index + 2), 10, lines);
-      oledDrawStringAdapter(0, 13 + 2 * 10, lines, FONT_STANDARD);
-      if (sub_index == data_rowcount - 4) {
-        if (len % 10) {
-          data2hexaddr(data + 10 * (sub_index + 3), len % 10, lines);
-        } else {
-          data2hexaddr(data + 10 * (sub_index + 3), 10, lines);
-        }
-      } else {
-        data2hexaddr(data + 10 * (sub_index + 3), 10, lines);
-      }
-      oledDrawStringAdapter(0, 13 + 3 * 10, lines, FONT_STANDARD);
-
-      // scrollbar
-      bar_heght = 40 - 2 * (data_rowcount - 5);
-      if (bar_heght < 6) bar_heght = 6;
-      for (i = bar_start; i < bar_end; i += 2) {  // 40 pixel
-        oledDrawPixel(OLED_WIDTH - 1, i);
-      }
-      if (sub_index <= 18) {
-        for (i = bar_start + 2 * ((int)sub_index);
-             i < (bar_start + bar_heght + 2 * ((int)sub_index - 1)) - 1; i++) {
-          oledDrawPixel(OLED_WIDTH - 1, i);
-          oledDrawPixel(OLED_WIDTH - 2, i);
-        }
-      } else {
-        for (i = bar_start + 2 * 18;
-             i < (bar_start + bar_heght + 2 * (18 - 1)) - 1; i++) {
-          oledDrawPixel(OLED_WIDTH - 1, i);
-          oledDrawPixel(OLED_WIDTH - 2, i);
-        }
-      }
-
-      if (sub_index == 0) {
-        oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8,
-                       &bmp_bottom_middle_arrow_down);
-      } else if (sub_index == data_rowcount - 4) {
-        oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8,
-                       &bmp_bottom_middle_arrow_up);
-      } else {
-        oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8,
-                       &bmp_bottom_middle_arrow_up);
-        oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8,
-                       &bmp_bottom_middle_arrow_down);
-      }
+    oledDrawStringAdapter(0, y, _(I__DATA_COLON), FONT_STANDARD);
+    bool data_is_printable = is_printable(data, len);
+    size_t message_len = (data_is_printable ? len : len * 2) + 1;
+    char message[message_len];
+    if (data_is_printable) {
+      memcpy(message, data, len);
+      message[len] = 0;
     } else {
-      char buf[90] = {0};
-      data2hexaddr(data, len, buf);
-      oledDrawStringAdapter(0, 13, buf, FONT_STANDARD);
+      data2hex(data, len, message);
     }
-
-    layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
-    layoutButtonYesAdapter(NULL, &bmp_bottom_right_next);
-  } else if (max_index - 1 == index) {
-    sub_index = 0;
+    bubble_key = oledDrawPageableStringAdapter(
+        0, y + 10, message, FONT_STANDARD, &bmp_bottom_left_arrow,
+        &bmp_bottom_right_arrow);
+  } else if (max_index == index) {
     layoutHeader(_(T__SIGN_TRANSACTION));
     layoutTxConfirmPage(tx_msg[1]);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_confirm);
   } else {  // key*
-    sub_index = 0;
-    layoutHeader(title);
-    if ((has_chain_id == false && 3 == index && len == 0 && !token_id) ||
-        (has_chain_id == false && 4 == index && len > 0 && !token_id) ||
-        (has_chain_id == false && 5 == index && token_id) ||
-        (has_chain_id == true && 4 == index && len == 0 && !token_id) ||
-        (has_chain_id == true && 5 == index && len > 0 && !token_id) ||
-        (has_chain_id == true && 6 == index && token_id)) {
+    if (index == (len > 0 ? 3 : 2)) {
       oledDrawStringAdapter(0, y, key1, FONT_STANDARD);
       oledDrawStringAdapter(0, y + 10, value1, FONT_STANDARD);
-    } else if ((has_chain_id == false && 4 == index && len == 0 && !token_id) ||
-               (has_chain_id == false && 5 == index && len > 0 && !token_id) ||
-               (has_chain_id == false && 6 == index && token_id) ||
-               (has_chain_id == true && 5 == index && len == 0 && !token_id) ||
-               (has_chain_id == true && 6 == index && len > 0 && !token_id) ||
-               (has_chain_id == true && 7 == index && token_id)) {
+    } else if (index == (len > 0 ? 4 : 3)) {
       oledDrawStringAdapter(0, y, key2, FONT_STANDARD);
       oledDrawStringAdapter(0, y + 10, value2, FONT_STANDARD);
-    } else if ((has_chain_id == false && 5 == index && len == 0 && !token_id) ||
-               (has_chain_id == false && 6 == index && len > 0 && !token_id) ||
-               (has_chain_id == false && 7 == index && token_id) ||
-               (has_chain_id == true && 6 == index && len == 0 && !token_id) ||
-               (has_chain_id == true && 7 == index && len > 0 && !token_id) ||
-               (has_chain_id == true && 8 == index && token_id)) {
+    } else if (index == (len > 0 ? 5 : 4)) {
       oledDrawStringAdapter(0, y, key3, FONT_STANDARD);
       oledDrawStringAdapter(0, y + 10, value3, FONT_STANDARD);
-    } else if ((has_chain_id == false && 6 == index && len == 0 && !token_id) ||
-               (has_chain_id == false && 7 == index && len > 0 && !token_id) ||
-               (has_chain_id == false && 8 == index && token_id) ||
-               (has_chain_id == true && 7 == index && len == 0 && !token_id) ||
-               (has_chain_id == true && 8 == index && len > 0 && !token_id) ||
-               (has_chain_id == true && 9 == index && token_id)) {
+    } else if (index == (len > 0 ? 6 : 5)) {
       oledDrawStringAdapter(0, y, key4, FONT_STANDARD);
       oledDrawStringAdapter(0, y + 10, value4, FONT_STANDARD);
     }
@@ -4345,66 +4153,7 @@ refresh_menu:
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
   }
   oledRefresh();
-
-  key = protectWaitKey(0, 0);
-  switch (key) {
-    case KEY_UP:
-      if (sub_index > 0) {
-        sub_index--;
-      }
-      goto refresh_menu;
-    case KEY_DOWN:
-      if ((has_chain_id == false && len > 0 && index == 3 &&
-           sub_index < data_rowcount - 4) ||
-          (has_chain_id == true && len > 0 && index == 4 &&
-           sub_index < data_rowcount - 4)) {
-        sub_index++;
-      }
-      if ((has_chain_id == false && token_transfer && token_id && index == 2 &&
-           sub_index < token_id_rowcount - 3) ||
-          (has_chain_id == true && token_transfer && token_id && index == 3 &&
-           sub_index < token_id_rowcount - 3)) {  // token_id
-        sub_index++;
-      }
-      if ((has_chain_id == false && 1 == index && token_id == NULL &&
-           sub_index < to_str_rowcount - 3) ||
-          (has_chain_id == true && 2 == index && token_id == NULL &&
-           sub_index < to_str_rowcount - 3)) {  // To
-        sub_index++;
-      }
-      if ((has_chain_id == false && sub_index < signer_rowcount - 3 &&
-           ((2 == index && token_id == NULL) || (4 == index && token_id))) ||
-          (has_chain_id == true && sub_index < signer_rowcount - 3 &&
-           ((3 == index && token_id == NULL) ||
-            (5 == index && token_id)))) {  // From
-        sub_index++;
-      }
-      goto refresh_menu;
-    case KEY_CONFIRM:
-      if (index == max_index - 1) {
-        result = true;
-        break;
-      }
-      if (index < max_index) {
-        index++;
-      }
-      sub_index = 0;
-      goto refresh_menu;
-    case KEY_CANCEL:
-      if ((0 == index) || (index == max_index - 1)) {
-        result = false;
-        break;
-      }
-      if (index > 0) {
-        index--;
-      }
-      sub_index = 0;
-      goto refresh_menu;
-    default:
-      break;
-  }
-
-  return result;
+  HANDLE_KEY(bubble_key)
 }
 
 bool layoutTransactionSignEVM(const char *chain_name, uint64_t chain_id,
@@ -4416,19 +4165,16 @@ bool layoutTransactionSignEVM(const char *chain_name, uint64_t chain_id,
                               const char *key2, const char *value2,
                               const char *key3, const char *value3,
                               const char *key4, const char *value4) {
-  bool result = false, has_chain_id = false, is_nft_transfer = false,
-       is_details_page = false, is_nft_page = false;
-  int index = 0, sub_index = 0, tokenid_len = 0, token_id_rowcount = 0;
-  int i, y = 0, bar_heght, bar_start = 12, bar_end = 52;
-  uint8_t key = KEY_NULL;
-  uint8_t max_index = 5, nft_total_index = 3, nft_index = 0,
+  (void)signer;
+  bool result = false, has_chain_id = false, is_nft_transfer = false;
+  int index = 0, tokenid_len = 0, token_id_rowcount = 0;
+  int y = 0;
+  uint8_t bubble_key;
+  uint8_t max_index = 2, nft_total_index = 3, nft_index = 0,
           detail_total_index = 0, detail_index = 0;
-  char desc[64] = {0};
   char title[64] = {0};
   char title_data[32] = {0}, bytes_buf[16] = {0};
-  char lines[21] = {0};
   char chain_id_str[21] = {0};
-  int data_rowcount = len % 10 ? len / 10 + 1 : len / 10;
   uint32_t rowlen = 21;
   const char **str;
   if (token_id) {
@@ -4460,65 +4206,48 @@ bool layoutTransactionSignEVM(const char *chain_name, uint64_t chain_id,
   strcat(bytes_buf, " bytes");
   bracket_replace(title_data, bytes_buf);
 
-  if (len > 0) max_index++;
+  bool show_raw_data = len > 0 && !is_nft_transfer && !token_transfer;
+  if (show_raw_data) max_index++;
   if (key1) detail_total_index++;
   if (key2) detail_total_index++;
   if (key3) detail_total_index++;
   if (key4) detail_total_index++;
-  if (token_id_rowcount > 3) {
-    nft_total_index = 4;
-  }
+  if (token_id_rowcount > 3) nft_total_index = 4;
+  if (!is_nft_transfer) detail_total_index++;
 
-  ButtonRequest resp = {0};
-  memzero(&resp, sizeof(ButtonRequest));
-  resp.has_code = true;
-  resp.code = ButtonRequestType_ButtonRequest_SignTx;
-  msg_write(MessageType_MessageType_ButtonRequest, &resp);
-#if !EMULATOR
-  enableLongPress(true);
-#endif
+  if (!button_request(ButtonRequestType_ButtonRequest_SignTx)) {
+    return false;
+  }
 
 refresh_menu:
   layoutSwipe();
   oledClear();
+  bubble_key = KEY_NULL;
   y = 13;
-  if ((has_chain_id == true) && (0 == index)) {
-    sub_index = 0;
-    is_details_page = false;
-    is_nft_page = false;
+  if (has_chain_id && (0 == index)) {
     char warning[64] = {0};
     snprintf(warning, 64, "%s", _(C__UNKNOWN_EVM_CHAIN_THE_CHAIN_ID_IS_STR));
     bracket_replace(warning, chain_id_str);
     layoutDialogCenterAdapterV2(NULL, &bmp_icon_warning, &bmp_bottom_left_close,
                                 &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL,
                                 NULL, NULL, warning);
-  } else if (((has_chain_id == false) && (0 == index)) ||
-             ((has_chain_id == true) && (1 == index))) {
-    sub_index = 0;
-    is_details_page = false;
-    is_nft_page = false;
-    layoutHeader(title);
-    memset(desc, 0, 64);
-    strcat(desc, _(I__AMOUNT_COLON));
-    if (is_nft_transfer) {
-      is_nft_page = true;
+  } else if (is_nft_transfer && index == (has_chain_id ? 2 : 1)) {
+    nft_index = 0;
+    while (1) {
+      layoutSwipe();
+      oledClear();
+      layoutHeader(title);
       if (0 == nft_index) {
-        oledDrawStringAdapter(0, y, desc, FONT_STANDARD);
+        oledDrawStringAdapter(0, y, _(I__AMOUNT_COLON), FONT_STANDARD);
         oledDrawStringAdapter(0, y + 10, amount, FONT_STANDARD);
-        if (has_chain_id) {
-          layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
-        } else {
-          layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
-        }
+        layoutButtonNoAdapter(NULL, has_chain_id ? &bmp_bottom_left_arrow
+                                                 : &bmp_bottom_left_close);
         layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
       } else if (1 == nft_index) {
         oledDrawStringAdapter(0, y, _(I__TOKEN_CONTRACT_COLON), FONT_STANDARD);
         oledDrawStringAdapter(0, y + 10, to_str, FONT_STANDARD);
-        if (has_chain_id) {
-          layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
-        } else {
-          layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
-        }
+        layoutButtonNoAdapter(NULL, has_chain_id ? &bmp_bottom_left_arrow
+                                                 : &bmp_bottom_left_close);
         layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
       } else if (2 == nft_index) {
         if (token_id_rowcount > 3) {
@@ -4534,11 +4263,8 @@ refresh_menu:
           oledDrawStringAdapter(0, y + 10, token_id, FONT_STANDARD);
         }
 
-        if (has_chain_id) {
-          layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
-        } else {
-          layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
-        }
+        layoutButtonNoAdapter(NULL, has_chain_id ? &bmp_bottom_left_arrow
+                                                 : &bmp_bottom_left_close);
         layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
       } else if (3 == nft_index) {
         str = split_message((const uint8_t *)token_id, tokenid_len, rowlen);
@@ -4546,14 +4272,9 @@ refresh_menu:
         oledDrawStringAdapter(0, 13 + 1 * 10, str[3], FONT_STANDARD);
         oledDrawStringAdapter(0, 13 + 2 * 10, str[4], FONT_STANDARD);
         oledDrawStringAdapter(0, 13 + 3 * 10, str[5], FONT_STANDARD);
-        if (has_chain_id) {
-          layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
-        } else {
-          layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
-        }
+        layoutButtonNoAdapter(NULL, has_chain_id ? &bmp_bottom_left_arrow
+                                                 : &bmp_bottom_left_close);
         layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
-        oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8,
-                       &bmp_bottom_middle_arrow_up);
       }
 
       drawScrollbar(nft_total_index, nft_index);
@@ -4572,223 +4293,116 @@ refresh_menu:
         oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 7,
                        &bmp_bottom_middle_arrow_up);
       }
-    } else {
-      oledDrawStringAdapter(0, y, desc, FONT_STANDARD);
-      oledDrawStringAdapter(0, y + 10, amount, FONT_STANDARD);
-      if (has_chain_id) {
-        layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
-      } else {
-        layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
+      oledRefresh();
+      bubble_key = protectWaitKey(0, 0);
+      if (bubble_key == KEY_CANCEL) {
+        index = 0;  // exit
+        break;
       }
-      layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
+      if (bubble_key == KEY_UP) {
+        if (nft_index > 0) {
+          nft_index--;
+        }
+      }
+      if (bubble_key == KEY_DOWN) {
+        if (nft_index < nft_total_index - 1) {
+          nft_index++;
+        }
+      }
+      if (bubble_key == KEY_CONFIRM) {
+        break;
+      }
     }
-  } else if ((has_chain_id == false && 1 == index) ||
-             (has_chain_id == true && 2 == index)) {  // To
-    sub_index = 0;
-    is_details_page = false;
-    is_nft_page = false;
+
+  } else if (index == (has_chain_id ? 1 : 0)) {  // To
     layoutHeader(title);
     oledDrawStringAdapter(0, y, _(I__SEND_TO_COLON), FONT_STANDARD);
-    if (is_nft_transfer) {
-      oledDrawStringAdapter(0, y + 10, recipient, FONT_STANDARD);
-    } else {
-      oledDrawStringAdapter(0, y + 10, to_str, FONT_STANDARD);
-    }
-    layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
+    oledDrawStringAdapter(0, y + 10, is_nft_transfer ? recipient : to_str,
+                          FONT_STANDARD);
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
-  } else if ((has_chain_id == false && 2 == index) ||
-             (has_chain_id == true && 3 == index)) {  // To
-    sub_index = 0;
-    is_details_page = false;
-    is_nft_page = false;
-    layoutHeader(title);
-    memset(desc, 0, 64);
-    strcat(desc, _(I__FROM_COLON));
-    oledDrawStringAdapter(0, y, desc, FONT_STANDARD);
-    oledDrawStringAdapter(0, y + 10, signer, FONT_STANDARD);
-    layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
-    layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
-  } else if ((has_chain_id == false && 4 == index && len > 0) ||
-             (has_chain_id == true && 5 == index && len > 0)) {  // data
-    layoutHeader(title_data);
-    is_details_page = false;
-    is_nft_page = false;
-    if (data_rowcount > 4) {
-      data2hexaddr(data + 10 * (sub_index), 10, lines);
-      oledDrawStringAdapter(0, 13, lines, FONT_STANDARD);
-      data2hexaddr(data + 10 * (sub_index + 1), 10, lines);
-      oledDrawStringAdapter(0, 13 + 1 * 10, lines, FONT_STANDARD);
-      data2hexaddr(data + 10 * (sub_index + 2), 10, lines);
-      oledDrawStringAdapter(0, 13 + 2 * 10, lines, FONT_STANDARD);
-      if (sub_index == data_rowcount - 4) {
-        if (len % 10) {
-          data2hexaddr(data + 10 * (sub_index + 3), len % 10, lines);
-        } else {
-          data2hexaddr(data + 10 * (sub_index + 3), 10, lines);
+  } else if ((is_nft_transfer && index == (has_chain_id ? 3 : 2)) ||
+             (!is_nft_transfer &&
+              index == (has_chain_id ? 2 : 1))) {  // details
+    detail_index = 0;
+    while (1) {
+      layoutSwipe();
+      oledClear();
+      layoutHeader(_(T__TRANSACTION_DETAILS));
+      int adjusted_index = is_nft_transfer ? detail_index : detail_index - 1;
+      if (!is_nft_transfer && 0 == detail_index) {
+        oledDrawStringAdapter(0, y, _(I__AMOUNT_COLON), FONT_STANDARD);
+        oledDrawStringAdapter(0, y + 10, amount, FONT_STANDARD);
+      } else if (adjusted_index >= 0 && adjusted_index < 4) {
+        const char *keys[] = {key1, key2, key3, key4};
+        const char *values[] = {value1, value2, value3, value4};
+        if (keys[adjusted_index] && values[adjusted_index]) {
+          oledDrawStringAdapter(0, y, keys[adjusted_index], FONT_STANDARD);
+          oledDrawStringAdapter(0, y + 10, values[adjusted_index],
+                                FONT_STANDARD);
         }
-      } else {
-        data2hexaddr(data + 10 * (sub_index + 3), 10, lines);
       }
-      oledDrawStringAdapter(0, 13 + 3 * 10, lines, FONT_STANDARD);
-
       // scrollbar
-      bar_heght = 40 - 2 * (data_rowcount - 5);
-      if (bar_heght < 6) bar_heght = 6;
-      for (i = bar_start; i < bar_end; i += 2) {  // 40 pixel
-        oledDrawPixel(OLED_WIDTH - 1, i);
-      }
-      if (sub_index <= 18) {
-        for (i = bar_start + 2 * ((int)sub_index);
-             i < (bar_start + bar_heght + 2 * ((int)sub_index - 1)) - 1; i++) {
-          oledDrawPixel(OLED_WIDTH - 1, i);
-          oledDrawPixel(OLED_WIDTH - 2, i);
-        }
-      } else {
-        for (i = bar_start + 2 * 18;
-             i < (bar_start + bar_heght + 2 * (18 - 1)) - 1; i++) {
-          oledDrawPixel(OLED_WIDTH - 1, i);
-          oledDrawPixel(OLED_WIDTH - 2, i);
-        }
-      }
+      drawScrollbar(detail_total_index, detail_index);
+      layoutButtonNoAdapter(NULL, (detail_total_index - 1 == detail_index)
+                                      ? &bmp_bottom_left_close
+                                      : &bmp_bottom_left_arrow);
+      layoutButtonYesAdapter(NULL, &bmp_bottom_right_next);
 
-      if (sub_index == 0) {
-        oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8,
+      layout_index_count(detail_index + 1, detail_total_index);
+
+      if (detail_index == 0) {
+        oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 7,
                        &bmp_bottom_middle_arrow_down);
-      } else if (sub_index == data_rowcount - 4) {
-        oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8,
+      } else if (detail_index == detail_total_index - 1) {
+        oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 7,
                        &bmp_bottom_middle_arrow_up);
       } else {
-        oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8,
-                       &bmp_bottom_middle_arrow_up);
-        oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8,
+        oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 7,
                        &bmp_bottom_middle_arrow_down);
+        oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 7,
+                       &bmp_bottom_middle_arrow_up);
       }
-    } else {
-      char buf[90] = {0};
-      data2hexaddr(data, len, buf);
-      oledDrawStringAdapter(0, 13, buf, FONT_STANDARD);
+      oledRefresh();
+      bubble_key = protectWaitKey(0, 0);
+      if (bubble_key == KEY_CANCEL) {
+        index = 0;  // exit
+        break;
+      } else if (bubble_key == KEY_CONFIRM) {
+        break;
+      } else if (bubble_key == KEY_UP) {
+        if (detail_index > 0) {
+          detail_index--;
+        }
+      } else if (bubble_key == KEY_DOWN) {
+        if (detail_index < detail_total_index - 1) {
+          detail_index++;
+        }
+      }
     }
-
-    layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
-    layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
-  } else if (max_index - 1 == index) {
-    sub_index = 0;
-    is_details_page = false;
-    is_nft_page = false;
+  } else if (max_index == index) {
     layoutHeader(_(T__SIGN_TRANSACTION));
     layoutTxConfirmPage(tx_msg[1]);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_confirm);
-  } else {  // key*
-    sub_index = 0;
-    is_details_page = true;
-    is_nft_page = false;
-    layoutHeader(_(T__TRANSACTION_DETAILS));
-    if (0 == detail_index) {
-      oledDrawStringAdapter(0, y, key1, FONT_STANDARD);
-      oledDrawStringAdapter(0, y + 10, value1, FONT_STANDARD);
-    } else if (1 == detail_index) {
-      oledDrawStringAdapter(0, y, key2, FONT_STANDARD);
-      oledDrawStringAdapter(0, y + 10, value2, FONT_STANDARD);
-    } else if (2 == detail_index) {
-      oledDrawStringAdapter(0, y, key3, FONT_STANDARD);
-      oledDrawStringAdapter(0, y + 10, value3, FONT_STANDARD);
-    } else if (3 == detail_index) {
-      oledDrawStringAdapter(0, y, key4, FONT_STANDARD);
-      oledDrawStringAdapter(0, y + 10, value4, FONT_STANDARD);
-    }
-    // scrollbar
-    drawScrollbar(detail_total_index, detail_index);
-    if (detail_total_index - 1 == detail_index) {
-      layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
+  } else if (show_raw_data) {  // data
+    layoutHeader(title_data);
+    bool data_is_printable = is_printable(data, len);
+    size_t message_len = (data_is_printable ? len : len * 2) + 1;
+    char message[message_len];
+    if (data_is_printable) {
+      memcpy(message, data, len);
+      message[len] = 0;
     } else {
-      layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
+      data2hex(data, len, message);
     }
-    layoutButtonYesAdapter(NULL, &bmp_bottom_right_next);
-
-    layout_index_count(detail_index + 1, detail_total_index);
-
-    if (detail_index == 0) {
-      oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 7,
-                     &bmp_bottom_middle_arrow_down);
-    } else if (detail_index == detail_total_index - 1) {
-      oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 7,
-                     &bmp_bottom_middle_arrow_up);
-    } else {
-      oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 7,
-                     &bmp_bottom_middle_arrow_down);
-      oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 7,
-                     &bmp_bottom_middle_arrow_up);
-    }
+    oledDrawStringAdapter(0, y, _(I__DATA_COLON), FONT_STANDARD);
+    bubble_key = oledDrawPageableStringAdapter(
+        0, y + 10, message, FONT_STANDARD, &bmp_bottom_left_arrow,
+        &bmp_bottom_right_arrow);
   }
   oledRefresh();
-
-  key = protectWaitKey(0, 0);
-#if !EMULATOR
-  if (isLongPress(KEY_UP_OR_DOWN) && getLongPressStatus()) {
-    if (isLongPress(KEY_UP)) {
-      key = KEY_UP;
-    } else if (isLongPress(KEY_DOWN)) {
-      key = KEY_DOWN;
-    }
-    delay_ms(75);
-  }
-#endif
-  switch (key) {
-    case KEY_UP:
-      if (sub_index > 0) {
-        sub_index--;
-      }
-      if (is_details_page && (detail_index > 0)) {
-        detail_index--;
-      }
-      if (is_nft_page && (nft_index > 0)) {
-        nft_index--;
-      }
-      goto refresh_menu;
-    case KEY_DOWN:
-      if ((has_chain_id == false && len > 0 && index == 4 &&
-           sub_index < data_rowcount - 4) ||
-          (has_chain_id == true && len > 0 && index == 5 &&
-           sub_index < data_rowcount - 4)) {
-        sub_index++;
-      }
-      if (is_details_page && (detail_index < (detail_total_index - 1))) {
-        detail_index++;
-      }
-      if (is_nft_page && (nft_index < (nft_total_index - 1))) {
-        nft_index++;
-      }
-      goto refresh_menu;
-    case KEY_CONFIRM:
-      detail_index = 0;
-      nft_index = 0;
-      if (index == max_index - 1) {
-        result = true;
-        break;
-      }
-      if (index < max_index) {
-        index++;
-      }
-      goto refresh_menu;
-    case KEY_CANCEL:
-      detail_index = 0;
-      nft_index = 0;
-      if ((0 == index) || (index == max_index - 1)) {
-        result = false;
-        break;
-      }
-      if (index > 0) {
-        index--;
-      }
-      goto refresh_menu;
-    default:
-      break;
-  }
-#if !EMULATOR
-  enableLongPress(false);
-#endif
-  return result;
+  HANDLE_KEY(bubble_key)
 }
 
 bool layoutBlindSign(const char *chain_name, bool is_contract,

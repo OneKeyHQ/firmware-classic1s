@@ -377,15 +377,13 @@ static bool layoutEthereumConfirmTx(
   bn_read_be(pad_val, &val);
 
   char to_str[52] = "____________";
-  char amount[32] = {0};
+  char amount[64] = {0};
   char total_amount[64] = {0};
   if (to_len) {
     bool rskip60 = false;
     // constants from trezor-common/defs/ethereum/networks.json
     switch (chain_id) {
       case 30:
-        rskip60 = true;
-        break;
       case 31:
         rskip60 = true;
         break;
@@ -399,8 +397,6 @@ static bool layoutEthereumConfirmTx(
     bool rskip60 = false;
     switch (chain_id) {
       case 30:
-        rskip60 = true;
-        break;
       case 31:
         rskip60 = true;
         break;
@@ -626,28 +622,20 @@ static bool ethereum_signing_confirm_common(
     const uint8_t *recipient, char *token_id, char *token_amount,
     const char *key1, const char *value1, const char *key2, const char *value2,
     const char *key3, const char *value3) {
-  if (params->token != NULL) {
-    return layoutEthereumConfirmTx(
-        params, signer, params->data_initial_chunk_bytes + 16, 20,
-        params->data_initial_chunk_bytes + 36, 32, params->token, gas_price,
-        gas_price_len, gas_limit, gas_limit_len, is_eip1559, is_nft_transfer,
-        recipient, token_id, token_amount, key1, value1, key2, value2, key3,
-        value3);
-  } else if (is_nft_transfer) {
-    return layoutEthereumConfirmTx(
-        params, signer, params->pubkeyhash, 20, params->value_bytes,
-        params->value_size, NULL, gas_price, gas_price_len, gas_limit,
-        gas_limit_len, is_eip1559, is_nft_transfer, recipient, token_id,
-        token_amount, key1, value1, key2, value2, key3, value3);
-  } else {
-    return layoutEthereumConfirmTx(
-        params, signer, params->pubkeyhash, 20, params->value_bytes,
-        params->value_size, NULL, gas_price, gas_price_len, gas_limit,
-        gas_limit_len, is_eip1559, is_nft_transfer, recipient, token_id,
-        token_amount, key1, value1, key2, value2, key3, value3);
-  }
+  const uint8_t *to_addr = params->token
+                               ? (params->data_initial_chunk_bytes + 16)
+                               : params->pubkeyhash;
+  const uint8_t *amount_data = params->token
+                                   ? (params->data_initial_chunk_bytes + 36)
+                                   : params->value_bytes;
+  uint32_t to_size = 20;
+  uint32_t amount_size = params->token ? 32 : params->value_size;
 
-  return true;
+  return layoutEthereumConfirmTx(
+      params, signer, to_addr, to_size, amount_data, amount_size, params->token,
+      gas_price, gas_price_len, gas_limit, gas_limit_len, is_eip1559,
+      is_nft_transfer, recipient, token_id, token_amount, key1, value1, key2,
+      value2, key3, value3);
 }
 
 void ethereum_signing_init_onekey(const EthereumSignTxOneKey *msg,

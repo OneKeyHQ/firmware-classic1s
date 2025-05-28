@@ -724,13 +724,13 @@
 #define TIMESTAMP 347
 // Message
 #define MESSAGE 348
-// FIDO2 Register
+// Security Key Register
 #define FIDO_INFO_CONFIRMATION_TITLE 349
 // App Name
 #define GLOBAL_APP_NAME 350
 // Account
 #define GLOBAL_ACCOUNT 351
-// FIDO2 Authenticate
+// Security Key Authenticate
 #define FIDO_2_AUTHENTICATE 352
 // Import Credential
 #define FIDO_2_IMPORT_CREDENTIAL 353
@@ -738,27 +738,27 @@
 #define FIDO_2_LIST_CREDENTIALS 354
 // Remove Credentials
 #define FIDO_2_REMOVE_CREDENTIALS 355
-// FIDO Keys
+// Security Keys
 #define FIDO_FIDO_KEYS_LABEL 356
-// Secure accounts with FIDO security keys
+// Secure accounts with security keys
 #define FIDO_FIDO_KEYS_DESC 357
-// Remove FIDO Key?
+// Remove Security Key?
 #define FIDO_REMOVE_KEY_TITLE 358
-// This FIDO key will be removed permanently
+// This security key will be removed permanently
 #define FIDO_REMOVE_KEY_DESC 359
-// FIDO Key Removed
+// Security Key Removed
 #define FIDO_REMOVE_KEY_SUCCESS_TITLE 360
 // Key Limit Reached
 #define FIDO_ADD_KEY_LIMIT_REACHED_TITLE 361
-// 60 FIDO keys limit reached. Remove unused to add new
+// 60 security keys limit reached. Remove unused to add new
 #define FIDO_ADD_KEY_LIMIT_REACHED_DESC 362
-// No FIDO keys yet
+// No Security keys yet
 #define FIDO_LIST_EMPTY_TEXT 363
 // Remove
 #define ACTION__REMOVE 364
 // Registering...
 #define FIDO_KEY_REGISTERING_TITLE 365
-// FIDO Key Registered
+// Security Key Registered
 #define FIDO_KEY_REGISTERED_TITLE 366
 // Solana Raw Signing
 #define SECURITY__SOLANA_RAW_SIGNING_TITLE 367
@@ -777,13 +777,16 @@
 #define TITLE_REMOVE_VOTE 373
 // Unknown Token
 #define GLOBAL_UNKNOWN_TOKEN 374
-// Enable FIDO Keys
+// Enable Security Keys
 #define FIDO_ENABLE_FIDO_KEYS 375
-// Disable FIDO Keys
+// Disable Security Keys
 #define FIDO_DISABLE_PROMPT_TITLE 376
 // Credentials will be unavailable when disabled. Proceed?
 #define FIDO_DISABLE_PROMPT_DESC 377
 // Vote count
 #define GLOBAL__VOTE_COUNT 378
+// This transaction contains a non-zero OP_RETURN value. Once confirmed, your f
+// unds will be permanently locked.
+#define TITLE__OP_RETURN_DESC 379
 #endif
 // clang-format on

@@ -9,28 +9,28 @@ static const NeoToken neo_tokens[NEO_TOKENS_COUNT] = {
                                  0x4d, 0x0e, 0x05, 0xc4, 0x8e, 0xa3, 0x05,
                                  0xb3, 0xf2, 0xa0, 0x73, 0x40, 0xef},
         .decimals = 0,
-        .symbol = "NEO",
+        .symbol = " NEO",
     },
     {
         .contract_script_hash = {0xcf, 0x76, 0xe2, 0x8b, 0xd0, 0x06, 0x2c,
                                  0x4a, 0x47, 0x8e, 0xe3, 0x55, 0x61, 0x01,
                                  0x13, 0x19, 0xf3, 0xcf, 0xa4, 0xd2},
         .decimals = 8,
-        .symbol = "GAS",
+        .symbol = " GAS",
     },
     {
         .contract_script_hash = {0x28, 0xab, 0x18, 0x74, 0xda, 0x47, 0xaa,
                                  0xd8, 0x2c, 0x9c, 0xb3, 0x51, 0x88, 0x55,
                                  0x27, 0x81, 0x52, 0x1f, 0x15, 0xf0},
         .decimals = 8,
-        .symbol = "FLM",
+        .symbol = " FLM",
     },
 };
 
 const NeoToken UNK_TOKEN = {
     .contract_script_hash = {0},
     .decimals = 0,
-    .symbol = "UNK",
+    .symbol = " UNK",
 };
 
 const NeoToken *neo_token_by_contract_script_hash(

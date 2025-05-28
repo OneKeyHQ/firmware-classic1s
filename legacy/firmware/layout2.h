@@ -63,7 +63,7 @@ bool layoutConfirmOutput(const CoinInfo *coin, AmountUnit amount_unit,
                          const TxOutputType *out);
 void layoutConfirmOmni(const uint8_t *data, uint32_t size);
 uint8_t layoutConfirmOpReturn(const CoinInfo *coin, uint8_t *data,
-                              uint32_t size);
+                              uint32_t size, int64_t amount);
 bool layoutConfirmTx(const CoinInfo *coin, AmountUnit amount_unit,
                      uint64_t total_in, uint64_t external_in,
                      uint64_t total_out, uint64_t change_out,

@@ -80,6 +80,9 @@ bool ethereum_parse_onekey(const char *address, uint8_t pubkeyhash[20]);
     case 177:                                      \
       chain_name = "HashKey Chain";                \
       break;                                       \
+    case 250:                                      \
+      chain_name = "Fantom";                       \
+      break;                                       \
     case 324:                                      \
       chain_name = "zkSync Era";                   \
       break;                                       \
@@ -99,7 +102,7 @@ bool ethereum_parse_onekey(const char *address, uint8_t pubkeyhash[20]);
       chain_name = "Arbitrum Nova";                \
       break;                                       \
     case 43114:                                    \
-      chain_name = "Avalanche C-Chain";            \
+      chain_name = "AVAX";                         \
       break;                                       \
     default:                                       \
       chain_name = "EVM";                          \

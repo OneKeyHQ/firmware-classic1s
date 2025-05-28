@@ -491,8 +491,8 @@ static bool layout_token_transfer(const Transaction *transaction,
       neo_token_by_contract_script_hash(transaction->contract_script_hash);
   neo_format_amount(transaction->amount, token->symbol, token->decimals,
                     amount_str, sizeof(amount_str));
-  neo_format_amount((transaction->network_fee + transaction->system_fee), "GAS",
-                    8, fee_str, sizeof(fee_str));
+  neo_format_amount((transaction->network_fee + transaction->system_fee),
+                    " GAS", 8, fee_str, sizeof(fee_str));
   const char **tx_msg = format_tx_message("Neo");
 
   ButtonRequest resp = {0};
