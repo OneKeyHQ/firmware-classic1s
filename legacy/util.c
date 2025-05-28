@@ -191,6 +191,9 @@ int compare_str_version(const char *version1, const char *version2) {
 }
 
 bool is_valid_ascii(const uint8_t *data, uint32_t length) {
+  if (!data || length == 0) {
+    return false;
+  }
   for (uint32_t i = 0; i < length; i++) {
     if (data[i] < ' ' || data[i] > '~') {
       return false;
@@ -251,7 +254,16 @@ bool is_valid_utf8(const uint8_t *data, size_t length) {
 }
 
 bool is_printable(const uint8_t *data, uint32_t length) {
-  return is_valid_ascii(data, length) || is_valid_utf8(data, length);
+  bool is_ascii = is_valid_ascii(data, length);
+  if (!is_ascii) {
+    int check_length = length > 4 ? 4 : length;
+    for (int i = 0; i < check_length; i++) {
+      if (data[i] >= 0x80) {
+        return is_valid_utf8(data, length);
+      }
+    }
+  }
+  return is_ascii;
 }
 
 void init_buffer_reader(BufferReader *reader, const uint8_t *buffer,

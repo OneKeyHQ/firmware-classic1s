@@ -8,6 +8,7 @@
 #include "protect.h"
 
 extern void drawScrollbar(int pages, int index);
+extern void drawScrollbar_ext(int pages, int index, int bar_start);
 
 static int oledDrawStringX(int x, int y, const uint8_t *char_data) {
   uint8_t data_len = char_data[0];
@@ -75,7 +76,9 @@ static int oledDrawCharEx(int x, int y, const char *c, uint8_t font) {
 }
 
 static bool is_symbols(uint8_t *c, int steps) {
+  // clang-format off
   const char *symbols[] = {"。", "，", "？", "！", "、", "：", "”", "“"};
+  // clang-format on
   for (uint8_t i = 0; i < 8; i++) {
     if (memcmp(c, (uint8_t *)symbols[i], steps) == 0) {
       return true;
@@ -329,13 +332,42 @@ uint8_t oledDrawPageableStringAdapter(int x, int y, const char *text,
   size_t rowlen = 21;
   size_t rowcount = 0, index = 0;
 
+  uint8_t key = KEY_NULL;
+
   const char *p = text;
 
+  size_t ascii_count = 0;
+  size_t cjk_count = 0;
+
   while (*p) {
-    const char *next = memchr(p, '\n', MIN(rowlen, strlen(p)));
-    p = next ? (next + 1) : (p + MIN(rowlen, strlen(p)));
-    rowcount++;
+    if ((*p & 0x80) == 0) {
+      ascii_count++;
+      p++;
+    } else if ((*p & 0xE0) == 0xC0) {
+      ascii_count++;
+      cjk_count++;
+      p += 2;
+    } else if ((*p & 0xF0) == 0xE0) {
+      ascii_count++;
+      cjk_count++;
+      p += 3;
+    } else if ((*p & 0xF8) == 0xF0) {
+      ascii_count++;
+      cjk_count++;
+      p += 4;
+    } else {
+      p++;
+    }
+
+    if (*p == '\n' || cjk_count >= 13 || ascii_count >= rowlen) {
+      rowcount++;
+      ascii_count = 0;
+      cjk_count = 0;
+      if (*p == '\n') p++;
+    }
   }
+  if (ascii_count > 0) rowcount++;
+
   if (rowcount > 3) {
     char str[rowcount][rowlen + 1];
     memzero(str, sizeof(str));
@@ -375,12 +407,11 @@ uint8_t oledDrawPageableStringAdapter(int x, int y, const char *text,
       }
     }
     // scrollbar
-    drawScrollbar(rowcount - 2, index);
+    drawScrollbar_ext(rowcount - 2, index, y1);
     // bottom button
     layoutButtonNoAdapter(NULL, btn_no_icon);
     layoutButtonYesAdapter(NULL, btn_yes_icon);
     oledRefresh();
-    uint8_t key = KEY_NULL;
     key = protectWaitKey(0, 0);
 
 #if !EMULATOR
@@ -414,6 +445,14 @@ uint8_t oledDrawPageableStringAdapter(int x, int y, const char *text,
     oledDrawStringAdapter(0, y, text, FONT_STANDARD);
     layoutButtonNoAdapter(NULL, btn_no_icon);
     layoutButtonYesAdapter(NULL, btn_yes_icon);
+    oledRefresh();
+    while (1) {
+      key = protectWaitKey(0, 0);
+      if (key == KEY_CONFIRM || key == KEY_CANCEL) {
+        break;
+      }
+      delay_ms(10);
+    }
+    return key;
   }
-  return KEY_NULL;
 }
