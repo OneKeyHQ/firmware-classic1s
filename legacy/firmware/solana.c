@@ -137,18 +137,18 @@ void solana_sign_tx(const SolanaSignTx *msg, const HDNode *node,
         } else if (strcmp(title, "Owner") == 0) {
           continue;
         } else if (strcmp(title, "Sender") == 0) {
-          title = "From:";
+          title = "From";
         } else if (strcmp(title, "Recipient") == 0) {
-          title = "Send to:";
+          title = "Send to";
         } else if (strcmp(title, "Transfer tokens") == 0 ||
                    strcmp(title, "Transfer") == 0) {
-          title = "Amount:";
+          title = "Amount";
         }
 
-        // char desc[64];
-        // memset(desc, 0, sizeof(desc));
-        // strcat(desc, title);
-        // strcat(desc, ":");
+        char desc[64];
+        memset(desc, 0, sizeof(desc));
+        strcat(desc, title);
+        strcat(desc, ":");
 
         steps_list[steps++] = i;
 
@@ -156,7 +156,7 @@ void solana_sign_tx(const SolanaSignTx *msg, const HDNode *node,
             tx_msg[0], &bmp_bottom_left_close, NULL,
             i < num_summary_steps - 1 ? &bmp_bottom_right_arrow
                                       : &bmp_bottom_right_confirm,
-            NULL, NULL, gettext_from_en(title), text, NULL, NULL);
+            NULL, NULL, gettext_from_en(desc), text, NULL, NULL);
 
         uint8_t key;
       button_scan:
