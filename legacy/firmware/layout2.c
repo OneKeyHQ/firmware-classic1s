@@ -4136,6 +4136,7 @@ refresh_menu:
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_confirm);
   } else {  // key*
+    layoutHeader(title);
     if (index == (len > 0 ? 3 : 2)) {
       oledDrawStringAdapter(0, y, key1, FONT_STANDARD);
       oledDrawStringAdapter(0, y + 10, value1, FONT_STANDARD);
