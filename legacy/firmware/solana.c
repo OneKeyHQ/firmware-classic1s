@@ -110,6 +110,7 @@ void solana_sign_tx(const SolanaSignTx *msg, const HDNode *node,
   const char **tx_msg = format_tx_message("Solana");
   if (transaction_summary_finalize(summary_step_kinds, &num_summary_steps) ==
       0) {
+    char desc[64] = {0};
     for (size_t i = 0; i < num_summary_steps; i++) {
       if (transaction_summary_display_item(i, DisplayFlagAll)) {
         fsm_sendFailure(FailureType_Failure_DataError, "Parse error");
@@ -132,8 +133,10 @@ void solana_sign_tx(const SolanaSignTx *msg, const HDNode *node,
           continue;
         } else if (strcmp(title, "Owned by") == 0) {
           continue;
-        } else if (strcmp(title, "Fee payer") == 0) {
-          title = _(I__FEE_PAYER_COLON);
+        } else if (strcmp(title, "Token Sender") == 0) {
+          title = "From (Token Account)";
+        } else if (strcmp(title, "Token Recipient") == 0) {
+          title = "To (Token Account)";
         } else if (strcmp(title, "Owner") == 0) {
           continue;
         } else if (strcmp(title, "Sender") == 0) {
@@ -145,10 +148,7 @@ void solana_sign_tx(const SolanaSignTx *msg, const HDNode *node,
           title = "Amount";
         }
 
-        char desc[64];
-        memset(desc, 0, sizeof(desc));
-        strcat(desc, title);
-        strcat(desc, ":");
+        snprintf(desc, sizeof(desc), "%s:", title);
 
         steps_list[steps++] = i;
 

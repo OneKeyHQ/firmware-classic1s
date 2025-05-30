@@ -379,4 +379,6 @@ const char *const languages_de[] = {
     "Anmeldedaten nicht\nverfügbar, wenn\ndeaktiviert. Fortfahren?",
     "Stimmenauszählung",
     "Diese Transaktion enthält einen von Null verschiedenen OP_RETURN-Wert. Nach der Bestätigung werden Ihre Gelder dauerhaft gesperrt.",
+    "An (Token-Konto):",
+    "Von (Token-Konto):",
 };
