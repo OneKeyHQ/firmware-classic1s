@@ -245,4 +245,6 @@ bool config_getInputDirection(bool *dir);
 
 extern char config_uuid_str[2 * UUID_SIZE + 1];
 
+char *config_get_device_model(void);
+
 #endif

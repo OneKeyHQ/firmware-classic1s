@@ -128,7 +128,7 @@ void kaspa_sign_sighash(HDNode *node, const uint8_t *raw_message,
   CALCULATE_SIGNING_HASH(raw_message, raw_message_len);
   if (is_schnorr) {
 #if EMULATOR
-    if (use_tweak) {
+    if (use_tweak_g) {
       tx_sign_bip340(node->private_key, schnorr_digest, signature,
                      signature_len);
     } else {

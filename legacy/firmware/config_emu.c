@@ -52,7 +52,8 @@
 #include "supervise.h"
 #include "timer.h"
 #include "trezor.h"
-#include "u2f.h"
+#include "fido2/u2f.h"
+#include "fido2/ctap_trans.h"
 #include "usb.h"
 #include "util.h"
 
@@ -1635,4 +1636,12 @@ void config_setInputDirection(bool d) {
 
 bool config_getInputDirection(bool *d) {
   return sectrue == config_get_bool(KEY_INPUT_DIRECTION, d);
+}
+
+static const char *DEVICE_MODEL_PURE = "OneKey Classic 1S Pure";
+static const char *DEVICE_MODEL_CLASSIC = "OneKey Classic 1S";
+
+char *config_get_device_model(void) {
+  return ble_hw_ver_is_pure() ? (char *)DEVICE_MODEL_PURE
+                              : (char *)DEVICE_MODEL_CLASSIC;
 }

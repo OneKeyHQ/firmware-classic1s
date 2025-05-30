@@ -766,6 +766,11 @@ uint8_t blindsignWaitKey(void) {
   return key;
 }
 
+#if defined(EMULATOR) && EMULATOR
+bool u2f_init_command = false;
+#define loop_callback_handler()
+#endif
+
 extern bool u2f_init_command;
 
 uint8_t protectWaitKey(uint32_t time_out, uint8_t mode) {
@@ -807,6 +812,7 @@ uint8_t protectWaitKey(uint32_t time_out, uint8_t mode) {
       msg_tiny_id = 0xFFFF;
       break;
     }
+
 #if !BITCOIN_ONLY
     if (layoutLast == layoutScreensaver) {
       if (u2f_init_command) {

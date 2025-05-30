@@ -91,10 +91,12 @@ OBJS += psbt/psbt.o
 OBJS += bip322_simple/bip322_simple.o
 
 ifneq ($(BITCOIN_ONLY),1)
+ifneq ($(EMULATOR),1)
 OBJS += fido2/ctap_trans.o
 OBJS += fido2/ctap.o
 OBJS += fido2/ctap_parse.o
 OBJS += fido2/resident_credential.o
+endif
 OBJS += ethereum.o
 OBJS += ethereum_definitions.o
 OBJS += ethereum_networks.o

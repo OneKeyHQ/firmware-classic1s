@@ -2,6 +2,7 @@
 #include "fido2/ctap.h"
 #include "fido2/resident_credential.h"
 
+#if !EMULATOR
 void fsm_msgWebAuthnListResidentCredentials(
     const WebAuthnListResidentCredentials *msg) {
   CHECK_INITIALIZED
@@ -269,3 +270,8 @@ void fsm_msgWebAuthnRemoveResidentCredential(
   layoutHome();
   return;
 }
+#else
+inline void fsm_msgWebAuthnListResidentCredentials(const WebAuthnListResidentCredentials *msg)  { (void) msg; }
+inline void fsm_msgWebAuthnAddResidentCredential(const WebAuthnAddResidentCredential *msg) { (void) msg; }
+inline void fsm_msgWebAuthnRemoveResidentCredential(const WebAuthnRemoveResidentCredential *msg) { (void) msg; }
+#endif

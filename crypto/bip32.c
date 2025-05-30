@@ -573,7 +573,7 @@ int hdnode_nem_decrypt(const HDNode *node, const ed25519_public_key public_key,
 #if defined(EMULATOR) && EMULATOR
 // msg is a data to be signed
 // msg_len is the message length
-int hdnode_sign(HDNode *node, const uint8_t *msg, uint32_t msg_len,
+int hdnode_sign(const HDNode *node, const uint8_t *msg, uint32_t msg_len,
                 HasherType hasher_sign, uint8_t *sig, uint8_t *pby,
                 int (*is_canonical)(uint8_t by, uint8_t sig[64])) {
   uint8_t hash_mode = 0;
@@ -604,7 +604,7 @@ int hdnode_sign(HDNode *node, const uint8_t *msg, uint32_t msg_len,
   }
 }
 
-int hdnode_sign_digest(HDNode *node, const uint8_t *digest, uint8_t *sig,
+int hdnode_sign_digest(const HDNode *node, const uint8_t *digest, uint8_t *sig,
                        uint8_t *pby,
                        int (*is_canonical)(uint8_t by, uint8_t sig[64])) {
   if (node->curve->params) {
@@ -887,3 +887,10 @@ int hdnode_private_ckd(HDNode *inout, uint32_t i) {
     return hdnode_private_ckd_bip32(inout, i);
   }
 }
+
+#if defined(EMULATOR) && EMULATOR
+int hdnode_bip340_sign_digest_internal(const HDNode *node,
+                                       const uint8_t *digest, uint8_t sig[64]) {
+  return hdnode_bip340_sign_digest(node, digest, sig);
+}
+#endif  // defined(EMULATOR) && EMULATOR

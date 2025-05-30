@@ -220,7 +220,7 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
           layoutHome();
           return false;
         }
-        hex2data(msg->comment, raw_data, &data_len);
+        hex2data(msg->comment, raw_data, (unsigned int *)&data_len);
 
         if (!layoutTonSign("Ton", false, amount_str, msg->destination,
                            usr_friendly_address, NULL, NULL,

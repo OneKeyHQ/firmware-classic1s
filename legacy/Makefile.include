@@ -126,6 +126,7 @@ CFLAGS   += -DHW_MODEL=$(HW_MODEL)
 CFLAGS   += -DHW_REVISION=0
 
 ifeq ($(EMULATOR),1)
+CFLAGS   += -Wno-strict-prototypes -Wno-strlcpy-strlcat-size -Wno-format
 CFLAGS   += -DEMULATOR=1
 
 CFLAGS   += -include $(TOP_DIR)emulator/emulator.h

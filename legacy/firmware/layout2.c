@@ -3728,7 +3728,7 @@ void layoutDeviceParameters(int num) {
   data2hexaddr(get_firmware_hash(hdr), 4, hash_str);
   hash_str[7] = 0;
   snprintf(firmware_ver, 32, "%s[%s-%s]", ONEKEY_VERSION,
-           BUILD_ID + strlen(BUILD_ID) - 7, hash_str);
+           (char *)BUILD_ID + strlen(BUILD_ID) - 7, hash_str);
 
   data2hexaddr((uint8_t *)se_get_hash(), 4, hash_str);
   hash_str[7] = 0;

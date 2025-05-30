@@ -1105,7 +1105,7 @@ bool txHashBuilder_addInlineDatumChunk(const CardanoTxInlineDatumChunk *chunk) {
 bool txHashBuilder_addReferenceScriptChunk(
     const CardanoTxReferenceScriptChunk *chunk) {
   if (ada_signer.state != TX_HASH_BUILDER_IN_OUTPUTS &&
-      (ada_signer.outputState != STATE_OUTPUT_REFERENCE_SCRIPT_CHUNKS ||
+      (ada_signer.outputState != STATE_OUTPUT_REFERENCE_SCRIPT_CHUNKS &&
        ada_signer.outputState != STATE_OUTPUT_REFERENCE_SCRIPT)) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
                     "Invalid tx signing state for reference script chunk");
@@ -2156,8 +2156,8 @@ bool ada_sign_messages(const CardanoSignMessage *msg,
     return false;
   }
 #if EMULATOR
-  ed25519_sign_ext(sig_structure, sig_structure_index, node->private_key,
-                   node->private_key_extension, sig);
+  ed25519_sign_ext(sig_structure, sig_structure_index, node.private_key,
+                   node.private_key_extension, sig);
 #else
   if (hdnode_sign(&node, sig_structure, sig_structure_index, 0, sig, NULL,
                   NULL) != 0) {

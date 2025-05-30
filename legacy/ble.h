@@ -55,9 +55,10 @@ bool ble_lock_pubkey(void);
 bool ble_sign_msg(uint8_t *msg, uint32_t msg_len, uint8_t *sign);
 bool ble_get_version(char **ver);
 bool ble_get_hw_version(HW_VER_t *ver);
-bool ble_hw_ver_is_pure(void);
+
 #if !EMULATOR
 
+bool ble_hw_ver_is_pure(void);
 bool ble_is_enable(void);
 bool ble_name_state(void);
 bool ble_ver_state(void);
@@ -89,7 +90,7 @@ bool ble_hw_ver_state(void);
 #define ble_get_hash(void) "6551e797240051925b8a62615f4c8baa"
 #define ble_build_id_state(...) false
 #define ble_hash_state(...) false
-
+#define ble_hw_ver_is_pure() true
 #endif
 
 #endif

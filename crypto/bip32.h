@@ -126,10 +126,10 @@ int hdnode_nem_decrypt(const HDNode *node, const ed25519_public_key public_key,
 #endif
 
 #if EMULATOR
-int hdnode_sign(HDNode *node, const uint8_t *msg, uint32_t msg_len,
+int hdnode_sign(const HDNode *node, const uint8_t *msg, uint32_t msg_len,
                 HasherType hasher_sign, uint8_t *sig, uint8_t *pby,
                 int (*is_canonical)(uint8_t by, uint8_t sig[64]));
-int hdnode_sign_digest(HDNode *node, const uint8_t *digest, uint8_t *sig,
+int hdnode_sign_digest(const HDNode *node, const uint8_t *digest, uint8_t *sig,
                        uint8_t *pby,
                        int (*is_canonical)(uint8_t by, uint8_t sig[64]));
 #else
