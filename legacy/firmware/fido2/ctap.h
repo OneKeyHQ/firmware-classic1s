@@ -483,6 +483,8 @@ void ctap_load_external_keys(uint8_t * keybytes);
 #define ctap_printf(fmt, ...)
 #define dump_hex1(tag, data, len)
 #endif
+
+#if !EMULATOR
 char *get_account_name(CTAP_userEntity *user);
 uint8_t ctap_get_info(CborEncoder *cbor_encoder);
 uint8_t ctap_make_credential(CborEncoder *encoder, uint8_t *request,
@@ -493,5 +495,8 @@ uint8_t ctap_client_pin(CborEncoder *encoder, uint8_t *request, int length);
 
 int ctap_authenticate_credential_data(const uint8_t *rp_id_hash,
                                       CTAP_credentialDescriptor *desc);
+#else
+#define get_account_name(...) "emulator"
+#endif
 
 #endif

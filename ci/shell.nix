@@ -73,8 +73,6 @@ stdenvNoCC.mkDerivation ({
     oldPythonNixpkgs.python37
     oldPythonNixpkgs.python36
   ] ++ [
-    sdlnixpkgs.SDL2
-    sdlnixpkgs.SDL2_image
     bash
     check
     curl  # for connect tests
@@ -98,11 +96,15 @@ stdenvNoCC.mkDerivation ({
     zlib
     moreutils
   ] ++ lib.optionals (!stdenv.isDarwin) [
+    SDL2
+    SDL2_image
     autoPatchelfHook
     gcc11
     procps
     valgrind
   ] ++ lib.optionals (stdenv.isDarwin) [
+    sdlnixpkgs.SDL2
+    sdlnixpkgs.SDL2_image
     darwin.apple_sdk.frameworks.CoreAudio
     darwin.apple_sdk.frameworks.AudioToolbox
     darwin.apple_sdk.frameworks.ForceFeedback

@@ -333,7 +333,7 @@ void send_signature(void) {
   uint8_t sig[64];
 
 #if EMULATOR
-  if (ecdsa_sign_digest(&secp256k1, globalNode->private_key, output, sig, &v1,
+  if (ecdsa_sign_digest(&secp256k1, global_node.private_key, output, sig, &v1,
                         NULL) != 0) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
                     __("nervos Signing failed"));
