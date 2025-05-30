@@ -379,4 +379,6 @@ const char *const languages_es[] = {
     "Credenciales no\ndisponibles al desactivar.\n¿Proceder?",
     "Conteo de votos",
     "Esta transacción contiene un valor OP_RETURN distinto de cero. Una vez confirmada, tus fondos quedarán bloqueados de forma permanente.",
+    "A (Cuenta Token):",
+    "De (Cuenta Token):",
 };

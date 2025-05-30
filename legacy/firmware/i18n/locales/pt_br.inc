@@ -379,4 +379,6 @@ const char *const languages_pt_br[] = {
     "As credenciais ficarão\nindisponíveis quando\ndesativadas. Continuar?",
     "Contagem de votos",
     "Esta transação contém um valor OP_RETURN diferente de zero. Uma vez confirmada, seus fundos serão permanentemente bloqueados.",
+    "Para (Conta de Token):",
+    "De (Conta de Token):",
 };

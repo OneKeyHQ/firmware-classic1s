@@ -788,5 +788,9 @@
 // This transaction contains a non-zero OP_RETURN value. Once confirmed, your f
 // unds will be permanently locked.
 #define TITLE__OP_RETURN_DESC 379
+// To (Token Account):
+#define LIST_KEY__TO_TOKEN_ACCOUNT__COLON 380
+// From (Token Account):
+#define LIST_KEY__FROM_TOKEN_ACCOUNT__COLON 381
 #endif
 // clang-format on
