@@ -163,17 +163,17 @@ uint8_t *font_get_data(const uint8_t *ch, uint8_t *width) {
   if (!has_font) {
     return NULL;
   }
-  static uint8_t buff[24] = {0};
-  uint8_t line_bytes = 0;
+  static uint8_t buff[32] = {0};
   FontInfo font_info;
 
   *width = 0;
   if (font_get_info(ch, &font_info)) {
-    line_bytes = (font_info.width + 7) / 8;
-    if (line_bytes * font_header.height > sizeof(buff)) {
+    uint8_t bit_length = font_info.width * font_header.height;
+    uint8_t byte_len = (bit_length + 7) / 8;
+    if (byte_len > sizeof(buff)) {
       return NULL;
     }
-    font_data_read(buff, font_info.offset, line_bytes * font_header.height);
+    font_data_read(buff, font_info.offset, byte_len);
     *width = font_info.width;
   } else {
     *width = 5;
