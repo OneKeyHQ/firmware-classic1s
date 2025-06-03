@@ -1,8 +1,9 @@
 #include "font_ex.h"
-
+#include "common.h"
 #include "dingmao.c"
 
-#define FONT_DATA_ADDR 0x08240000
+#define FONT_EMPTY_WIDTH 7
+
 static FontHeader font_header;
 static bool has_font = false;
 
@@ -29,6 +30,14 @@ int utf8_get_size(const uint8_t ch) {
   }
 
   return n;
+}
+
+const char *utf8_next(const char *p) {
+  if ((*p & 0x80) == 0) return p + 1;
+  if ((*p & 0xE0) == 0xC0) return p + 2;
+  if ((*p & 0xF0) == 0xE0) return p + 3;
+  if ((*p & 0xF8) == 0xF0) return p + 4;
+  return p + 1;
 }
 
 int utf8_to_unicode_char(const uint8_t *utf8, uint32_t *unicode) {
@@ -142,8 +151,11 @@ int font_get_width(const uint8_t *ch) {
     return 0;
   }
   FontInfo font_info = {0};
-  font_get_info(ch, &font_info);
-  return font_info.width;
+  if (font_get_info(ch, &font_info)) {
+    return font_info.width;
+  }
+  // ☒
+  return FONT_EMPTY_WIDTH;
 }
 
 int font_get_addr(const uint8_t *ch) {
@@ -156,13 +168,17 @@ int font_get_height(void) {
   if (!has_font) {
     return 0;
   }
-  return font_header.height;
+  // include the space between the lines
+  return ui_language == 0 ? 9 : font_header.height;
 }
 
 uint8_t *font_get_data(const uint8_t *ch, uint8_t *width) {
   if (!has_font) {
     return NULL;
   }
+  // ☒
+  static uint8_t empty[] = {0x01, 0xfe, 0x0d, 0x59, 0x35,
+                            0x60, 0xff, 0x00, 0x00};
   static uint8_t buff[32] = {0};
   FontInfo font_info;
 
@@ -176,7 +192,8 @@ uint8_t *font_get_data(const uint8_t *ch, uint8_t *width) {
     font_data_read(buff, font_info.offset, byte_len);
     *width = font_info.width;
   } else {
-    *width = 5;
+    *width = FONT_EMPTY_WIDTH;
+    return empty;
   }
 
   return buff;

@@ -1,4 +1,4 @@
-#include "chinese.h"
+#include "oled_text.h"
 #include "buttons.h"
 #include "common.h"
 #include "font.h"
@@ -6,6 +6,8 @@
 #include "layout2.h"
 #include "oled.h"
 #include "protect.h"
+
+#define LETTER_SPACE 1
 
 extern void drawScrollbar(int pages, int index);
 extern void drawScrollbar_ext(int pages, int index, int bar_start);
@@ -27,83 +29,75 @@ static int oledDrawStringX(int x, int y, const uint8_t *char_data) {
     }
   }
 
-  return data_len + 1;
+  return data_len + LETTER_SPACE;
 }
-// use row-column scanning to draw characters
-// static int oledDrawCharEx(int x, int y, const char *c, uint8_t font) {
-//   if (x >= OLED_WIDTH || y >= OLED_HEIGHT || y <= -FONT_HEIGHT) {
-//     return 0;
-//   }
 
-//   uint8_t empty[] = {0x00, 0x00, 0x00, 0x7E, 0x42, 0x42, 0x42, 0x7E};
+bool is_symbols(uint8_t *c, int steps) {
+  // clang-format off
+  const char *symbols[] = {"。", "，", "？", "！", "、", "：", "”", "“"};
+  // clang-format on
+  for (uint8_t i = 0; i < 8; i++) {
+    if (memcmp(c, (uint8_t *)symbols[i], steps) == 0) {
+      return true;
+    }
+  }
 
-//   int height = font_get_height();
-//   int zoom = (font & FONT_DOUBLE) ? 2 : 1;
-//   uint8_t char_width = 0;
-//   uint8_t line_bytes = 0;
-//   uint32_t unicode = 0;
-//   const uint8_t *char_data = NULL;
-//   utf8_to_unicode_char((uint8_t *)c, &unicode);
-//   char_data = get_fontx_data(unicode);
-//   if (char_data) {
-//     return oledDrawStringX(x, y, char_data);
-//   }
-//   char_data = font_get_data((uint8_t *)c, &char_width);
-//   if (!char_data) {
-//     char_data = empty;
-//     height = char_width = 8;
-//   }
-//   line_bytes = (char_width + 7) / 8;
+  return false;
+}
 
-//   if (x <= -char_width) {
-//     return 0;
-//   }
-
-//   for (int yo = 0; yo < height; yo++) {
-//     for (int xo = 0; xo < char_width; xo++) {
-//       if (char_data[yo * line_bytes + xo / 8] & (1 << (7 - xo % 8))) {
-//         if (zoom <= 1) {
-//           oledDrawPixel(x + xo, y + yo);
-//         } else {
-//           oledBox(x + xo, y + yo * zoom, x + (xo + 1) - 1,
-//                   y + (yo + 1) * zoom - 1, true);
-//         }
-//       }
-//     }
-//   }
-
-//   return char_width;
-// }
-// use bit-packed dot matrix data to draw characters
-static int oledDrawCharEx(int x, int y, const char *c, uint8_t font) {
-  if (x >= OLED_WIDTH || y >= OLED_HEIGHT || y <= -FONT_HEIGHT) {
+int get_char_width(const char *c, uint8_t font) {
+  if (*c == '\r' || *c == '\n') {
     return 0;
   }
-  // ☒
-  uint8_t empty[] = {0x01, 0xfe, 0x0d, 0x59, 0x35, 0x60, 0xff, 0x00, 0x00};
 
-  int height = font_get_height();  // box_height
   int zoom = (font & FONT_DOUBLE) ? 2 : 1;
-  uint8_t char_width = 0;
+  if (((uint8_t)*c < 0x80)) {
+    return fontCharWidth(font & 0x7f, (uint8_t)*c) * zoom + zoom * LETTER_SPACE;
+  }
+
+  const uint8_t *char_data = NULL;
+  uint32_t unicode = 0;
+
+  utf8_to_unicode_char((uint8_t *)c, &unicode);
+  char_data = get_fontx_data(unicode);
+  if (char_data) {
+    return char_data[0] + LETTER_SPACE;
+  }
+
+  return font_get_width((const uint8_t *)c) + LETTER_SPACE;
+}
+
+int get_string_width(const char *str, const char *end, uint8_t font) {
+  int width = 0;
+  while (str < end) {
+    width += get_char_width(str, font);
+    str = utf8_next(str);
+  }
+  return width;
+}
+int draw_char(int x, int y, const char *c, uint8_t font) {
+  int zoom = (font & FONT_DOUBLE) ? 2 : 1;
+
+  if (((uint8_t)*c < 0x80)) {
+    if (0 == ui_language) {
+      oledDrawChar(x, y, *c, font);
+    } else {
+      oledDrawChar(x, y + 1, *c, font);
+    }
+    return fontCharWidth(font & 0x7f, (uint8_t)*c) * zoom + zoom * LETTER_SPACE;
+  }
+
   uint32_t unicode = 0;
   const uint8_t *char_data = NULL;
+  int height = font_get_height();
 
   utf8_to_unicode_char((uint8_t *)c, &unicode);
   char_data = get_fontx_data(unicode);
   if (char_data) {
     return oledDrawStringX(x, y, char_data);
   }
-
+  uint8_t char_width = 0;
   char_data = font_get_data((uint8_t *)c, &char_width);
-  if (!char_data) {
-    char_data = empty;
-    char_width = 7;
-  }
-
-  if (x <= -char_width) {
-    return 0;
-  }
-
   for (int yo = 0; yo < height; yo++) {
     for (int xo = 0; xo < char_width; xo++) {
       int bit_offset = yo * char_width + xo;
@@ -120,106 +114,172 @@ static int oledDrawCharEx(int x, int y, const char *c, uint8_t font) {
     }
   }
 
-  return char_width + 1;
+  return char_width + LETTER_SPACE;
 }
 
-bool is_symbols(uint8_t *c, int steps) {
-  // clang-format off
-  const char *symbols[] = {"。", "，", "？", "！", "、", "：", "”", "“"};
-  // clang-format on
-  for (uint8_t i = 0; i < 8; i++) {
-    if (memcmp(c, (uint8_t *)symbols[i], steps) == 0) {
-      return true;
+const char *get_next_word(const char *text) {
+  const char *p = text;
+  uint32_t unicode = 0;
+
+  while (*p) {
+    const char *next = utf8_next(p);
+    utf8_to_unicode_char((const uint8_t *)p, &unicode);
+
+    bool is_break = (unicode <= 0x20) || (unicode == ':') || (unicode == '.') ||
+                    (unicode == ',') || (unicode == '!') ||
+                    (unicode == '?') ||  // space, \n, \r, \t, etc.
+                    (unicode >= 0x4E00 && unicode <= 0x9FFF) ||
+                    (unicode >= 0x3040 && unicode <= 0x30FF) ||
+                    (unicode >= 0xAC00 && unicode <= 0xD7A3);
+
+    if (is_break) {
+      return next;
+    }
+    p = next;
+  }
+  return p;
+}
+
+const char *get_next_line(const char *text, int max_width, int *width,
+                          uint8_t font) {
+  const char *p = text, *word_end = NULL, *break_point1 = NULL,
+             *break_point2 = NULL;
+  int line_width = 0, word_width = 0, char_width = 0, break_width = 0;
+  *width = 0;
+  while (*p) {
+    word_end = get_next_word(p);
+    word_width = 0;
+    break_point1 = p;
+    *width = line_width;
+    while (p < word_end) {
+      char_width = get_char_width(p, font);
+      word_width += char_width;
+      line_width += char_width;
+
+      if (word_width > max_width) {
+        if (break_point2 == NULL) {
+          *width = line_width - char_width;
+          return p;
+        } else {
+          *width = break_width;
+          return break_point2;
+        }
+      }
+
+      if (line_width > max_width && break_point2 == NULL) {
+        break_point2 = p;
+        break_width = line_width - char_width;
+      }
+      if (*p == '\n' || *p == '\r') {
+        if (line_width > max_width) {
+          *width = line_width - word_width;
+          return break_point1;
+        } else {
+          *width = line_width;
+          p = utf8_next(p);
+          return p;
+        }
+      }
+      p = utf8_next(p);
+    }
+    if (line_width > max_width) {
+      *width = line_width - word_width;
+      return break_point1;
     }
   }
+  *width = line_width;
+  return p;
+}
 
-  return false;
+string_lines_t split_string_to_lines(const char *text, int max_width,
+                                     uint8_t font) {
+  string_lines_t lines = {0};
+  int line_width = 0;
+  const char *p = text;
+  while (*p && lines.line_count < MAX_SPLIT_LINES) {
+    const char *next = get_next_line(p, max_width, &line_width, font);
+    lines.line_start[lines.line_count++] = p;
+    p = next;
+  }
+  // add the end of the string
+  lines.line_start[lines.line_count] = text + strlen(text);
+  return lines;
+}
+
+void draw_string_wrap(int x, int y, const char *text, uint8_t font) {
+  const char *p = text;
+  uint8_t height = font_get_height();
+  int cursor_x = x;
+  int cursor_y = y;
+  int char_width = 0, line_width = 0;
+
+  while (*p) {
+    if (*p == '\r' || *p == '\n') {
+      cursor_x = 0;
+      cursor_y += height;
+      p++;
+      continue;
+    }
+    const char *next_line =
+        get_next_line(p, OLED_WIDTH - cursor_x, &line_width, font);
+    while (p < next_line) {
+      char_width = get_char_width(p, font);
+      draw_char(cursor_x, cursor_y, p, font);
+      cursor_x += char_width;
+      p = utf8_next(p);
+    }
+    cursor_y += height;
+    cursor_x = 0;
+  }
+}
+
+void draw_string_center(int x, int y, const char *text, uint8_t font) {
+  if (x > OLED_WIDTH || y > OLED_HEIGHT) {
+    return;
+  }
+  const char *p = text;
+  uint8_t height = font_get_height();
+  int cursor_x = x;
+  int cursor_y = y;
+  int line_width = 0;
+  int char_width = 0;
+  int max_width = (x < OLED_WIDTH / 2) ? x * 2 : (OLED_WIDTH - x) * 2;
+  if (max_width == 0) {
+    return;
+  }
+
+  while (*p) {
+    if (*p == '\r' || *p == '\n') {
+      cursor_y += height;
+      p++;
+      continue;
+    }
+    const char *next_line = get_next_line(p, max_width, &line_width, font);
+    cursor_x = x - line_width / 2;
+    while (p < next_line) {
+      char_width = get_char_width(p, font);
+      draw_char(cursor_x, cursor_y, p, font);
+      cursor_x += char_width;
+
+      p = utf8_next(p);
+    }
+    cursor_y += height;
+  }
 }
 
 int oledStringWidthEx(const char *text, uint8_t font) {
-  if (!text) return 0;
-  int steps = 0;
-  int zoom = (font & FONT_DOUBLE) ? 2 : 1;
-  int l = 0;
+  int width = 0;
   while (*text) {
-    if (((uint8_t)*text < 0x80)) {
-      if (*text != '\n') {
-        if (zoom == 2) {
-          l += (fontCharWidth(font & 0x7f, (uint8_t)*text) + 1) * zoom + 1;
-        } else {
-          l += fontCharWidth(font & 0x7f, (uint8_t)*text) + 1;
-        }
-      }
-      text++;
-    } else {
-      steps = utf8_get_size(*text);
-      uint32_t unicode = 0;
-      const uint8_t *char_data = NULL;
-      utf8_to_unicode_char((uint8_t *)text, &unicode);
-      char_data = get_fontx_data(unicode);
-      if (char_data) {
-        l += char_data[0] + 1;
-      } else {
-        l += font_get_width((uint8_t *)text) + 1;
-      }
-      text += steps;
-    }
+    width += get_char_width(text, font);
+    text = utf8_next(text);
   }
-  return l;
+  return width;
 }
 
 int oledCharWidthEx(const char text, uint8_t font) {
   char text_array[2] = {0};
   text_array[0] = text;
   return oledStringWidthEx(text_array, font);
-}
-
-void oledDrawStringEx(int x, int y, const char *text, uint8_t font) {
-  int steps = 0;
-  int l = 0;
-  // bool mixed = false;
-  int space = (font & FONT_DOUBLE) ? 2 : 1;
-  uint8_t char_width = 0;
-  uint8_t height = font_get_height();
-  const uint8_t *char_data = font_get_data((uint8_t *)text, &char_width);
-  if (!char_data) {
-    height = char_width = 8;
-  }
-  int CLASSIC2_ADJUST = 0;
-
-  while (*text) {
-    if (((uint8_t)*text < 0x80)) {
-      if (*text == '\n') {
-        l = 0;
-      } else {
-        l = fontCharWidth(font & 0x7f, *text) + space;
-      }
-      if (x + l > (OLED_WIDTH - CLASSIC2_ADJUST) || (*text == '\n')) {
-        x = CLASSIC2_ADJUST;
-        y += 10;
-      }
-      if (y > OLED_HEIGHT) y = 0;
-      if (*text != '\n') {
-        oledDrawChar(x, y + 1, *text, font);
-      }
-      if (font & FONT_DOUBLE)
-        x += l * space - 1;
-      else
-        x += l;
-      text++;
-    } else {
-      // mixed = true;
-      steps = utf8_get_size(*text);
-      if (x + char_width > (OLED_WIDTH - CLASSIC2_ADJUST) || (*text == '\n')) {
-        x = CLASSIC2_ADJUST;
-        y += height + 1;
-      }
-      if (y > OLED_HEIGHT) y = 0;
-      l = oledDrawCharEx(x, y, text, font);
-      text += steps;
-      x += l;
-    }
-  }
 }
 
 int oledStringWidthAdapter(const char *text, uint8_t font) {
@@ -229,15 +289,13 @@ int oledStringWidthAdapter(const char *text, uint8_t font) {
 
 void oledDrawStringAdapter(int x, int y, const char *text, uint8_t font) {
   if (!text) return;
-  oledDrawStringEx(x, y, text, font);
+  draw_string_wrap(x, y, text, font);
   return;
 }
 
 void oledDrawStringCenterAdapter(int x, int y, const char *text, uint8_t font) {
   if (!text) return;
-  x = x - oledStringWidthAdapter(text, font) / 2;
-  if (x < 0) x = 0;
-  oledDrawStringAdapter(x, y, text, font);
+  draw_string_center(x, y, text, font);
 }
 
 int oledDrawStringCenterAdapterX(int x, int y, const char *text, uint8_t font) {

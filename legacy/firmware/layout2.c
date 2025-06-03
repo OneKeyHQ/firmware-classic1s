@@ -29,7 +29,6 @@
 #include "bitmaps.h"
 #include "ble.h"
 #include "buttons.h"
-#include "chinese.h"
 #include "common.h"
 #include "config.h"
 #include "crypto.h"
@@ -46,6 +45,7 @@
 #include "messages.h"
 #include "nem2.h"
 #include "oled.h"
+#include "oled_text.h"
 #include "prompt.h"
 #include "protect.h"
 #include "qrcodegen.h"
@@ -209,17 +209,8 @@ int get_truncate_position(const char *msg, bool *is_end) {
 }
 
 static int countlines(char *text) {
-  int lines = 0, steps = 0;
-  while (*text) {
-    if ((uint8_t)*text < 0x80) {
-      if (*text == '\n') lines++;
-      text++;
-    } else {
-      steps = utf8_get_size(*text);
-      text += steps;
-    }
-  }
-  return lines + 1;
+  string_lines_t lines = split_string_to_lines(text, OLED_WIDTH, FONT_STANDARD);
+  return lines.line_count;
 }
 
 static void layout_index_count(int index, int count) {
@@ -517,9 +508,9 @@ static void layoutWelcome(int index) {
     line2_len = strlen(_(C__PRESS_POWER_KEY_TO_CONTINUE));
 
     if (line1_len > line2_len) {
-      oledDrawStringCenterAdapter(OLED_WIDTH / 2, 20, line1, FONT_STANDARD);
       x = oledDrawStringCenterAdapterX(OLED_WIDTH / 2, 20, line1,
                                        FONT_STANDARD);
+      oledDrawStringAdapter(x, 20, line1, FONT_STANDARD);
       oledDrawStringAdapter(x, 34, line2, FONT_STANDARD);
       char *str = strstr(line1, " ");
       memcpy(h, line1, str - line1);
@@ -528,7 +519,7 @@ static void layoutWelcome(int index) {
       x = oledDrawStringCenterAdapterX(OLED_WIDTH / 2, 20, line2,
                                        FONT_STANDARD);
       oledDrawStringAdapter(x, 20, line1, FONT_STANDARD);
-      oledDrawStringCenterAdapter(OLED_WIDTH / 2, 34, line2, FONT_STANDARD);
+      oledDrawStringAdapter(x, 34, line2, FONT_STANDARD);
       char *str = strstr(line2, " ");
       memcpy(h, line2, str - line2);
       offset = x + oledStringWidthAdapter(h, FONT_STANDARD);
@@ -647,6 +638,7 @@ void onboarding(uint8_t key) {
   static int index = 0, welcome_index = 0;
   static int type = 0;
   static bool get_ble_name = true;
+  int height = font_get_height(), offset = 0;
   layoutLast = onboarding;
   if (get_ble_name) {
 #if !EMULATOR
@@ -711,14 +703,11 @@ void onboarding(uint8_t key) {
             countlines(_(C__DOWNLOAD_ONEKEY_APPS_AT_COLON_ONEKEY_SO_DOWNLOAD));
         x = oledDrawStringCenterAdapterX(OLED_WIDTH / 2, 10,
                                          "onekey.so/download", FONT_STANDARD);
-        if (ui_language == 0) {
-          oledBox(x, 35, x + l, 35, true);
-          oledRefresh();
-        } else {
-          oledBox(x, 36 + 11 * (line_num - 2), x + l, 36 + 11 * (line_num - 2),
-                  true);
-          oledRefresh();
-        }
+
+        offset = line_num <= 3 ? 17 : 13;
+        offset += height * line_num;
+        oledBox(x, offset, x + l, offset, true);
+        oledRefresh();
         key = protectWaitKey(0, 1);
         if (protectAbortedByInitializeOnboarding) return;
         if (key != KEY_CONFIRM) {
@@ -730,15 +719,14 @@ void onboarding(uint8_t key) {
             &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL, NULL, NULL,
             _(C__ANY_QUESTIONS_QUES_VISIT_HELP_CENTER_FOR_SOLUTIONS_COLON_HELP_ONEKEY_SO));
         l = oledStringWidthAdapter("help.onekey.so", FONT_STANDARD);
+        line_num = countlines(_(
+            C__ANY_QUESTIONS_QUES_VISIT_HELP_CENTER_FOR_SOLUTIONS_COLON_HELP_ONEKEY_SO));
         x = oledDrawStringCenterAdapterX(OLED_WIDTH / 2, 10, "help.onekey.so",
                                          FONT_STANDARD);
-        if (ui_language == 0) {
-          oledBox(x, 43, x + l, 43, true);
-          oledRefresh();
-        } else {
-          oledBox(x, 46, x + l, 46, true);
-          oledRefresh();
-        }
+        offset = line_num <= 3 ? 17 : 13;
+        offset += height * line_num;
+        oledBox(x, offset, x + l, offset, true);
+        oledRefresh();
         key = protectWaitKey(0, 1);
         if (protectAbortedByInitializeOnboarding) return;
         if (key != KEY_CONFIRM) {
@@ -1650,7 +1638,7 @@ void layoutQRCode(const char *index, const BITMAP *bmp_up,
     h -= 8;
   }
   if (title) {
-    oledDrawStringCenterAdapter(64, y, title, FONT_STANDARD);
+    oledDrawStringCenterAdapter(OLED_WIDTH / 2, y, title, FONT_STANDARD);
     y += 9;
     h -= 9;
   }
@@ -2314,22 +2302,11 @@ void layoutConfirmAutoLockDelay(uint32_t delay_ms) {
 }
 
 static int line_index(char *text, int lines) {
-  int rows = 0, steps = 0;
-  char *p = text;
-  if (lines <= 0) return 0;
-  while (*p) {
-    if ((uint8_t)*p < 0x80) {
-      if (*p == '\n') {
-        rows++;
-        if (rows == lines) break;
-      }
-      p++;
-    } else {
-      steps = utf8_get_size(*p);
-      p += steps;
-    }
-  }
-  return p - text;
+  string_lines_t split_lines =
+      split_string_to_lines(text, OLED_WIDTH, FONT_STANDARD);
+  int line_index =
+      lines > split_lines.line_count ? split_lines.line_count : lines;
+  return split_lines.line_start[line_index] - text;
 }
 
 static uint8_t layoutPagination(char *title, char *content) {
@@ -2356,10 +2333,7 @@ _layout:
   p1 = line_index(content, index);
   p2 = line_index(content, index + 4);
   memset(text, 0, 256);
-  if (index == 0)
-    memcpy(text, content + p1, p2 - p1);
-  else
-    memcpy(text, content + p1 + 1, p2 - p1);
+  memcpy(text, content + p1, p2 - p1);
 
   if (pages == 1) {
     bmp_up = NULL;
@@ -2783,8 +2757,7 @@ void layoutDialogCenterAdapterV2(const char *title, const BITMAP *icon,
                                  const char *line3, const char *line4,
                                  const char *desc) {
   const struct font_desc *font = find_cur_font();
-  int i, len, index = 0, lines = 0, y = 0;
-  char buf[128 + 1] = {0};
+  int lines = 0, y = 0;
 
   oledClear_ex();
   if (icon) {
@@ -2797,7 +2770,6 @@ void layoutDialogCenterAdapterV2(const char *title, const BITMAP *icon,
   }
 
   if (desc) {
-    len = strlen(desc);
     if (!icon) {
       lines += countlines((char *)desc);
       if (lines <= 3) {
@@ -2806,29 +2778,7 @@ void layoutDialogCenterAdapterV2(const char *title, const BITMAP *icon,
         y = 13;
       }
     }
-    lines = 0;
-    for (i = 0; i < len; i++) {
-      if (desc[i] == '\n') {
-        memset(buf, 0, 128);
-        if ((i - index) > 128) {
-          continue;
-        }
-        memcpy(buf, desc + index, i - index);
-        oledDrawStringCenterAdapter(
-            OLED_WIDTH / 2, y + lines * (font->pixel + 1), buf, FONT_STANDARD);
-        index = i + 1;
-        lines++;
-      }
-    }
-    if (0 == lines) {
-      oledDrawStringCenterAdapter(OLED_WIDTH / 2, y + lines * (font->pixel + 1),
-                                  desc, FONT_STANDARD);
-    } else if ((index < len) && ((len - index) < 128)) {
-      memset(buf, 0, 128);
-      memcpy(buf, desc + index, len - index);
-      oledDrawStringCenterAdapter(OLED_WIDTH / 2, y + lines * (font->pixel + 1),
-                                  buf, FONT_STANDARD);
-    }
+    oledDrawStringCenterAdapter(OLED_WIDTH / 2, y, desc, FONT_STANDARD);
   } else {
     if (line1) {
       oledDrawStringCenterAdapter(OLED_WIDTH / 2, y + 0 * (font->pixel + 1),
