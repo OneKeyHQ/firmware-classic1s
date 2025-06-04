@@ -30,6 +30,7 @@ typedef struct __attribute__((packed)) {
 #define FONT_SECTION_LEN sizeof(FontSection)
 
 int utf8_get_size(const uint8_t ch);
+const char *utf8_next(const char *p);
 void font_init(void);
 bool font_imported(void);
 int font_get_width(const uint8_t *ch);

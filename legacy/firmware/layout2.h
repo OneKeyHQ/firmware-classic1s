@@ -22,10 +22,10 @@
 
 #include "bignum.h"
 #include "bitmaps.h"
-#include "chinese.h"
 #include "coins.h"
 #include "layout.h"
 #include "oled.h"
+#include "oled_text.h"
 #include "trezor.h"
 
 #include "messages-bitcoin.pb.h"

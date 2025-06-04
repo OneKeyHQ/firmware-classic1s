@@ -190,7 +190,8 @@ static const struct menu_item language_set_menu_items[] = {
     {"日本語", NULL, true, menu_para_set_language, NULL, true, NULL},
     {"Español", NULL, true, menu_para_set_language, NULL, true, NULL},
     {"Português", NULL, true, menu_para_set_language, NULL, true, NULL},
-    {"Deutsch", NULL, true, menu_para_set_language, NULL, true, NULL}};
+    {"Deutsch", NULL, true, menu_para_set_language, NULL, true, NULL},
+    {"한국어", NULL, true, menu_para_set_language, NULL, true, NULL}};
 
 static struct menu language_set_menu = {
     .start = 0,

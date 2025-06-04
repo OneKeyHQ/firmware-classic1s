@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "./firmware/chinese.h"
+#include "./firmware/oled_text.h"
 #include "buttons.h"
 #include "common.h"
 #include "layout.h"

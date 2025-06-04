@@ -61,7 +61,7 @@ endif
 
 OBJS += font.o
 OBJS += font_ex.o
-OBJS += chinese.o
+OBJS += oled_text.o
 OBJS += gettext.o
 OBJS += i18n/i18n.o
 OBJS += menu_para.o
