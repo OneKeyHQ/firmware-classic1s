@@ -142,7 +142,7 @@ const char *const languages_ja[] = {
     "入力切替 (大文字)",
     "入力切替（数値）",
     "入力切替 (シンボル)",
-    "Passphrase 使いますか？",
+    "パスフレーズを確認",
     "ビュー 隠しウォレット",
     "次の画面で入力された Passphrase を表示します。",
     "Bluetooth ペア",

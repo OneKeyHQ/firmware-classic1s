@@ -309,7 +309,7 @@
 #define T__SWITCH_INPUT_BRACKET_NUMBER 141
 // Switch Input (Symbol)
 #define T__SWITCH_INPUT_BRACKET_SYMBOL 142
-// Use This Passphrase?
+// Confirm Passphrase
 #define T__USE_THIS_PASSPHRASE_QUES 143
 // Access Hidden Wallet
 #define T__ACCESS_HIDDEN_WALLET 144

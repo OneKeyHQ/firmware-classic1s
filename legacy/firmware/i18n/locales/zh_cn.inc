@@ -142,7 +142,7 @@ const char *const languages_zh_cn[] = {
     "切换输入法（大写字母）",
     "切换输入法（数字）",
     "切换输入法（符号）",
-    "使用此 Passphrase？",
+    "确认 Passphrase",
     "访问隐藏钱包",
     "接下来，屏幕中将展示您输入的 Passphrase。",
     "蓝牙配对",

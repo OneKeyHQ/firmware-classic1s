@@ -142,7 +142,7 @@ const char *const languages_de[] = {
     "Eingabe wechseln (Großbuchstaben)",
     "Schalteingang (Nummer)",
     "Eingabe wechseln (Symbol)",
-    "Passphrase verwenden?",
+    "Passphrase bestätigen",
     "Hidden Wallet öffnen",
     "Der nächste Bildschirm zeigt die eingegebene Passphrase an.",
     "Bluetooth-Kopplung",

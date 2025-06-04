@@ -59,29 +59,33 @@ def write_i18n_header(languages_map, items_count):
         "",
         "typedef enum {",
     ]
-    
+
     for i, lang_iso in enumerate(SUPPORTED_LANGS):
         lang_name = lang_iso.upper().replace("-", "_")
         content.append(f"  I18N_LANG_{lang_name} = {i},")
-    
-    content.extend([
-        "} i18n_lang_t;",
-        "",
-        "extern const char *const i18n_lang_keys[];",
-        "extern const char *const i18n_langs[];",
-        "",
-    ])
-    
+
+    content.extend(
+        [
+            "} i18n_lang_t;",
+            "",
+            "extern const char *const i18n_lang_keys[];",
+            "extern const char *const i18n_langs[];",
+            "",
+        ]
+    )
+
     for lang_iso in SUPPORTED_LANGS:
-        content.append(f'extern const char *const languages_{lang_iso.lower()}[];')
-    
-    content.extend([
-        "",
-        "extern const char *const *const languages_table[];",
-        "",
-        "#endif",
-    ])
-    
+        content.append(f"extern const char *const languages_{lang_iso.lower()}[];")
+
+    content.extend(
+        [
+            "",
+            "extern const char *const *const languages_table[];",
+            "",
+            "#endif",
+        ]
+    )
+
     with open(f"{BASE_PATH}/i18n.h", "w") as f:
         f.write("\n".join(content) + "\n")
 
@@ -105,48 +109,56 @@ def write_i18n_source(languages_map):
     content = [
         '#include "i18n.h"',
         "",
-        '// clang-format off',
+        "// clang-format off",
         "",
         "const char *const i18n_lang_keys[] = {",
     ]
-    
+
     for lang_iso in SUPPORTED_LANGS:
         display_key = LANG_KEY_DISPLAY.get(lang_iso, lang_iso)
         content.append(f'    "{display_key}",')
-    
-    content.extend([
-        "};",
-        "",
-        "const char *const i18n_langs[] = {",
-    ])
-    
+
+    content.extend(
+        [
+            "};",
+            "",
+            "const char *const i18n_langs[] = {",
+        ]
+    )
+
     for lang_iso in SUPPORTED_LANGS:
         lang_name = LANG_NAMES[lang_iso]
         content.append(f'    "{lang_name}",')
-    
-    content.extend([
-        "};",
-        "",
-    ])
-    
+
+    content.extend(
+        [
+            "};",
+            "",
+        ]
+    )
+
     sorted_langs = sorted(SUPPORTED_LANGS)
     for lang_iso in sorted_langs:
         content.append(f'#include "locales/{lang_iso.lower()}.inc"')
-    
-    content.extend([
-        "",
-        "const char *const *const languages_table[] = {",
-    ])
-    
+
+    content.extend(
+        [
+            "",
+            "const char *const *const languages_table[] = {",
+        ]
+    )
+
     for lang_iso in SUPPORTED_LANGS:
         content.append(f"    languages_{lang_iso.lower()},")
-    
-    content.extend([
-        "};",
-        "",
-        '// clang-format on',
-    ])
-    
+
+    content.extend(
+        [
+            "};",
+            "",
+            "// clang-format on",
+        ]
+    )
+
     with open(f"{BASE_PATH}/i18n.c", "w") as f:
         f.write("\n".join(content) + "\n")
 
