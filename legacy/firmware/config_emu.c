@@ -690,7 +690,7 @@ void config_setLanguage(const char *lang) {
   if (lang == NULL) {
     return;
   }
-  for (uint8_t i = 0; i < langs_len; i++) {
+  for (uint8_t i = 0; i < I18N_LANGUAGE_ITEMS; i++) {
     if (strcmp(lang, i18n_lang_keys[i]) == 0) {
       ui_language = i;
       storage_set(KEY_LANGUAGE, lang, strnlen(lang, MAX_LANGUAGE_LEN));
@@ -931,7 +931,7 @@ bool config_getLabel(char *dest, uint16_t dest_size) {
 
 bool config_getLanguage(char *dest, uint16_t dest_size) {
   if (sectrue == config_get_string(KEY_LANGUAGE, dest, dest_size)) {
-    for (uint8_t i = 0; i < langs_len; i++) {
+    for (uint8_t i = 0; i < I18N_LANGUAGE_ITEMS; i++) {
       if (strcmp(dest, i18n_lang_keys[i]) == 0) {
         ui_language = i;
         break;

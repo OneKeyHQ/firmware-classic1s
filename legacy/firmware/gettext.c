@@ -11,26 +11,10 @@ extern uint8_t ui_language;
 char *gettext(const char *msgid) { return (char *)msgid; }
 
 char *gettextX(int msgid) {
-  switch (ui_language) {
-    case 1:
-      return (char *)languages_zh_cn[msgid];
-    case 2:
-      return (char *)languages_zh_tw[msgid];
-    case 3:
-      return (char *)languages_ja[msgid];
-    case 4:
-      return (char *)languages_es[msgid];
-    case 5:
-      return (char *)languages_pt_br[msgid];
-    case 6:
-      return (char *)languages_de[msgid];
-    case 7:
-      return (char *)languages_ko_kr[msgid];
-    default:
-      break;
+  if (ui_language >= I18N_LANGUAGE_ITEMS) {
+    return (char *)languages_en[msgid];
   }
-
-  return (char *)languages_en[msgid];
+  return (char *)languages_table[ui_language][msgid];
 }
 
 extern bool is_valid_ascii(const uint8_t *data, uint32_t size);

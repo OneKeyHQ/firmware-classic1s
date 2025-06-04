@@ -466,13 +466,14 @@ void layout_language_set(uint8_t key) {
   }
   layoutItemsSelectAdapterEx(
       NULL, NULL, NULL, &bmp_bottom_right_arrow, NULL, NULL, index + 1,
-      langs_len, "Select Language", i18n_langs[index], i18n_langs[index], NULL,
-      NULL, index > 0 ? i18n_langs[index - 1] : NULL,
+      I18N_LANGUAGE_ITEMS, "Select Language", i18n_langs[index],
+      i18n_langs[index], NULL, NULL, index > 0 ? i18n_langs[index - 1] : NULL,
       index > 1 ? i18n_langs[index - 2] : NULL,
       index > 2 ? i18n_langs[index - 3] : NULL,
-      index < langs_len - 1 ? i18n_langs[index + 1] : NULL,
-      index < langs_len - 2 ? i18n_langs[index + 2] : NULL,
-      index < langs_len - 3 ? i18n_langs[index + 3] : NULL, true, false);
+      index < I18N_LANGUAGE_ITEMS - 1 ? i18n_langs[index + 1] : NULL,
+      index < I18N_LANGUAGE_ITEMS - 2 ? i18n_langs[index + 2] : NULL,
+      index < I18N_LANGUAGE_ITEMS - 3 ? i18n_langs[index + 3] : NULL, true,
+      false);
 
   switch (key) {
     case KEY_UP:
@@ -481,7 +482,7 @@ void layout_language_set(uint8_t key) {
       }
       break;
     case KEY_DOWN:
-      if (index < langs_len - 1) {
+      if (index < I18N_LANGUAGE_ITEMS - 1) {
         index++;
       }
       break;
