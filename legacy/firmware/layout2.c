@@ -1020,7 +1020,7 @@ refresh_menu:
   layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
   oledRefresh();
 
-  key = protectWaitKey(0, 0);
+  WAIT_KEY_OR_ABORT(0, 0, key);
   switch (key) {
     case KEY_UP:
       goto refresh_menu;
@@ -1186,7 +1186,6 @@ bool layoutConfirmTx(const CoinInfo *coin, AmountUnit amount_unit,
   uint8_t key = KEY_NULL;
   char str_out[32] = {0};
   char str_fee[32] = {0};
-  char desc[32] = {0};
   const char **tx_msg = format_tx_message(coin->coin_name);
 
   formatAmountDifference(coin, amount_unit, total_in, change_out, str_out,
@@ -1214,8 +1213,7 @@ bool layoutConfirmTx(const CoinInfo *coin, AmountUnit amount_unit,
       oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 7,
                      &bmp_bottom_middle_arrow_down);
     } else if (current_index == total_index - 1) {  // fee
-      strcat(desc, _(I__FEE_COLON));
-      oledDrawStringAdapter(0, 13, desc, FONT_STANDARD);
+      oledDrawStringAdapter(0, 13, _(I__FEE_COLON), FONT_STANDARD);
       oledDrawStringAdapter(0, 13 + 10, str_fee, FONT_STANDARD);
       oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 7,
                      &bmp_bottom_middle_arrow_up);
@@ -1224,7 +1222,7 @@ bool layoutConfirmTx(const CoinInfo *coin, AmountUnit amount_unit,
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
     oledRefresh();
     while (1) {
-      key = protectWaitKey(0, 0);
+      WAIT_KEY_OR_ABORT(0, 0, key);
       if (key == KEY_CONFIRM) {
         return true;
       } else if (key == KEY_CANCEL || key == KEY_NULL) {
@@ -1566,7 +1564,7 @@ uint8_t layoutAddress(const char *address, const char *address_type,
       layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
 
       oledRefresh();
-      key = protectWaitKey(0, 0);
+      WAIT_KEY_OR_ABORT(0, 0, key);
       switch (key) {
         case KEY_UP:
           if (index > 0) {
@@ -1753,7 +1751,7 @@ refresh_menu:
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_confirm);
   }
   oledRefresh();
-  key = protectWaitKey(0, 0);
+  WAIT_KEY_OR_ABORT(0, 0, key);
   switch (key) {
     case KEY_UP:
       if (sub_index > 0) {
@@ -4104,7 +4102,7 @@ refresh_menu:
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
   }
   oledRefresh();
-  HANDLE_KEY(bubble_key)
+  HANDLE_KEY(bubble_key);
 }
 
 bool layoutTransactionSignEVM(const char *chain_name, uint64_t chain_id,
@@ -4245,7 +4243,7 @@ refresh_menu:
                        &bmp_bottom_middle_arrow_up);
       }
       oledRefresh();
-      bubble_key = protectWaitKey(0, 0);
+      WAIT_KEY_OR_ABORT(0, 0, bubble_key);
       if (bubble_key == KEY_CANCEL) {
         index = 0;  // exit
         break;
@@ -4315,7 +4313,7 @@ refresh_menu:
                        &bmp_bottom_middle_arrow_up);
       }
       oledRefresh();
-      bubble_key = protectWaitKey(0, 0);
+      WAIT_KEY_OR_ABORT(0, 0, bubble_key);
       if (bubble_key == KEY_CANCEL) {
         index = 0;  // exit
         break;
@@ -4353,7 +4351,7 @@ refresh_menu:
         &bmp_bottom_right_arrow);
   }
   oledRefresh();
-  HANDLE_KEY(bubble_key)
+  HANDLE_KEY(bubble_key);
 }
 
 bool layoutBlindSign(const char *chain_name, bool is_contract,
@@ -4565,7 +4563,7 @@ refresh_layout:
   }
   oledRefresh();
 
-  key = protectWaitKey(0, 0);
+  WAIT_KEY_OR_ABORT(0, 0, key);
 #if !EMULATOR
   if (isLongPress(KEY_UP_OR_DOWN) && getLongPressStatus()) {
     if (isLongPress(KEY_UP)) {
@@ -4668,7 +4666,8 @@ refresh_menu:
                                 NULL, NULL,
                                 _(SECURITY__SOLANA_RAW_SIGNING_TX_WARNING));
     while (1) {
-      uint8_t key = protectWaitKey(0, 0);
+      uint8_t key = KEY_NULL;
+      WAIT_KEY_OR_ABORT(0, 0, key);
       if (key == KEY_CANCEL) {
         return false;
       } else if (key == KEY_CONFIRM) {
@@ -4691,7 +4690,8 @@ refresh_menu:
       layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
       oledRefresh();
       while (1) {
-        uint8_t key = protectWaitKey(0, 0);
+        uint8_t key = KEY_NULL;
+        WAIT_KEY_OR_ABORT(0, 0, key);
         if (key == KEY_CANCEL || key == KEY_CONFIRM) {
           bubble_key = key;
           break;
@@ -4921,7 +4921,7 @@ refresh_layout:
   }
   oledRefresh();
 
-  key = protectWaitKey(0, 0);
+  WAIT_KEY_OR_ABORT(0, 0, key);
 #if !EMULATOR
   if (isLongPress(KEY_UP_OR_DOWN) && getLongPressStatus()) {
     if (isLongPress(KEY_UP)) {
@@ -5041,7 +5041,7 @@ refresh_layout:
   }
   oledRefresh();
 
-  key = protectWaitKey(0, 0);
+  WAIT_KEY_OR_ABORT(0, 0, key);
   switch (key) {
     case KEY_UP:
       goto refresh_layout;
@@ -5114,7 +5114,7 @@ refresh_layout:
   }
   oledRefresh();
 
-  key = protectWaitKey(0, 0);
+  WAIT_KEY_OR_ABORT(0, 0, key);
   switch (key) {
     case KEY_UP:
       goto refresh_layout;
