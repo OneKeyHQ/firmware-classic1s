@@ -1003,7 +1003,7 @@ refresh_menu:
   }
   oledRefresh();
 
-  HANDLE_KEY(bubble_key)
+  HANDLE_KEY(bubble_key);
 }
 
 bool layoutCancelAllUnfreezeV2Sign(const char *signer_str) {
@@ -1046,7 +1046,7 @@ refresh_menu:
   }
   oledRefresh();
 
-  HANDLE_KEY(bubble_key)
+  HANDLE_KEY(bubble_key);
 }
 
 bool tron_sign_tx(TronSignTx *msg, const char *owner_address,

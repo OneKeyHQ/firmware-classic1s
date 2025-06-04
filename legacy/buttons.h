@@ -69,34 +69,39 @@ bool isLongPress(uint8_t key);
 #define KEY_UP_LONG 'V'
 #define KEY_DOWN_LONG 'E'
 
-#define HANDLE_KEY(bubble_key)                          \
-  uint8_t key = KEY_NULL;                               \
-  key = bubble_key ? bubble_key : protectWaitKey(0, 0); \
-  switch (key) {                                        \
-    case KEY_UP:                                        \
-    case KEY_DOWN:                                      \
-      goto refresh_menu;                                \
-    case KEY_CONFIRM:                                   \
-      if (max_index == index) {                         \
-        result = true;                                  \
-        break;                                          \
-      }                                                 \
-      if (index < max_index) {                          \
-        index++;                                        \
-      }                                                 \
-      goto refresh_menu;                                \
-    case KEY_CANCEL:                                    \
-      if (0 == index || max_index == index) {           \
-        result = false;                                 \
-        break;                                          \
-      }                                                 \
-      if (index > 0) {                                  \
-        index--;                                        \
-      }                                                 \
-      goto refresh_menu;                                \
-    default:                                            \
-      break;                                            \
-  }                                                     \
-  return result;
+#define HANDLE_KEY(bubble_key)                                  \
+  do {                                                          \
+    uint8_t key = KEY_NULL;                                     \
+    key = bubble_key ? bubble_key : protectWaitKey(0, 0);       \
+    if (protectAbortedByInitialize || protectAbortedByCancel) { \
+      return false;                                             \
+    }                                                           \
+    switch (key) {                                              \
+      case KEY_UP:                                              \
+      case KEY_DOWN:                                            \
+        goto refresh_menu;                                      \
+      case KEY_CONFIRM:                                         \
+        if (max_index == index) {                               \
+          result = true;                                        \
+          break;                                                \
+        }                                                       \
+        if (index < max_index) {                                \
+          index++;                                              \
+        }                                                       \
+        goto refresh_menu;                                      \
+      case KEY_CANCEL:                                          \
+        if (0 == index || max_index == index) {                 \
+          result = false;                                       \
+          break;                                                \
+        }                                                       \
+        if (index > 0) {                                        \
+          index--;                                              \
+        }                                                       \
+        goto refresh_menu;                                      \
+      default:                                                  \
+        break;                                                  \
+    }                                                           \
+    return result;                                              \
+  } while (0)
 
 #endif
