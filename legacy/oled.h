@@ -32,8 +32,8 @@
 #define OLED_NSS_HIGH gpio_set(GPIOI, GPIO0);
 #define OLED_NSS_LOW gpio_clear(GPIOI, GPIO0);
 
-#define OLED_WIDTH 128
-#define OLED_HEIGHT 64
+#define OLED_WIDTH 256
+#define OLED_HEIGHT 128
 #define OLED_BUFSIZE (OLED_WIDTH * OLED_HEIGHT / 8)
 
 void oledInit(void);
