@@ -2,8 +2,14 @@
 #include "alephium/alph_layout.h"
 
 #define MAX_ALEPHIUM_DATA_SIZE 20480
+
+#if !EMULATOR
 static uint8_t alephium_data_buffer[MAX_ALEPHIUM_DATA_SIZE]
     __attribute__((section(".secMessageSection")));
+#else
+static uint8_t alephium_data_buffer[MAX_ALEPHIUM_DATA_SIZE];
+#endif
+
 static size_t alephium_data_left = 0;
 static size_t alephium_data_total_size = 0;
 static AlephiumTxRequest msg_tx_request;

@@ -375,8 +375,12 @@ refresh_menu:
 #if !BITCOIN_ONLY
 void menu_fido2_resident_credential(int index);
 
+#if !EMULATOR
 static CTAP_UserInfo user_info[FIDO2_RESIDENT_CREDENTIALS_COUNT]
     __attribute__((section(".secMessageSection"))) = {0};
+#else
+static CTAP_UserInfo user_info[FIDO2_RESIDENT_CREDENTIALS_COUNT];
+#endif
 
 static struct menu_item
     fido_resident_credential_menu_items[FIDO2_RESIDENT_CREDENTIALS_COUNT] = {0};

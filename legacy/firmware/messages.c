@@ -241,8 +241,13 @@ extern bool msg_command_inprogress;
 void msg_process(char type, uint16_t msg_id, const pb_msgdesc_t *fields,
                  uint8_t *msg_raw, uint32_t msg_size) {
   // FTFixed:如果使用芯片自动分配的Ram，会发生异常
+#if !EMULATOR
   static uint8_t msg_decoded[MSG_IN_DECODED_SIZE]
       __attribute__((section(".secMessageSection")));
+#else
+  static uint8_t msg_decoded[MSG_IN_DECODED_SIZE];
+#endif
+  
   memzero(msg_decoded, sizeof(msg_decoded));
   pb_istream_t stream = pb_istream_from_buffer(msg_raw, msg_size);
   bool status = pb_decode(&stream, fields, msg_decoded);
@@ -256,8 +261,13 @@ void msg_process(char type, uint16_t msg_id, const pb_msgdesc_t *fields,
 
 void msg_read_common(char type, const uint8_t *buf, uint32_t len) {
   static char read_state = READSTATE_IDLE;
+  
+#if !EMULATOR
   static uint8_t msg_encoded[MSG_IN_ENCODED_SIZE]
       __attribute__((section(".secMessageSection")));
+#else
+  static uint8_t msg_encoded[MSG_IN_ENCODED_SIZE];
+#endif
   static uint16_t msg_id = 0xFFFF;
   static uint32_t msg_encoded_size = 0;
   static uint32_t msg_pos = 0;
