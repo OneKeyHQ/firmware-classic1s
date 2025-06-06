@@ -32,7 +32,7 @@ SECTIONS
 INCLUDE cortex-m-generic.ld
 
 _codelen = SIZEOF(.text) + SIZEOF(.data) + SIZEOF(.ARM.exidx);
-ASSERT((end + 80K <= ORIGIN(ram) + LENGTH(ram)), "Error: not enough space for stack!");
+ASSERT((end + 95K <= ORIGIN(ram) + LENGTH(ram)), "Error: not enough space for stack!");
 _ram_start = ORIGIN(ram);
 _ram_end = ORIGIN(ram) + LENGTH(ram);
 _stay_in_bootloader_flag_addr = ABSOLUTE(0x20010000);
