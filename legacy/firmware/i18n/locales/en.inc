@@ -142,7 +142,7 @@ const char *const languages_en[] = {
     "Switch Input (Uppercase)",
     "Switch Input (Number)",
     "Switch Input (Symbol)",
-    "Use This Passphrase?",
+    "Confirm Passphrase",
     "Access Hidden Wallet",
     "Next screen will show the entered Passphrase.",
     "Bluetooth Pair",

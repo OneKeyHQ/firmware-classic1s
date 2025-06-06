@@ -142,7 +142,7 @@ const char *const languages_es[] = {
     "Cambiar Entrada (Mayús.)",
     "Cambiar Entrada (Número)",
     "Cambiar Entrada (Símbolo)",
-    "¿Usar este passphrase?",
+    "Confirmar Passphrase",
     "Acceder a Billetera Oculta",
     "La siguiente pantalla mostrará la Passphrase ingresada.",
     "Emparejar Bluetooth",

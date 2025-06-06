@@ -142,7 +142,7 @@ const char *const languages_pt_br[] = {
     "Trocar Entrada (Maiúsc.)",
     "Trocar Entrada (Número)",
     "Trocar Entrada (Símbolo)",
-    "Usar esta Passphrase?",
+    "Confirmar Passphrase",
     "Acessar Carteira Hidden",
     "A próxima tela mostrará a Passphrase inserida",
     "Pareamento Bluetooth",

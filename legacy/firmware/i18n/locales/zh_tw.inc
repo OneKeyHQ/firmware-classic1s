@@ -142,7 +142,7 @@ const char *const languages_zh_tw[] = {
     "切換輸入法（大寫字母）",
     "切換輸入法（數字）",
     "切換輸入法（符號）",
-    "使用此 Passphrase？",
+    "確認 Passphrase",
     "取用隱藏錢包",
     "接下來，螢幕中將展示您輸入的 Passphrase。",
     "藍牙配對",

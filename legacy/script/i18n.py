@@ -8,18 +8,6 @@ SUPPORTED_LANGS = ("en", "zh_CN", "zh_TW", "ja", "es", "pt_BR", "de", "ko_KR")
 CHARS_NORMAL = set()
 CHARS_TITLE = set()
 CHARS_SUBTITLE = set()
-"""
-LANG_MAP = {
-    'zh_CN': 'Chinese Simplified',
-    'zh_HK': 'Chinese Traditional',
-    'en': 'English',
-    'ja': 'Japanese',
-    'es': 'Spanish',
-    'pt_BR': 'Portuguese',
-    'de': 'Deutsch',
-    'ko_KR': 'Korean',
-}
-"""
 
 
 def write_keys(parsed):
@@ -54,6 +42,124 @@ def write_lang(parsed, lang_iso):
         content.append(text)
     content.append("};")
     with open(f"{BASE_PATH}/locales/{lang_iso.lower()}.inc", "w") as f:
+        f.write("\n".join(content) + "\n")
+
+
+def write_i18n_header(languages_map, items_count):
+    content = [
+        "#ifndef I18N_H",
+        "#define I18N_H",
+        "",
+        "#include <stdint.h>",
+        "#include <stdio.h>",
+        '#include "keys.h"',
+        "",
+        f"#define I18N_ITEMS_COUNT {items_count}",
+        f"#define I18N_LANGUAGE_ITEMS {len(SUPPORTED_LANGS)}",
+        "",
+        "typedef enum {",
+    ]
+
+    for i, lang_iso in enumerate(SUPPORTED_LANGS):
+        lang_name = lang_iso.upper().replace("-", "_")
+        content.append(f"  I18N_LANG_{lang_name} = {i},")
+
+    content.extend(
+        [
+            "} i18n_lang_t;",
+            "",
+            "extern const char *const i18n_lang_keys[];",
+            "extern const char *const i18n_langs[];",
+            "",
+        ]
+    )
+
+    for lang_iso in SUPPORTED_LANGS:
+        content.append(f"extern const char *const languages_{lang_iso.lower()}[];")
+
+    content.extend(
+        [
+            "",
+            "extern const char *const *const languages_table[];",
+            "",
+            "#endif",
+        ]
+    )
+
+    with open(f"{BASE_PATH}/i18n.h", "w") as f:
+        f.write("\n".join(content) + "\n")
+
+
+def write_i18n_source(languages_map):
+    LANG_NAMES = {
+        "en": "English",
+        "zh_CN": "中文 (简体)",
+        "zh_TW": "中文 (繁體)",
+        "ja": "日本語",
+        "es": "Español",
+        "pt_BR": "Português",
+        "de": "Deutsch",
+        "ko_KR": "한국어",
+    }
+
+    LANG_KEY_DISPLAY = {
+        "pt_BR": "pt",
+    }
+
+    content = [
+        '#include "i18n.h"',
+        "",
+        "// clang-format off",
+        "",
+        "const char *const i18n_lang_keys[] = {",
+    ]
+
+    for lang_iso in SUPPORTED_LANGS:
+        display_key = LANG_KEY_DISPLAY.get(lang_iso, lang_iso)
+        content.append(f'    "{display_key}",')
+
+    content.extend(
+        [
+            "};",
+            "",
+            "const char *const i18n_langs[] = {",
+        ]
+    )
+
+    for lang_iso in SUPPORTED_LANGS:
+        lang_name = LANG_NAMES[lang_iso]
+        content.append(f'    "{lang_name}",')
+
+    content.extend(
+        [
+            "};",
+            "",
+        ]
+    )
+
+    sorted_langs = sorted(SUPPORTED_LANGS)
+    for lang_iso in sorted_langs:
+        content.append(f'#include "locales/{lang_iso.lower()}.inc"')
+
+    content.extend(
+        [
+            "",
+            "const char *const *const languages_table[] = {",
+        ]
+    )
+
+    for lang_iso in SUPPORTED_LANGS:
+        content.append(f"    languages_{lang_iso.lower()},")
+
+    content.extend(
+        [
+            "};",
+            "",
+            "// clang-format on",
+        ]
+    )
+
+    with open(f"{BASE_PATH}/i18n.c", "w") as f:
         f.write("\n".join(content) + "\n")
 
 
@@ -114,6 +220,8 @@ def main():
             index += 1
 
     write_keys(parsed)
+    write_i18n_header(languages_map, len(parsed))
+    write_i18n_source(languages_map)
 
     for lang in languages_map.keys():
         write_lang(parsed, lang)

@@ -23,7 +23,7 @@ static const char *_gettext(char *en_str) {
   if (!is_valid_ascii((uint8_t *)en_str, len)) {
     return en_str;
   }
-  for (int i = 0; i < I18N_LANGUAGE_ITEMS; i++) {
+  for (int i = 0; i < I18N_ITEMS_COUNT; i++) {
     if ((0 == strncmp(en_str, languages_en[i], len)) &&
         (len == strlen(languages_en[i]))) {
       msgid = i;

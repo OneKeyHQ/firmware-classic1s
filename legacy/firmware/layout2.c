@@ -466,13 +466,14 @@ void layout_language_set(uint8_t key) {
   }
   layoutItemsSelectAdapterEx(
       NULL, NULL, NULL, &bmp_bottom_right_arrow, NULL, NULL, index + 1,
-      langs_len, "Select Language", i18n_langs[index], i18n_langs[index], NULL,
-      NULL, index > 0 ? i18n_langs[index - 1] : NULL,
+      I18N_LANGUAGE_ITEMS, "Select Language", i18n_langs[index],
+      i18n_langs[index], NULL, NULL, index > 0 ? i18n_langs[index - 1] : NULL,
       index > 1 ? i18n_langs[index - 2] : NULL,
       index > 2 ? i18n_langs[index - 3] : NULL,
-      index < langs_len - 1 ? i18n_langs[index + 1] : NULL,
-      index < langs_len - 2 ? i18n_langs[index + 2] : NULL,
-      index < langs_len - 3 ? i18n_langs[index + 3] : NULL, true, false);
+      index < I18N_LANGUAGE_ITEMS - 1 ? i18n_langs[index + 1] : NULL,
+      index < I18N_LANGUAGE_ITEMS - 2 ? i18n_langs[index + 2] : NULL,
+      index < I18N_LANGUAGE_ITEMS - 3 ? i18n_langs[index + 3] : NULL, true,
+      false);
 
   switch (key) {
     case KEY_UP:
@@ -481,7 +482,7 @@ void layout_language_set(uint8_t key) {
       }
       break;
     case KEY_DOWN:
-      if (index < langs_len - 1) {
+      if (index < I18N_LANGUAGE_ITEMS - 1) {
         index++;
       }
       break;
@@ -2388,18 +2389,7 @@ _layout:
 }
 
 void layoutTxConfirmPage(const char *data) {
-  char line[64] = {0};
-  int rows = countlines((char *)data);
-  int p1 = line_index((char *)data, 1);
-  int p2 = line_index((char *)data, 2);
-  memcpy(line, data, p1);
-  oledDrawStringCenterAdapter(OLED_WIDTH / 2, 13 + 8, line, FONT_STANDARD);
-  memcpy(line, data + p1 + 1, p2 - p1);
-  oledDrawStringCenterAdapter(OLED_WIDTH / 2, 13 + 10 + 8, line, FONT_STANDARD);
-  if (rows > 2) {
-    oledDrawStringCenterAdapter(OLED_WIDTH / 2, 13 + 20 + 8, data + p2 + 1,
-                                FONT_STANDARD);
-  }
+  oledDrawStringCenterAdapter(OLED_WIDTH / 2, 13 + 8, data, FONT_STANDARD);
 }
 
 bool layoutConfirmSafetyChecks(SafetyCheckLevel safety_ckeck_level,
@@ -3647,37 +3637,34 @@ bool layoutInputDirection(int direction) {
         _(C__WHEN_ENTERING_PIN_CLICK_THE_UP_BTN_TO_DECREASE_AND_CLICK_THE_DOWN_BTN_TO_INCREASE));
   }
   switch (ui_language) {
-    case 0:
+    case I18N_LANG_EN:
       if (direction) {
-        oledDrawBitmap(42, 22, &bmp_icon_up);
+        oledDrawBitmap(42, 21, &bmp_icon_up);
         oledDrawBitmap(101, 30, &bmp_icon_down);
       } else {
-        oledDrawBitmap(42, 22, &bmp_icon_up);
-        oledDrawBitmap(11, 40, &bmp_icon_down);
+        oledDrawBitmap(42, 21, &bmp_icon_up);
+        oledDrawBitmap(10, 39, &bmp_icon_down);
       }
       break;
-    case 1:
-      oledDrawBitmap(91, 17, &bmp_icon_up);
-      oledDrawBitmap(71, 28, &bmp_icon_down);
+    case I18N_LANG_ZH_CN:
+    case I18N_LANG_ZH_TW:
+      oledDrawBitmap(92, 17, &bmp_icon_up);
+      oledDrawBitmap(72, 27, &bmp_icon_down);
       break;
-    case 2:
-      oledDrawBitmap(95, 17, &bmp_icon_up);
-      oledDrawBitmap(75, 28, &bmp_icon_down);
-      break;
-    case 3:
+    case I18N_LANG_JA:
       if (direction) {
-        oledDrawBitmap(11, 22, &bmp_icon_up);
+        oledDrawBitmap(17, 22, &bmp_icon_up);
         oledDrawBitmap(50, 32, &bmp_icon_down);
       } else {
-        oledDrawBitmap(12, 22, &bmp_icon_up);
-        oledDrawBitmap(63, 32, &bmp_icon_down);
+        oledDrawBitmap(18, 22, &bmp_icon_up);
+        oledDrawBitmap(62, 32, &bmp_icon_down);
       }
       break;
-    case 4:
+    case I18N_LANG_ES:
       oledDrawBitmap(65, 23, &bmp_icon_up);
-      oledDrawBitmap(6, 42, &bmp_icon_down);
+      oledDrawBitmap(5, 42, &bmp_icon_down);
       break;
-    case 5:
+    case I18N_LANG_PT_BR:
       oledDrawBitmap(36, 23, &bmp_icon_up);
       if (direction) {
         oledDrawBitmap(70, 32, &bmp_icon_down);
@@ -3685,14 +3672,18 @@ bool layoutInputDirection(int direction) {
         oledDrawBitmap(66, 32, &bmp_icon_down);
       }
       break;
-    case 6:
+    case I18N_LANG_DE:
       if (direction) {
         oledDrawBitmap(71, 17, &bmp_icon_up);
-        oledDrawBitmap(71, 28, &bmp_icon_down);
+        oledDrawBitmap(71, 27, &bmp_icon_down);
       } else {
         oledDrawBitmap(23, 22, &bmp_icon_down);
         oledDrawBitmap(103, 32, &bmp_icon_up);
       }
+      break;
+    case I18N_LANG_KO_KR:
+      oledDrawBitmap(83, 16, &bmp_icon_up);
+      oledDrawBitmap(105, 26, &bmp_icon_down);
       break;
     default:
       break;

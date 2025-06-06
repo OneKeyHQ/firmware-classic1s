@@ -142,7 +142,7 @@ const char *const languages_ko_kr[] = {
     "입력 전환(대문자)",
     "입력 전환(숫자)",
     "입력 전환(기호)",
-    "이 Passphrase를 사용하시겠습니까?",
+    "Passphrase 확인",
     "숨겨진 지갑에 접근",
     "다음 화면에 입력한 Passphrase가 표시됩니다.",
     "블루투스 페어링",

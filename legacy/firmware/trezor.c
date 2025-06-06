@@ -289,9 +289,9 @@ int main(void) {
 
   config_init();
   menu_default();
+  font_init();
   layoutHome();
   usbInit();
-  font_init();
 
 #if EMULATOR
   system_millis_lock_start = timer_ms();
