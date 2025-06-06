@@ -6,7 +6,11 @@
 
 void bitstring_init(BitString_t* self) {
   self->data_cursor = 0;
+#if !EMULATOR
   explicit_bzero(self->data, sizeof(self->data));
+#else
+  memset(self->data, 0x00, sizeof(self->data));
+#endif
 }
 
 void bitstring_write_bit(BitString_t* self, int8_t v) {
