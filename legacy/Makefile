@@ -83,3 +83,12 @@ flash_firmware_jlink:
 flash_bootloader_jlink:
 	JLinkExe -nogui 1 -commanderscript bootloader/bootloader_flash.jlink
 
+cl:
+	./script/setup
+
+build_emu:
+	export EMULATOR=1 DEBUG_LINK=0 && ./script/cibuild
+
+# buf:
+# 	export EMULATOR=0 DEBUG_LINK=0 PRODUCTION=0 BOOTLOADER_QA=1 && ./script/cibuild
+	
