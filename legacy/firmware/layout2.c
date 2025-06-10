@@ -2706,7 +2706,7 @@ void layoutDialogAdapterEx(const char *title, const BITMAP *bmp_no,
     if (lines <= 3) {
       y = 17;
     }
-    oledDrawStringCenterAdapter(0, y, desc, FONT_STANDARD);
+    oledDrawStringCenterAdapter(OLED_WIDTH / 2, y, desc, FONT_STANDARD);
   } else {
     if (line1) lines++;
     if (line2) lines++;
