@@ -1,7 +1,7 @@
 // clang-format off
 #ifndef I18N_KEY_H
 #define I18N_KEY_H
-// Welcome to OneKey!
+// Welcome!
 #define T__WELCOME_TO_ONEKEY_EXCLAM 0
 // Quick Start
 #define T__QUICK_START 1
@@ -25,7 +25,7 @@
 #define O__18_WORDS 9
 // 24 Words
 #define O__24_WORDS 10
-// Back Up Recovery Phrase
+// Back Up Phrase
 #define T__BACK_UP_RECOVERY_PHRASE 11
 // The next screen will start display {} words called Recovery Phrase. Write it
 // down on sheet in order
@@ -42,9 +42,8 @@
 #define C__ARE_YOU_SURE_TO_ABORT_THIS_PROCESS_QUES_ALL_PROGRESS_WILL_BE_LOST 17
 // Recovery Phrase ({})
 #define T__RECOVERY_PHRASE_BRACKET_STR_BRACKET 18
-// Check Recovery Phrase
+// Check Phrase
 #define T__CHECK_RECOVERY_PHRASE 19
-#define M__CHECK_RECOVERY_PHRASE 19
 // Next, follow the guide and check words one by one.
 #define C__NEXT_FOLLOW_THE_GUIDE_AND_CHECK_WORDS_ONE_BY_ONE 20
 // Check Word #{}
@@ -98,7 +97,7 @@
 #define T__ENTER_WORD_SHARP_STR 44
 // Review Wordlist
 #define T__REVIEW_WORDLIST 45
-// The next screen will start display the {} words you just entered
+// The next screen will start display the {} words you just entered.
 #define C__THE_NEXT_SCREEN_WILL_START_DISPLAY_THE_STR_WORDS_YOU_JUST_ENTERED 46
 // Abort Import?
 #define T__ABORT_IMPORT_QUES 47
@@ -136,10 +135,12 @@
 // Input Direction
 #define M__INPUT_DIRECTION 61
 #define T__INPUT_DIRECTION 61
-// Enabled
+// On
 #define O__ENABLED 62
-// Disabled
+#define O__ON 62
+// Off
 #define O__DISABLED 63
+#define O__OFF 63
 // Enable
 #define O__ENABLE 64
 // Disable
@@ -187,83 +188,84 @@
 // Change PIN
 #define M__CHANGE_PIN 86
 #define T__CHANGE_PIN 86
+// Check Recovery Phrase
+#define M__CHECK_RECOVERY_PHRASE 87
 // Passphrase
-#define M__PASSPHRASE 87
-#define T__PASSPHRASE 87
+#define M__PASSPHRASE 88
+#define T__PASSPHRASE 88
 // Reset Device
-#define M__RESET_DEVICE 88
-#define T__RESET_DEVICE 88
-// Press        key to go back
-#define C__PRESS_BACK_KEY_TO_GO_BACK 89
-// Press        key to continue
-#define C__PRESS_POWER_KEY_TO_CONTINUE 90
-// Before start, verify your current PIN
-#define C__BEFORE_START_VERIFY_YOUR_CURRENT_PIN 91
+#define M__RESET_DEVICE 89
+#define T__RESET_DEVICE 89
+// to go back
+#define C__PRESS_BACK_KEY_TO_GO_BACK 90
+// to continue
+#define C__PRESS_POWER_KEY_TO_CONTINUE 91
+// Before start, verify your current PIN.
+#define C__BEFORE_START_VERIFY_YOUR_CURRENT_PIN 92
 // Incorrect PIN! {} attempts left.
-#define C__INCORRECT_PIN_STR_ATTEMPT_LEFT_TRY_AGAIN 92
+#define C__INCORRECT_PIN_STR_ATTEMPT_LEFT_TRY_AGAIN 93
 // PIN Changed
-#define C__PIN_CHANGED 93
+#define C__PIN_CHANGED 94
 // Check your Recovery Phrase backup, make sure it is exactly the same as the o
 // ne stored on device.
-#define C__CHECK_YOUR_RECOVERY_PHRASE_BACKUP_MAKE_SURE_IT_IS_EXACTLY_THE_SAME_AS_THE_ONE_STORED_ON_DEVICE 94
+#define C__CHECK_YOUR_RECOVERY_PHRASE_BACKUP_MAKE_SURE_IT_IS_EXACTLY_THE_SAME_AS_THE_ONE_STORED_ON_DEVICE 95
 // Invalid recovery phrase! Check and try again.
-#define C__INVALID_RECOVERY_PHRASE_CHECK_AND_TRY_AGAIN 95
+#define C__INVALID_RECOVERY_PHRASE_CHECK_AND_TRY_AGAIN 96
 // Recovery phrase is valid but NOT MATCH. Check and try again.
-#define C__RECOVERY_PHRASE_IS_VALID_BUT_DOES_NOT_MATCH_CHECK_AND_TRY_AGAIN 96
+#define C__RECOVERY_PHRASE_IS_VALID_BUT_DOES_NOT_MATCH_CHECK_AND_TRY_AGAIN 97
 // Recovery phrase matched! Your backup is correct.
-#define C__RECOVERY_PHRASE_MATCHED_YOUR_BACKUP_IS_CORRECT 97
+#define C__RECOVERY_PHRASE_MATCHED_YOUR_BACKUP_IS_CORRECT 98
 // Do you want to enable Passphrase encryption?
-#define C__DO_YOU_WANT_TO_ENABLE_PASSPHRASE_ENCRYPTION 98
+#define C__DO_YOU_WANT_TO_ENABLE_PASSPHRASE_ENCRYPTION 99
 // Do you want to disable Passphrase encryption?
-#define C__DO_YOU_WANT_TO_DISABLE_PASSPHRASE_ENCRYPTION 99
+#define C__DO_YOU_WANT_TO_DISABLE_PASSPHRASE_ENCRYPTION 100
 // Reset device to factory default.
-#define C__RESET_DEVICE_TO_FACTORY_DEFAULT 100
+#define C__RESET_DEVICE_TO_FACTORY_DEFAULT 101
 // WARNING! ({})
-#define T__WARNING_EXCLAM_BRACKET_STR_BRACKET 101
+#define T__WARNING_EXCLAM_BRACKET_STR_BRACKET 102
 // This will permanently erase all data stored on Secure Element (SE) and inter
 // nal storage, including private keys and settings.
-#define C__THIS_WILL_ERASE_ALL_DATA_STORED_ON_SE_AND_INTERNAL_STORAGE_INCLUDING_PRIVATE_KEYS_AND_SETTINGS 102
+#define C__THIS_WILL_ERASE_ALL_DATA_STORED_ON_SE_AND_INTERNAL_STORAGE_INCLUDING_PRIVATE_KEYS_AND_SETTINGS 103
 // Recovery Phrase is the only way to restore the private keys that own your as
 // sets. Make sure you still have a backup of current wallet.
-#define C__RECOVERY_PHRASE_IS_THE_ONLY_WAY_TO_RESTORE_THE_PRIVATE_KEYS_THAT_OWN_YOUR_ASSETS_MAKE_SURE_YOU_STILL_HAVE_BACKUP_OF_CURRENT_WALLET 103
+#define C__RECOVERY_PHRASE_IS_THE_ONLY_WAY_TO_RESTORE_THE_PRIVATE_KEYS_THAT_OWN_YOUR_ASSETS_MAKE_SURE_YOU_STILL_HAVE_BACKUP_OF_CURRENT_WALLET 104
 // Erase Device
-#define T__ERASE_DEVICE 104
+#define T__ERASE_DEVICE 105
 // Are you sure to reset this device? This action can not be undo.
-#define C__ARE_YOU_SURE_TO_RESET_THIS_DEVICE_THIS_ACTION_CANNOT_BE_UNDO 105
+#define C__ARE_YOU_SURE_TO_RESET_THIS_DEVICE_THIS_ACTION_CANNOT_BE_UNDO 106
 // Processing...
-#define C__PROCESSING_ETC 106
+#define C__PROCESSING_ETC 107
 // Starting...
-#define C__STARTING_ETC 107
+#define C__STARTING_ETC 108
 // Device Info
-#define M__DEVICE_INFO 108
+#define M__DEVICE_INFO 109
 // Certification
-#define M__CERTIFICATION 109
-// Trezor Compat
-#define M__TREZOR_COMPATIBILITY 110
+#define M__CERTIFICATION 110
+// Trezor Mode
+#define M__TREZOR_COMPATIBILITY 111
+#define T__TREZOR_COMPATIBILITY 111
 // Safety Checks
-#define M__SAFETY_CHECKS 111
-#define T__SAFETY_CHECKS 111
+#define M__SAFETY_CHECKS 112
+#define T__SAFETY_CHECKS 112
 // MODEL:
-#define I__MODEL_UPPERCASE_COLON 112
+#define I__MODEL_UPPERCASE_COLON 113
 // BLUETOOTH NAME:
-#define I__BLUETOOTH_NAME_UPPERCASE_COLON 113
+#define I__BLUETOOTH_NAME_UPPERCASE_COLON 114
 // FIRMWARE:
-#define I__FIRMWARE_UPPERCASE_COLON 114
+#define I__FIRMWARE_UPPERCASE_COLON 115
 // BLUETOOTH:
-#define I__BLUETOOTH_UPPERCASE_COLON 115
+#define I__BLUETOOTH_UPPERCASE_COLON 116
 // SE VERSION:
-#define I__SE_VERSION_UPPERCASE_COLON 116
+#define I__SE_VERSION_UPPERCASE_COLON 117
 // BOOTLOADER:
-#define I__BOOTLOADER_UPPERCASE_COLON 117
+#define I__BOOTLOADER_UPPERCASE_COLON 118
 // SERIAL NUMBER:
-#define I__SERIAL_NUMBER_UPPERCASE_COLON 118
+#define I__SERIAL_NUMBER_UPPERCASE_COLON 119
 // BUILD ID:
-#define I__BUILD_ID_UPPERCASE_COLON 119
+#define I__BUILD_ID_UPPERCASE_COLON 120
 // DEVICE ID:
-#define I__DEVICE_ID_UPPERCASE_COLON 120
-// Trezor Compatibility
-#define T__TREZOR_COMPATIBILITY 121
-// Disable Trezor Compat
+#define I__DEVICE_ID_UPPERCASE_COLON 121
+// Turn Off Trezor Mode
 #define T__DISABLE_TREZOR_COMPAT 122
 // This will prevent you from using third-party wallet clients and websites whi
 // ch only support Trezor.
@@ -272,9 +274,9 @@
 #define C__IT_WILL_TAKE_EFFECT_AFTER_DEVICE_RESTART 124
 // WARNING! Do not change this setting if you not sure.
 #define C__WARNING_EXCLAM_DONOT_CHANGE_THIS_SETTING_IF_YOU_NOT_SURE 125
-// Restore Trezor Compatc
+// Turn On Trezor Mode
 #define T__RESTORE_TREZOR_COMPAT 126
-// Are you sure to restore Trezor compatibility?
+// Are you sure to restore Trezor mode?
 #define C__ARE_YOU_SURE_TO_RESTORE_TREZOR_COMPATIBILITY 127
 // After enable Safety-Checks, it will protect you from non-standard (non-BIP-4
 // 4 compliant) address derivation, performing potentially risky transactions,
@@ -339,8 +341,9 @@
 #define I__APP_NAME_COLON 156
 // U2F Register
 #define T__U2F_REGISTER 157
-// U2F Authenticate
+// Authentication
 #define T__U2F_AUTHENTICATE 158
+#define FIDO_2_AUTHENTICATE 158
 // Register U2F Security Key?
 #define C__REGISTER_U2F_SECURITY_KEY_QUES 159
 // Authenticate U2F Security Key?
@@ -640,7 +643,7 @@
 #define C__DO_YOU_REALLY_WANT_TO_CHANGE_BLUETOOTH_STATUS_QUES 305
 // Do you really want to change language to {}?
 #define C__DO_YOU_REALLY_WANT_TO_CHANGE_LANGUAGE_TO_STR_QUES 306
-// Authenticity Check
+// Genuine Check
 #define T__AUTHENTICITY_CHECK 307
 // Unknown
 #define I__UNKNOWN 308
@@ -648,151 +651,146 @@
 #define C__SPEED_UP_CHARGING_WITH_5V_AND_200MA_CHARGE_HEAD_EXCLAM 309
 // Generate master seed...
 #define C__GENERATE_MASTER_SEED_ETC 310
-// On
-#define O__ON 311
-// Off
-#define O__OFF 312
 // Chain Name:
-#define I__CHAIN_NAME_COLON 313
+#define I__CHAIN_NAME_COLON 311
 // Generating Cardano seed...
-#define C__GENERATE_CARDANO_SEED_ETC 314
+#define C__GENERATE_CARDANO_SEED_ETC 312
 // Fee payer:
-#define I__FEE_PAYER_COLON 315
+#define I__FEE_PAYER_COLON 313
 // Unrecognized:
-#define I__UNRECOGNIZED_COLON 316
+#define I__UNRECOGNIZED_COLON 314
 // Message Hash:
-#define I__MESSAGE_HASH_COLON 317
+#define I__MESSAGE_HASH_COLON 315
 // format
-#define I__FORMAT 318
+#define I__FORMAT 316
 // The following transaction output contains tokens.
-#define T__THE_FOLLOWING_TX_OUTPUT_CONTAINS_TOKEN 319
+#define T__THE_FOLLOWING_TX_OUTPUT_CONTAINS_TOKEN 317
 // Asset Fingerprint:
-#define I__ASSET_FINGERPRINT_COLON 320
+#define I__ASSET_FINGERPRINT_COLON 318
 // Token Amount:
-#define I__TOKEN_AMOUNT_COLON 321
+#define I__TOKEN_AMOUNT_COLON 319
 // Account:
-#define I__ACCOUNT_COLON 322
+#define I__ACCOUNT_COLON 320
 // Pool Registration
-#define T__POOL_REGISTRATION 323
+#define T__POOL_REGISTRATION 321
 // Note:
-#define I__NOTE_COLON 324
+#define I__NOTE_COLON 322
 // Asset ID:
-#define I__ASSET_ID_COLON 325
+#define I__ASSET_ID_COLON 323
 // Asset Close:
-#define I__ASSET_CLOSE_COLON 326
+#define I__ASSET_CLOSE_COLON 324
 // Asset Account:
-#define I__ASSET_ACCOUNT_COLON 327
+#define I__ASSET_ACCOUNT_COLON 325
 // Freeze Flag:
-#define I__FREEZE_FLAG_COLON 328
+#define I__FREEZE_FLAG_COLON 326
 // Close To:
-#define I__CLOSE_TO_COLON 329
+#define I__CLOSE_TO_COLON 327
 // Asset Destination:
-#define I__ASSET_DESTINATION_COLON 330
+#define I__ASSET_DESTINATION_COLON 328
 // Encrypt {} Message
-#define T__ENCRYPT_CHAIN_STR_MESSAGE 331
+#define T__ENCRYPT_CHAIN_STR_MESSAGE 329
 // Encrypt Message
-#define T__ENCRYPT_MESSAGE 332
+#define T__ENCRYPT_MESSAGE 330
 // Decrypt {} Message
-#define T__DECRYPT_CHAIN_STR_MESSAGE 333
+#define T__DECRYPT_CHAIN_STR_MESSAGE 331
 // PRODUCT NAME:
-#define I__PRODUCT_NAME_UPPERCASE_COLON 334
+#define I__PRODUCT_NAME_UPPERCASE_COLON 332
 // BRAND NAME:
-#define I__BRAND_NAME_UPPERCASE_COLON 335
+#define I__BRAND_NAME_UPPERCASE_COLON 333
 // COUNTRY OF ORIGIN:
-#define I__COUNTRY_OF_ORIGIN_UPPERCASE_COLON 336
+#define I__COUNTRY_OF_ORIGIN_UPPERCASE_COLON 334
 // CERTIFICATION NUMBER:
-#define I__CERTIFICATION_NUMBER_UPPERCASE_COLON 337
+#define I__CERTIFICATION_NUMBER_UPPERCASE_COLON 335
 // LNURL Authorization
-#define T__LNURL_AUTHORIZATION 338
+#define T__LNURL_AUTHORIZATION 336
 // Domain:
-#define I__DOMAIN_COLON 339
+#define I__DOMAIN_COLON 337
 // Data:
-#define I__DATA_COLON 340
+#define I__DATA_COLON 338
 // Approve Request
-#define T__APPROVE_REQUEST 341
+#define T__APPROVE_REQUEST 339
 // Do you want to approve LNURL Auth request?
-#define C__DO_YOU_WANT_TO_APPROVE_LNURL_AUTH_REQUEST_QUES 342
+#define C__DO_YOU_WANT_TO_APPROVE_LNURL_AUTH_REQUEST_QUES 340
 // Do you want to encrypt {} message?
-#define C__DO_YOU_WANT_TO_ENCRYPT_CHAIN_STR_MESSAGE_QUES 343
+#define C__DO_YOU_WANT_TO_ENCRYPT_CHAIN_STR_MESSAGE_QUES 341
 // Do you want to decrypt {} message?
-#define C__DO_YOU_WANT_TO_DECRYPT_CHAIN_STR_MESSAGE_QUES 344
+#define C__DO_YOU_WANT_TO_DECRYPT_CHAIN_STR_MESSAGE_QUES 342
 // The following transaction output contains contract data
-#define SIGN_TX_CONTAIN_CONTRACT_DATA_TEXT 345
+#define SIGN_TX_CONTAIN_CONTRACT_DATA_TEXT 343
 // Locktime is set but will have no effect. Continue?
-#define LOCKTIME_INVALID_WARNING_TEXT 346
+#define LOCKTIME_INVALID_WARNING_TEXT 344
 // Blockheight
-#define BLOCKHEIGHT 347
+#define BLOCKHEIGHT 345
 // Timestamp (UTC)
-#define TIMESTAMP 348
+#define TIMESTAMP 346
 // Message
-#define MESSAGE 349
-// Security Key Register
-#define FIDO_INFO_CONFIRMATION_TITLE 350
+#define MESSAGE 347
+// Add Security Key
+#define FIDO_INFO_CONFIRMATION_TITLE 348
 // App Name
-#define GLOBAL_APP_NAME 351
+#define GLOBAL_APP_NAME 349
 // Account
-#define GLOBAL_ACCOUNT 352
-// Security Key Authenticate
-#define FIDO_2_AUTHENTICATE 353
+#define GLOBAL_ACCOUNT 350
 // Import Credential
-#define FIDO_2_IMPORT_CREDENTIAL 354
+#define FIDO_2_IMPORT_CREDENTIAL 351
 // List Credentials
-#define FIDO_2_LIST_CREDENTIALS 355
+#define FIDO_2_LIST_CREDENTIALS 352
 // Remove Credentials
-#define FIDO_2_REMOVE_CREDENTIALS 356
+#define FIDO_2_REMOVE_CREDENTIALS 353
 // Security Keys
-#define FIDO_FIDO_KEYS_LABEL 357
+#define FIDO_FIDO_KEYS_LABEL 354
 // Secure accounts with security keys
-#define FIDO_FIDO_KEYS_DESC 358
+#define FIDO_FIDO_KEYS_DESC 355
 // Remove Security Key?
-#define FIDO_REMOVE_KEY_TITLE 359
-// This security key will be removed permanently
-#define FIDO_REMOVE_KEY_DESC 360
+#define FIDO_REMOVE_KEY_TITLE 356
+// This security key will be removed permanently.
+#define FIDO_REMOVE_KEY_DESC 357
 // Security Key Removed
-#define FIDO_REMOVE_KEY_SUCCESS_TITLE 361
+#define FIDO_REMOVE_KEY_SUCCESS_TITLE 358
 // Key Limit Reached
-#define FIDO_ADD_KEY_LIMIT_REACHED_TITLE 362
-// 60 security keys limit reached. Remove unused to add new
-#define FIDO_ADD_KEY_LIMIT_REACHED_DESC 363
+#define FIDO_ADD_KEY_LIMIT_REACHED_TITLE 359
+// You have reached the limit of 60 security keys. Please remove any unused key
+// s to add a new one.
+#define FIDO_ADD_KEY_LIMIT_REACHED_DESC 360
 // No Security keys yet
-#define FIDO_LIST_EMPTY_TEXT 364
+#define FIDO_LIST_EMPTY_TEXT 361
 // Remove
-#define ACTION__REMOVE 365
+#define ACTION__REMOVE 362
 // Registering...
-#define FIDO_KEY_REGISTERING_TITLE 366
-// Security Key Registered
-#define FIDO_KEY_REGISTERED_TITLE 367
-// Solana Raw Signing
-#define SECURITY__SOLANA_RAW_SIGNING_TITLE 368
+#define FIDO_KEY_REGISTERING_TITLE 363
+// Security Key Added
+#define FIDO_KEY_REGISTERED_TITLE 364
+// Raw Signing
+#define SECURITY__SOLANA_RAW_SIGNING_TITLE 365
 // Are you sure to enable Solana Raw Signing?
-#define SECURITY__SOLANA_RAW_SIGNING_ENABLE_TITLE 369
+#define SECURITY__SOLANA_RAW_SIGNING_ENABLE_TITLE 366
 // This may expose you to phishing, blind signing, and unauthorized transaction
 // s. Enable only if you fully understand the risks.
-#define SECURITY__SOLANA_RAW_SIGNING_ENABLE_DESC 370
+#define SECURITY__SOLANA_RAW_SIGNING_ENABLE_DESC 367
 // Risk of phishing & blind signing. Proceed only if you trust the source.
-#define SECURITY__SOLANA_RAW_SIGNING_TX_WARNING 371
+#define SECURITY__SOLANA_RAW_SIGNING_TX_WARNING 368
 // Candidate
-#define GLOBAL_CANDIDATE 372
+#define GLOBAL_CANDIDATE 369
 // Target network
-#define GLOBAL_TARGET_NETWORK 373
+#define GLOBAL_TARGET_NETWORK 370
 // Remove vote
-#define TITLE_REMOVE_VOTE 374
+#define TITLE_REMOVE_VOTE 371
 // Unknown Token
-#define GLOBAL_UNKNOWN_TOKEN 375
+#define GLOBAL_UNKNOWN_TOKEN 372
 // Enable Security Keys
-#define FIDO_ENABLE_FIDO_KEYS 376
-// Disable Security Keys
-#define FIDO_DISABLE_PROMPT_TITLE 377
+#define FIDO_ENABLE_FIDO_KEYS 373
+// Security Key
+#define FIDO_DISABLE_PROMPT_TITLE 374
 // Credentials will be unavailable when disabled. Proceed?
-#define FIDO_DISABLE_PROMPT_DESC 378
+#define FIDO_DISABLE_PROMPT_DESC 375
 // Vote count
-#define GLOBAL__VOTE_COUNT 379
+#define GLOBAL__VOTE_COUNT 376
 // This transaction contains a non-zero OP_RETURN value. Once confirmed, your f
 // unds will be permanently locked.
-#define TITLE__OP_RETURN_DESC 380
+#define TITLE__OP_RETURN_DESC 377
 // To (Token Account):
-#define LIST_KEY__TO_TOKEN_ACCOUNT__COLON 381
+#define LIST_KEY__TO_TOKEN_ACCOUNT__COLON 378
 // From (Token Account):
-#define LIST_KEY__FROM_TOKEN_ACCOUNT__COLON 382
+#define LIST_KEY__FROM_TOKEN_ACCOUNT__COLON 379
 #endif
 // clang-format on
