@@ -769,9 +769,9 @@ uint8_t blindsignWaitKey(void) {
 #if defined(EMULATOR) && EMULATOR
 bool u2f_init_command = false;
 #define loop_callback_handler()
-#endif
-
+#else
 extern bool u2f_init_command;
+#endif
 
 uint8_t protectWaitKey(uint32_t time_out, uint8_t mode) {
   uint8_t key = KEY_NULL;
