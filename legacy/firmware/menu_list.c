@@ -609,7 +609,7 @@ static struct menu trezor_compatibility_set_menu = {
     .start = 0,
     .current = 0,
     .counts = COUNT_OF(trezor_compatibility_set_menu_items),
-    .title = "Trezor Compatibility",
+    .title = "Trezor Mode",
     .items = (struct menu_item *)trezor_compatibility_set_menu_items,
     .previous = &about_menu,
 };
