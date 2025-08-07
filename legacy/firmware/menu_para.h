@@ -28,6 +28,9 @@ void menu_para_set_language(int index);
 void menu_para_set_shutdown(int index);
 void menu_para_set_sleep(int index);
 
+char* menu_para_fido_switch(void);
+int menu_para_fido_switch_index(void);
+
 char* format_time(uint32_t ms);
 
 #endif

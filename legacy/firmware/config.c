@@ -70,6 +70,7 @@ typedef struct {
   STORAGE_BOOL(trezor_comp_mode)
   STORAGE_BOOL(usb_lock)
   STORAGE_BOOL(input_direction)
+  STORAGE_BOOL(fido_switch)
 } PubConfig __attribute__((aligned(1)));
 
 typedef struct {
@@ -91,6 +92,7 @@ typedef struct {
 #define KEY_TREZOR_COMP_MODE offsetof(PubConfig, trezor_comp_mode)
 #define KEY_USB_LOCK offsetof(PubConfig, usb_lock)
 #define KEY_INPUT_DIRECTION offsetof(PubConfig, input_direction)
+#define KEY_FIDO_SWITCH offsetof(PubConfig, fido_switch)
 
 #define PRIVATE_KEY 1 << 31
 
@@ -174,6 +176,15 @@ static secbool config_set(const uint32_t id, const void *v, uint16_t l) {
   // set has_xxx flag
   CHECK_CONFIG_OP(writer(id, &TRUE_BYTE, 1));
   return sectrue;
+}
+
+static secbool config_has_key(const uint32_t id) {
+  bool pri = id & (1 << 31);
+  secbool (*reader)(uint16_t, void *, uint16_t) =
+      pri ? se_get_private_region : se_get_public_region;
+  uint8_t has;
+  CHECK_CONFIG_OP(reader(id, &has, 1));
+  return has == TRUE_BYTE ? sectrue : secfalse;
 }
 
 static secbool config_get_bool(const uint32_t id, bool *value) {
@@ -791,6 +802,18 @@ void config_setInputDirection(bool d) {
 
 bool config_getInputDirection(bool *d) {
   return sectrue == config_get_bool(KEY_INPUT_DIRECTION, d);
+}
+
+bool config_getFidoSwitch(bool *fido_switch) {
+  if (!config_has_key(KEY_FIDO_SWITCH)) {
+    *fido_switch = true;
+    return true;
+  }
+  return sectrue == config_get_bool(KEY_FIDO_SWITCH, fido_switch);
+}
+
+void config_setFidoSwitch(bool fido_switch) {
+  config_set_bool(KEY_FIDO_SWITCH, fido_switch);
 }
 
 #if DEBUG_LINK
