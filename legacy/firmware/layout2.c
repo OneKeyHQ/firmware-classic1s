@@ -1249,7 +1249,7 @@ bool layoutConfirmTx(const CoinInfo *coin, AmountUnit amount_unit,
   layoutButtonYesAdapter(NULL, &bmp_bottom_right_confirm);
   oledRefresh();
   while (1) {
-    key = protectWaitKey(0, 1);
+    WAIT_KEY_OR_ABORT(0, 1, key);
     if (key == KEY_CONFIRM) {
       break;
     }
@@ -2412,7 +2412,7 @@ bool layoutConfirmSafetyChecks(SafetyCheckLevel safety_ckeck_level,
         NULL, &bmp_icon_warning, &bmp_bottom_left_close,
         &bmp_bottom_right_confirm, NULL, NULL, NULL, NULL, NULL, NULL,
         _(C__ARE_YOU_SURE_TO_ENABLE_SAFETY_CHECKS_QUES));
-    key = protectWaitKey(0, 1);
+    WAIT_KEY_OR_ABORT(0, 1, key);
     if (key == KEY_CANCEL) {
       return false;
     }
@@ -2422,7 +2422,7 @@ bool layoutConfirmSafetyChecks(SafetyCheckLevel safety_ckeck_level,
         _(T__SAFETY_CHECKS), NULL, &bmp_bottom_left_close,
         &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL, NULL, NULL,
         _(C__IT_WILL_TEMPORARILY_ALLOW_YOU_TO_PERFORM_SOME_ACTIONS_WITH_POTENTIALLY_RISKY));
-    key = protectWaitKey(0, 1);
+    WAIT_KEY_OR_ABORT(0, 1, key);
     if (key == KEY_CANCEL) {
       return false;
     }
@@ -2430,7 +2430,7 @@ bool layoutConfirmSafetyChecks(SafetyCheckLevel safety_ckeck_level,
         NULL, &bmp_icon_warning, &bmp_bottom_left_close,
         &bmp_bottom_right_confirm, NULL, NULL, NULL, NULL, NULL, NULL,
         _(C__ARE_YOU_SURE_TO_TEMPORARILY_DISABLE_SAFETY_CHECKS_QUES));
-    key = protectWaitKey(0, 1);
+    WAIT_KEY_OR_ABORT(0, 1, key);
     if (key == KEY_CANCEL) {
       return false;
     }
@@ -3690,7 +3690,7 @@ bool layoutInputDirection(int direction) {
   }
   oledRefresh();
 
-  key = protectWaitKey(0, 1);
+  WAIT_KEY_OR_ABORT(0, 1, key);
   if (key != KEY_CONFIRM) {
     return false;
   }
@@ -4340,6 +4340,127 @@ refresh_menu:
     bubble_key = oledDrawPageableStringAdapter(
         0, y + 10, message, FONT_STANDARD, &bmp_bottom_left_arrow,
         &bmp_bottom_right_arrow);
+  }
+  oledRefresh();
+  HANDLE_KEY(bubble_key);
+}
+
+bool layoutTransactionEIP7702(
+    const char *chain_name, const char *delegator_address,
+    const char *delegator_name, const char *delegator_network, bool is_revoke,
+    const char *signer, const char *key1, const char *value1, const char *key2,
+    const char *value2, const char *key3, const char *value3, const char *key4,
+    const char *value4, const char *key5, const char *value5) {
+  bool result = false;
+  int index = 0;
+  int y = 0;
+  uint8_t bubble_key;
+  uint8_t max_index = 3 + (is_revoke ? 0 : 1), detail_total_index = 1,
+          detail_index = 0;
+  char title[64] = {0};
+  if (is_revoke) {
+    strcat(title, _(T_REVOKE_SMART_ACCOUNT_DELEGATION));
+  } else {
+    strcat(title, _(T_UPGRADE_SMART_ACCOUNT));
+  }
+  const char **tx_msg = format_tx_message(chain_name);
+
+  if (key1) detail_total_index++;
+  if (key2) detail_total_index++;
+  if (key3) detail_total_index++;
+  if (key4) detail_total_index++;
+  if (key5) detail_total_index++;
+
+  if (!button_request(ButtonRequestType_ButtonRequest_SignTx)) {
+    return false;
+  }
+
+refresh_menu:
+  layoutSwipe();
+  oledClear();
+  bubble_key = KEY_NULL;
+  y = 13;
+  if (!is_revoke && index == 0) {
+    char warning[168] = {0};
+    snprintf(warning, sizeof(warning), "%s",
+             _(I_UPGRADING_SMART_ACCOUNT_WARNING));
+    bracket_replace(warning, delegator_name);
+    layoutDialogCenterAdapterV2(NULL, &bmp_icon_warning, &bmp_bottom_left_close,
+                                &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL,
+                                NULL, NULL, warning);
+  } else if (index == (is_revoke ? 0 : 1)) {  // Authority address
+    layoutHeader(title);
+    oledDrawStringAdapter(0, y, _(I__ACCOUNT_COLON), FONT_STANDARD);
+    oledDrawStringAdapter(0, y + 10, signer, FONT_STANDARD);
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
+    layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
+  } else if (index == 2 && !is_revoke) {  // Delegator address
+    layoutHeader(title);
+    oledDrawStringAdapter(0, y, _(I_DELEGATE_TO), FONT_STANDARD);
+    oledDrawStringAdapter(0, y + 10, delegator_address, FONT_STANDARD);
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
+    layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
+  } else if (index == (2 + (is_revoke ? 0 : 1))) {  // details
+    detail_index = 0;
+    while (1) {
+      layoutSwipe();
+      oledClear();
+      layoutHeader(title);
+      if (detail_index < detail_total_index) {
+        const char *keys[] = {
+            is_revoke ? _(I_REVOKE_ON_NETWORK) : _(I_DELEGATE_ON_NETWORK),
+            key1,
+            key2,
+            key3,
+            key4,
+            key5};
+        const char *values[] = {
+            delegator_network, value1, value2, value3, value4, value5};
+        if (keys[detail_index] && values[detail_index]) {
+          oledDrawStringAdapter(0, y, keys[detail_index], FONT_STANDARD);
+          oledDrawStringAdapter(0, y + 10, values[detail_index], FONT_STANDARD);
+        }
+      }
+      // scrollbar
+      drawScrollbar(detail_total_index, detail_index);
+      layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
+      layoutButtonYesAdapter(NULL, &bmp_bottom_right_next);
+
+      layout_index_count(detail_index + 1, detail_total_index);
+
+      if (detail_index == 0) {
+        oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 7,
+                       &bmp_bottom_middle_arrow_down);
+      } else if (detail_index == detail_total_index - 1) {
+        oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 7,
+                       &bmp_bottom_middle_arrow_up);
+      } else {
+        oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 7,
+                       &bmp_bottom_middle_arrow_down);
+        oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 7,
+                       &bmp_bottom_middle_arrow_up);
+      }
+      oledRefresh();
+      WAIT_KEY_OR_ABORT(0, 0, bubble_key);
+      if (bubble_key == KEY_CANCEL) {
+        break;
+      } else if (bubble_key == KEY_CONFIRM) {
+        break;
+      } else if (bubble_key == KEY_UP) {
+        if (detail_index > 0) {
+          detail_index--;
+        }
+      } else if (bubble_key == KEY_DOWN) {
+        if (detail_index < detail_total_index - 1) {
+          detail_index++;
+        }
+      }
+    }
+  } else if (max_index == index) {
+    layoutHeader(_(T__SIGN_TRANSACTION));
+    layoutTxConfirmPage(tx_msg[1]);
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
+    layoutButtonYesAdapter(NULL, &bmp_bottom_right_confirm);
   }
   oledRefresh();
   HANDLE_KEY(bubble_key);

@@ -226,7 +226,8 @@ enum MessageType {
     MessageType_EthereumTypedDataValueAckOneKey = 20115 [(wire_in) = true];
     MessageType_EthereumTypedDataSignatureOneKey = 20116 [(wire_out) = true];
     MessageType_EthereumSignTypedHashOneKey = 20117 [(wire_in) = true];
-
+    reserved 20118, 20119;
+    MessageType_EthereumSignTxEIP7702OneKey = 20120 [(wire_in) = true];
     // NEM
     MessageType_NEMGetAddress = 67 [(wire_in) = true];
     MessageType_NEMAddress = 68 [(wire_out) = true];

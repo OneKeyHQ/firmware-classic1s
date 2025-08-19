@@ -152,6 +152,7 @@ void fsm_msgEthereumGetAddressOneKey(const EthereumGetAddressOneKey *msg);
 void fsm_msgEthereumGetPublicKeyOneKey(const EthereumGetPublicKeyOneKey *msg);
 void fsm_msgEthereumSignTxOneKey(const EthereumSignTxOneKey *msg);
 void fsm_msgEthereumSignTxEIP1559OneKey(const EthereumSignTxEIP1559OneKey *msg);
+void fsm_msgEthereumSignTxEIP7702OneKey(const EthereumSignTxEIP7702OneKey *msg);
 void fsm_msgEthereumTxAckOneKey(const EthereumTxAckOneKey *msg);
 void fsm_msgEthereumSignMessageOneKey(const EthereumSignMessageOneKey *msg);
 void fsm_msgEthereumVerifyMessageOneKey(const EthereumVerifyMessageOneKey *msg);

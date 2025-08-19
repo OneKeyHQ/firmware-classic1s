@@ -297,6 +297,12 @@ bool layoutTransactionSignEVM(const char *chain_name, uint64_t chain_id,
                               const char *key2, const char *value2,
                               const char *key3, const char *value3,
                               const char *key4, const char *value4);
+bool layoutTransactionEIP7702(
+    const char *chain_name, const char *delegator_address,
+    const char *delegator_name, const char *delegator_network, bool is_revoke,
+    const char *signer, const char *key1, const char *value1, const char *key2,
+    const char *value2, const char *key3, const char *value3, const char *key4,
+    const char *value4, const char *key5, const char *value5);
 bool layoutBlindSign(const char *chain_name, bool is_contract,
                      const char *contract_addr, const char *from_str,
                      const uint8_t *data, uint16_t len, const char *key1,

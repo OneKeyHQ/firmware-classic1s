@@ -127,6 +127,35 @@ void fsm_msgEthereumSignTxEIP1559OneKey(
   ethereum_signing_init_eip1559_onekey(msg, node);
 }
 
+void fsm_msgEthereumSignTxEIP7702OneKey(
+    const EthereumSignTxEIP7702OneKey *msg) {
+  CHECK_INITIALIZED
+
+  CHECK_PIN
+
+  if (!fsm_ethereumCheckPathOneKey(msg->address_n_count, msg->address_n, false,
+                                   msg->chain_id)) {
+    layoutHome();
+    return;
+  }
+  for (size_t i = 0; i < msg->authorization_list_count; i++) {
+    const EthereumAuthorizationOneKey *authorization =
+        &msg->authorization_list[i];
+    if (authorization->address_n_count != 0) {
+      if (!fsm_ethereumCheckPathOneKey(authorization->address_n_count,
+                                       authorization->address_n, false,
+                                       msg->chain_id)) {
+        layoutHome();
+        return;
+      }
+    }
+  }
+  const HDNode *node = fsm_getDerivedNode(SECP256K1_NAME, msg->address_n,
+                                          msg->address_n_count, NULL);
+  if (!node) return;
+
+  ethereum_signing_init_eip7702_onekey(msg, node);
+}
 void fsm_msgEthereumTxAckOneKey(const EthereumTxAckOneKey *msg) {
   CHECK_UNLOCKED
 
