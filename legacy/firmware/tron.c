@@ -40,6 +40,8 @@
 
 #include <pb_decode.h>
 
+#include "tron_eng_rental.h"
+
 // PROTOBUF3 types
 #define PROTO_TYPE_VARINT 0
 #define PROTO_TYPE_STRING 2
@@ -1190,6 +1192,21 @@ bool tron_sign_tx(TronSignTx *msg, const char *owner_address,
 
   if (msg->contract.has_transfer_contract ||
       msg->contract.has_trigger_smart_contract) {
+    bool is_transfer = msg->contract.has_transfer_contract || token != NULL;
+    if (is_transfer &&
+        is_tron_energy_rental_provider((const uint8_t *)to_str)) {
+      layoutDialogCenterAdapterV2(_(T_ENERGY_RENTAL), NULL,
+                                  &bmp_bottom_left_close,
+                                  &bmp_bottom_right_arrow, NULL, NULL, NULL,
+                                  NULL, NULL, NULL, _(I_ENERGY_RENTAL));
+      uint8_t key;
+      WAIT_KEY_OR_ABORT(0, 0, key);
+      if (key == KEY_CANCEL) {
+        fsm_sendFailure(FailureType_Failure_ActionCancelled,
+                        "Signing cancelled");
+        return false;
+      }
+    }
     char amount_str[60];
     int to_len = strlen(to_str);
     if (0 == to_len) strlcpy(to_str, "to new contract?", sizeof(to_str));

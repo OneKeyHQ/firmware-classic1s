@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include "keys.h"
 
-#define I18N_ITEMS_COUNT 391
+#define I18N_ITEMS_COUNT 418
 #define I18N_LANGUAGE_ITEMS 8
 
 typedef enum {

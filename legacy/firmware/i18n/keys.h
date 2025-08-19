@@ -815,5 +815,65 @@
 #define O__START_OVER 389
 // Edit Word #{}
 #define T__EDIT_WORD_STR 390
+// Attach to PIN
+#define M__ATTACH_TO_PIN 391
+#define T__ATTACH_TO_PIN 391
+// Disable Passphrase? Hidden wallet PIN won’t unlock your device
+#define C__DISABLE_PASSPHRASE_HIDDEN_WALLET_PIN_WILL_NOT_UNLOCK_YOUR_DEVICE 392
+// By setting up different PIN codes linked to different Passphrases, you can e
+// asily access different wallets. Just enter a specific PIN, and you’ll open t
+// he wallet that’s tied to it
+#define C__ATTACH_TO_PIN_DESC 393
+// Set Hidden PIN
+#define T__SET_HIDDEN_PIN 394
+// PIN already used! Try a different one
+#define C__PIN_ALREADY_USED_TRY_A_DIFFERENT_ONE 395
+// Hit the limit: 30 PINs max! Do you want to remove some hidden wallet PINs?
+#define C__HIT_THE_LIMIT_30_PINS_MAX 396
+// Attach Passphrase
+#define T__ATTACH_PASSPHRASE 397
+// PIN has attached one Passphrase! You can remove this PIN or set a new Passph
+// rase
+#define C__PIN_HAS_ATTACHED_ONE_PASSPHRASE 398
+// Remove this PIN
+#define O__REMOVE_THIS_PIN 399
+// Set a new Passphrase
+#define O__SET_A_NEW_PASSPHRASE 400
+// You can attach a Passphrase to this PIN
+#define C__YOU_CAN_ATTACH_A_PASSPHRASE_TO_THIS_PIN 401
+// You understand that the Passphrase PIN is an alternative login for your hidd
+// en wallet
+#define C__PASSPHRASE__ATTACH_ONE_PASSPHRASE_DESC1 402
+// You know that if you forget the Passphrase, you might lose your assets
+#define C__PASSPHRASE__ATTACH_ONE_PASSPHRASE_DESC2 403
+// Forget your passphrase word will lose access to funds linked to your hidden
+// wallet
+#define C__PASSPHRASE_SAVE_DESC 404
+// Passphrase Set and Attached to PIN!
+#define C__PASSPHRASE_SET_AND_ATTACHED_TO_PIN 405
+// Next, please enter the standard wallet PIN
+#define C__NEXT_PLEASE_ENTER_THE_STANDARD_WALLET_PIN 406
+// Standard PIN
+#define T__STANDARD_PIN 407
+// Next, please enter the hidden wallet PIN you want to remove
+#define C__NEXT_PLEASE_ENTER_THE_HIDDEN_WALLET_PIN_YOU_WANT_TO_REMOVE 408
+// Enter Hidden PIN
+#define T__ENTER_HIDDEN_PIN 409
+// Remove PIN? You won’t be able to use it to unlock the device
+#define C__REMOVE_PIN_YOU_WILL_NOT_BE_ABLE_TO_USE_IT_TO_UNLOCK_THE_DEVICE 410
+// PIN removed!
+#define C__PIN_REMOVED 411
+// You do not have Passphrase turned on
+#define C__YOU_DO_NOT_HAVE_PASSPHRASE_TURNED_ON 412
+// PIN Already Used! Do you want to overwrite it?
+#define C__PIN_ALREADY_USED_DO_YOU_WANT_TO_OVERWRITE_IT 413
+// PIN Already Used! Please try a different one
+#define C__PIN_ALREADY_USED_PLEASE_TRY_A_DIFFERENT_ONE 414
+// Before start, verify your Standard Wallet PIN
+#define C__BEFORE_START_VERIFY_YOUR_TANDARD_WALLET_PIN 415
+// TRON Energy Rental
+#define T_ENERGY_RENTAL 416
+// Recipient is a known energy rental service provider address.
+#define I_ENERGY_RENTAL 417
 #endif
 // clang-format on
