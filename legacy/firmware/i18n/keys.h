@@ -671,6 +671,7 @@
 #define I__TOKEN_AMOUNT_COLON 319
 // Account:
 #define I__ACCOUNT_COLON 320
+#define GLOBAL_ACCOUNT 320
 // Pool Registration
 #define T__POOL_REGISTRATION 321
 // Note:
@@ -729,68 +730,150 @@
 #define FIDO_INFO_CONFIRMATION_TITLE 348
 // App Name
 #define GLOBAL_APP_NAME 349
-// Account
-#define GLOBAL_ACCOUNT 350
 // Import Credential
-#define FIDO_2_IMPORT_CREDENTIAL 351
+#define FIDO_2_IMPORT_CREDENTIAL 350
 // List Credentials
-#define FIDO_2_LIST_CREDENTIALS 352
+#define FIDO_2_LIST_CREDENTIALS 351
 // Remove Credentials
-#define FIDO_2_REMOVE_CREDENTIALS 353
+#define FIDO_2_REMOVE_CREDENTIALS 352
 // Security Keys
-#define FIDO_FIDO_KEYS_LABEL 354
+#define FIDO_FIDO_KEYS_LABEL 353
 // Secure accounts with security keys
-#define FIDO_FIDO_KEYS_DESC 355
+#define FIDO_FIDO_KEYS_DESC 354
 // Remove Security Key?
-#define FIDO_REMOVE_KEY_TITLE 356
+#define FIDO_REMOVE_KEY_TITLE 355
 // This security key will be removed permanently.
-#define FIDO_REMOVE_KEY_DESC 357
+#define FIDO_REMOVE_KEY_DESC 356
 // Security Key Removed
-#define FIDO_REMOVE_KEY_SUCCESS_TITLE 358
+#define FIDO_REMOVE_KEY_SUCCESS_TITLE 357
 // Key Limit Reached
-#define FIDO_ADD_KEY_LIMIT_REACHED_TITLE 359
+#define FIDO_ADD_KEY_LIMIT_REACHED_TITLE 358
 // You have reached the limit of 60 security keys. Please remove any unused key
 // s to add a new one.
-#define FIDO_ADD_KEY_LIMIT_REACHED_DESC 360
+#define FIDO_ADD_KEY_LIMIT_REACHED_DESC 359
 // No Security keys yet
-#define FIDO_LIST_EMPTY_TEXT 361
+#define FIDO_LIST_EMPTY_TEXT 360
 // Remove
-#define ACTION__REMOVE 362
+#define ACTION__REMOVE 361
 // Registering...
-#define FIDO_KEY_REGISTERING_TITLE 363
+#define FIDO_KEY_REGISTERING_TITLE 362
 // Security Key Added
-#define FIDO_KEY_REGISTERED_TITLE 364
+#define FIDO_KEY_REGISTERED_TITLE 363
 // Raw Signing
-#define SECURITY__SOLANA_RAW_SIGNING_TITLE 365
+#define SECURITY__SOLANA_RAW_SIGNING_TITLE 364
 // Are you sure to enable Solana Raw Signing?
-#define SECURITY__SOLANA_RAW_SIGNING_ENABLE_TITLE 366
+#define SECURITY__SOLANA_RAW_SIGNING_ENABLE_TITLE 365
 // This may expose you to phishing, blind signing, and unauthorized transaction
 // s. Enable only if you fully understand the risks.
-#define SECURITY__SOLANA_RAW_SIGNING_ENABLE_DESC 367
+#define SECURITY__SOLANA_RAW_SIGNING_ENABLE_DESC 366
 // Risk of phishing & blind signing. Proceed only if you trust the source.
-#define SECURITY__SOLANA_RAW_SIGNING_TX_WARNING 368
+#define SECURITY__SOLANA_RAW_SIGNING_TX_WARNING 367
 // Candidate
-#define GLOBAL_CANDIDATE 369
+#define GLOBAL_CANDIDATE 368
 // Target network
-#define GLOBAL_TARGET_NETWORK 370
+#define GLOBAL_TARGET_NETWORK 369
 // Remove vote
-#define TITLE_REMOVE_VOTE 371
+#define TITLE_REMOVE_VOTE 370
 // Unknown Token
-#define GLOBAL_UNKNOWN_TOKEN 372
+#define GLOBAL_UNKNOWN_TOKEN 371
 // Enable Security Keys
-#define FIDO_ENABLE_FIDO_KEYS 373
+#define FIDO_ENABLE_FIDO_KEYS 372
 // Security Key
-#define FIDO_DISABLE_PROMPT_TITLE 374
+#define FIDO_DISABLE_PROMPT_TITLE 373
 // Credentials will be unavailable when disabled. Proceed?
-#define FIDO_DISABLE_PROMPT_DESC 375
+#define FIDO_DISABLE_PROMPT_DESC 374
 // Vote count
-#define GLOBAL__VOTE_COUNT 376
+#define GLOBAL__VOTE_COUNT 375
 // This transaction contains a non-zero OP_RETURN value. Once confirmed, your f
 // unds will be permanently locked.
-#define TITLE__OP_RETURN_DESC 377
+#define TITLE__OP_RETURN_DESC 376
 // To (Token Account):
-#define LIST_KEY__TO_TOKEN_ACCOUNT__COLON 378
+#define LIST_KEY__TO_TOKEN_ACCOUNT__COLON 377
 // From (Token Account):
-#define LIST_KEY__FROM_TOKEN_ACCOUNT__COLON 379
+#define LIST_KEY__FROM_TOKEN_ACCOUNT__COLON 378
+// Revoking EIP-7702 delegation will disable smart account features.
+#define I_REVOKE_SMART_ACCOUNT_WARNING 379
+// Revoke 7702 Delegation
+#define T_REVOKE_SMART_ACCOUNT_DELEGATION 380
+// Revoke on Network:
+#define I_REVOKE_ON_NETWORK 381
+// 7702 delegation blocked: smart contract not on the whitelist.
+#define I_NOT_IN_SMART_ACCOUNT_WHITELIST 382
+// 7702 Upgrade
+#define T_UPGRADE_SMART_ACCOUNT 383
+// {} 7702 upgrade requested. Sign only if you understand the risks.
+#define I_UPGRADING_SMART_ACCOUNT_WARNING 384
+// Delegate to:
+#define I_DELEGATE_TO 385
+// Delegate on Network:
+#define I_DELEGATE_ON_NETWORK 386
+// Invalid  phrase! You can edit a single word or start over
+#define C__INVALID_PHRASE_YOU_CAN_EDIT_A_SINGLE_WORD_OR_START_OVER 387
+// Edit
+#define O__EDIT 388
+// Start Over
+#define O__START_OVER 389
+// Edit Word #{}
+#define T__EDIT_WORD_STR 390
+// Attach to PIN
+#define M__ATTACH_TO_PIN 391
+#define T__ATTACH_TO_PIN 391
+// Disable Passphrase? Hidden wallet PIN won’t unlock your device
+#define C__DISABLE_PASSPHRASE_HIDDEN_WALLET_PIN_WILL_NOT_UNLOCK_YOUR_DEVICE 392
+// By setting up different PIN codes linked to different Passphrases, you can e
+// asily access different wallets. Just enter a specific PIN, and you’ll open t
+// he wallet that’s tied to it
+#define C__ATTACH_TO_PIN_DESC 393
+// Set Hidden PIN
+#define T__SET_HIDDEN_PIN 394
+// PIN already used! Try a different one
+#define C__PIN_ALREADY_USED_TRY_A_DIFFERENT_ONE 395
+// Hit the limit: 30 PINs max! Do you want to remove some hidden wallet PINs?
+#define C__HIT_THE_LIMIT_30_PINS_MAX 396
+// Attach Passphrase
+#define T__ATTACH_PASSPHRASE 397
+// PIN has attached one Passphrase! You can remove this PIN or set a new Passph
+// rase
+#define C__PIN_HAS_ATTACHED_ONE_PASSPHRASE 398
+// Remove this PIN
+#define O__REMOVE_THIS_PIN 399
+// Set a new Passphrase
+#define O__SET_A_NEW_PASSPHRASE 400
+// You can attach a Passphrase to this PIN
+#define C__YOU_CAN_ATTACH_A_PASSPHRASE_TO_THIS_PIN 401
+// You understand that the Passphrase PIN is an alternative login for your hidd
+// en wallet
+#define C__PASSPHRASE__ATTACH_ONE_PASSPHRASE_DESC1 402
+// You know that if you forget the Passphrase, you might lose your assets
+#define C__PASSPHRASE__ATTACH_ONE_PASSPHRASE_DESC2 403
+// Forget your passphrase word will lose access to funds linked to your hidden
+// wallet
+#define C__PASSPHRASE_SAVE_DESC 404
+// Passphrase Set and Attached to PIN!
+#define C__PASSPHRASE_SET_AND_ATTACHED_TO_PIN 405
+// Next, please enter the standard wallet PIN
+#define C__NEXT_PLEASE_ENTER_THE_STANDARD_WALLET_PIN 406
+// Standard PIN
+#define T__STANDARD_PIN 407
+// Next, please enter the hidden wallet PIN you want to remove
+#define C__NEXT_PLEASE_ENTER_THE_HIDDEN_WALLET_PIN_YOU_WANT_TO_REMOVE 408
+// Enter Hidden PIN
+#define T__ENTER_HIDDEN_PIN 409
+// Remove PIN? You won’t be able to use it to unlock the device
+#define C__REMOVE_PIN_YOU_WILL_NOT_BE_ABLE_TO_USE_IT_TO_UNLOCK_THE_DEVICE 410
+// PIN removed!
+#define C__PIN_REMOVED 411
+// You do not have Passphrase turned on
+#define C__YOU_DO_NOT_HAVE_PASSPHRASE_TURNED_ON 412
+// PIN Already Used! Do you want to overwrite it?
+#define C__PIN_ALREADY_USED_DO_YOU_WANT_TO_OVERWRITE_IT 413
+// PIN Already Used! Please try a different one
+#define C__PIN_ALREADY_USED_PLEASE_TRY_A_DIFFERENT_ONE 414
+// Before start, verify your Standard Wallet PIN
+#define C__BEFORE_START_VERIFY_YOUR_TANDARD_WALLET_PIN 415
+// TRON Energy Rental
+#define T_ENERGY_RENTAL 416
+// Recipient is a known energy rental service provider address.
+#define I_ENERGY_RENTAL 417
 #endif
 // clang-format on

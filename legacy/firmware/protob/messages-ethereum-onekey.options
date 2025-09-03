@@ -16,11 +16,30 @@ EthereumSignTxEIP1559OneKey.value              max_size:32
 EthereumSignTxEIP1559OneKey.data_initial_chunk max_size:1024
 EthereumSignTxEIP1559OneKey.access_list        max_count:16
 
+EthereumSignTxEIP7702OneKey.address_n          max_count:8
+EthereumSignTxEIP7702OneKey.nonce              max_size:32
+EthereumSignTxEIP7702OneKey.max_gas_fee        max_size:32
+EthereumSignTxEIP7702OneKey.max_priority_fee   max_size:32
+EthereumSignTxEIP7702OneKey.gas_limit          max_size:32
+EthereumSignTxEIP7702OneKey.to                 max_size:43
+EthereumSignTxEIP7702OneKey.value              max_size:32
+EthereumSignTxEIP7702OneKey.data_initial_chunk max_size:1024
+EthereumSignTxEIP7702OneKey.access_list        max_count:16
+EthereumSignTxEIP7702OneKey.authorization_list max_count:16
+
+EthereumAuthorizationOneKey.address_n         max_count:8
+EthereumAuthorizationOneKey.address           max_size:43
+EthereumAuthorizationOneKey.nonce             max_size:8
+
+EthereumAuthorizationSignature.r              max_size:32
+EthereumAuthorizationSignature.s              max_size:32
+
 EthereumAccessListOneKey.address              max_size:43
 EthereumAccessListOneKey.storage_keys         max_count:8 max_size:32
 
 EthereumTxRequestOneKey.signature_r           max_size:32
 EthereumTxRequestOneKey.signature_s           max_size:32
+EthereumTxRequestOneKey.authorization_signatures max_count:16
 
 EthereumTxAckOneKey.data_chunk                max_size:1024
 

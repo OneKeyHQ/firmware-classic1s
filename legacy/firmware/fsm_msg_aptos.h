@@ -93,3 +93,23 @@ void fsm_msgAptosSignMessage(const AptosSignMessage *msg) {
 
   layoutHome();
 }
+
+void fsm_msgAptosSignSIWAMessage(const AptosSignSIWAMessage *msg) {
+  CHECK_INITIALIZED
+  CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,
+                                    COIN_TYPE, ED25519_NAME, true),
+              "Invalid path");
+
+  CHECK_PIN
+  RESP_INIT(AptosMessageSignature)
+
+  HDNode *node = fsm_getDerivedNode(ED25519_NAME, msg->address_n,
+                                    msg->address_n_count, NULL);
+  if (!node) return;
+
+  hdnode_fill_public_key(node);
+
+  aptos_sign_siwa_message(msg, node, resp);
+
+  layoutHome();
+}

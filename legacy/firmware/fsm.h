@@ -152,6 +152,7 @@ void fsm_msgEthereumGetAddressOneKey(const EthereumGetAddressOneKey *msg);
 void fsm_msgEthereumGetPublicKeyOneKey(const EthereumGetPublicKeyOneKey *msg);
 void fsm_msgEthereumSignTxOneKey(const EthereumSignTxOneKey *msg);
 void fsm_msgEthereumSignTxEIP1559OneKey(const EthereumSignTxEIP1559OneKey *msg);
+void fsm_msgEthereumSignTxEIP7702OneKey(const EthereumSignTxEIP7702OneKey *msg);
 void fsm_msgEthereumTxAckOneKey(const EthereumTxAckOneKey *msg);
 void fsm_msgEthereumSignMessageOneKey(const EthereumSignMessageOneKey *msg);
 void fsm_msgEthereumVerifyMessageOneKey(const EthereumVerifyMessageOneKey *msg);
@@ -237,6 +238,7 @@ void fsm_msgTronSignTx(TronSignTx *msg);
 void fsm_msgAptosGetAddress(const AptosGetAddress *msg);
 void fsm_msgAptosSignTx(const AptosSignTx *msg);
 void fsm_msgAptosSignMessage(const AptosSignMessage *msg);
+void fsm_msgAptosSignSIWAMessage(const AptosSignSIWAMessage *msg);
 
 // near
 void fsm_msgNearGetAddress(NearGetAddress *msg);

@@ -118,7 +118,7 @@ bool bracket_replace(char *orig, const char *with) {
       }
       p++;
     } else {
-      steps = utf8_get_size(*p);
+      steps = utf8_get_size((uint8_t)*p);
       p += steps;
     }
   }

@@ -17,6 +17,7 @@
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <inttypes.h>
 #include <stdio.h>
 
 #include "address.h"
@@ -39,6 +40,8 @@
 
 #include <pb_decode.h>
 
+#include "tron_eng_rental.h"
+
 // PROTOBUF3 types
 #define PROTO_TYPE_VARINT 0
 #define PROTO_TYPE_STRING 2
@@ -49,7 +52,10 @@ void tron_message_hash(const uint8_t *message, size_t message_len,
                        uint8_t hash[32]) {
   struct SHA3_CTX ctx = {0};
   sha3_256_Init(&ctx);
-  sha3_Update(&ctx, (const uint8_t *)"\x19" "TRON Signed Message:\n32", 24);
+  sha3_Update(&ctx, (const uint8_t *)"\x19" "TRON Signed Message:\n", 22);
+  char msg_len_str[11] = {0};
+  snprintf(msg_len_str, sizeof(msg_len_str), "%" PRIu32, (uint32_t)message_len);
+  sha3_Update(&ctx, (const uint8_t *)msg_len_str, strlen(msg_len_str));
   sha3_Update(&ctx, message, message_len);
   keccak_Final(&ctx, hash);
 }
@@ -57,15 +63,18 @@ void tron_message_hash(const uint8_t *message, size_t message_len,
 void tron_message_sign(TronSignMessage *msg, const HDNode *node,
                        TronMessageSignature *resp) {
   uint8_t hash[32];
-  uint8_t msg_hash[32];
 
-  // hash the message
-  struct SHA3_CTX ctx = {0};
-  sha3_256_Init(&ctx);
-  sha3_Update(&ctx, msg->message.bytes, msg->message.size);
-  keccak_Final(&ctx, msg_hash);
+  if (msg->has_message_type && msg->message_type == TronMessageType_V2) {
+    tron_message_hash(msg->message.bytes, msg->message.size, hash);
+  } else {
+    uint8_t msg_hash[32];
+    struct SHA3_CTX ctx = {0};
+    sha3_256_Init(&ctx);
+    sha3_Update(&ctx, msg->message.bytes, msg->message.size);
+    keccak_Final(&ctx, msg_hash);
 
-  tron_message_hash(msg_hash, 32, hash);
+    tron_message_hash(msg_hash, 32, hash);
+  }
 
   uint8_t v;
 #if EMULATOR
@@ -437,11 +446,13 @@ int pack_contract(TronSignTx *msg, uint8_t *buf, int *index,
                               MAX_ADDR_RAW_SIZE);
     cmessage_len +=
         write_bytes_with_length(cmessage, &cmessage_index, addr_raw, len);
-
-    cmessage_len += add_field(cmessage, &cmessage_index, 2, PROTO_TYPE_VARINT);
-    cmessage_len +=
-        write_varint(cmessage, &cmessage_index,
-                     msg->contract.delegate_resource_contract.resource);
+    if (msg->contract.delegate_resource_contract.has_resource) {
+      cmessage_len +=
+          add_field(cmessage, &cmessage_index, 2, PROTO_TYPE_VARINT);
+      cmessage_len +=
+          write_varint(cmessage, &cmessage_index,
+                       msg->contract.delegate_resource_contract.resource);
+    }
     cmessage_len += add_field(cmessage, &cmessage_index, 3, PROTO_TYPE_VARINT);
     cmessage_len +=
         write_varint(cmessage, &cmessage_index,
@@ -463,6 +474,13 @@ int pack_contract(TronSignTx *msg, uint8_t *buf, int *index,
           write_varint(cmessage, &cmessage_index,
                        msg->contract.delegate_resource_contract.lock);
     }
+    if (msg->contract.delegate_resource_contract.has_lock_period) {
+      cmessage_len +=
+          add_field(cmessage, &cmessage_index, 6, PROTO_TYPE_VARINT);
+      cmessage_len +=
+          write_varint(cmessage, &cmessage_index,
+                       msg->contract.delegate_resource_contract.lock_period);
+    }
   } else if (msg->contract.has_undelegate_resource_contract) {
     capi_len += add_field(capi, &capi_index, 1, PROTO_TYPE_STRING);
     capi_len += write_bytes_with_length(
@@ -476,11 +494,13 @@ int pack_contract(TronSignTx *msg, uint8_t *buf, int *index,
                               MAX_ADDR_RAW_SIZE);
     cmessage_len +=
         write_bytes_with_length(cmessage, &cmessage_index, addr_raw, len);
-
-    cmessage_len += add_field(cmessage, &cmessage_index, 2, PROTO_TYPE_VARINT);
-    cmessage_len +=
-        write_varint(cmessage, &cmessage_index,
-                     msg->contract.undelegate_resource_contract.resource);
+    if (msg->contract.undelegate_resource_contract.has_resource) {
+      cmessage_len +=
+          add_field(cmessage, &cmessage_index, 2, PROTO_TYPE_VARINT);
+      cmessage_len +=
+          write_varint(cmessage, &cmessage_index,
+                       msg->contract.undelegate_resource_contract.resource);
+    }
     cmessage_len += add_field(cmessage, &cmessage_index, 3, PROTO_TYPE_VARINT);
     cmessage_len +=
         write_varint(cmessage, &cmessage_index,
@@ -1175,6 +1195,21 @@ bool tron_sign_tx(TronSignTx *msg, const char *owner_address,
 
   if (msg->contract.has_transfer_contract ||
       msg->contract.has_trigger_smart_contract) {
+    bool is_transfer = msg->contract.has_transfer_contract || token != NULL;
+    if (is_transfer &&
+        is_tron_energy_rental_provider((const uint8_t *)to_str)) {
+      layoutDialogCenterAdapterV2(_(T_ENERGY_RENTAL), NULL,
+                                  &bmp_bottom_left_close,
+                                  &bmp_bottom_right_arrow, NULL, NULL, NULL,
+                                  NULL, NULL, NULL, _(I_ENERGY_RENTAL));
+      uint8_t key;
+      WAIT_KEY_OR_ABORT(0, 0, key);
+      if (key == KEY_CANCEL) {
+        fsm_sendFailure(FailureType_Failure_ActionCancelled,
+                        "Signing cancelled");
+        return false;
+      }
+    }
     char amount_str[60];
     int to_len = strlen(to_str);
     if (0 == to_len) strlcpy(to_str, "to new contract?", sizeof(to_str));
