@@ -488,10 +488,11 @@ void usbPoll(void) {
     }
   } else if (!usb_connect_status && usb_status_bak) {
     usb_status_bak = false;
-    // FTFixed: 设备重启后，需要usb重新初始化
-    usbInit();
     if (config_hasPin() && session_isUnlocked()) {
       reset = true;
+    } else {
+      // FTFixed: 设备重启后，需要usb重新初始化
+      usbInit();
     }
   }
   if (reset) config_getUsblock(&lock, false);

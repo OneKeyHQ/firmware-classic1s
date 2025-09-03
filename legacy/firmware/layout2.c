@@ -4380,15 +4380,17 @@ refresh_menu:
   oledClear();
   bubble_key = KEY_NULL;
   y = 13;
-  if (!is_revoke && index == 0) {
+  if (index == 0) {
     char warning[168] = {0};
+    if (!is_revoke) {
     snprintf(warning, sizeof(warning), "%s",
              _(I_UPGRADING_SMART_ACCOUNT_WARNING));
     bracket_replace(warning, delegator_name);
+    }
     layoutDialogCenterAdapterV2(NULL, &bmp_icon_warning, &bmp_bottom_left_close,
                                 &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL,
-                                NULL, NULL, warning);
-  } else if (index == (is_revoke ? 0 : 1)) {  // Authority address
+                                NULL, NULL, is_revoke ? _(I_REVOKE_SMART_ACCOUNT_WARNING) : warning);
+  } else if (index == 1) {  // Authority address
     layoutHeader(title);
     oledDrawStringAdapter(0, y, _(I__ACCOUNT_COLON), FONT_STANDARD);
     oledDrawStringAdapter(0, y + 10, signer, FONT_STANDARD);

@@ -34,4 +34,6 @@ void aptos_sign_tx(const AptosSignTx *msg, const HDNode *node,
                    AptosSignedTx *resp);
 void aptos_sign_message(const AptosSignMessage *msg, const HDNode *node,
                         AptosMessageSignature *resp);
+void aptos_sign_siwa_message(const AptosSignSIWAMessage *msg,
+                             const HDNode *node, AptosMessageSignature *resp);
 #endif  // __APTOS_H__

@@ -25,6 +25,12 @@ static const uint8_t APTOS_RAW_TX_WITH_DATA_PREFIX[32] = {
 
 static const char *MESSAGE_PREFIX = "APTOS\n";
 
+// Prefix_bytes with SHA3_256 hash bytes of string `SIGN_IN_WITH_APTOS::`
+static const uint8_t SIWA_MESSAGE_PREFIX[32] = {
+    30,  194, 212, 140, 200, 207, 210, 166, 235, 16,  172,
+    3,   47,  166, 181, 137, 39,  90,  198, 106, 176, 8,
+    195, 158, 161, 26,  66,  136, 40,  163, 143, 254};
+
 void aptos_get_address_from_public_key(const uint8_t *public_key,
                                        char *address) {
   uint8_t buf[SIZE_PUBKEY] = {0};
@@ -111,7 +117,6 @@ void aptos_sign_message(const AptosSignMessage *msg, const HDNode *node,
                              (const uint8_t *)full_message,
                              strlen(full_message))) {
     fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
-    layoutHome();
     return;
   }
 #if EMULATOR
@@ -119,6 +124,34 @@ void aptos_sign_message(const AptosSignMessage *msg, const HDNode *node,
                node->private_key, resp->signature.bytes);
 #else
   hdnode_sign(node, (const uint8_t *)full_message, strlen(full_message), 0,
+              resp->signature.bytes, NULL, NULL);
+#endif
+  resp->signature.size = 64;
+  msg_write(MessageType_MessageType_AptosMessageSignature, resp);
+}
+
+void aptos_sign_siwa_message(const AptosSignSIWAMessage *msg,
+                             const HDNode *node, AptosMessageSignature *resp) {
+  size_t payload_len = strlen(msg->siwa_payload);
+  size_t signing_message_len = payload_len + 32;
+
+  uint8_t signing_message[signing_message_len];
+
+  memcpy(signing_message, SIWA_MESSAGE_PREFIX, 32);
+  memcpy(signing_message + 32, (const uint8_t *)msg->siwa_payload, payload_len);
+
+  aptos_get_address_from_public_key(node->public_key + 1, resp->address);
+
+  if (!fsm_layoutSignMessage("SIWA", resp->address,
+                             (const uint8_t *)msg->siwa_payload, payload_len)) {
+    fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
+    return;
+  }
+#if EMULATOR
+  ed25519_sign(signing_message, signing_message_len, node->private_key,
+               resp->signature.bytes);
+#else
+  hdnode_sign(node, signing_message, signing_message_len, 0,
               resp->signature.bytes, NULL, NULL);
 #endif
   resp->signature.size = 64;
