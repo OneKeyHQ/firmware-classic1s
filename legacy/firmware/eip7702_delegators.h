@@ -31,7 +31,7 @@ static const Delegator registered_delegators[] = {
                 "\x8a\x07\xda\xe3\x2b",
      .initial_data_size = 0,
      .initial_data = ""},
-    {.name = "Simple7702Account",
+    {.name = "Simple",
      .address = "\x4C\xd2\x41\xe8\xd1\x51\x0e\x30\xb2\x07\x63\x97\xaf\xc7\x50"
                 "\x8a\xe5\x9c\x66\xc9",
      .initial_data_size = 0,
