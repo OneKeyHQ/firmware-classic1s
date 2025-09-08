@@ -35,65 +35,109 @@ static const char *_gettext(char *en_str) {
 }
 
 void menu_display(struct menu *menu) {
-  char descriptions[7][64] = {0};
+  char descriptions[4][64] = {0};
   const BITMAP *bmp_yes = NULL;
   char *text_yes = NULL;
 
-  for (int i = -3; i <= 3; i++) {
-    int index = menu->current + i;
-    if (index < 0 || index >= menu->counts) {
-      continue;
+  int max_item_count = 4;
+  int start_index = 0, end_index = 0;
+
+  if (menu->title) {
+    max_item_count = 3;
+  }
+
+  if (menu->counts <= max_item_count) {
+    start_index = 0;
+    end_index = menu->counts - 1;
+  } else {
+    int half = max_item_count / 2;
+
+    if (max_item_count % 2 == 0) {
+      start_index = menu->current - half + 1;
+    } else {
+      start_index = menu->current - half;
     }
-    strlcpy(descriptions[i + 3], _gettext(menu->items[index].name), 64);
-    if (menu->items[index].name2) {
-      if (0 == memcmp(menu->items[index].name2, "minutes", 7)) {
-        strlcpy(descriptions[i + 3], _(O__STR_MINUTES), 64);
-        bracket_replace(descriptions[i + 3], menu->items[index].name);
+
+    if (start_index < 0) {
+      start_index = 0;
+    }
+
+    end_index = start_index + max_item_count - 1;
+    if (end_index >= menu->counts) {
+      end_index = menu->counts - 1;
+      start_index = end_index - max_item_count + 1;
+    }
+  }
+
+  layout_item_t items[4] = {0};
+
+  for (int i = start_index; i <= end_index; i++) {
+    strlcpy(descriptions[i - start_index], _gettext(menu->items[i].name), 64);
+    if (menu->items[i].name2) {
+      if (0 == memcmp(menu->items[i].name2, "minutes", 7)) {
+        strlcpy(descriptions[i - start_index], _(O__STR_MINUTES), 64);
+        bracket_replace(descriptions[i - start_index], menu->items[i].name);
       } else {
-        strcat(descriptions[i + 3], " ");
-        strcat(descriptions[i + 3], _gettext(menu->items[index].name2));
+        strcat(descriptions[i - start_index], " ");
+        strcat(descriptions[i - start_index], _gettext(menu->items[i].name2));
       }
     }
+
+    items[i - start_index].label = descriptions[i - start_index];
+    if (i == menu->current) {
+      items[i - start_index].value = menu->items[menu->current].para
+                                         ? menu->items[menu->current].para()
+                                         : NULL;
+    } else {
+      items[i - start_index].value = NULL;
+    }
+    items[i - start_index].center = menu->title ? true : false;
   }
 
   switch (menu->button_type) {
     case BTN_TYPE_NEXT:
       bmp_yes = &bmp_bottom_right_arrow;
-      text_yes = "Next";
       break;
     case BTN_TYPE_YES:
     default:
       bmp_yes = &bmp_bottom_right_confirm;
-      text_yes = "Okay";
       break;
   }
 
-  layoutMenuItemsEx(text_yes, bmp_yes, menu->current + 1, menu->counts,
-                    menu->title ? _gettext(menu->title) : NULL, descriptions[3],
-                    _gettext(menu->items[menu->current].name),
-                    menu->items[menu->current].name2
-                        ? _gettext(menu->items[menu->current].name2)
-                        : NULL,
-                    menu->items[menu->current].para
-                        ? menu->items[menu->current].para()
-                        : NULL,
-                    menu->current > 0 ? descriptions[2] : NULL,
-                    menu->current > 1 ? descriptions[1] : NULL,
-                    menu->current > 2 ? descriptions[0] : NULL,
-                    menu->current < menu->counts - 1 ? descriptions[4] : NULL,
-                    menu->current < menu->counts - 2 ? descriptions[5] : NULL,
-                    menu->current < menu->counts - 3 ? descriptions[6] : NULL);
+  layout_screen_t screen = {
+      .bmp_up = &bmp_bottom_middle_arrow_up,
+      .bmp_down = &bmp_bottom_middle_arrow_down,
+      .bmp_no = &bmp_bottom_left_arrow,
+      .bmp_yes = bmp_yes,
+      .btn_no = NULL,
+      .btn_yes = text_yes,
+      .title = menu->title ? _gettext(menu->title) : NULL,
+      .title_space = false,
+      .items = items,
+      .item_count = menu->counts,
+      .item_index = menu->current,
+      .item_offset = start_index,
+      .show_index = true,
+      .show_scroll_bar = true,
+      .loop = currentMenu->loop,
+  };
+
+  layout_screen(screen);
 }
 
 void menu_up(void) {
   if (currentMenu->current > 0) {
     currentMenu->current--;
+  } else if (currentMenu->loop) {
+    currentMenu->current = currentMenu->counts - 1;
   }
 }
 
 void menu_down(void) {
   if (currentMenu->current < currentMenu->counts - 1) {
     currentMenu->current++;
+  } else if (currentMenu->loop) {
+    currentMenu->current = 0;
   }
 }
 

@@ -393,9 +393,31 @@ static struct menu fido_resident_credential_menu = {
 
 bool menu_fido2_remove_credential(const char *title, int index) {
   uint8_t key = KEY_NULL;
-  layoutMenuItemsEx(NULL, &bmp_bottom_right_arrow, 0, 0, title, NULL,
-                    _(ACTION__REMOVE), NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                    NULL);
+
+  layout_item_t items = {
+      .label = _(ACTION__REMOVE),
+      .value = NULL,
+      .center = true,
+  };
+
+  layout_screen_t screen = {
+      .bmp_up = NULL,
+      .bmp_down = NULL,
+      .bmp_no = &bmp_bottom_left_arrow,
+      .bmp_yes = &bmp_bottom_right_arrow,
+      .btn_no = NULL,
+      .btn_yes = NULL,
+      .title = title,
+      .title_space = true,
+      .items = &items,
+      .item_count = 1,
+      .item_index = 0,
+      .show_index = false,
+      .show_scroll_bar = false,
+  };
+
+  layout_screen(screen);
+
   key = protectWaitKey(0, 1);
   if (key != KEY_CONFIRM) {
     return false;

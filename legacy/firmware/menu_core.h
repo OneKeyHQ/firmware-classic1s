@@ -30,6 +30,7 @@ struct menu {
   int button_type;  // yes button text and icon
   struct menu_item *items;
   struct menu *previous;
+  bool loop;
 };
 
 #define COUNT_OF(name) (sizeof(name) / sizeof(name[0]))

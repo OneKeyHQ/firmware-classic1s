@@ -464,16 +464,38 @@ void layout_language_set(uint8_t key) {
   if (0 == ui_language) {
     config_setLanguage(i18n_lang_keys[1]);  // dingmao_9x9
   }
-  layoutItemsSelectAdapterEx(
-      NULL, NULL, NULL, &bmp_bottom_right_arrow, NULL, NULL, index + 1,
-      I18N_LANGUAGE_ITEMS, "Select Language", i18n_langs[index],
-      i18n_langs[index], NULL, NULL, index > 0 ? i18n_langs[index - 1] : NULL,
-      index > 1 ? i18n_langs[index - 2] : NULL,
-      index > 2 ? i18n_langs[index - 3] : NULL,
-      index < I18N_LANGUAGE_ITEMS - 1 ? i18n_langs[index + 1] : NULL,
-      index < I18N_LANGUAGE_ITEMS - 2 ? i18n_langs[index + 2] : NULL,
-      index < I18N_LANGUAGE_ITEMS - 3 ? i18n_langs[index + 3] : NULL, true,
-      false);
+
+  layout_item_t items[I18N_LANGUAGE_ITEMS] = {
+      {.label = i18n_langs[0], .value = NULL, .center = true},
+      {.label = i18n_langs[1], .value = NULL, .center = true},
+      {.label = i18n_langs[2], .value = NULL, .center = true},
+      {.label = i18n_langs[3], .value = NULL, .center = true},
+      {.label = i18n_langs[4], .value = NULL, .center = true},
+      {.label = i18n_langs[5], .value = NULL, .center = true},
+      {.label = i18n_langs[6], .value = NULL, .center = true},
+      {.label = i18n_langs[7], .value = NULL, .center = true},
+  };
+
+  layout_screen_t screen = {
+      .bmp_up = NULL,
+      .bmp_down = NULL,
+      .bmp_no = NULL,
+      .bmp_yes = &bmp_bottom_right_arrow,
+      .btn_no = NULL,
+      .btn_yes = NULL,
+      .title = "Select Language",
+      .title_space = true,
+      .input_desc = NULL,
+      .items = items,
+      .item_count = I18N_LANGUAGE_ITEMS,
+      .item_index = 0,
+      .item_offset = 0,
+      .show_index = true,
+      .show_scroll_bar = false,
+  };
+
+  screen.item_index = index;
+  layout_screen(screen);
 
   switch (key) {
     case KEY_UP:
@@ -611,13 +633,29 @@ static void layoutWelcome(int index) {
 static int setup_wallet(uint8_t key) {
   static int index = 0;
 
-  layoutItemsSelectAdapterEx(
-      &bmp_bottom_middle_arrow_up, &bmp_bottom_middle_arrow_down,
-      &bmp_bottom_left_arrow, &bmp_bottom_right_arrow, "Pre", "Next", index + 1,
-      2, _(T__SET_UP), NULL,
-      index == 0 ? _(O__CREATE_NEW_WALLET) : _(O__IMPORT_WALLET), NULL, NULL,
-      index > 0 ? _(O__CREATE_NEW_WALLET) : NULL, NULL, NULL,
-      index == 0 ? _(O__IMPORT_WALLET) : NULL, NULL, NULL, false, false);
+  layout_item_t items[2] = {
+      {.label = _(O__CREATE_NEW_WALLET), .value = NULL, .center = true},
+      {.label = _(O__IMPORT_WALLET), .value = NULL, .center = true},
+  };
+
+  layout_screen_t screen = {
+      .bmp_up = &bmp_bottom_middle_arrow_up,
+      .bmp_down = &bmp_bottom_middle_arrow_down,
+      .bmp_no = &bmp_bottom_left_arrow,
+      .bmp_yes = &bmp_bottom_right_arrow,
+      .btn_no = NULL,
+      .btn_yes = NULL,
+      .title = _(T__SET_UP),
+      .title_space = true,
+      .items = items,
+      .item_count = 2,
+      .item_index = index,
+      .item_offset = 0,
+      .show_index = false,
+      .show_scroll_bar = false,
+  };
+
+  layout_screen(screen);
 
   switch (key) {
     case KEY_UP:
@@ -2979,23 +3017,38 @@ void layoutInputWord(const char *text, uint8_t prefix_len, const char *prefix,
 
   oledRefresh();
 }
-static char *input[4] = {"abc", "ABC", "123", "=/<"};
+
 static char *input1[4] = {"a", "A", "0", "="};
 static char *inputTitle[4] = {"Switch Input (Lowercase)",
                               "Switch Input (Uppercase)",
                               "Switch Input (Number)", "Switch Input (Symbol)"};
 
 void layoutInputMethod(uint8_t index) {
-  layoutItemsSelectAdapterEx(
-      &bmp_bottom_middle_arrow_up, &bmp_bottom_middle_arrow_down,
-      &bmp_bottom_left_close, &bmp_bottom_right_confirm, __("Cancel"),
-      __("Confirm"), index + 1, 4, gettext_from_en(inputTitle[index]),
-      input[index], input[index], NULL, NULL,
-      index > 0 ? input[index - 1] : NULL, index > 1 ? input[index - 2] : NULL,
-      index > 2 ? input[index - 3] : NULL,
-      index < 4 - 1 ? input[index + 1] : NULL,
-      index < 4 - 2 ? input[index + 2] : NULL,
-      index < 4 - 3 ? input[index + 3] : NULL, true, true);
+  layout_item_t items[4] = {
+      {.label = "abc", .value = NULL, .center = true},
+      {.label = "ABC", .value = NULL, .center = true},
+      {.label = "123", .value = NULL, .center = true},
+      {.label = "=/<", .value = NULL, .center = true},
+  };
+
+  layout_screen_t screen = {
+      .bmp_up = &bmp_bottom_middle_arrow_up,
+      .bmp_down = &bmp_bottom_middle_arrow_down,
+      .bmp_no = &bmp_bottom_left_close,
+      .bmp_yes = &bmp_bottom_right_confirm,
+      .btn_no = NULL,
+      .btn_yes = NULL,
+      .title = gettext_from_en(inputTitle[index]),
+      .title_space = true,
+      .items = items,
+      .item_count = 4,
+      .item_index = index,
+      .item_offset = 0,
+      .show_index = true,
+      .show_scroll_bar = true,
+  };
+
+  layout_screen(screen);
 }
 
 void layoutInputPassphrase(const char *text, uint8_t prefix_len,
@@ -3161,36 +3214,56 @@ void layoutHeader(const char *title) {
   oledBox(OLED_WIDTH - 3, 10 - 3, OLED_WIDTH - 2, 10 - 1, true);
 }
 
-void layoutItemsSelectAdapterEx(
-    const BITMAP *bmp_up, const BITMAP *bmp_down, const BITMAP *bmp_no,
-    const BITMAP *bmp_yes, const char *btnNo, const char *btnYes,
-    uint32_t index, uint32_t count, const char *title, const char *input_desc,
-    const char *current, const char *name2, const char *param,
-    const char *previous, const char *pre_previous,
-    const char *pre_pre_previous, const char *next, const char *next_next,
-    const char *next_next_next, bool show_index, bool show_scroll_bar) {
-  (void)btnNo;
-  (void)btnYes;
-  int x, l, y;
-  uint32_t step = 2, line = 0;
+void layout_screen_item(int x, int y, layout_item_t item, bool reverse) {
+  int l = 0;
+  if (item.center) {
+    l = oledStringWidthAdapter(item.label, FONT_STANDARD);
+    x = (OLED_WIDTH - l) / 2;
+    oledDrawStringAdapter(x, y, item.label, FONT_STANDARD);
+    if (reverse) {
+      if (ui_language == 0) {
+        oledInvert(x - 3, y - 2, x + l + 2, y + 8 + 2);
+      } else {
+        oledInvert(x - 3, y - 1, x + l + 2, y + 9 + 1);
+      }
+    }
+  } else {
+    oledDrawStringAdapter(x, y, item.label, FONT_STANDARD);
+    if (item.value) {
+      l = oledStringWidthAdapter(item.value, FONT_STANDARD);
+      oledDrawStringAdapter(OLED_WIDTH - l - 1, y, item.value, FONT_STANDARD);
+    }
+    if (reverse) {
+      if (ui_language == 0) {
+        oledInvert(0, y - 2, OLED_WIDTH, y + 8);
+      } else {
+        oledInvert(0, y - 1, OLED_WIDTH, y + 9);
+      }
+    }
+  }
+}
+
+void layout_screen(layout_screen_t screen) {
+  int x = 1, y = 1, step = 2, item_height = 9;
+  int max_item_count = 4;
   const struct font_desc *cur_font = find_cur_font();
-  int item_height = 9;
-  x = 1;
-  y = 1;
-  l = 0;
-  if (title) {
+
+  oledClear_ex();
+
+  if (screen.title || screen.title_space) {
 #if !EMULATOR
     hide_icon = true;
 #endif
-    oledClear_ex();
-    layoutHeader(title);
+    if (screen.title) {
+      layoutHeader(screen.title);
+    }
     step = 4;
     y = 18;
+    max_item_count = 3;
   } else {
 #if !EMULATOR
     hide_icon = false;
 #endif
-    oledClear_ex();
     if (cur_font->pixel > 8) {
       y = 9;
     } else {
@@ -3198,180 +3271,65 @@ void layoutItemsSelectAdapterEx(
     }
   }
 
-  if (title && count > 3) {
-    // scrollbar
-    if (show_scroll_bar) drawScrollbar(count, index - 1);
-
-    if (pre_previous && (index == count)) {
-      oledDrawStringCenterAdapter(OLED_WIDTH / 2, y, pre_previous,
-                                  FONT_STANDARD);
-      y += cur_font->pixel + step;
-    }
-    if (previous) {
-      if (bmp_up) {
-        oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8, bmp_up);
-      }
-      oledDrawStringCenterAdapter(OLED_WIDTH / 2, y, previous, FONT_STANDARD);
-      y += cur_font->pixel + step;
-    }
-
-    l = oledStringWidthAdapter(input_desc, FONT_STANDARD);
-    int x1 = (OLED_WIDTH - l) / 2;
-    oledDrawStringCenterAdapter(OLED_WIDTH / 2, y, input_desc, FONT_STANDARD);
-
-    if (cur_font->pixel > 8) {
-      oledInvert(x1 - 4, y - 2, x1 + l + 1, y + item_height + 1);
-    } else {
-      if (is_valid_ascii((const uint8_t *)input_desc, strlen(input_desc))) {
-        if (l % 2) {
-          oledInvert(x1 - 2, y - 2, x1 + l + 2, y + item_height - 1);
-        } else {
-          oledInvert(x1 - 3, y - 2, x1 + l + 1, y + item_height - 1);
-        }
-      } else {
-        if (l % 2) {
-          oledInvert(x1 - 2, y - 2, x1 + l + 2, y + item_height);
-        } else {
-          oledInvert(x1 - 3, y - 2, x1 + l + 1, y + item_height);
-        }
-      }
-    }
-    y += cur_font->pixel + step;
-
-    if (next) {
-      oledDrawStringCenterAdapter(OLED_WIDTH / 2, y, next, FONT_STANDARD);
-      y += cur_font->pixel + step;
-      if (bmp_down) {
-        oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8, bmp_down);
-      }
-    }
-
-    if (next_next && (index == 1)) {
-      oledDrawStringCenterAdapter(OLED_WIDTH / 2, y, next_next, FONT_STANDARD);
-      y += cur_font->pixel + step;
-    }
+  if (screen.input_desc) {
+    oledDrawStringCenterAdapter(OLED_WIDTH / 2, y, screen.input_desc,
+                                FONT_STANDARD);
   } else {
-    if (title) {
-      if (count == 1) y = 27;
-      if (count == 2) y = 21;
-      if (count == 3) y = 15;
-    }
-    if (pre_pre_previous) {
-      if (title) {
-        oledDrawStringCenterAdapter(OLED_WIDTH / 2, y, pre_pre_previous,
-                                    FONT_STANDARD);
-      } else {
-        oledDrawStringAdapter(x, y, pre_pre_previous, FONT_STANDARD);
-      }
-      y += item_height + step;
-      line++;
-    }
-    if (pre_previous) {
-      if (title) {
-        oledDrawStringCenterAdapter(OLED_WIDTH / 2, y, pre_previous,
-                                    FONT_STANDARD);
-      } else {
-        oledDrawStringAdapter(x, y, pre_previous, FONT_STANDARD);
-      }
-      y += item_height + step;
-      line++;
-    }
-    if (previous) {
-      if (bmp_up) {
-        oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8, bmp_up);
-      }
-      if (title) {
-        oledDrawStringCenterAdapter(OLED_WIDTH / 2, y, previous, FONT_STANDARD);
-      } else {
-        oledDrawStringAdapter(x, y, previous, FONT_STANDARD);
-      }
-      y += item_height + step;
-      line++;
-    }
-    if (title) {
-      l = oledStringWidthAdapter(current, FONT_STANDARD);
-      int x1 = (OLED_WIDTH - l) / 2;
+    int start_index = 0, end_index = 0;
 
-      oledDrawStringCenterAdapter(OLED_WIDTH / 2, y, current, FONT_STANDARD);
-      if (cur_font->pixel > 8) {
-        oledInvert(x1 - 3, y - 1, x1 + l + 1, y + item_height);
-      } else {
-        if (is_valid_ascii((const uint8_t *)current, strlen(current))) {
-          if (l % 2) {
-            oledInvert(x1 - 2, y - 2, x1 + l + 2, y + item_height - 1);
-          } else {
-            oledInvert(x1 - 3, y - 2, x1 + l + 1, y + item_height - 1);
-          }
-        } else {
-          oledInvert(x1 - 3, y - 2, x1 + l, y + item_height);
-        }
-      }
-      y += item_height + step;
-      line++;
+    if (screen.item_count <= max_item_count) {
+      start_index = 0;
+      end_index = screen.item_count - 1;
     } else {
-      oledDrawStringAdapter(x, y, current, FONT_STANDARD);
-      if (param) {
-        l = oledStringWidthAdapter(param, FONT_STANDARD);
-        oledDrawStringAdapter(OLED_WIDTH - l - 1, y, param, FONT_STANDARD);
-      }
-      if (name2) {
-        l = oledStringWidthAdapter(param, FONT_STANDARD);
-        oledDrawStringAdapter(OLED_WIDTH - l - 1, y, param, FONT_STANDARD);
-      }
-      if (cur_font->pixel > 8) {
-        oledInvert(0, y - 1, OLED_WIDTH, y + item_height);
+      int half = max_item_count / 2;
+
+      if (max_item_count % 2 == 0) {
+        start_index = screen.item_index - half + 1;
       } else {
-        oledInvert(0, y - 2, OLED_WIDTH, y + item_height - 1);
+        start_index = screen.item_index - half;
       }
-      y += item_height + step;
-      line++;
+
+      if (start_index < 0) {
+        start_index = 0;
+      }
+
+      end_index = start_index + max_item_count - 1;
+      if (end_index >= screen.item_count) {
+        end_index = screen.item_count - 1;
+        start_index = end_index - max_item_count + 1;
+      }
     }
 
-    if (next && (line < 4)) {
-      if (title) {
-        oledDrawStringCenterAdapter(OLED_WIDTH / 2, y, next, FONT_STANDARD);
+    for (int i = start_index; i <= end_index; i++) {
+      if (i == screen.item_index) {
+        layout_screen_item(x, y, screen.items[i - screen.item_offset], true);
       } else {
-        oledDrawStringAdapter(x, y, next, FONT_STANDARD);
+        layout_screen_item(x, y, screen.items[i - screen.item_offset], false);
       }
       y += item_height + step;
-      line++;
     }
 
-    if (next_next && (line < 4)) {
-      if (title) {
-        oledDrawStringCenterAdapter(OLED_WIDTH / 2, y, next_next,
-                                    FONT_STANDARD);
-      } else {
-        oledDrawStringAdapter(x, y, next_next, FONT_STANDARD);
-      }
-      y += item_height + step;
-      line++;
+    if ((start_index < screen.item_index || screen.loop) && screen.bmp_up) {
+      oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8, screen.bmp_up);
     }
-    if (next_next_next && (line < 4)) {
-      if (title) {
-        oledDrawStringCenterAdapter(OLED_WIDTH / 2, y, next_next_next,
-                                    FONT_STANDARD);
-      } else {
-        oledDrawStringAdapter(x, y, next_next_next, FONT_STANDARD);
-      }
-      y += item_height + step;
-      line++;
+    if ((end_index > screen.item_index || screen.loop) && screen.bmp_down) {
+      oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8, screen.bmp_down);
     }
-  }
 
-  if ((index < count) && bmp_down) {
-    oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8, bmp_down);
-  }
+    if (screen.show_scroll_bar) {
+      drawScrollbar(screen.item_count, screen.item_index);
+    }
 
-  if (show_index && count > 0) {
-    layout_index_count(index, count);
-  }
+    if (screen.show_index) {
+      layout_index_count(screen.item_index + 1, screen.item_count);
+    }
 
-  if (bmp_no) {
-    oledDrawBitmap(0, OLED_HEIGHT - 11, bmp_no);
-  }
-  if (bmp_yes) {
-    oledDrawBitmap(OLED_WIDTH - 16, OLED_HEIGHT - 11, bmp_yes);
+    if (screen.bmp_no) {
+      oledDrawBitmap(0, OLED_HEIGHT - 11, screen.bmp_no);
+    }
+    if (screen.bmp_yes) {
+      oledDrawBitmap(OLED_WIDTH - 16, OLED_HEIGHT - 11, screen.bmp_yes);
+    }
   }
   oledRefresh();
 }
@@ -4383,13 +4341,14 @@ refresh_menu:
   if (index == 0) {
     char warning[168] = {0};
     if (!is_revoke) {
-    snprintf(warning, sizeof(warning), "%s",
-             _(I_UPGRADING_SMART_ACCOUNT_WARNING));
-    bracket_replace(warning, delegator_name);
+      snprintf(warning, sizeof(warning), "%s",
+               _(I_UPGRADING_SMART_ACCOUNT_WARNING));
+      bracket_replace(warning, delegator_name);
     }
-    layoutDialogCenterAdapterV2(NULL, &bmp_icon_warning, &bmp_bottom_left_close,
-                                &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL,
-                                NULL, NULL, is_revoke ? _(I_REVOKE_SMART_ACCOUNT_WARNING) : warning);
+    layoutDialogCenterAdapterV2(
+        NULL, &bmp_icon_warning, &bmp_bottom_left_close,
+        &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL, NULL, NULL,
+        is_revoke ? _(I_REVOKE_SMART_ACCOUNT_WARNING) : warning);
   } else if (index == 1) {  // Authority address
     layoutHeader(title);
     oledDrawStringAdapter(0, y, _(I__ACCOUNT_COLON), FONT_STANDARD);
