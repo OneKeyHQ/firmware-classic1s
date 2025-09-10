@@ -168,3 +168,15 @@ int menu_para_input_direction_index(void) {
   config_getInputDirection(&d);
   return d ? 1 : 0;
 }
+
+char* menu_para_fido_switch(void) {
+  bool fido_switch = false;
+  config_getFidoSwitch(&fido_switch);
+  return fido_switch ? _(O__ENABLED) : _(O__DISABLED);
+}
+
+int menu_para_fido_switch_index(void) {
+  bool fido_switch = false;
+  config_getFidoSwitch(&fido_switch);
+  return fido_switch ? 0 : 1;
+}

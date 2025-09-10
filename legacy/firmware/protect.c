@@ -1132,17 +1132,33 @@ bool protectSelectMnemonicNumber(uint32_t *number, bool cancel_allowed) {
   uint8_t key = KEY_NULL;
   uint32_t index = 0;
   uint32_t num_s[3] = {12, 18, 24};
-  char *numbers[3] = {_(O__12_WORDS), _(O__18_WORDS), _(O__24_WORDS)};
+
+  layout_item_t items[3] = {
+      {.label = _(O__12_WORDS), .value = NULL, .center = true},
+      {.label = _(O__18_WORDS), .value = NULL, .center = true},
+      {.label = _(O__24_WORDS), .value = NULL, .center = true},
+  };
+
+  layout_screen_t screen = {
+      .bmp_up = &bmp_bottom_middle_arrow_up,
+      .bmp_down = &bmp_bottom_middle_arrow_down,
+      .bmp_no = cancel_allowed ? &bmp_bottom_left_arrow : NULL,
+      .bmp_yes = &bmp_bottom_right_arrow,
+      .btn_no = NULL,
+      .btn_yes = NULL,
+      .title = _(T__SELECT_NUMBER_OF_WORDS),
+      .title_space = true,
+      .items = items,
+      .item_count = 3,
+      .item_index = index,
+      .item_offset = 0,
+      .show_index = false,
+      .show_scroll_bar = false,
+  };
 
 refresh_menu:
-  layoutItemsSelectAdapterEx(
-      &bmp_bottom_middle_arrow_up, &bmp_bottom_middle_arrow_down,
-      cancel_allowed ? &bmp_bottom_left_arrow : NULL, &bmp_bottom_right_arrow,
-      NULL, NULL, index + 1, 3, _(T__SELECT_NUMBER_OF_WORDS), numbers[index],
-      numbers[index], NULL, NULL, index > 0 ? numbers[index - 1] : NULL,
-      index > 1 ? numbers[index - 2] : NULL, NULL,
-      index < 2 ? numbers[index + 1] : NULL,
-      index < 1 ? numbers[index + 2] : NULL, NULL, false, true);
+  screen.item_index = index;
+  layout_screen(screen);
 
   key = protectWaitKey(0, 0);
   switch (key) {

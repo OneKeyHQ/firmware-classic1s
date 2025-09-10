@@ -379,7 +379,8 @@ static CTAP_UserInfo user_info[FIDO2_RESIDENT_CREDENTIALS_COUNT]
     __attribute__((section(".secMessageSection"))) = {0};
 
 static struct menu_item
-    fido_resident_credential_menu_items[FIDO2_RESIDENT_CREDENTIALS_COUNT] = {0};
+    fido_resident_credential_menu_items[FIDO2_RESIDENT_CREDENTIALS_COUNT + 1] =
+        {0};
 
 static struct menu fido_resident_credential_menu = {
     .start = 0,
@@ -387,15 +388,38 @@ static struct menu fido_resident_credential_menu = {
     .counts = 0,
     .title = NULL,
     .items = fido_resident_credential_menu_items,
-    .previous = &security_set_menu,
+    .previous = &main_menu,
     .button_type = BTN_TYPE_NEXT,
 };
 
 bool menu_fido2_remove_credential(const char *title, int index) {
   uint8_t key = KEY_NULL;
-  layoutMenuItemsEx(NULL, &bmp_bottom_right_arrow, 0, 0, title, NULL,
-                    _(ACTION__REMOVE), NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                    NULL);
+
+  layout_item_t items = {
+      .label = _(ACTION__REMOVE),
+      .value = NULL,
+      .center = true,
+  };
+
+  layout_screen_t screen = {
+      .bmp_up = NULL,
+      .bmp_down = NULL,
+      .bmp_no = &bmp_bottom_left_arrow,
+      .bmp_yes = &bmp_bottom_right_arrow,
+      .btn_no = NULL,
+      .btn_yes = NULL,
+      .title = title,
+      .title_space = true,
+      .items = &items,
+      .item_count = 1,
+      .item_index = 0,
+      .item_offset = 0,
+      .show_index = false,
+      .show_scroll_bar = false,
+  };
+
+  layout_screen(screen);
+
   key = protectWaitKey(0, 1);
   if (key != KEY_CONFIRM) {
     return false;
@@ -452,6 +476,45 @@ static int cred_cmp_func(const void *_a, const void *_b) {
   return a->creation_time - b->creation_time;
 }
 
+void menu_set_fido_switch(int index) {
+  uint8_t key = KEY_NULL;
+  if (index == 0) {
+  } else {
+    layoutDialogCenterAdapterV2(_(FIDO_DISABLE_PROMPT_TITLE), NULL,
+                                &bmp_bottom_left_arrow, &bmp_bottom_right_arrow,
+                                NULL, NULL, NULL, NULL, NULL, NULL,
+                                _(FIDO_DISABLE_PROMPT_DESC));
+    key = protectWaitKey(0, 1);
+    if (key != KEY_CONFIRM) {
+      return;
+    }
+  }
+  layoutDialogCenterAdapterV2(_(FIDO_DISABLE_PROMPT_TITLE), NULL,
+                              &bmp_bottom_left_close, &bmp_bottom_right_confirm,
+                              NULL, NULL, NULL, NULL, NULL, NULL,
+                              _(C__IT_WILL_TAKE_EFFECT_AFTER_DEVICE_RESTART));
+
+  key = protectWaitKey(0, 0);
+  if (key == KEY_CONFIRM) {
+    config_setFidoSwitch(index ? false : true);
+    usbDisconnect();
+    svc_system_reset();
+  }
+}
+
+static const struct menu_item fido_switch_set_menu_items[] = {
+    {"Enable", NULL, true, menu_set_fido_switch, NULL, true, NULL},
+    {"Disable", NULL, true, menu_set_fido_switch, NULL, true, NULL}};
+
+static struct menu fido_switch_set_menu = {
+    .start = 0,
+    .current = 0,
+    .counts = COUNT_OF(fido_switch_set_menu_items),
+    .title = "Enable Security Keys",
+    .items = (struct menu_item *)fido_switch_set_menu_items,
+    .previous = &main_menu,
+};
+
 void menu_fido2_resident_credential(int index) {
   (void)index;
 
@@ -462,13 +525,13 @@ void menu_fido2_resident_credential(int index) {
   } else {
     resident_credential_refresh = true;
     count = fido_resident_credential_menu.counts;
-    menu_init(&security_set_menu);
+    menu_init(&main_menu);
   }
 
   if (count == 0) {
-    layoutDialogCenterAdapterV2(NULL, NULL, &bmp_bottom_left_arrow,
-                                &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL,
-                                _(FIDO_LIST_EMPTY_TEXT), NULL, NULL);
+    layoutDialogCenterAdapterV2(NULL, NULL, &bmp_bottom_left_arrow, NULL, NULL,
+                                NULL, NULL, NULL, _(FIDO_LIST_EMPTY_TEXT), NULL,
+                                NULL);
     protectWaitKey(timer1s * 2, 0);
     return;
   }
@@ -500,7 +563,9 @@ void menu_fido2_resident_credential(int index) {
   fido_resident_credential_menu.current = 0;
   fido_resident_credential_menu.start = 0;
   fido_resident_credential_menu.items = fido_resident_credential_menu_items;
-  fido_resident_credential_menu.previous = &security_set_menu;
+  fido_resident_credential_menu.previous = &main_menu;
+  fido_resident_credential_menu.loop = true;
+
   menu_init(&fido_resident_credential_menu);
 }
 #endif
@@ -510,10 +575,6 @@ static const struct menu_item security_set_menu_items[] = {
      NULL},
     {"Passphrase", NULL, false, .sub_menu = &passphrase_set_menu,
      menu_para_passphrase, true, menu_para_passphrase_index},
-#if !BITCOIN_ONLY
-    {"FIDO Keys", NULL, true, menu_fido2_resident_credential, NULL, false,
-     NULL},
-#endif
     {"Reset Device", NULL, true, menu_erase_device, NULL, false, NULL},
 };
 
@@ -664,7 +725,14 @@ static struct menu about_menu = {
 static const struct menu_item main_menu_items[] = {
     {"General", NULL, false, .sub_menu = &settings_menu, NULL, false},
     {"Security", NULL, false, .sub_menu = &security_set_menu, NULL, false},
-    {"About Device", NULL, false, .sub_menu = &about_menu, NULL, false}};
+    {"About Device", NULL, false, .sub_menu = &about_menu, NULL, false},
+#if !BITCOIN_ONLY
+    {"Security Key", NULL, false, .sub_menu = &fido_switch_set_menu,
+     menu_para_fido_switch, false, menu_para_fido_switch_index},
+    {"Management Security Key", NULL, true, menu_fido2_resident_credential,
+     NULL, false, NULL},
+#endif
+};
 
 static struct menu main_menu = {
     .start = 0,
@@ -696,6 +764,7 @@ void menu_autolock_added_custom(void) {
 
 void main_menu_init(bool state) {
   menu_autolock_added_custom();
+
   if (state) {
     menu_init(&main_menu);
     menu_update(&settings_menu, previous, &main_menu);
@@ -704,5 +773,8 @@ void main_menu_init(bool state) {
 
 void menu_default(void) {
   menu_init_settings_menu();
+  bool fido_switch = false;
+  config_getFidoSwitch(&fido_switch);
+  menu_update(&main_menu, counts, fido_switch ? 5 : 4);
   menu_init(&main_menu);
 }

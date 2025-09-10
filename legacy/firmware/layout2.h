@@ -36,7 +36,37 @@
 #define DISP_BUFSIZE (2048)
 #define DISP_PAGESIZE (96)
 
+typedef struct {
+  const char *label;
+  const char *value;
+  bool center;
+} layout_item_t;
+
+typedef struct {
+  const BITMAP *bmp_up;
+  const BITMAP *bmp_down;
+  const BITMAP *bmp_no;
+  const BITMAP *bmp_yes;
+
+  const char *btn_no;
+  const char *btn_yes;
+  const char *title;
+  bool title_space;
+  const char *input_desc;
+
+  layout_item_t *items;
+  int item_count;
+  int item_index;
+  int item_offset;
+  bool show_index;
+  bool show_scroll_bar;
+
+  bool loop;
+} layout_screen_t;
+
 extern void *layoutLast;
+
+void layout_screen(layout_screen_t screen);
 
 int get_truncate_position(const char *msg, bool *is_end);
 
@@ -195,14 +225,6 @@ void layoutItemsSelectAdapter(const BITMAP *bmp_up, const BITMAP *bmp_down,
                               const char *prefex, const char *current,
                               const char *previous, const char *next);
 
-void layoutItemsSelectAdapterEx(
-    const BITMAP *bmp_up, const BITMAP *bmp_down, const BITMAP *bmp_no,
-    const BITMAP *bmp_yes, const char *btnNo, const char *btnYes,
-    uint32_t index, uint32_t count, const char *title, const char *input_desc,
-    const char *current, const char *name2, const char *param,
-    const char *previous, const char *pre_previous,
-    const char *pre_pre_previous, const char *next, const char *next_next,
-    const char *next_next_next, bool show_index, bool show_scroll_bar);
 void layoutItemsSelectAdapterWords(
     const BITMAP *bmp_up, const BITMAP *bmp_down, const BITMAP *bmp_no,
     const BITMAP *bmp_yes, const char *btnNo, const char *btnYes,
@@ -240,15 +262,6 @@ bool layoutInputDirection(int index);
   layoutItemsSelectAdapter(&bmp_btn_up, &bmp_btn_down, &bmp_btn_back, bmp_yes, \
                            "Back", btn_yes, index, count, title, NULL,         \
                            current, previous, next)
-
-#define layoutMenuItemsEx(btn_yes, bmp_yes, index, count, title, desc,       \
-                          current, name2, param, previous, pre_previous,     \
-                          pre_pre_previous, next, next_next, next_next_next) \
-  layoutItemsSelectAdapterEx(                                                \
-      &bmp_bottom_middle_arrow_up, &bmp_bottom_middle_arrow_down,            \
-      &bmp_bottom_left_arrow, bmp_yes, "Back", btn_yes, index, count, title, \
-      desc, current, name2, param, previous, pre_previous, pre_pre_previous, \
-      next, next_next, next_next_next, true, true)
 
 void layoutStatusLogoEx(bool fresh);
 

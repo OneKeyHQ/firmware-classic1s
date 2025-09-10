@@ -748,8 +748,8 @@
 #define FIDO_REMOVE_KEY_SUCCESS_TITLE 357
 // Key Limit Reached
 #define FIDO_ADD_KEY_LIMIT_REACHED_TITLE 358
-// You have reached the limit of 60 security keys. Please remove any unused key
-// s to add a new one.
+// 60 security key limit reached. New credentials won’t be saved. Remove unused
+// to add new
 #define FIDO_ADD_KEY_LIMIT_REACHED_DESC 359
 // No Security keys yet
 #define FIDO_LIST_EMPTY_TEXT 360
@@ -828,7 +828,7 @@
 #define T__SET_HIDDEN_PIN 394
 // PIN already used! Try a different one
 #define C__PIN_ALREADY_USED_TRY_A_DIFFERENT_ONE 395
-// Hit the limit: 30 PINs max! Do you want to remove some hidden wallet PINs?
+// Hit the limit: 3 PINs max! Do you want to remove some hidden wallet PINs?
 #define C__HIT_THE_LIMIT_30_PINS_MAX 396
 // Attach Passphrase
 #define T__ATTACH_PASSPHRASE 397
@@ -875,5 +875,15 @@
 #define T_ENERGY_RENTAL 416
 // Recipient is a known energy rental service provider address.
 #define I_ENERGY_RENTAL 417
+// Confirm Phrase
+#define T__CONFIRM_PHRASE 418
+// Save Passphrase
+#define T__SAVE_PASSPHRASE 419
+// Remove PIN
+#define T__REMOVE_PIN 420
+// Management Security Key
+#define M__MANAGEMENT_SECURITY_KEY 421
+// Incorrect PIN! The PIN you entered is incorrect
+#define C__INCORRECT_PIN_THE_PIN_YOU_ENTERED_IS_INCORRECT 422
 #endif
 // clang-format on

@@ -34,7 +34,11 @@ uint32_t resident_credential_find_by_rp_id_hash(
                len - RP_ID_HASH_LENGTH);
         cred_desc[count].cred_id_len = len - RP_ID_HASH_LENGTH;
         cred_desc[count].type = PUB_KEY_CRED_PUB_KEY;
-        ctap_authenticate_credential_data(rp_id_hash, &cred_desc[count]);
+        if (ctap_authenticate_credential_data(rp_id_hash, &cred_desc[count]) ==
+            0) {
+          ctap_printf("credential data is invalid\n");
+          continue;
+        }
         count++;
       }
     }
@@ -43,8 +47,8 @@ uint32_t resident_credential_find_by_rp_id_hash(
 }
 
 bool resident_credential_store(const uint8_t *rp_id_hash,
-                               const uint8_t *user_id, const uint8_t *cred_id,
-                               uint32_t cred_id_len) {
+                               const uint8_t *user_id, uint32_t user_id_len,
+                               const uint8_t *cred_id, uint32_t cred_id_len) {
   CTAP_credentialDescriptor cred_id_desc = {0};
   CTAP_credential_id_storage cred_id_storage = {0};
   uint16_t len =
@@ -75,8 +79,9 @@ bool resident_credential_store(const uint8_t *rp_id_hash,
         memcpy(cred_id_desc.cred_id, cred_id_storage.credential_id,
                len - RP_ID_HASH_LENGTH);
         ctap_authenticate_credential_data(rp_id_hash, &cred_id_desc);
-        if (memcmp(cred_id_desc.credential.user.id, user_id,
-                   cred_id_desc.credential.user.id_size) == 0) {
+        if (cred_id_desc.credential.user.id_size == user_id_len &&
+            memcmp(cred_id_desc.credential.user.id, user_id, user_id_len) ==
+                0) {
           ctap_printf("find same user id, override\n");
           slot = i;
           break;
@@ -139,8 +144,10 @@ int resident_credential_get_desc(uint8_t index,
     memcpy(cred_desc->cred_id, cred_id_storage.credential_id,
            cred_desc->cred_id_len);
     if (ctap_authenticate_credential_data(cred_id_storage.rp_id_hash,
-                                          cred_desc) == 0) {
+                                          cred_desc) == 1) {
       return 0;
+    } else {
+      se_delete_fido2_resident_credentials(index);
     }
   }
   return SE_FIDO2_SLOT_DATA_INVALID;

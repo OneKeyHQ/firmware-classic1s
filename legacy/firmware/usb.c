@@ -262,25 +262,9 @@ static const struct usb_interface_descriptor webusb_iface_main[] = {{
 
 // Windows are strict about interfaces appearing
 // in correct order
-static const struct usb_interface ifaces[] = {
-    {
-        .num_altsetting = 1,
-        .altsetting = webusb_iface_main,
-#if DEBUG_LINK
-    },
-    {
-        .num_altsetting = 1,
-        .altsetting = webusb_iface_debug,
-#endif
-#if U2F_ENABLED
-    },
-    {
-        .num_altsetting = 1,
-        .altsetting = hid_iface_u2f,
-#endif
-    }};
+static struct usb_interface ifaces[USB_INTERFACE_COUNT] = {0};
 
-static const struct usb_config_descriptor config = {
+static struct usb_config_descriptor config = {
     .bLength = USB_DT_CONFIGURATION_SIZE,
     .bDescriptorType = USB_DT_CONFIGURATION,
     .wTotalLength = 0,
@@ -290,6 +274,36 @@ static const struct usb_config_descriptor config = {
     .bmAttributes = 0x80,
     .bMaxPower = 0x32,
     .interface = ifaces,
+};
+
+static void usb_init_ifaces(void) {
+  bool fido_switch = true;
+  config_getFidoSwitch(&fido_switch);
+
+  int idx = 0;
+  ifaces[idx].num_altsetting = 1;
+  ifaces[idx].altsetting = webusb_iface_main;
+  idx++;
+
+#if DEBUG_LINK
+  ifaces[idx].num_altsetting = 1;
+  ifaces[idx].altsetting = webusb_iface_debug;
+  idx++;
+#endif
+
+#if U2F_ENABLED
+  if (fido_switch) {
+    ifaces[idx].num_altsetting = 1;
+    ifaces[idx].altsetting = hid_iface_u2f;
+    idx++;
+  }
+#endif
+
+  config.bNumInterfaces = idx;
+
+  for (; idx < USB_INTERFACE_COUNT; idx++) {
+    memset(&ifaces[idx], 0, sizeof(struct usb_interface));
+  }
 };
 
 static volatile char tiny = 0;
@@ -379,10 +393,15 @@ static void set_config(usbd_device *dev, uint16_t wValue) {
   usbd_ep_setup(dev, ENDPOINT_ADDRESS_MAIN_OUT, USB_ENDPOINT_ATTR_INTERRUPT,
                 USB_PACKET_SIZE, main_rx_callback);
 #if U2F_ENABLED
-  usbd_ep_setup(dev, ENDPOINT_ADDRESS_U2F_IN, USB_ENDPOINT_ATTR_INTERRUPT,
-                USB_PACKET_SIZE, 0);
-  usbd_ep_setup(dev, ENDPOINT_ADDRESS_U2F_OUT, USB_ENDPOINT_ATTR_INTERRUPT,
-                USB_PACKET_SIZE, u2f_rx_callback);
+
+  bool fido_switch = false;
+  config_getFidoSwitch(&fido_switch);
+  if (fido_switch) {
+    usbd_ep_setup(dev, ENDPOINT_ADDRESS_U2F_IN, USB_ENDPOINT_ATTR_INTERRUPT,
+                  USB_PACKET_SIZE, 0);
+    usbd_ep_setup(dev, ENDPOINT_ADDRESS_U2F_OUT, USB_ENDPOINT_ATTR_INTERRUPT,
+                  USB_PACKET_SIZE, u2f_rx_callback);
+  }
 #endif
 #if DEBUG_LINK
   usbd_ep_setup(dev, ENDPOINT_ADDRESS_DEBUG_IN, USB_ENDPOINT_ATTR_INTERRUPT,
@@ -391,9 +410,11 @@ static void set_config(usbd_device *dev, uint16_t wValue) {
                 USB_PACKET_SIZE, debug_rx_callback);
 #endif
 #if U2F_ENABLED
-  usbd_register_control_callback(
-      dev, USB_REQ_TYPE_STANDARD | USB_REQ_TYPE_INTERFACE,
-      USB_REQ_TYPE_TYPE | USB_REQ_TYPE_RECIPIENT, hid_control_request);
+  if (fido_switch) {
+    usbd_register_control_callback(
+        dev, USB_REQ_TYPE_STANDARD | USB_REQ_TYPE_INTERFACE,
+        USB_REQ_TYPE_TYPE | USB_REQ_TYPE_RECIPIENT, hid_control_request);
+  }
 #endif
 }
 
@@ -430,6 +451,9 @@ void usbInit(void) {
   if (trezor_comp_mode) {
     dev_descr.idProduct = 0x53c1;
   }
+
+  usb_init_ifaces();
+
   usbd_dev = usbd_init(&otgfs_usb_driver_onekey, &dev_descr, &config,
                        usb_strings, sizeof(usb_strings) / sizeof(*usb_strings),
                        usbd_control_buffer, sizeof(usbd_control_buffer));

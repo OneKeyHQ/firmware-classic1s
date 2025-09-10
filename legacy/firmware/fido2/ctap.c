@@ -1145,7 +1145,8 @@ refresh:
   if (MC.credInfo.rk) {
     uint8_t rp_id_hash[32];
     sha256_Raw((uint8_t *)MC.rp.id, MC.rp.size, rp_id_hash);
-    if (!resident_credential_store(rp_id_hash, MC.credInfo.user.id, cred_id_buf,
+    if (!resident_credential_store(rp_id_hash, MC.credInfo.user.id,
+                                   MC.credInfo.user.id_size, cred_id_buf,
                                    cred_id_len)) {
       layoutDialogCenterAdapterV2(_(FIDO_ADD_KEY_LIMIT_REACHED_TITLE), NULL,
                                   NULL, &bmp_bottom_right_confirm, NULL, NULL,

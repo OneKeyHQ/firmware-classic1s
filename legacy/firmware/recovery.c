@@ -123,12 +123,6 @@ static bool recovery_byself = false;
 #define TABLE1(x) MASK_IDX(word_table1[x])
 #define TABLE2(x) MASK_IDX(word_table2[x])
 
-#define goto_check(label)       \
-  if (layoutLast == layoutHome) \
-    return false;               \
-  else                          \
-    goto label;
-
 /* Helper function to format a two digit number.
  * Parameter dest is buffer containing the string. It should already
  * start with "##th".  The number is written in place.
@@ -661,7 +655,7 @@ void recovery_abort(void) {
 
 #define CANDIDATE_MAX_LEN 8  // DO NOT CHANGE THIS
 
-static void select_complete_word(char *title, int start, int len) {
+static bool select_complete_word(char *title, int start, int len) {
   uint8_t key = KEY_NULL;
   int index = 0;
 
@@ -695,7 +689,7 @@ refresh_menu:
       strlcpy(words[word_index], mnemonic_get_word(start + index),
               sizeof(words[word_index]));
       word_index++;
-      break;
+      return true;
     case KEY_CANCEL:
       break;
     default:
@@ -705,6 +699,7 @@ refresh_menu:
 #if !EMULATOR
   enableLongPress(true);
 #endif
+  return false;
 }
 
 static uint8_t recovery_check_words(void) {
@@ -771,7 +766,7 @@ refresh_menu:
   return 1;
 }
 
-static bool input_words(void) {
+static bool input_words(bool re_enter, uint32_t edit_index) {
   uint32_t prefix_len = 0;
   uint8_t key = KEY_NULL;
   char letter_list[52] = "";
@@ -784,7 +779,15 @@ static bool input_words(void) {
   bool d = false;
   config_getInputDirection(&d);
 
-  memzero(words[word_index], sizeof(words[word_index]));
+  char word_bak[12] = {0};
+
+  if (!re_enter) {
+    memzero(words, sizeof(words));
+  } else {
+    word_index = edit_index;
+    strlcpy(word_bak, words[word_index], sizeof(word_bak));
+    memzero(words[word_index], sizeof(words[word_index]));
+  }
 
 #if !EMULATOR
   enableLongPress(true);
@@ -843,18 +846,31 @@ refresh_menu:
         memset(title, 0, 13);
         strcat(title, words[word_index]);
         strcat(title, "_");
-        select_complete_word(title, candidate_location, letter_count);
-        if (word_index == word_count) {
-          ret = true;
-          goto __ret;
-        } else {  // next word
-          prefix_len = 0;
-          index = 0;
-          memzero(words[word_index], sizeof(words[word_index]));
-          goto refresh_menu;
+        ret = select_complete_word(title, candidate_location, letter_count);
+        if (re_enter) {
+          if (ret) {
+            word_index = word_count;
+            ret = true;
+            goto __ret;
+          } else {
+            strlcpy(words[word_index], word_bak, sizeof(words[word_index]));
+            word_index = word_count;
+            break;
+          }
+        } else {
+          if (word_index == word_count) {
+            ret = true;
+            goto __ret;
+          } else {  // next word
+            prefix_len = 0;
+            index = 0;
+            memzero(words[word_index], sizeof(words[word_index]));
+            goto refresh_menu;
+          }
         }
       }
     case KEY_CANCEL:
+
       if (prefix_len > 0) {
         prefix_len--;
         last_letter = words[word_index][prefix_len];
@@ -869,13 +885,21 @@ refresh_menu:
             break;
           }
         }
-      } else if (word_index > 0) {
-        word_index--;
-        prefix_len = 0;
-        index = 0;
-        memzero(words[word_index], sizeof(words[word_index]));
       } else {
-        break;
+        if (re_enter) {
+          strlcpy(words[word_index], word_bak, sizeof(words[word_index]));
+          word_index = word_count;
+          break;
+        } else {
+          if (word_index > 0) {
+            word_index--;
+            prefix_len = 0;
+            index = 0;
+            memzero(words[word_index], sizeof(words[word_index]));
+          } else {
+            break;
+          }
+        }
       }
       goto refresh_menu;
     default:
@@ -889,10 +913,157 @@ __ret:
   return ret;
 }
 
+int word_edit_operation_select(void) {
+  uint8_t key = KEY_NULL;
+  int index = 0;
+
+  layout_item_t items[2] = {
+      {.label = _(O__EDIT), .value = NULL, .center = true},
+      {.label = _(O__START_OVER), .value = NULL, .center = true},
+  };
+
+  layout_screen_t screen = {
+      .bmp_up = &bmp_bottom_middle_arrow_up,
+      .bmp_down = &bmp_bottom_middle_arrow_down,
+      .bmp_no = &bmp_bottom_left_arrow,
+      .bmp_yes = &bmp_bottom_right_confirm,
+      .btn_no = NULL,
+      .btn_yes = NULL,
+      .title = NULL,
+      .title_space = true,
+      .items = items,
+      .item_count = 2,
+      .item_index = index,
+      .item_offset = 0,
+      .show_index = false,
+      .show_scroll_bar = false,
+  };
+
+  while (1) {
+    screen.item_index = index;
+    layout_screen(screen);
+
+    key = protectWaitKey(0, 0);
+    switch (key) {
+      case KEY_UP:
+        if (index > 0) index--;
+        break;
+
+      case KEY_DOWN:
+        if (index < 1) index++;
+        break;
+
+      case KEY_CONFIRM:
+        return (index == 0) ? 1 : 2;
+
+      case KEY_CANCEL:
+      default:
+        return 0;
+    }
+  }
+}
+
+bool edit_recovery_word(void) {
+  char title[32] = "";
+  char num_str[4] = "";
+  uint32_t index = 0;
+  uint8_t key = KEY_NULL;
+  char confirm[32] = {0};
+
+  layout_item_t items[24 + 1] = {0};
+  for (uint32_t i = 0; i < word_count; i++) {
+    items[i].label = words[i];
+    items[i].value = NULL;
+    items[i].center = true;
+  }
+
+  strcat(confirm, "✓ ");
+  strcat(confirm, _(T__CONFIRM_PHRASE));
+  items[word_count].label = confirm;
+  items[word_count].value = NULL;
+  items[word_count].center = true;
+
+  while (1) {
+    memzero(title, sizeof(title));
+    if (index < word_count) {
+      memzero(num_str, sizeof(num_str));
+      strcat(title, _(T__EDIT_WORD_STR));
+      uint2str(index + 1, num_str);
+      bracket_replace(title, num_str);
+    } else {
+      strcat(title, _(T__CONFIRM_PHRASE));
+    }
+
+    layout_screen_t screen = {
+        .bmp_up = &bmp_bottom_middle_arrow_up,
+        .bmp_down = &bmp_bottom_middle_arrow_down,
+        .bmp_no = &bmp_bottom_left_close,
+        .bmp_yes = &bmp_bottom_right_confirm,
+        .btn_no = NULL,
+        .btn_yes = NULL,
+        .title = title,
+        .title_space = true,
+        .items = items,
+        .item_count = word_count + 1,
+        .item_index = index,
+        .item_offset = 0,
+        .show_index = false,
+        .show_scroll_bar = false,
+        .loop = true,
+    };
+    layout_screen(screen);
+
+    key = protectWaitKey(0, 0);
+    switch (key) {
+      case KEY_UP:
+        if (index > 0) {
+          index--;
+        } else {
+          index = word_count;
+        }
+        break;
+
+      case KEY_DOWN:
+        if (index < word_count) {
+          index++;
+        } else {
+          index = 0;
+        }
+        break;
+
+      case KEY_CONFIRM:
+        if (index < word_count) {
+          input_words(true, index);
+          break;
+        } else {
+          return true;
+        }
+
+      case KEY_CANCEL:
+      default:
+        return false;
+    }
+  }
+}
+
+typedef enum {
+  RECOVERY_STATE_PROMPT,
+  RECOVERY_STATE_SELECT_MNEMONIC_COUNT,
+  RECOVERY_STATE_INPUT_WORDS,
+  RECOVERY_STATE_REVIEW_WORDLIST,
+  RECOVERY_STATE_CHECK_WORDS,
+  RECOVERY_STATE_VERIFY_MNEMONIC,
+  RECOVERY_STATE_REENTER_WORDS,
+  RECOVERY_STATE_EDIT_WORD,
+  RECOVERY_STATE_SUCCESS,
+  RECOVERY_STATE_EXIT
+} recovery_state_t;
+
 bool recovery_on_device(void) {
   char desc[128] = "";
   char num_str[8] = "";
   uint8_t ret, key = KEY_NULL;
+  char new_mnemonic[MAX_MNEMONIC_LEN + 1] = {0};
 
   if (config_hasPin()) {
     uint8_t ui_language_bak = ui_language;
@@ -900,108 +1071,153 @@ bool recovery_on_device(void) {
     ui_language = ui_language_bak;
     config_setLanguage(i18n_lang_keys[ui_language]);
   }
-prompt_recovery:
-  layoutDialogCenterAdapterV2(
-      _(T__IMPORT_WALLET), NULL, &bmp_bottom_left_close,
-      &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL, NULL, NULL,
-      _(C__RESTORE_THE_WALLET_YOU_PREVIOUSLY_USED_FROM_A_RECOVERY_PHRASE));
-  key = protectWaitKey(0, 1);
-  if (key != KEY_CONFIRM) {
-    return false;
-  }
 
-select_mnemonic_count:
-  if (!protectSelectMnemonicNumber(&word_count, true)) {
-    goto_check(prompt_recovery);
-  }
+  recovery_state_t state = RECOVERY_STATE_PROMPT;
 
-  memzero(desc, sizeof(desc));
-  strcat(desc, _(C__ENTER_YOUR_STR_WORDS_RECOVERY_PHRASE_IN_ORDER));
-  uint2str(word_count, num_str);
-  bracket_replace(desc, num_str);
+  while (state != RECOVERY_STATE_EXIT) {
+    switch (state) {
+      case RECOVERY_STATE_PROMPT:
+        layoutDialogCenterAdapterV2(
+            _(T__IMPORT_WALLET), NULL, &bmp_bottom_left_close,
+            &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL, NULL, NULL,
+            _(C__RESTORE_THE_WALLET_YOU_PREVIOUSLY_USED_FROM_A_RECOVERY_PHRASE));
+        key = protectWaitKey(0, 1);
+        if (key == KEY_CONFIRM) {
+          state = RECOVERY_STATE_SELECT_MNEMONIC_COUNT;
+        } else {
+          state = RECOVERY_STATE_EXIT;
+        }
+        break;
+      case RECOVERY_STATE_SELECT_MNEMONIC_COUNT:
+        if (protectSelectMnemonicNumber(&word_count, true)) {
+          state = RECOVERY_STATE_INPUT_WORDS;
+        } else {
+          state = RECOVERY_STATE_PROMPT;
+        }
+        break;
+      case RECOVERY_STATE_INPUT_WORDS:
+        memzero(desc, sizeof(desc));
+        strcat(desc, _(C__ENTER_YOUR_STR_WORDS_RECOVERY_PHRASE_IN_ORDER));
+        uint2str(word_count, num_str);
+        bracket_replace(desc, num_str);
+        layoutDialogCenterAdapterV2(
+            _(T__ENTER_RECOVERY_PHRASE), NULL, &bmp_bottom_left_arrow,
+            &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL, NULL, NULL, desc);
+        key = protectWaitKey(0, 1);
+        if (key != KEY_CONFIRM) {
+          state = RECOVERY_STATE_SELECT_MNEMONIC_COUNT;
+        } else {
+          word_index = 0;
+          recovery_byself = true;
+          enforce_wordlist = true;
+          dry_run = false;
+          if (input_words(false, 0)) {
+            state = RECOVERY_STATE_REVIEW_WORDLIST;
+          } else {
+            state = RECOVERY_STATE_SELECT_MNEMONIC_COUNT;
+          }
+        }
+        break;
+      case RECOVERY_STATE_REVIEW_WORDLIST:
+        memzero(desc, sizeof(desc));
+        strcat(
+            desc,
+            _(C__THE_NEXT_SCREEN_WILL_START_DISPLAY_THE_STR_WORDS_YOU_JUST_ENTERED));
+        uint2str(word_count, num_str);
+        bracket_replace(desc, num_str);
+        layoutDialogCenterAdapterV2(
+            _(T__REVIEW_WORDLIST), NULL, &bmp_bottom_left_close,
+            &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL, NULL, NULL, desc);
+        key = protectWaitKey(0, 1);
+        if (key == KEY_CONFIRM) {
+          state = RECOVERY_STATE_CHECK_WORDS;
+        } else {
+          layoutDialogCenterAdapterV2(
+              _(T__ABORT_IMPORT_QUES), NULL, &bmp_bottom_left_close,
+              &bmp_bottom_right_confirm, NULL, NULL, NULL, NULL, NULL, NULL,
+              _(C__ARE_YOU_SURE_TO_ABORT_THIS_PROCESS_QUES_ALL_PROGRESS_WILL_BE_LOST));
+          key = protectWaitKey(0, 1);
+          if (key == KEY_CONFIRM) {
+            return false;
+          } else {
+            state = RECOVERY_STATE_REVIEW_WORDLIST;
+          }
+        }
+        break;
+      case RECOVERY_STATE_CHECK_WORDS:
+        ret = recovery_check_words();
+        if (0 == ret) {
+          state = RECOVERY_STATE_SUCCESS;
+        } else if (1 == ret) {
+          state = RECOVERY_STATE_REENTER_WORDS;
+        } else {
+          state = RECOVERY_STATE_REVIEW_WORDLIST;
+        }
+        break;
+      case RECOVERY_STATE_VERIFY_MNEMONIC:
 
-  layoutDialogCenterAdapterV2(_(T__ENTER_RECOVERY_PHRASE), NULL,
-                              &bmp_bottom_left_arrow, &bmp_bottom_right_arrow,
-                              NULL, NULL, NULL, NULL, NULL, NULL, desc);
-  key = protectWaitKey(0, 1);
-  if (key != KEY_CONFIRM) {
-    goto_check(select_mnemonic_count);
-  }
+        memzero(new_mnemonic, sizeof(new_mnemonic));
 
-  word_index = 0;
-  recovery_byself = true;
-  enforce_wordlist = true;
-  dry_run = false;
+        strlcpy(new_mnemonic, words[0], sizeof(new_mnemonic));
+        for (uint32_t i = 1; i < word_count; i++) {
+          strlcat(new_mnemonic, " ", sizeof(new_mnemonic));
+          strlcat(new_mnemonic, words[i], sizeof(new_mnemonic));
+        }
+        if (!mnemonic_check(new_mnemonic)) {
+          state = RECOVERY_STATE_REENTER_WORDS;
+        } else {
+          state = RECOVERY_STATE_SUCCESS;
+        }
+        break;
+      case RECOVERY_STATE_REENTER_WORDS:
+        layoutDialogCenterAdapterV2(
+            NULL, &bmp_icon_error, NULL, &bmp_bottom_right_arrow_off, NULL,
+            NULL, NULL, NULL, NULL, NULL,
+            _(C__INVALID_PHRASE_YOU_CAN_EDIT_A_SINGLE_WORD_OR_START_OVER));
+        key = protectWaitKey(120 * timer1s, 1);
+        if (key == KEY_CONFIRM) {
+          int ret_edit = word_edit_operation_select();
+          if (ret_edit == 1) {
+            state = RECOVERY_STATE_EDIT_WORD;
+          } else if (ret_edit == 2) {
+            state = RECOVERY_STATE_SELECT_MNEMONIC_COUNT;
+          }
+        }
+        break;
+      case RECOVERY_STATE_EDIT_WORD:
+        if (edit_recovery_word()) {
+          state = RECOVERY_STATE_VERIFY_MNEMONIC;
+        } else {
+          state = RECOVERY_STATE_REENTER_WORDS;
+        }
+        break;
+      case RECOVERY_STATE_SUCCESS:
+        layoutDialogCenterAdapterV2(
+            NULL, &bmp_icon_ok, NULL, &bmp_bottom_right_arrow, NULL, NULL, NULL,
+            NULL, NULL, NULL, _(C__AWESOME_EXCLAM_YOUR_WALLET_IS_RESTORED));
+        while (1) {
+          key = protectWaitKey(0, 1);
+          if (key == KEY_CONFIRM) {
+            break;
+          }
+        }
+        if (protectChangePinOnDevice(true, true, false)) {
+          recovery_done(false);
 
-  if (!input_words()) {
-    goto_check(select_mnemonic_count);
-  }
+          recovery_byself = false;
+          return true;
+        }
+        state = RECOVERY_STATE_CHECK_WORDS;
 
-  memzero(desc, sizeof(desc));
-  strcat(
-      desc,
-      _(C__THE_NEXT_SCREEN_WILL_START_DISPLAY_THE_STR_WORDS_YOU_JUST_ENTERED));
-  uint2str(word_count, num_str);
-  bracket_replace(desc, num_str);
-check_words_again:
-  layoutDialogCenterAdapterV2(_(T__REVIEW_WORDLIST), NULL,
-                              &bmp_bottom_left_close, &bmp_bottom_right_arrow,
-                              NULL, NULL, NULL, NULL, NULL, NULL, desc);
-  while (1) {
-    key = protectWaitKey(0, 1);
-    if (key == KEY_CONFIRM || key == KEY_CANCEL) {
+        break;
+      default:
+        break;
+    }
+    if (layoutLast == layoutHome) {
       break;
     }
   }
-  if (key != KEY_CONFIRM) {
-    layoutDialogCenterAdapterV2(
-        _(T__ABORT_IMPORT_QUES), NULL, &bmp_bottom_left_close,
-        &bmp_bottom_right_confirm, NULL, NULL, NULL, NULL, NULL, NULL,
-        _(C__ARE_YOU_SURE_TO_ABORT_THIS_PROCESS_QUES_ALL_PROGRESS_WILL_BE_LOST));
-    key = protectWaitKey(0, 1);
-    if (key == KEY_CONFIRM) {
-      return false;
-    } else {
-      goto check_words_again;
-    }
-  }
-check_word:
-  ret = recovery_check_words();
-  if (1 == ret) {
-    layoutDialogCenterAdapterV2(
-        NULL, &bmp_icon_error, NULL, &bmp_bottom_right_retry, NULL, NULL, NULL,
-        NULL, NULL, NULL,
-        _(C__INVALID_RECOVERY_PHRASE_EXCLAM_CHECK_AND_TRY_AGAIN));
-    while (1) {
-      key = protectWaitKey(120 * timer1s, 1);
-      if (key == KEY_CONFIRM) {
-        break;
-      } else {
-        break;
-      }
-    }
-    goto_check(select_mnemonic_count);
-  } else if (2 == ret) {
-    goto_check(check_words_again);
-  } else {
-    layoutDialogCenterAdapterV2(
-        NULL, &bmp_icon_ok, NULL, &bmp_bottom_right_arrow, NULL, NULL, NULL,
-        NULL, NULL, NULL, _(C__AWESOME_EXCLAM_YOUR_WALLET_IS_RESTORED));
-    while (1) {
-      key = protectWaitKey(0, 1);
-      if (key == KEY_CONFIRM) {
-        break;
-      }
-    }
-  }
-  if (!protectChangePinOnDevice(true, true, false)) {
-    goto_check(check_word);
-  }
-
-  recovery_done(false);
-
-  recovery_byself = false;
-  return true;
+  return false;
 }
 
 uint32_t get_mnemonic_number(char *mnemonic) {
@@ -1024,7 +1240,7 @@ bool verify_words(uint32_t count) {
   enforce_wordlist = true;
   dry_run = true;
 
-  if (!input_words()) {
+  if (!input_words(false, 0)) {
     return false;
   }
   recovery_done(true);
