@@ -274,11 +274,6 @@ void msg_read_common(char type, const uint8_t *buf, uint32_t len) {
     msg_encoded_size =
         ((uint32_t)buf[5] << 24) + (buf[6] << 16) + (buf[7] << 8) + buf[8];
 
-    fields = MessageFields(type, 'i', msg_id);
-    if (!fields) {  // unknown message
-      fsm_sendFailure(FailureType_Failure_UnexpectedMessage, "Unknown message");
-      return;
-    }
     if (msg_encoded_size > MSG_IN_ENCODED_SIZE) {  // message is too big :(
       fsm_sendFailure(FailureType_Failure_DataError, "Message too big");
       return;
@@ -302,9 +297,14 @@ void msg_read_common(char type, const uint8_t *buf, uint32_t len) {
   }
 
   if (msg_pos >= msg_encoded_size) {
-    msg_process(type, msg_id, fields, msg_encoded, msg_encoded_size);
     msg_pos = 0;
     read_state = READSTATE_IDLE;
+    fields = MessageFields(type, 'i', msg_id);
+    if (!fields) {  // unknown message
+      fsm_sendFailure(FailureType_Failure_UnexpectedMessage, "Unknown message");
+      return;
+    }
+    msg_process(type, msg_id, fields, msg_encoded, msg_encoded_size);
   }
 }
 
@@ -332,7 +332,7 @@ const uint8_t *msg_debug_out_data(void) {
 // msg_tiny needs to be large enough to hold the C struct decoded from a single
 // 64 byte USB packet. The decoded struct can be larger than the encoded
 // protobuf message. However, 128 bytes should be more than enough.
-CONFIDENTIAL uint8_t msg_tiny[128];
+CONFIDENTIAL uint8_t msg_tiny[128], msg_tiny_raw[128];
 _Static_assert(sizeof(msg_tiny) >= sizeof(Cancel), "msg_tiny too tiny");
 _Static_assert(USB_PACKET_SIZE >= MSG_HEADER_SIZE + Cancel_size,
                "msg_tiny too tiny");
@@ -360,62 +360,86 @@ _Static_assert(USB_PACKET_SIZE >= MSG_HEADER_SIZE + DebugLinkGetState_size,
 #endif
 uint16_t msg_tiny_id = 0xFFFF;
 
-void msg_read_tiny(const uint8_t *buf, int len) {
-  if (len != USB_PACKET_SIZE || buf[0] != '?' || buf[1] != '#' ||
-      buf[2] != '#') {
-    // Ignore unexpected packets. This is helpful when two applications are
-    // attempting to communicate with Trezor at the same time.
-    return;
-  }
+void msg_read_tiny(const uint8_t *buf, uint32_t len) {
+  static char tiny_read_state = READSTATE_IDLE;
 
-  const pb_msgdesc_t *fields = NULL;
-  uint16_t msg_id = (buf[3] << 8) + buf[4];
-  switch (msg_id) {
-    case MessageType_MessageType_PinMatrixAck:
-      fields = PinMatrixAck_fields;
-      break;
-    case MessageType_MessageType_ButtonAck:
-      fields = ButtonAck_fields;
-      break;
-    case MessageType_MessageType_PassphraseAck:
-      fields = PassphraseAck_fields;
-      break;
-    case MessageType_MessageType_Cancel:
-      fields = Cancel_fields;
-      break;
-    case MessageType_MessageType_Initialize:
-      fields = Initialize_fields;
-      break;
-    case MessageType_MessageType_BixinPinInputOnDevice:
-      fields = BixinPinInputOnDevice_fields;
-      break;
-#if DEBUG_LINK
-    case MessageType_MessageType_DebugLinkDecision:
-      fields = DebugLinkDecision_fields;
-      break;
-    case MessageType_MessageType_DebugLinkGetState:
-      fields = DebugLinkGetState_fields;
-      break;
-#endif
-    default:
-      // Ignore unexpected messages.
+  static const pb_msgdesc_t *fields = NULL;
+  static uint32_t msg_size = 0;
+  static uint32_t msg_pos = 0;
+  static uint16_t msg_id = 0xFFFF;
+
+  if (tiny_read_state == READSTATE_IDLE) {
+    if (len != USB_PACKET_SIZE || buf[0] != '?' || buf[1] != '#' ||
+        buf[2] != '#') {
+      // Ignore unexpected packets. This is helpful when two applications are
+      // attempting to communicate with Trezor at the same time.
       return;
+    }
+
+    msg_id = (buf[3] << 8) + buf[4];
+    switch (msg_id) {
+      case MessageType_MessageType_PinMatrixAck:
+        fields = PinMatrixAck_fields;
+        break;
+      case MessageType_MessageType_ButtonAck:
+        fields = ButtonAck_fields;
+        break;
+      case MessageType_MessageType_PassphraseAck:
+        fields = PassphraseAck_fields;
+        break;
+      case MessageType_MessageType_Cancel:
+        fields = Cancel_fields;
+        break;
+      case MessageType_MessageType_Initialize:
+        fields = Initialize_fields;
+        break;
+      case MessageType_MessageType_BixinPinInputOnDevice:
+        fields = BixinPinInputOnDevice_fields;
+        break;
+#if DEBUG_LINK
+      case MessageType_MessageType_DebugLinkDecision:
+        fields = DebugLinkDecision_fields;
+        break;
+      case MessageType_MessageType_DebugLinkGetState:
+        fields = DebugLinkGetState_fields;
+        break;
+#endif
+      default:
+        // Ignore unexpected messages.
+        return;
+    }
+
+    msg_size =
+        ((uint32_t)buf[5] << 24) + (buf[6] << 16) + (buf[7] << 8) + buf[8];
+
+    if (msg_size > sizeof(msg_tiny_raw) - MSG_HEADER_SIZE - 1) {
+      // There is a risk that the struct decoded from the message won't fit into
+      // msg_tiny or the encoded message does not fit into the buffer. The first
+      // is a fail-safe in case of a forgotten _Static_assert above.
+      fsm_sendFailure(FailureType_Failure_DataError, "Message too big");
+      msg_tiny_id = 0xFFFF;
+      return;
+    }
+    memcpy(msg_tiny_raw, buf + MSG_HEADER_SIZE, len - MSG_HEADER_SIZE);
+    if (msg_size > len - MSG_HEADER_SIZE) {
+      tiny_read_state = READSTATE_READING;
+      msg_pos = len - MSG_HEADER_SIZE;
+      return;
+    }
+  } else {
+    if (buf[0] != '?') {
+      tiny_read_state = READSTATE_IDLE;
+      return;
+    }
+
+    buf++;
+    len = MIN(len - 1, msg_size - msg_pos);
+
+    memcpy(msg_tiny_raw + msg_pos, buf, len);
+    tiny_read_state = READSTATE_IDLE;
   }
 
-  uint32_t msg_size =
-      ((uint32_t)buf[5] << 24) + (buf[6] << 16) + (buf[7] << 8) + buf[8];
-
-  if (msg_size > sizeof(msg_tiny) / 2 ||
-      msg_size > (uint32_t)len - MSG_HEADER_SIZE) {
-    // There is a risk that the struct decoded from the message won't fit into
-    // msg_tiny or the encoded message does not fit into the buffer. The first
-    // is a fail-safe in case of a forgotten _Static_assert above.
-    fsm_sendFailure(FailureType_Failure_DataError, "Message too big");
-    msg_tiny_id = 0xFFFF;
-    return;
-  }
-
-  pb_istream_t stream = pb_istream_from_buffer(buf + MSG_HEADER_SIZE, msg_size);
+  pb_istream_t stream = pb_istream_from_buffer(msg_tiny_raw, msg_size);
   bool status = pb_decode(&stream, fields, msg_tiny);
   if (status) {
     msg_tiny_id = msg_id;
