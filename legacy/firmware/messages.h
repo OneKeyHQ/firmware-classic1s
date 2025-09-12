@@ -80,4 +80,8 @@ void msg_read_tiny(const uint8_t *buf, uint32_t len);
 extern uint8_t msg_tiny[128];
 extern uint16_t msg_tiny_id;
 
+void *get_incoming_message(void);
+extern uint16_t msg_id_ready_to_process;
+extern bool msg_command_process_manual;
+extern bool msg_decode_error_occurred;
 #endif

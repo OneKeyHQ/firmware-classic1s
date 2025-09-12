@@ -214,6 +214,45 @@ bool button_request(const ButtonRequestType code) {
   return result;
 }
 
+void *call(const MessageType req_type, const void *msg_ptr,
+           const MessageType expected_response_type) {
+  buttonUpdate();
+  msg_command_process_manual = true;
+  msg_write(req_type, msg_ptr);
+  void *response = NULL;
+  for (;;) {
+    usbPoll();
+
+    if (msg_id_ready_to_process == expected_response_type) {
+      msg_command_process_manual = false;
+      msg_id_ready_to_process = 0xFFFF;
+      response = get_incoming_message();
+      break;
+    }
+    protectAbortedByCancel =
+        (msg_id_ready_to_process == MessageType_MessageType_Cancel);
+    protectAbortedByInitialize =
+        (msg_id_ready_to_process == MessageType_MessageType_Initialize);
+    if (protectAbortedByCancel || protectAbortedByInitialize) {
+      fsm_sendFailure(FailureType_Failure_DataError, "Cancelled");
+      break;
+    } else if (msg_id_ready_to_process != 0xFFFF) {
+      char e_msg[56] = {0};
+      snprintf(e_msg, sizeof(e_msg),
+               "Unexpected message received in sync call:%" PRIu16,
+               msg_id_ready_to_process);
+      fsm_sendFailure(FailureType_Failure_DataError, e_msg);
+      break;
+    } else if (msg_decode_error_occurred) {
+      break;
+    }
+    delay_ms(10);
+  }
+  msg_command_process_manual = false;
+  msg_id_ready_to_process = 0xFFFF;
+  return response;
+}
+
 void fsm_sendSuccess(const char *text) {
   RESP_INIT(Success);
   if (text) {

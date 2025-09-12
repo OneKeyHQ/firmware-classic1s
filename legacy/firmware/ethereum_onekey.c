@@ -28,6 +28,7 @@
 #include "ethereum_networks_onekey.h"
 #include "ethereum_onekey.h"
 #include "ethereum_tokens_onekey.h"
+#include "ethereum_typed_data.h"
 #include "fsm.h"
 #include "gettext.h"
 #include "layout2.h"
@@ -1634,6 +1635,141 @@ void ethereum_typed_hash_sign_onekey(const EthereumSignTypedHashOneKey *msg,
   ethereum_typed_hash(msg->domain_separator_hash.bytes, msg->message_hash.bytes,
                       msg->has_message_hash, hash);
 
+  uint8_t v = 0;
+#if EMULATOR
+  if (ecdsa_sign_digest(&secp256k1, node->private_key, hash,
+                        resp->signature.bytes, &v, ethereum_is_canonic) != 0) {
+#else
+  if (hdnode_sign_digest(node, hash, resp->signature.bytes, &v,
+                         ethereum_is_canonic) != 0) {
+#endif
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Signing failed");
+    return;
+  }
+  resp->signature.bytes[64] = 27 + v;
+  resp->signature.size = 65;
+  msg_write(MessageType_MessageType_EthereumTypedDataSignatureOneKey, resp);
+}
+
+static bool is_string_in_list(const char *str, const char *const *list,
+                              size_t list_size) {
+  for (size_t i = 0; i < list_size; i++) {
+    if (strcmp(str, list[i]) == 0) {
+      return true;
+    }
+  }
+  return false;
+}
+static bool typed_data_confirm_final(void) {
+  oledClear();
+  layoutHeader(_(T_CONFIRM_TYPED_DATA));
+  char confirm_text[128] = {0};
+  snprintf(confirm_text, 128, "%s",
+           _(C__DO_YOU_WANT_TO_SIGN_THIS_CHAIN_STR_MESSAGE_QUES));
+  bracket_replace(confirm_text, "EIP712");
+  oledDrawStringAdapter(0, 13, confirm_text, FONT_STANDARD);
+  layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
+  layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
+  oledRefresh();
+  return protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false);
+}
+void ethereum_typed_data_sign_onekey(const EthereumSignTypedDataOneKey *msg,
+                                     const HDNode *node,
+                                     EthereumTypedDataSignatureOneKey *resp) {
+  TypedDataEnvelope envelope = {0};
+  TypedDataEnvelope_init(&envelope, msg->primary_type,
+                         strlen(msg->primary_type), msg->metamask_v4_compat);
+  if (!collect_types(&envelope)) {
+    return;
+  }
+  bool is_permit =
+      is_string_in_list(envelope.primary_type, HIGH_RISK_PRIMARY_TYPES_PERMIT,
+                        sizeof(HIGH_RISK_PRIMARY_TYPES_PERMIT) /
+                            sizeof(HIGH_RISK_PRIMARY_TYPES_PERMIT[0]));
+  bool is_order =
+      is_string_in_list(envelope.primary_type, HIGH_RISK_PRIMARY_TYPES_ORDER,
+                        sizeof(HIGH_RISK_PRIMARY_TYPES_ORDER) /
+                            sizeof(HIGH_RISK_PRIMARY_TYPES_ORDER[0]));
+  char warning_text[128] = {0};
+  snprintf(warning_text, 128, "%s", _(I_TYPED_DATA_AUTHORIZATION_WARNING));
+  char *warning_type = NULL;
+  if (is_permit) {
+    warning_type = "Permit";
+  } else if (is_order) {
+    warning_type = "Order";
+  } else {
+    warning_type = "signTypedData";
+  }
+  bracket_replace(warning_text, warning_type);
+  // show warning
+  layoutDialogCenterAdapterV2(NULL, &bmp_icon_warning, &bmp_bottom_left_close,
+                              &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL,
+                              NULL, NULL, warning_text);
+  if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
+    fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
+    return;
+  }
+  uint32_t member_path[] = {0};
+  uint8_t member_path_len = 1;
+  char parent_objects[1][64] = {TYPE_NAME_DOMAIN};
+  uint8_t parent_objects_len = 1;
+  uint8_t domain_separator[32] = {0};
+  display_info_init(&display_info, 16);
+
+  if (!hash_struct(&envelope, TYPE_NAME_DOMAIN, strlen(TYPE_NAME_DOMAIN),
+                   member_path, member_path_len, 0, parent_objects,
+                   parent_objects_len, domain_separator)) {
+    display_info_cleanup(&display_info);
+    return;
+  }
+  if (!layoutTypedData(&display_info, TYPE_NAME_DOMAIN)) {
+    display_info_cleanup(&display_info);
+    fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
+    return;
+  }
+  display_info_cleanup(&display_info);
+  bool has_message_hash = true;
+  if (strncmp(envelope.primary_type, TYPE_NAME_DOMAIN,
+              strlen(TYPE_NAME_DOMAIN)) == 0) {
+    has_message_hash = false;
+  }
+  uint8_t message_hash[32] = {0};
+
+  if (has_message_hash) {
+    member_path[0] = 1;
+    memzero(parent_objects, sizeof(parent_objects));
+    strncpy(parent_objects[0], envelope.primary_type,
+            strlen(envelope.primary_type));
+    display_info_init(&display_info, 16);
+    if (!hash_struct(&envelope, envelope.primary_type,
+                     strlen(envelope.primary_type), member_path,
+                     member_path_len, 0, parent_objects, parent_objects_len,
+                     message_hash)) {
+      display_info_cleanup(&display_info);
+      return;
+    }
+    if (!layoutTypedData(&display_info, envelope.primary_type)) {
+      display_info_cleanup(&display_info);
+      fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
+      return;
+    }
+    display_info_cleanup(&display_info);
+  }
+
+  // confirm final
+  if (!typed_data_confirm_final()) {
+    fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
+    return;
+  }
+  uint8_t hash[32] = {0};
+  SHA3_CTX ctx = {0};
+  sha3_256_Init(&ctx);
+  sha3_Update(&ctx, (const uint8_t *)"\x19\x01", 2);
+  sha3_Update(&ctx, domain_separator, 32);
+  if (has_message_hash) {
+    sha3_Update(&ctx, message_hash, 32);
+  }
+  keccak_Final(&ctx, hash);
   uint8_t v = 0;
 #if EMULATOR
   if (ecdsa_sign_digest(&secp256k1, node->private_key, hash,

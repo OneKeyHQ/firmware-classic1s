@@ -206,14 +206,15 @@ string_lines_t split_string_to_lines(const char *text, int max_width,
   return lines;
 }
 
-void draw_string_wrap(int x, int y, const char *text, uint8_t font) {
+uint8_t draw_string_wrap(int x, int y, const char *text, uint8_t font) {
   const char *p = text;
   uint8_t height = font_get_height();
   int cursor_x = x;
   int cursor_y = y;
   int char_width = 0, line_width = 0;
-
+  uint8_t line_count = 0;
   while (*p) {
+    line_count++;
     if (*p == '\r' || *p == '\n') {
       cursor_x = 0;
       cursor_y += height;
@@ -231,6 +232,7 @@ void draw_string_wrap(int x, int y, const char *text, uint8_t font) {
     cursor_y += height;
     cursor_x = 0;
   }
+  return line_count;
 }
 
 void draw_string_center(int x, int y, const char *text, uint8_t font) {
@@ -287,10 +289,9 @@ int oledStringWidthAdapter(const char *text, uint8_t font) {
   return oledStringWidthEx(text, font);
 }
 
-void oledDrawStringAdapter(int x, int y, const char *text, uint8_t font) {
-  if (!text) return;
-  draw_string_wrap(x, y, text, font);
-  return;
+uint8_t oledDrawStringAdapter(int x, int y, const char *text, uint8_t font) {
+  if (!text) return 1;
+  return draw_string_wrap(x, y, text, font);
 }
 
 void oledDrawStringCenterAdapter(int x, int y, const char *text, uint8_t font) {

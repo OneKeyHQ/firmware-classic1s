@@ -47,6 +47,12 @@ static const struct MessagesMap_t MessagesMap[] = {
 
 #include "messages_map_limits.h"
 
+// FTFixed:如果使用芯片自动分配的Ram，会发生异常
+static uint8_t msg_decoded[MSG_IN_DECODED_SIZE]
+    __attribute__((section(".secMessageSection")));
+
+void *get_incoming_message(void) { return (void *)msg_decoded; }
+
 const pb_msgdesc_t *MessageFields(char type, char dir, uint16_t msg_id) {
   const struct MessagesMap_t *m = MessagesMap;
   while (m->type) {
@@ -234,22 +240,32 @@ void clear_msg_out(void) { msg_out_start = msg_out_end; }
 enum {
   READSTATE_IDLE,
   READSTATE_READING,
+  READSTATE_DONE,
 };
 
 extern bool msg_command_inprogress;
+bool msg_command_process_manual = false;
+bool msg_decode_error_occurred = false;
+uint16_t msg_id_ready_to_process = 0xFFFF;
 
 void msg_process(char type, uint16_t msg_id, const pb_msgdesc_t *fields,
                  uint8_t *msg_raw, uint32_t msg_size) {
-  // FTFixed:如果使用芯片自动分配的Ram，会发生异常
-  static uint8_t msg_decoded[MSG_IN_DECODED_SIZE]
-      __attribute__((section(".secMessageSection")));
   memzero(msg_decoded, sizeof(msg_decoded));
   pb_istream_t stream = pb_istream_from_buffer(msg_raw, msg_size);
   bool status = pb_decode(&stream, fields, msg_decoded);
   if (status) {
     msg_command_inprogress = true;
-    MessageProcessFunc(type, 'i', msg_id, msg_decoded);
+    msg_decode_error_occurred = false;
+    msg_id_ready_to_process = 0xFFFF;
+    if (!msg_command_process_manual) {
+      MessageProcessFunc(type, 'i', msg_id, msg_decoded);
+    } else {
+      msg_id_ready_to_process = msg_id;
+    }
   } else {
+    if (msg_command_inprogress && !msg_decode_error_occurred) {
+      msg_decode_error_occurred = true;
+    }
     fsm_sendFailure(FailureType_Failure_DataError, stream.errmsg);
   }
 }
@@ -264,7 +280,9 @@ void msg_read_common(char type, const uint8_t *buf, uint32_t len) {
   static const pb_msgdesc_t *fields = 0;
 
   if (len != USB_PACKET_SIZE) return;
-
+  if (msg_command_process_manual && read_state == READSTATE_DONE) {
+    read_state = READSTATE_IDLE;
+  }
   if (read_state == READSTATE_IDLE) {
     if (buf[0] != '?' || buf[1] != '#' ||
         buf[2] != '#') {  // invalid start - discard
@@ -297,14 +315,27 @@ void msg_read_common(char type, const uint8_t *buf, uint32_t len) {
   }
 
   if (msg_pos >= msg_encoded_size) {
-    msg_pos = 0;
-    read_state = READSTATE_IDLE;
+    read_state = READSTATE_DONE;
     fields = MessageFields(type, 'i', msg_id);
     if (!fields) {  // unknown message
-      fsm_sendFailure(FailureType_Failure_UnexpectedMessage, "Unknown message");
-      return;
+      switch (msg_id) {
+        case MessageType_MessageType_EthereumTypedDataStructAckOneKey:
+          fields = EthereumTypedDataStructAckOneKey_fields;
+          break;
+        case MessageType_MessageType_EthereumTypedDataValueAckOneKey:
+          fields = EthereumTypedDataValueAckOneKey_fields;
+          break;
+        default:
+          msg_pos = 0;
+          read_state = READSTATE_IDLE;
+          fsm_sendFailure(FailureType_Failure_UnexpectedMessage,
+                          "Unknown message");
+          return;
+      }
     }
     msg_process(type, msg_id, fields, msg_encoded, msg_encoded_size);
+    msg_pos = 0;
+    read_state = READSTATE_IDLE;
   }
 }
 
