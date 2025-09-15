@@ -1687,9 +1687,15 @@ void protectPinErrorTips(bool retry) {
   char times_str[3] = {0};
   snprintf(desc, 128, "%s", _(C__INCORRECT_PIN_STR_ATTEMPT_LEFT_TRY_AGAIN));
 
-  uint32_t fails = config_getPinFails();
-  if (fails > 0 && fails < 10) {
-    uint2str(10 - fails, times_str);
+  // Prefer SE's remaining retry times to avoid mismatches
+  uint8_t remain = 0;
+  if (se_getRetryTimes(&remain) != sectrue) {
+    remain = 0;  // Fail-safe: treat as no attempts left
+  }
+
+  // Show remaining attempts if any; otherwise trigger reset branch
+  if (remain > 0) {
+    uint2str(remain, times_str);
     bracket_replace(desc, times_str);
     layoutDialogCenterAdapterV2(
         NULL, &bmp_icon_warning, NULL,
@@ -1718,13 +1724,16 @@ void protectPinErrorTips(bool retry) {
   }
   protectWaitKey(0, 0);
 
-  if (fails >= 5 && !(protectAbortedByInitialize || protectAbortedByCancel)) {
+  // Show additional CAUTION page only after 3 or more consecutive wrong attempts
+  // i.e., when remaining attempts are 2 or fewer (with total limit 5)
+  if ((5 - remain) >= 3 && !(protectAbortedByInitialize || protectAbortedByCancel)) {
     fsm_sendFailure(FailureType_Failure_PinCancelled, NULL);
     memset(desc, 0, 128);
     memset(times_str, 0, 3);
     snprintf(desc, 128, "%s",
              _(C__CAUTION_DEVICE_WILL_BE_RESET_AFTER_STR_MORE_TIME_WRONG));
-    uint2str(10 - fails, times_str);
+    // Remaining wrong attempts before reset
+    uint2str(remain, times_str);
     bracket_replace(desc, times_str);
     
     // Check if user is attach to pin user without passphrase enabled

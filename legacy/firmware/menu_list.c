@@ -1192,8 +1192,8 @@ _layout:
     bmp_yes = (BITMAP *)&bmp_bottom_right_arrow_off;
   }
   
-  // Use i18n title (no hardcoded English)
-  layoutDialogCenterAdapterV2(NULL, NULL, (const BITMAP *)bmp_no,
+  // Show WARNING title without parentheses
+  layoutDialogCenterAdapterV2(__("WARNING"), NULL, (const BITMAP *)bmp_no,
                               (const BITMAP *)bmp_yes, (const BITMAP *)bmp_up,
                               (const BITMAP *)bmp_down, NULL, NULL, NULL, NULL,
                               page_contents[index]);
@@ -1223,6 +1223,14 @@ _layout:
         memset(passphrase, 0, sizeof(passphrase));
         bool result = inputPassphraseOnDeviceRequired(passphrase);
         if (result && strlen(passphrase) > 0) {
+          // Show confirmation page with length indicator (x/50)
+          layoutShowPassphrase(passphrase);
+          uint8_t confirm_key = protectWaitKey(0, 0);
+          if (confirm_key != KEY_CONFIRM) {
+            // User cancelled confirmation; go back
+            goto _layout;
+          }
+
           // Show Save Passphrase confirmation page (i18n)
           layoutDialogCenterAdapterV2(
               _(T__SAVE_PASSPHRASE), NULL, NULL, &bmp_bottom_right_arrow,
@@ -1305,6 +1313,8 @@ _layout:
             menu_init(&passphrase_manage_menu);
           }
         } else {
+          // User cancelled input or entered empty value; return to the WARNING page
+          goto _layout;
         }
         return KEY_CONFIRM;
       }
@@ -1403,57 +1413,8 @@ static void menu_set_new_passphrase_option(int index) {
     // Go back to options menu
     return;
   } else if (key == KEY_CONFIRM) {
-    // Since we're in Step 4.2, the main PIN is already verified and stored,
-    // now we need to input passphrase and save the association
-    static char passphrase[MAX_PASSPHRASE_LEN + 1] = "";
-    memset(passphrase, 0, sizeof(passphrase));
-    bool result = inputPassphraseOnDeviceRequired(passphrase);
-    
-    if (result && strlen(passphrase) > 0) {
-      // Show Save Passphrase confirmation page (i18n)
-      layoutDialogCenterAdapterV2(
-          _(T__SAVE_PASSPHRASE), NULL, NULL, &bmp_bottom_right_arrow,
-          NULL, NULL, NULL, NULL, NULL, NULL,
-          _(C__PASSPHRASE_SAVE_DESC));
-      
-      uint8_t save_key = protectWaitKey(0, 0);
-      if (save_key == KEY_CONFIRM) {
-        
-        // Use the stored main PIN and passphrase PIN with new passphrase
-        bool override = false;
-        secbool save_result = se_set_pin_passphrase(g_temp_main_pin, g_temp_passphrase_pin, passphrase, &override);
-        
-        if (save_result == sectrue) {
-          // Show success message (i18n)
-          layoutDialogCenterAdapterV2(
-              NULL, &bmp_icon_ok, NULL, &bmp_bottom_right_arrow,
-              NULL, NULL, NULL, NULL, NULL, NULL,
-              _(C__PASSPHRASE_SET_AND_ATTACHED_TO_PIN));
-          protectWaitKey(0, 0);
-          clear_temp_pin_data(); // Clear after successful save
-          
-          // If update affected current session, lock device and return to main menu
-          if (override) {
-            session_clear(true);
-            layoutScreensaver();
-            // Wait briefly for user to see the success message
-            protectWaitKey(timer1s, 0);
-            // Return to main menu to force re-authentication
-            menu_default();
-            layoutHome();
-            return;
-          }
-        } else {
-          // Show error message  
-          layoutDialogCenterAdapterV2(
-              NULL, &bmp_icon_error, NULL, &bmp_bottom_right_arrow,
-              NULL, NULL, NULL, NULL, NULL, NULL,
-              "Failed to save passphrase!");
-          protectWaitKey(0, 0);
-          clear_temp_pin_data(); // Clear after failed save
-        }
-      }
-    }
+    // Show the two-page WARNING flow before passphrase input and saving
+    (void)menu_attach_passphrase_warning_pagination(g_temp_main_pin, g_temp_passphrase_pin);
     return;
   }
 }

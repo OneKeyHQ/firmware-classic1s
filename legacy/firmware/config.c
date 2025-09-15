@@ -554,6 +554,10 @@ void session_clear(bool lock) {
   se_sessionClear();
 
   if (lock) {
+    // When locking the device, clear the passphrase-PIN session state
+    // so that future feature queries don't report a stale
+    // "unlocked via attach-to-pin" status.
+    is_passphrase_pin_enabled = false;
     config_lockDevice();
   }
 }

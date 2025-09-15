@@ -132,7 +132,7 @@ const char *const languages_en[] = {
     "It will temporarily allow you to perform some actions with potentially risky.",
     "Are you sure to temporarily disable Safety-Checks?",
     "Enter PIN",
-    "CAUTION!\nDevice will reset after {} more wrong attempts.",
+    "CAUTION!\nDevice will be reset after {} more times wrong",
     "Incorrect PIN!\n0 attempt left, device\nwill be reset now...",
     "Erasing...",
     "Reset completed\nConfirm to restart.",

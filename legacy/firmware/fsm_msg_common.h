@@ -73,7 +73,7 @@ bool get_features(Features *resp) {
   
   resp->has_attach_to_pin_user = true;
   resp->attach_to_pin_user = attach_user_status; 
-  
+    
   resp->has_unlocked_attach_pin = true;
   resp->unlocked_attach_pin = is_passphrase_pin_enabled;
 #ifdef SCM_REVISION
@@ -258,10 +258,13 @@ bool get_features(Features *resp) {
     resp->passphrase_protection = false;
   }
   
-  // Set unlocked_attach_pin if device is unlocked
+  // Set unlocked_attach_pin to reflect current session unlock method
+  // It should indicate whether the current session was unlocked via
+  // hidden PIN (AttachToPin), independent of whether the user is an
+  // attach-to-pin user in general.
   if (session_isUnlocked()) {
     resp->has_unlocked_attach_pin = true;
-    resp->unlocked_attach_pin = resp->attach_to_pin_user;
+    resp->unlocked_attach_pin = is_passphrase_pin_enabled;
   }
   
   return resp;
@@ -1255,16 +1258,11 @@ void fsm_msgUnLockDevice(const UnLockDevice *msg) {
   resp->has_unlocked = true;
   resp->unlocked = is_unlocked;
   
-  // Check attach-to-pin status if device is unlocked
+  // If device is unlocked, report whether the current session was
+  // unlocked via hidden PIN (AttachToPin)
   if (is_unlocked) {
     resp->has_unlocked_attach_pin = true;
-    uint8_t space_available = 0;
-    if (se_get_pin_passphrase_space(&space_available)) {
-      // If space < 30, attach to pin is being used
-      resp->unlocked_attach_pin = (space_available < 30);
-    } else {
-      resp->unlocked_attach_pin = false;
-    }
+    resp->unlocked_attach_pin = is_passphrase_pin_enabled;
   }
   
   // Check if passphrase protection is enabled
