@@ -57,6 +57,8 @@ bool protectChangePinOnDevice(bool is_prompt, bool set, bool cancel_allowed);
 bool protectSelectMnemonicNumber(uint32_t* number, bool cancel_allowed);
 void protectPinErrorTips(bool retry);
 bool protectPassphraseOnDevice(char* passphrase);
+bool inputPassphraseOnDevice(char* passphrase);
+bool inputPassphraseOnDeviceRequired(char* passphrase);
 
 uint8_t protectButtonValue(ButtonRequestType type, bool confirm_only,
                            bool requset, uint32_t timeout_s);
@@ -70,6 +72,10 @@ extern bool protectAbortedByInitialize;
 extern bool protectAbortedByInitializeOnboarding;
 extern bool protectAbortedByTimeout;
 extern bool protectAbortedBySleep;
+
+// 全局变量：跟踪当前解锁的PIN类型
+// true: 用passphrase PIN解锁, false: 用user PIN解锁
+extern bool is_passphrase_pin_enabled;
 
 #define WAIT_KEY_OR_ABORT(timeout, mode, key)                   \
   do {                                                          \

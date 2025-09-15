@@ -6,8 +6,11 @@ PinMatrixAck.pin                        max_size:10
 PinMatrixAck.new_pin                    max_size:10
 
 PassphraseAck.passphrase                max_size:51
+PassphraseAck.on_device_attach_pin      type:FT_STATIC
 
 PassphraseAck._state                    type:FT_IGNORE
+
+PassphraseRequest.exists_attach_pin_user type:FT_STATIC
 
 Deprecated_PassphraseStateRequest.state max_size:1
 

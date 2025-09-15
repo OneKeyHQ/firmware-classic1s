@@ -19,6 +19,8 @@ extern const BITMAP bmp_boot_icon;
 extern const BITMAP bmp_bottom_left_arrow;
 extern const BITMAP bmp_bottom_left_close;
 extern const BITMAP bmp_bottom_left_delete;
+extern const BITMAP bmp_bottom_left_lock;
+extern const BITMAP bmp_bottom_left_lock_original;
 extern const BITMAP bmp_bottom_left_qrcode;
 extern const BITMAP bmp_bottom_middle_arrow_down;
 extern const BITMAP bmp_bottom_middle_arrow_up;

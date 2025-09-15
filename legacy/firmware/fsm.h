@@ -100,6 +100,8 @@ void fsm_msgSetU2FCounter(const SetU2FCounter *msg);
 void fsm_msgGetNextU2FCounter(void);
 void fsm_msgGetFirmwareHash(const GetFirmwareHash *msg);
 void fsm_msgSetBusy(const SetBusy *msg);
+void fsm_msgGetPassphraseState(const GetPassphraseState *msg);
+void fsm_msgUnLockDevice(const UnLockDevice *msg);
 
 // coin
 void fsm_msgGetPublicKey(const GetPublicKey *msg);

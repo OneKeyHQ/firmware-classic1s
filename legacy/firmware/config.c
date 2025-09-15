@@ -60,9 +60,10 @@ typedef enum {
 typedef struct {
   STORAGE_UINT32(version);
   STORAGE_BYTES(uuid, UUID_SIZE)
-  STORAGE_BOOL(passphrase_protection)
   STORAGE_STRING(language, MAX_LANGUAGE_LEN + 1)
   STORAGE_STRING(label, MAX_LABEL_LEN + 1)
+  STORAGE_BOOL(passphrase_protection)
+  STORAGE_BOOL(passphrase_attach_to_pin)
   STORAGE_BYTES(homescreen, HOMESCREEN_SIZE)
   STORAGE_UINT32(auto_lock_delay_ms)
   STORAGE_UINT32(sleep_delay_ms)
@@ -82,9 +83,10 @@ typedef struct {
 
 #define KEY_VERSION offsetof(PubConfig, version)
 #define KEY_UUID offsetof(PubConfig, uuid)
-#define KEY_PASSPHRASE_PROTECTION offsetof(PubConfig, passphrase_protection)
 #define KEY_LANGUAGE offsetof(PubConfig, language)
 #define KEY_LABEL offsetof(PubConfig, label)
+#define KEY_PASSPHRASE_PROTECTION 0x44  
+#define KEY_PASSPHRASE_ATTACH_TO_PIN offsetof(PubConfig, passphrase_attach_to_pin)
 #define KEY_HOMESCREEN offsetof(PubConfig, homescreen)
 #define KEY_AUTO_LOCK_DELAY_MS offsetof(PubConfig, auto_lock_delay_ms)
 #define KEY_SLEEP_DELAY_MS offsetof(PubConfig, sleep_delay_ms)
@@ -188,15 +190,18 @@ static secbool config_has_key(const uint32_t id) {
 }
 
 static secbool config_get_bool(const uint32_t id, bool *value) {
-  uint8_t v;
+  uint8_t v = 0;
   *value = false;
-  CHECK_CONFIG_OP(config_get(id, &v, sizeof(bool)));
-  *value = v == TRUE_BYTE;
-  return sectrue;
+  secbool result = config_get(id, &v, sizeof(bool));
+  if (result == sectrue) {
+    *value = v == TRUE_BYTE;
+  }
+  return result;
 }
 
 static secbool config_set_bool(const uint32_t id, bool value) {
-  return config_set(id, value ? &TRUE_BYTE : &FALSE_BYTE, 1);
+  uint8_t byte_value = value ? TRUE_BYTE : FALSE_BYTE;
+  return config_set(id, &byte_value, 1);
 }
 
 static secbool config_get_bytes(const uint32_t id, uint8_t *dest,
@@ -306,11 +311,26 @@ void config_setLanguage(const char *lang) {
 }
 
 void config_setPassphraseProtection(bool passphrase_protection) {
-  config_set_bool(KEY_PASSPHRASE_PROTECTION, passphrase_protection);
+  
+  secbool result;
+  if (passphrase_protection) {
+    result = config_set_bool(KEY_PASSPHRASE_PROTECTION, true);
+  } else {
+    result = config_delete_key(KEY_PASSPHRASE_PROTECTION);
+  }
+  (void)result;
 }
 
 bool config_getPassphraseProtection(bool *passphrase_protection) {
   return config_get_bool(KEY_PASSPHRASE_PROTECTION, passphrase_protection);
+}
+
+void config_setPassphraseAttachToPin(bool attach_to_pin) {
+  config_set_bool(KEY_PASSPHRASE_ATTACH_TO_PIN, attach_to_pin);
+}
+
+bool config_getPassphraseAttachToPin(bool *attach_to_pin) {
+  return config_get_bool(KEY_PASSPHRASE_ATTACH_TO_PIN, attach_to_pin);
 }
 
 void config_setHomescreen(const uint8_t *data, uint32_t size) {
@@ -334,9 +354,13 @@ bool config_genSessionSeed(void) {
   }
 
   if (derive_cardano) {
-    if (status & 0x40) return true;
+    if (status & 0x40) {
+      return true;
+    }
   } else {
-    if (status & 0x80) return true;
+    if (status & 0x80) {
+      return true;
+    }
   }
 
   if (!protectPassphrase(passphrase)) {
@@ -370,12 +394,15 @@ bool config_genSessionSeed(void) {
   }
 
   char oldTiny = usbTiny(1);
-
   if (!(status & 0x80)) {
-    if (!se_gen_session_seed(passphrase, false)) return false;
+    if (!se_gen_session_seed(passphrase, false)) {
+      return false;
+    }
   }
   if (derive_cardano && !(status & 0x40)) {
-    if (!se_gen_session_seed(passphrase, true)) return false;
+    if (!se_gen_session_seed(passphrase, true)) {
+      return false;
+    }
   }
 
   memzero(passphrase, sizeof(passphrase));
@@ -457,7 +484,14 @@ bool config_setPin(const char *pin) { return sectrue == se_setPin(pin); }
 /* Unlock device/verify PIN.  The pin must be
  * a null-terminated string with at most 9 characters.
  */
-bool config_verifyPin(const char *pin) { return sectrue == se_verifyPin(pin); }
+bool config_verifyPin(const char *pin, pin_type_t pin_type) {
+  bool passphrase_protection = false;
+  config_getPassphraseProtection(&passphrase_protection);
+  if (!passphrase_protection && pin_type == PIN_TYPE_USER_AND_PASSPHRASE_PIN) {
+    pin_type = PIN_TYPE_USER;
+  }
+  return (sectrue == se_verifyPin(pin, pin_type));
+}
 
 bool config_hasPin(void) { return sectrue == se_hasPin(); }
 
@@ -756,8 +790,8 @@ bool config_changeWipeCode(const char *pin, const char *wipe_code) {
   return ret;
 }
 
-bool config_unlock(const char *pin) {
-  bool ret = config_verifyPin(pin);
+bool config_unlock(const char *pin, pin_type_t pin_type) {
+  bool ret = config_verifyPin(pin, pin_type);
   if (!ret) {
     // check wipe code
     if (0x6f80 == se_lasterror()) {
