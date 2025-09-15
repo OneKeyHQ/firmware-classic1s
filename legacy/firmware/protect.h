@@ -73,8 +73,6 @@ extern bool protectAbortedByInitializeOnboarding;
 extern bool protectAbortedByTimeout;
 extern bool protectAbortedBySleep;
 
-// 全局变量：跟踪当前解锁的PIN类型
-// true: 用passphrase PIN解锁, false: 用user PIN解锁
 extern bool is_passphrase_pin_enabled;
 
 #define WAIT_KEY_OR_ABORT(timeout, mode, key)                   \

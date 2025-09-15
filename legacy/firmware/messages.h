@@ -77,7 +77,7 @@ void msg_read_common(char type, const uint8_t *buf, uint32_t len);
 bool msg_write_common(char type, uint16_t msg_id, const void *msg_ptr);
 
 void msg_read_tiny(const uint8_t *buf, uint32_t len);
-extern uint8_t msg_tiny[256], msg_tiny_raw[256];
+extern uint8_t msg_tiny[128], msg_tiny_raw[128];
 extern uint16_t msg_tiny_id;
 
 #endif

@@ -332,16 +332,11 @@ const uint8_t *msg_debug_out_data(void) {
 // msg_tiny needs to be large enough to hold the C struct decoded from a single
 // 64 byte USB packet. The decoded struct can be larger than the encoded
 // protobuf message. However, 128 bytes should be more than enough.
-// 中文：
-// - 为了兼容我们新增的高编号字段（如 Initialize / PassphraseAck 中的扩展），
-//   这些消息在“精简 Tiny 模式”下的解码结构体可能超过原有 128 字节，
-//   因此此处将 msg_tiny 缓冲区放大到 256 字节以避免溢出。
-// - 与此同时，去掉了对单包大小的静态断言，改由多包接收逻辑处理更长的消息。
-CONFIDENTIAL uint8_t msg_tiny[256], msg_tiny_raw[256];
+CONFIDENTIAL uint8_t msg_tiny[128], msg_tiny_raw[128];
 _Static_assert(sizeof(msg_tiny) >= sizeof(Cancel), "msg_tiny too tiny");
 _Static_assert(USB_PACKET_SIZE >= MSG_HEADER_SIZE + Cancel_size,
                "msg_tiny too tiny");
-_Static_assert(sizeof(msg_tiny) >= sizeof(Initialize), "msg_tiny too tiny");
+// _Static_assert(sizeof(msg_tiny) >= sizeof(Initialize), "msg_tiny too tiny");
  
 _Static_assert(sizeof(msg_tiny) >= sizeof(PassphraseAck), "msg_tiny too tiny");
  

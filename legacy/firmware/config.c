@@ -60,10 +60,9 @@ typedef enum {
 typedef struct {
   STORAGE_UINT32(version);
   STORAGE_BYTES(uuid, UUID_SIZE)
+  STORAGE_BOOL(passphrase_protection)
   STORAGE_STRING(language, MAX_LANGUAGE_LEN + 1)
   STORAGE_STRING(label, MAX_LABEL_LEN + 1)
-  STORAGE_BOOL(passphrase_protection)
-  STORAGE_BOOL(passphrase_attach_to_pin)
   STORAGE_BYTES(homescreen, HOMESCREEN_SIZE)
   STORAGE_UINT32(auto_lock_delay_ms)
   STORAGE_UINT32(sleep_delay_ms)
@@ -72,6 +71,7 @@ typedef struct {
   STORAGE_BOOL(usb_lock)
   STORAGE_BOOL(input_direction)
   STORAGE_BOOL(fido_switch)
+  STORAGE_BOOL(passphrase_attach_to_pin)
 } PubConfig __attribute__((aligned(1)));
 
 typedef struct {
@@ -83,10 +83,9 @@ typedef struct {
 
 #define KEY_VERSION offsetof(PubConfig, version)
 #define KEY_UUID offsetof(PubConfig, uuid)
+#define KEY_PASSPHRASE_PROTECTION offsetof(PubConfig, passphrase_protection)
 #define KEY_LANGUAGE offsetof(PubConfig, language)
 #define KEY_LABEL offsetof(PubConfig, label)
-#define KEY_PASSPHRASE_PROTECTION 0x44  
-#define KEY_PASSPHRASE_ATTACH_TO_PIN offsetof(PubConfig, passphrase_attach_to_pin)
 #define KEY_HOMESCREEN offsetof(PubConfig, homescreen)
 #define KEY_AUTO_LOCK_DELAY_MS offsetof(PubConfig, auto_lock_delay_ms)
 #define KEY_SLEEP_DELAY_MS offsetof(PubConfig, sleep_delay_ms)
@@ -95,6 +94,7 @@ typedef struct {
 #define KEY_USB_LOCK offsetof(PubConfig, usb_lock)
 #define KEY_INPUT_DIRECTION offsetof(PubConfig, input_direction)
 #define KEY_FIDO_SWITCH offsetof(PubConfig, fido_switch)
+#define KEY_PASSPHRASE_ATTACH_TO_PIN offsetof(PubConfig, passphrase_attach_to_pin)
 
 #define PRIVATE_KEY 1 << 31
 
