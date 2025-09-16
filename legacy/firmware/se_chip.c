@@ -639,6 +639,7 @@ secbool se_hasPin(void) {
 }
 
 secbool se_verifyPin(const char *pin, pin_type_t pin_type) {
+  rtt_log_init();
   uint8_t pin_buf[50 + 2] = {0};
   uint8_t resp[1] = {0};
   uint16_t resp_len = 1;
@@ -665,21 +666,34 @@ secbool se_verifyPin(const char *pin, pin_type_t pin_type) {
   if (!se_transmit_mac(SE_INS_PIN, 0x00, 0x03, pin_buf, data_len, resp,
                        &resp_len)) {
     memset(pin_buf, 0, sizeof(pin_buf));
+    rtt_log_print("[SE] verifyPin tx fail, type=%d", (int)pin_type);
+    SEGGER_RTT_printf(0, "[SE] verifyPin tx fail, type=%d\r\n", (int)pin_type);
     return secfalse;
   }
   
   // Store the pin result like reference implementation
   g_last_pin_result = resp[0];
   memset(pin_buf, 0, sizeof(pin_buf));
+  rtt_log_print("[SE] verifyPin ok, type=%d, resp=%d", (int)pin_type, (int)g_last_pin_result);
+  SEGGER_RTT_printf(0, "[SE] verifyPin ok, type=%d, resp=%d\r\n", (int)pin_type, (int)g_last_pin_result);
 
 
   // Follow reference implementation logic with corrections
   if (pin_type == PIN_TYPE_PASSPHRASE_PIN) {
     // For PASSPHRASE_PIN type, check if PIN was entered correctly
     return (g_last_pin_result == PASSPHRASE_PIN_ENTERED) ? sectrue : secfalse;
+  } else if (pin_type == PIN_TYPE_USER || pin_type == PIN_TYPE_USER_CHECK) {
+    // For USER PIN verification, only accept explicit user PIN confirmation
+    return (g_last_pin_result == USER_PIN_ENTERED ||
+            g_last_pin_result == PIN_SUCCESS)
+               ? sectrue
+               : secfalse;
   } else if (pin_type == PIN_TYPE_PASSPHRASE_PIN_CHECK) {
-    // For PIN existence check, check if PIN was found
-    return (g_last_pin_result == PIN_SUCCESS) ? sectrue : secfalse;
+    // Treat either a direct success or an existing passphrase PIN as a match
+    return (g_last_pin_result == PIN_SUCCESS ||
+            g_last_pin_result == PASSPHRASE_PIN_ENTERED)
+               ? sectrue
+               : secfalse;
   } else if (pin_type == PIN_TYPE_USER_AND_PASSPHRASE_PIN) {
     bool success = (g_last_pin_result == USER_PIN_ENTERED || g_last_pin_result == PASSPHRASE_PIN_ENTERED);
     return success ? sectrue : secfalse;

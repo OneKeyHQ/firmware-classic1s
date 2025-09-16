@@ -179,8 +179,8 @@ message Features {
     optional string onekey_ble_version = 615;
     optional string onekey_ble_build_id = 616;
     optional bytes onekey_ble_hash = 617;
-    optional bool attach_to_pin_user = 618;     
-    optional bool unlocked_attach_pin = 619;    
+    optional bool attach_to_pin_user = 625;     
+    optional bool unlocked_attach_pin = 626;    
 }
 
 /**

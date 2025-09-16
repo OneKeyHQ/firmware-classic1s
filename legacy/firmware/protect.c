@@ -43,6 +43,8 @@
 #include "usb.h"
 #include "util.h"
 #include "oled_text.h"
+#include "SEGGER_RTT.h"
+#include "rtt_log.h"
 
 extern void drawScrollbar(int pages, int index);
 
@@ -626,9 +628,14 @@ bool protectChangeWipeCode(bool removal) {
 }
 
 bool protectPassphrase(char *passphrase) {
+  // Initialize RTT logging (safe if already initialized)
+  rtt_log_init();
+  SEGGER_RTT_printf(0, "[ATTACH] protectPassphrase enter\r\n");
   memzero(passphrase, MAX_PASSPHRASE_LEN + 1);
   bool passphrase_protection = false;
   config_getPassphraseProtection(&passphrase_protection);
+  SEGGER_RTT_printf(0, "[ATTACH] passphrase_protection=%d, is_passphrase_pin_enabled=%d\r\n",
+                    (int)passphrase_protection, (int)is_passphrase_pin_enabled);
   if (!passphrase_protection) {
     // passphrase already set to empty by memzero above
     return true;
@@ -675,9 +682,13 @@ bool protectPassphrase(char *passphrase) {
     if (msg_tiny_id == MessageType_MessageType_PassphraseAck) {
       msg_tiny_id = 0xFFFF;
       PassphraseAck *ppa = (PassphraseAck *)msg_tiny;
+      SEGGER_RTT_printf(0, "[ATTACH] PassphraseAck received: has_on_device_attach_pin=%d, on_device_attach_pin=%d\r\n",
+                        (int)ppa->has_on_device_attach_pin,
+                        (int)(ppa->has_on_device_attach_pin ? ppa->on_device_attach_pin : 0));
       
       // Check for attach-to-pin request (like Pro firmware)
       if (ppa->has_on_device_attach_pin && ppa->on_device_attach_pin == true) {
+        SEGGER_RTT_printf(0, "[ATTACH] Host requested attach-to-pin flow\r\n");
         
         // Lock device and unlock with passphrase PIN (like Pro firmware)
         session_clear(true);
@@ -689,6 +700,7 @@ bool protectPassphrase(char *passphrase) {
         pin_req.has_type = true;
         pin_req.type = PinMatrixRequestType_PinMatrixRequestType_AttachToPin;
         msg_write(MessageType_MessageType_PinMatrixRequest, &pin_req);
+        SEGGER_RTT_printf(0, "[ATTACH] Sent PinMatrixRequest AttachToPin\r\n");
         
         // Show 9-grid matrix on device
         pinmatrix_start(_(T__ENTER_HIDDEN_PIN));
@@ -704,14 +716,17 @@ bool protectPassphrase(char *passphrase) {
           if (msg_tiny_id == MessageType_MessageType_PinMatrixAck) {
             msg_tiny_id = 0xFFFF;
             PinMatrixAck *pma = (PinMatrixAck *)msg_tiny;
+            SEGGER_RTT_printf(0, "[ATTACH] PinMatrixAck received\r\n");
             
             // Decode PIN from matrix
             if (sectrue == pinmatrix_done(true, pma->pin)) {
               entered_pin = pma->pin;
+              SEGGER_RTT_printf(0, "[ATTACH] Decoded PIN from matrix, verifying...\r\n");
               
               // Verify the entered PIN
               if (config_verifyPin(entered_pin, PIN_TYPE_PASSPHRASE_PIN)) {
                 pin_result_t pin_result = se_get_pin_result_type();
+                SEGGER_RTT_printf(0, "[ATTACH] verify ok, pin_result=%d\r\n", (int)pin_result);
                 if (pin_result == PASSPHRASE_PIN_ENTERED) {
                   is_passphrase_pin_enabled = true;
                   pin_verified = true;
@@ -728,7 +743,8 @@ bool protectPassphrase(char *passphrase) {
                   } else {
                   }
                 } else {
-
+                  SEGGER_RTT_printf(0, "[ATTACH] verify ok but not PASSPHRASE_PIN_ENTERED: %d\r\n",
+                                    (int)pin_result);
                   // Notify host about failure
                   fsm_sendFailure(FailureType_Failure_PinInvalid, "Incorrect PIN");
 
@@ -763,8 +779,7 @@ bool protectPassphrase(char *passphrase) {
                   // Do not break; allow retry in the outer loop
                 }
               } else {
-                
-                
+                SEGGER_RTT_printf(0, "[ATTACH] verify failed\r\n");
 
                 // Notify host about failure
                 fsm_sendFailure(FailureType_Failure_PinInvalid, "Incorrect PIN");
@@ -807,6 +822,7 @@ bool protectPassphrase(char *passphrase) {
           // Check for BixinPinInputOnDevice (user wants to enter on device)
           } else if (msg_tiny_id == MessageType_MessageType_BixinPinInputOnDevice) {
             msg_tiny_id = 0xFFFF;
+            SEGGER_RTT_printf(0, "[ATTACH] BixinPinInputOnDevice path\r\n");
             
             // Proceed directly to device PIN input without sending ButtonRequest
             
@@ -826,6 +842,8 @@ bool protectPassphrase(char *passphrase) {
               
               bool verify_result = config_verifyPin(entered_pin, PIN_TYPE_PASSPHRASE_PIN);
               pin_result_t pin_result = se_get_pin_result_type();
+              SEGGER_RTT_printf(0, "[ATTACH] device input verify_result=%d, pin_result=%d\r\n",
+                                (int)verify_result, (int)pin_result);
               
               switch(pin_result) {
                 case PIN_SUCCESS:
@@ -1342,12 +1360,18 @@ input:
 }
 
 bool protectChangePinOnDevice(bool is_prompt, bool set, bool cancel_allowed) {
+  rtt_log_init();
+  SEGGER_RTT_printf(0,
+                    "[PIN] protectChangePinOnDevice start: is_prompt=%d, set=%d, cancel=%d\r\n",
+                    (int)is_prompt, (int)set, (int)cancel_allowed);
   static CONFIDENTIAL char old_pin[MAX_PIN_LEN + 1] = "";
   static CONFIDENTIAL char new_pin[MAX_PIN_LEN + 1] = "";
   const char *pin = NULL; 
   bool is_change = false; 
   uint8_t key;            
   pin_result_t pin_result = PIN_SUCCESS;
+  bool deleted_passphrase_pin = false;
+  bool deleted_passphrase_current = false;
 
 pin_set:
   if (config_hasPin()) { 
@@ -1363,10 +1387,12 @@ pin_set:
     bool ret = config_unlock(pin, PIN_TYPE_USER_AND_PASSPHRASE_PIN_CHECK);
     
     if (ret == false) {
+      SEGGER_RTT_printf(0, "[PIN] verify current pin failed\r\n");
       protectPinErrorTips(true);
       goto input;
     }
     pin_result = se_get_pin_result_type();
+    SEGGER_RTT_printf(0, "[PIN] current pin result=%d\r\n", (int)pin_result);
     
     
     layoutDialogCenterAdapterV2( 
@@ -1402,7 +1428,11 @@ pin_set:
   }
 
 retry:
-  pin = protectInputPin(_(T__ENTER_NEW_PIN), DEFAULT_PIN_LEN, MAX_PIN_LEN, true);
+  // Determine minimum length for the new PIN:
+  // - If current PIN entered was a passphrase PIN (hidden wallet), require at least 6 digits
+  // - If current PIN entered was a main/user PIN, require default minimum (4 digits)
+  uint8_t min_new_pin_len = (pin_result == PASSPHRASE_PIN_ENTERED) ? 6 : DEFAULT_PIN_LEN;
+  pin = protectInputPin(_(T__ENTER_NEW_PIN), min_new_pin_len, MAX_PIN_LEN, true);
   if (pin == PIN_CANCELED_BY_BUTTON) {
     return false;
   } else if (pin == NULL || pin[0] == '\0') {
@@ -1414,7 +1444,7 @@ retry:
   }
   strlcpy(new_pin, pin, sizeof(new_pin));
 
-  pin = protectInputPin(_(T__ENTER_NEW_PIN_AGAIN), DEFAULT_PIN_LEN, MAX_PIN_LEN, true);
+  pin = protectInputPin(_(T__ENTER_NEW_PIN_AGAIN), min_new_pin_len, MAX_PIN_LEN, true);
   if (pin == NULL) {
     memzero(old_pin, sizeof(old_pin));
     memzero(new_pin, sizeof(new_pin));
@@ -1425,6 +1455,7 @@ retry:
   } else if (pin == PIN_CANCELED_BY_BUTTON)
     return false;
   if (strncmp(new_pin, pin, sizeof(new_pin)) != 0) {
+    SEGGER_RTT_printf(0, "[PIN] new pin mismatch\r\n");
     memzero(old_pin, sizeof(old_pin));
     memzero(new_pin, sizeof(new_pin));
     layoutDialogCenterAdapterV2(
@@ -1449,14 +1480,21 @@ retry:
 
   
   if (pin_result == USER_PIN_ENTERED) {
-    
-  
-    (void)config_verifyPin(new_pin, PIN_TYPE_PASSPHRASE_PIN_CHECK);
+    // When current (old) PIN is USER PIN, check whether the new PIN collides
+    // with an existing Passphrase PIN. Avoid relying on a stale pin result if
+    // the SE check fails for any reason.
+    bool check_ok = config_verifyPin(new_pin, PIN_TYPE_PASSPHRASE_PIN_CHECK);
     pin_result_t new_pin_check_result = se_get_pin_result_type();
+    if (!check_ok) {
+      SEGGER_RTT_printf(0, "[PIN] check new hidden pin failed (treat as not found)\r\n");
+      // Treat failed check as "not found" to prevent false "exists" prompts
+      new_pin_check_result = PIN_FAILED;
+    }
   
     
     
     if (strncmp(old_pin, new_pin, MAX_PIN_LEN) == 0) {
+      SEGGER_RTT_printf(0, "[PIN] new pin equals old pin\r\n");
       
       
       memzero(old_pin, sizeof(old_pin));
@@ -1476,47 +1514,42 @@ retry:
         }
       }
       return true; 
-    } else if(new_pin_check_result == PASSPHRASE_PIN_ENTERED) {
-      
-      
+    } else if(new_pin_check_result == PIN_SUCCESS ||
+              new_pin_check_result == PASSPHRASE_PIN_ENTERED) {
+      SEGGER_RTT_printf(0, "[PIN] new pin matches existing passphrase pin\r\n");
+
       layoutDialogCenterAdapterV2(
-          NULL, &bmp_icon_warning, &bmp_bottom_left_close, 
-          &bmp_bottom_right_confirm, NULL, NULL, NULL,
-          NULL, NULL, NULL, _(C__PIN_ALREADY_USED_DO_YOU_WANT_TO_OVERWRITE_IT));
-      
+          NULL, &bmp_icon_warning, &bmp_bottom_left_close,
+          &bmp_bottom_right_confirm, NULL, NULL, NULL, NULL, NULL, NULL,
+          _(C__PIN_ALREADY_USED_DO_YOU_WANT_TO_OVERWRITE_IT));
+
       while (1) {
         key = protectWaitKey(0, 1);
         if (key == KEY_CONFIRM) {
-          
-          
-          
           bool is_current = false;
-          
           secbool delete_result = se_delete_pin_passphrase(new_pin, &is_current);
-          
-          
           if (delete_result == sectrue) {
-            
-            
-            // If deleted session is current, lock device and return to main menu
+            SEGGER_RTT_printf(0,
+                              "[PIN] deleted passphrase pin success, current=%d\r\n",
+                              (int)is_current);
+            deleted_passphrase_pin = true;
+            deleted_passphrase_current = is_current;
             if (is_current) {
-              
-              session_clear(true);
-              layoutScreensaver();
-              // Wait briefly for user to see the operation completed
-              protectWaitKey(timer1s, 0);
-              // Return to main menu to force re-authentication
-              menu_default();
-              layoutHome();
-              return false; // Exit current flow
+              is_passphrase_pin_enabled = false;
             }
+            break;
           } else {
-            
+            SEGGER_RTT_printf(0, "[PIN] delete passphrase pin failed\r\n");
+            layoutDialogCenterAdapterV2(
+                NULL, &bmp_icon_error, NULL, &bmp_bottom_right_confirm, NULL,
+                NULL, NULL, NULL, NULL, NULL,
+                _(C__PIN_ALREADY_USED_PLEASE_TRY_A_DIFFERENT_ONE));
+            protectWaitKey(0, 1);
+            memzero(old_pin, sizeof(old_pin));
+            memzero(new_pin, sizeof(new_pin));
+            return false;
           }
-          
-          break; 
         } else if (key == KEY_CANCEL) {
-          
           memzero(old_pin, sizeof(old_pin));
           memzero(new_pin, sizeof(new_pin));
           return false; 
@@ -1524,11 +1557,16 @@ retry:
       }
     }
   } else if (pin_result == PASSPHRASE_PIN_ENTERED) {
-    
-  
-    // In Pro firmware: check new PIN against both USER and PASSPHRASE in one call
-    (void)config_verifyPin(new_pin, PIN_TYPE_USER_AND_PASSPHRASE_PIN_CHECK);
+    // When current (old) PIN is PASSPHRASE PIN, check the new PIN against both
+    // USER and PASSPHRASE PINs (like Pro). Guard against SE check failure so we
+    // don't accidentally reuse the last successful result and show a wrong
+    // "already used" dialog.
+    bool check_ok = config_verifyPin(new_pin, PIN_TYPE_USER_AND_PASSPHRASE_PIN_CHECK);
     pin_result_t new_pin_check_result = se_get_pin_result_type();
+    if (!check_ok) {
+      // Consider the new PIN as not found on failure
+      new_pin_check_result = PIN_FAILED;
+    }
     
     
     if (strncmp(old_pin, new_pin, MAX_PIN_LEN) == 0) {
@@ -1554,6 +1592,7 @@ retry:
       layoutDialogCenterAdapterV2(
           NULL, &bmp_icon_error, NULL, &bmp_bottom_right_retry, NULL, NULL, NULL,
           NULL, NULL, NULL, _(C__PIN_ALREADY_USED_PLEASE_TRY_A_DIFFERENT_ONE));
+      SEGGER_RTT_printf(0, "[PIN] new pin clash with user pin\r\n");
       while (1) {
         key = protectWaitKey(0, 1);
         if (key == KEY_CONFIRM) {
@@ -1565,6 +1604,7 @@ retry:
         }
       }
     } else if (new_pin_check_result == PASSPHRASE_PIN_ENTERED){
+      SEGGER_RTT_printf(0, "[PIN] new pin matches another passphrase pin\r\n");
       
       
       layoutDialogCenterAdapterV2(
@@ -1604,6 +1644,9 @@ retry:
   } else {
     ret = config_changePin(old_pin, new_pin);
   }
+  SEGGER_RTT_printf(0, "[PIN] change pin result=%d deleted_pass_pin=%d current=%d\r\n",
+                    (int)ret, (int)deleted_passphrase_pin,
+                    (int)deleted_passphrase_current);
   
   if (ret == false) {
     // No fallback UI here; simply cleanup and return
@@ -1612,11 +1655,15 @@ retry:
   } else {
     memzero(old_pin, sizeof(old_pin));
     memzero(new_pin, sizeof(new_pin));
+    if (deleted_passphrase_pin && deleted_passphrase_current) {
+      is_passphrase_pin_enabled = false;
+    }
     if (is_prompt) {
       layoutDialogCenterAdapter(
           &bmp_icon_ok, NULL, NULL, &bmp_bottom_right_confirm, NULL, NULL, NULL,
           NULL, NULL, is_change ? _(C__PIN_CHANGED) : _(C__PIN_IS_SET), NULL,
           NULL);
+      SEGGER_RTT_printf(0, "[PIN] change pin success dialog\r\n");
 
       while (1) {
         key = protectWaitKey(0, 1);

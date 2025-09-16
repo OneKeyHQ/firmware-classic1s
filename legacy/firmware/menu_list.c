@@ -18,6 +18,8 @@
 #include "usb.h"
 #include "util.h"
 #include "se_chip.h"
+#include "SEGGER_RTT.h"
+#include "rtt_log.h"
 
 #if !BITCOIN_ONLY
 #include "fido2/resident_credential.h"
@@ -40,6 +42,7 @@ static void clear_temp_pin_data(void);
 static void menu_remove_pin_from_limit_warning(void);
 static void menu_remove_pin_input(void);
 static void menu_remove_pin_confirmation(const char *pin_to_remove);
+static bool require_standard_pin(bool cancel_allowed);
 
 // External declarations
 extern void drawScrollbar(int pages, int index);
@@ -57,7 +60,7 @@ void menu_erase_device(int index) {
   if (!layoutEraseDevice()) {
     return;
   }
-  if (!protectPinOnDevice(false, true)) {
+  if (!require_standard_pin(true)) {
     return;
   }
   layoutDialogCenterAdapterV2(
@@ -148,7 +151,15 @@ void menu_set_passphrase(int index) {
   }
   bool new_passphrase_state = index ? false : true;
   config_setPassphraseProtection(new_passphrase_state);
-  
+
+  if (!new_passphrase_state && is_passphrase_pin_enabled) {
+    // Lock device when passphrase feature is disabled while unlocked via hidden PIN
+    session_clear(true);
+    menu_default();
+    layoutHome();
+    return;
+  }
+
   bool current_state = false;
   (void)config_getPassphraseProtection(&current_state);
   security_menu_update_items();
@@ -513,7 +524,7 @@ refresh_menu:
     return;
   }
 
-  if (protectPinOnDevice(false, true)) {
+  if (require_standard_pin(true)) {
     memset(desc, 0, sizeof(desc));
     if (!protectSelectMnemonicNumber(&word_count, true)) {
       goto refresh_menu;
@@ -979,6 +990,9 @@ void menu_default(void) {
 }
 
 static void menu_pin_input_for_attach(void) {
+  // Ensure RTT is initialized for debug logging (no-op if disabled)
+  rtt_log_init();
+  SEGGER_RTT_printf(0, "RTT Running...\r\n");
   uint8_t available_space = 0;
   
   // Check available storage space first
@@ -1024,7 +1038,14 @@ get_main_pin:
     strlcpy(g_temp_main_pin, main_pin, sizeof(g_temp_main_pin));
 
     // Verify the main PIN
-    if (!config_verifyPin(main_pin, PIN_TYPE_USER_CHECK)) {
+    bool main_ok = config_verifyPin(main_pin, PIN_TYPE_USER_CHECK);
+    pin_result_t main_pin_result = se_get_pin_result_type();
+    (void)main_pin_result; // avoid -Werror when RTT logging is disabled
+    rtt_log_print("[ATTACH] USER_CHECK verify=%d, last_result=%d", main_ok,
+                  (int)main_pin_result);
+    SEGGER_RTT_printf(0, "[ATTACH] USER_CHECK verify=%d, last_result=%d\r\n",
+                      (int)main_ok, (int)main_pin_result);
+    if (!main_ok) {
       // PIN verification failed: show error with "return" icon and go back to Enter PIN
       protectPinErrorTips(true);
       goto get_main_pin;
@@ -1083,11 +1104,16 @@ retry_pin:
   }
   
   // Step 4: Check if passphrase PIN already exists
-  (void)config_verifyPin(pin1_copy, PIN_TYPE_PASSPHRASE_PIN_CHECK);
-  pin_result_t pin_result_type = se_get_pin_result_type();
-  
-  // Follow reference project logic: check the specific result type
-  bool passphrase_pin_exists = (pin_result_type == 3); // PASSPHRASE_PIN_ENTERED = 3 in reference project
+  // Use the boolean result of config_verifyPin to avoid reusing a stale
+  // g_last_pin_result value when communication fails.
+  bool passphrase_pin_exists =
+      config_verifyPin(pin1_copy, PIN_TYPE_PASSPHRASE_PIN_CHECK);
+  pin_result_t check_result = se_get_pin_result_type();
+  (void)check_result; // avoid -Werror when RTT logging is disabled
+  rtt_log_print("[ATTACH] PASS_CHECK verify=%d, last_result=%d", (int)passphrase_pin_exists,
+                (int)check_result);
+  SEGGER_RTT_printf(0, "[ATTACH] PASS_CHECK verify=%d, last_result=%d\r\n",
+                    (int)passphrase_pin_exists, (int)check_result);
   
   if (passphrase_pin_exists) {
 show_pin_exists_warning:
@@ -1293,10 +1319,6 @@ _layout:
               // If update affected current session, lock device and return to main menu
               if (override) {
                 session_clear(true);
-                layoutScreensaver();
-                // Wait briefly for user to see the success message
-                protectWaitKey(timer1s, 0);
-                // Return to main menu to force re-authentication
                 menu_default();
                 layoutHome();
                 return KEY_CONFIRM;
@@ -1349,6 +1371,38 @@ static void clear_temp_pin_data(void) {
   memset(g_temp_main_pin, 0, sizeof(g_temp_main_pin));
 }
 
+static bool require_standard_pin(bool cancel_allowed) {
+  while (1) {
+    const char *pin_title;
+    if (session_isUnlocked() && is_passphrase_pin_enabled) {
+      pin_title = _(T__STANDARD_PIN);
+    } else {
+      pin_title = _(T__ENTER_PIN);
+    }
+
+    const char *pin =
+        protectInputPin(pin_title, DEFAULT_PIN_LEN, MAX_PIN_LEN, cancel_allowed);
+    if (!pin || pin == PIN_CANCELED_BY_BUTTON) {
+      return false;
+    }
+
+    bool ok = config_unlock(pin, PIN_TYPE_USER_CHECK);
+    if (!ok) {
+      protectPinErrorTips(true);
+      continue;
+    }
+
+    pin_result_t result = se_get_pin_result_type();
+    if (result != USER_PIN_ENTERED && result != PIN_SUCCESS) {
+      protectPinErrorTips(true);
+      continue;
+    }
+
+    is_passphrase_pin_enabled = false;
+    return true;
+  }
+}
+
 // Menu callback functions
 static void menu_remove_pin_option(int index) {
   (void)index;
@@ -1378,12 +1432,7 @@ static void menu_remove_pin_option(int index) {
       if (current) {
         protectWaitKey(timer1s * 2, 0);  // Auto advance for security
         session_clear(true);
-        layoutScreensaver();
-        // Wait briefly for user to see the removal confirmation
-        protectWaitKey(timer1s, 0);
-        // Clear temp data before returning to main menu
         clear_temp_pin_data();
-        // Return to main menu to force re-authentication
         menu_default();
         layoutHome();
         return;
@@ -1577,10 +1626,15 @@ static void menu_remove_pin_input(void) {
   strncpy(pin_to_remove, entered_pin, MAX_PIN_LEN);
   pin_to_remove[MAX_PIN_LEN] = '\0';
   
-  // Verify the PIN exists
-  config_verifyPin(pin_to_remove, PIN_TYPE_PASSPHRASE_PIN_CHECK);
-  pin_result_t pin_result_type = se_get_pin_result_type();
-  bool passphrase_pin_exists = (pin_result_type == 3); // PASSPHRASE_PIN_ENTERED = 3
+  // Verify the PIN exists (use boolean result to avoid stale value reuse)
+  bool passphrase_pin_exists =
+      config_verifyPin(pin_to_remove, PIN_TYPE_PASSPHRASE_PIN_CHECK);
+  pin_result_t remove_check = se_get_pin_result_type();
+  (void)remove_check; // avoid -Werror when RTT logging is disabled
+  rtt_log_print("[REMOVE] PASS_CHECK verify=%d, last_result=%d", (int)passphrase_pin_exists,
+                (int)remove_check);
+  SEGGER_RTT_printf(0, "[REMOVE] PASS_CHECK verify=%d, last_result=%d\r\n",
+                    (int)passphrase_pin_exists, (int)remove_check);
   
   if (passphrase_pin_exists) {
     // PIN exists, show confirmation dialog
@@ -1625,12 +1679,7 @@ static void menu_remove_pin_confirmation(const char *pin_to_remove) {
       
       // If removed session is current, auto-advance for security
       if (current) {
-        protectWaitKey(timer1s * 2, 0);  // Auto advance for security
         session_clear(true);
-        layoutScreensaver();
-        // Wait briefly for user to see the removal confirmation
-        protectWaitKey(timer1s, 0);
-        // Return to main menu to force re-authentication
         menu_default();
         layoutHome();
         return;
