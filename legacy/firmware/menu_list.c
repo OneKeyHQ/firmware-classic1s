@@ -1192,8 +1192,16 @@ _layout:
     bmp_yes = (BITMAP *)&bmp_bottom_right_arrow_off;
   }
   
-  // Show WARNING title without parentheses
-  layoutDialogCenterAdapterV2(__("WARNING"), NULL, (const BITMAP *)bmp_no,
+  // Build i18n WARNING title with page index (e.g., "WARNING! (1/2)")
+  char title[64] = {0};
+  // Use a generously sized buffer to satisfy -Wformat-truncation even if
+  // pages were ever increased beyond single digits.
+  char page_str[32] = {0};
+  strlcpy(title, _(T__WARNING_EXCLAM_BRACKET_STR_BRACKET), sizeof(title));
+  snprintf(page_str, sizeof(page_str), "%d/%d", index + 1, pages);
+  bracket_replace(title, page_str);
+
+  layoutDialogCenterAdapterV2(title, NULL, (const BITMAP *)bmp_no,
                               (const BITMAP *)bmp_yes, (const BITMAP *)bmp_up,
                               (const BITMAP *)bmp_down, NULL, NULL, NULL, NULL,
                               page_contents[index]);
@@ -1227,7 +1235,8 @@ _layout:
           layoutShowPassphrase(passphrase);
           uint8_t confirm_key = protectWaitKey(0, 0);
           if (confirm_key != KEY_CONFIRM) {
-            // User cancelled confirmation; go back
+            // User cancelled confirmation; return to first WARNING page
+            index = 0;
             goto _layout;
           }
 
@@ -1313,7 +1322,8 @@ _layout:
             menu_init(&passphrase_manage_menu);
           }
         } else {
-          // User cancelled input or entered empty value; return to the WARNING page
+          // User cancelled input or entered empty value; return to the first WARNING page
+          index = 0;
           goto _layout;
         }
         return KEY_CONFIRM;
