@@ -730,10 +730,10 @@ bool protectPassphrase(char *passphrase) {
                 if (pin_result == PASSPHRASE_PIN_ENTERED) {
                   is_passphrase_pin_enabled = true;
                   pin_verified = true;
-                  
+
                   if (se_sessionClose()) {
                     if (se_sessionClear()) {
-                      
+
                       uint8_t *new_session = se_session_startSession(NULL);
                       if (new_session != NULL) {
                       } else {
@@ -745,72 +745,32 @@ bool protectPassphrase(char *passphrase) {
                 } else {
                   SEGGER_RTT_printf(0, "[ATTACH] verify ok but not PASSPHRASE_PIN_ENTERED: %d\r\n",
                                     (int)pin_result);
-                  // Notify host about failure
                   fsm_sendFailure(FailureType_Failure_PinInvalid, "Incorrect PIN");
+                  protectPinErrorTips(true);
 
-                  // Show Incorrect PIN dialog exactly as requested: no left button, right bottom Retry
-                  layoutDialogCenterAdapterV2(
-                      NULL, &bmp_icon_warning, NULL, &bmp_bottom_right_retry, NULL, NULL,
-                      NULL, NULL, NULL, NULL,
-                      _(C__INCORRECT_PIN_THE_PIN_YOU_ENTERED_IS_INCORRECT));
-
-                  // Wait for user to press Retry; do not show Cancel on device.
-                  // On Retry, re-send PinMatrixRequest and continue loop.
-                  while (1) {
-                    usbPoll();
-                    buttonUpdate();
-                    uint8_t k = keyScan();
-                    if (k == KEY_CONFIRM) {
-                      // Re-send PinMatrixRequest and re-show matrix for another try
-                      PinMatrixRequest pin_req_retry;
-                      memzero(&pin_req_retry, sizeof(PinMatrixRequest));
-                      pin_req_retry.has_type = true;
-                      pin_req_retry.type = PinMatrixRequestType_PinMatrixRequestType_AttachToPin;
-                      msg_write(MessageType_MessageType_PinMatrixRequest, &pin_req_retry);
-                      pinmatrix_start(_(T__ENTER_HIDDEN_PIN));
-                      break; // continue outer while (!pin_verified)
-                    }
-                    if (msg_tiny_id == MessageType_MessageType_Cancel) {
-                      msg_tiny_id = 0xFFFF;
-                      result = false;
-                      goto matrix_input_exit;
-                    }
-                  }
-                  // Do not break; allow retry in the outer loop
-                }
-              } else {
-                SEGGER_RTT_printf(0, "[ATTACH] verify failed\r\n");
-
-                // Notify host about failure
-                fsm_sendFailure(FailureType_Failure_PinInvalid, "Incorrect PIN");
-
-                // Show Incorrect PIN dialog (no left cancel, only right Retry)
-                layoutDialogCenterAdapterV2(
-                    NULL, &bmp_icon_warning, NULL, &bmp_bottom_right_retry, NULL, NULL,
-                    NULL, NULL, NULL, NULL,
-                    _(C__INCORRECT_PIN_THE_PIN_YOU_ENTERED_IS_INCORRECT));
-
-                // Wait for Retry, re-send PinMatrixRequest; allow host Cancel to exit
-                while (1) {
-                  usbPoll();
-                  buttonUpdate();
-                  uint8_t k = keyScan();
-                  if (k == KEY_CONFIRM) {
-                    PinMatrixRequest pin_req_retry;
-                    memzero(&pin_req_retry, sizeof(PinMatrixRequest));
-                    pin_req_retry.has_type = true;
-                    pin_req_retry.type = PinMatrixRequestType_PinMatrixRequestType_AttachToPin;
-                    msg_write(MessageType_MessageType_PinMatrixRequest, &pin_req_retry);
-                    pinmatrix_start(_(T__ENTER_HIDDEN_PIN));
-                    break; // continue outer while (!pin_verified)
-                  }
                   if (msg_tiny_id == MessageType_MessageType_Cancel) {
                     msg_tiny_id = 0xFFFF;
                     result = false;
                     goto matrix_input_exit;
                   }
+
+                  result = false;
+                  goto matrix_input_exit;
                 }
-                // Continue retry loop
+              } else {
+                SEGGER_RTT_printf(0, "[ATTACH] verify failed\r\n");
+
+                fsm_sendFailure(FailureType_Failure_PinInvalid, "Incorrect PIN");
+                protectPinErrorTips(true);
+
+                if (msg_tiny_id == MessageType_MessageType_Cancel) {
+                  msg_tiny_id = 0xFFFF;
+                  result = false;
+                  goto matrix_input_exit;
+                }
+
+                result = false;
+                goto matrix_input_exit;
               }
             } else {
               
@@ -892,38 +852,9 @@ bool protectPassphrase(char *passphrase) {
                 break; // Exit device input retry loop
               }
               
-              // PIN verification failed - show retry dialog
-              
-              layoutDialogCenterAdapterV2(
-                  NULL, &bmp_icon_warning, NULL,
-                  &bmp_bottom_right_retry, NULL, NULL,
-                  NULL, NULL, NULL, NULL,
-                  _(C__INCORRECT_PIN_THE_PIN_YOU_ENTERED_IS_INCORRECT));
-              
-              // Wait for user to click retry or handle cancel
-              uint8_t key = KEY_NULL;
-              for (;;) {
-                usbPoll();
-                buttonUpdate();
-                key = keyScan();
-                
-                if (key == KEY_CONFIRM) {
-                  // User clicked retry - continue to next iteration
-                  break;
-                } else if (key == KEY_CANCEL || button.NoUp) {
-                  // User cancelled
-                  result = false;
-                  goto matrix_input_exit;
-                }
-                
-                // Check for USB cancel messages
-                if (msg_tiny_id == MessageType_MessageType_Cancel) {
-                  msg_tiny_id = 0xFFFF;
-                  result = false;
-                  goto matrix_input_exit;
-                }
-              }
-              // Continue to next retry iteration
+              protectPinErrorTips(true);
+              result = false;
+              goto matrix_input_exit;
             }
             
             matrix_input_exit:
