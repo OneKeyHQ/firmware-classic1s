@@ -53,12 +53,6 @@ char* menu_para_passphrase(void) {
   return passphrase_protection ? _(O__ENABLED) : _(O__DISABLED);
 };
 
-char* menu_para_attach_to_pin(void) {
-  bool attach_to_pin = false;
-  config_getPassphraseAttachToPin(&attach_to_pin);
-  return attach_to_pin ? _(O__ENABLED) : _(O__DISABLED);
-}
-
 char* menu_para_trezor_comp_mode_state(void) {
   bool trezor_comp_mode_current = false;
   config_getTrezorCompMode(&trezor_comp_mode_current);
@@ -115,12 +109,6 @@ int menu_para_passphrase_index(void) {
   bool passphrase_protection = false;
   config_getPassphraseProtection(&passphrase_protection);
   return passphrase_protection ? 0 : 1;
-}
-
-int menu_para_attach_to_pin_index(void) {
-  bool attach_to_pin = false;
-  config_getPassphraseAttachToPin(&attach_to_pin);
-  return attach_to_pin ? 0 : 1;
 }
 
 int menu_para_trezor_comp_mode_index(void) {

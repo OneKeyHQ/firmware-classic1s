@@ -1306,11 +1306,9 @@ static bool require_standard_pin(bool cancel_allowed) {
   }
 }
 
-// Menu callback functions
 static void menu_remove_pin_option(int index) {
   (void)index;
 
-  // Show warning page with warning icon and i18n message
   layoutDialogCenterAdapterV2(
       NULL, &bmp_icon_warning, &bmp_bottom_left_close,
       &bmp_bottom_right_confirm, NULL, NULL, NULL, NULL, NULL, NULL,
@@ -1318,39 +1316,30 @@ static void menu_remove_pin_option(int index) {
 
   uint8_t key = protectWaitKey(0, 0);
   if (key == KEY_CONFIRM) {
-    // Call SE to delete the PIN-passphrase association
     bool current = false;
     secbool result = se_delete_pin_passphrase(g_temp_passphrase_pin, &current);
 
     if (result == sectrue) {
-      // Show success message
       layoutDialogCenterAdapterV2(NULL, &bmp_icon_ok, NULL,
                                   &bmp_bottom_right_arrow, NULL, NULL, NULL,
                                   NULL, NULL, NULL, _(C__PIN_REMOVED));
 
-      // If removed session is current, auto-advance after brief display
       if (current) {
-        protectWaitKey(timer1s * 2, 0);  // Auto advance for security
+        protectWaitKey(timer1s * 2, 0);
         session_clear(true);
         clear_temp_pin_data();
         menu_default();
         layoutHome();
         return;
       } else {
-        // For non-current session, let user manually continue
         protectWaitKey(0, 0);  // Wait for user input
       }
 
-      // Clear temp data and return to Passphrase manage menu
       clear_temp_pin_data();
       passphrase_menu_update_items();
       menu_init(&passphrase_manage_menu);
     } else {
-      // Check detailed error
       (void)se_get_pin_result_type();
-
-      // Simply return without showing error message
-      // The operation failed silently
     }
   } else {
   }

@@ -107,7 +107,6 @@ void config_setLanguage(const char *lang);
 void config_setPassphraseProtection(bool passphrase_protection);
 bool config_getPassphraseProtection(bool *passphrase_protection);
 
-void config_setPassphraseAttachToPin(bool attach_to_pin);
 bool config_getPassphraseAttachToPin(bool *attach_to_pin);
 
 bool config_getHomescreen(uint8_t *dest, uint16_t dest_size);

@@ -325,10 +325,6 @@ bool config_getPassphraseProtection(bool *passphrase_protection) {
   return config_get_bool(KEY_PASSPHRASE_PROTECTION, passphrase_protection);
 }
 
-void config_setPassphraseAttachToPin(bool attach_to_pin) {
-  config_set_bool(KEY_PASSPHRASE_ATTACH_TO_PIN, attach_to_pin);
-}
-
 bool config_getPassphraseAttachToPin(bool *attach_to_pin) {
   return config_get_bool(KEY_PASSPHRASE_ATTACH_TO_PIN, attach_to_pin);
 }
@@ -554,9 +550,6 @@ void session_clear(bool lock) {
   se_sessionClear();
 
   if (lock) {
-    // When locking the device, clear the passphrase-PIN session state
-    // so that future feature queries don't report a stale
-    // "unlocked via attach-to-pin" status.
     is_passphrase_pin_enabled = false;
     config_lockDevice();
   }
