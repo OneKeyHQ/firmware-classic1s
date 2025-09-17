@@ -61,8 +61,6 @@
 #include "usb.h"
 #include "util.h"
 
-
-
 #include "se_chip.h"
 
 #if !BITCOIN_ONLY

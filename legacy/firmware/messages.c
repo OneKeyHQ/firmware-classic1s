@@ -337,9 +337,9 @@ _Static_assert(sizeof(msg_tiny) >= sizeof(Cancel), "msg_tiny too tiny");
 _Static_assert(USB_PACKET_SIZE >= MSG_HEADER_SIZE + Cancel_size,
                "msg_tiny too tiny");
 // _Static_assert(sizeof(msg_tiny) >= sizeof(Initialize), "msg_tiny too tiny");
- 
+
 _Static_assert(sizeof(msg_tiny) >= sizeof(PassphraseAck), "msg_tiny too tiny");
- 
+
 _Static_assert(sizeof(msg_tiny) >= sizeof(ButtonAck), "msg_tiny too tiny");
 _Static_assert(USB_PACKET_SIZE >= MSG_HEADER_SIZE + ButtonAck_size,
                "msg_tiny too tiny");

@@ -54,7 +54,8 @@ typedef enum {
 
 // PIN passphrase management functions
 pin_result_t se_get_pin_result_type(void);
-secbool se_set_pin_passphrase(const char *pin, const char *passphrase_pin, const char *passphrase, bool *override);
+secbool se_set_pin_passphrase(const char *pin, const char *passphrase_pin,
+                              const char *passphrase, bool *override);
 secbool se_delete_pin_passphrase(const char *passphrase_pin, bool *current);
 pin_result_t se_get_pin_passphrase_ret(void);
 secbool se_get_pin_passphrase_space(uint8_t *space);

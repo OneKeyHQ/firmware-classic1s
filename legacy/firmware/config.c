@@ -94,7 +94,8 @@ typedef struct {
 #define KEY_USB_LOCK offsetof(PubConfig, usb_lock)
 #define KEY_INPUT_DIRECTION offsetof(PubConfig, input_direction)
 #define KEY_FIDO_SWITCH offsetof(PubConfig, fido_switch)
-#define KEY_PASSPHRASE_ATTACH_TO_PIN offsetof(PubConfig, passphrase_attach_to_pin)
+#define KEY_PASSPHRASE_ATTACH_TO_PIN \
+  offsetof(PubConfig, passphrase_attach_to_pin)
 
 #define PRIVATE_KEY 1 << 31
 
@@ -311,7 +312,6 @@ void config_setLanguage(const char *lang) {
 }
 
 void config_setPassphraseProtection(bool passphrase_protection) {
-  
   secbool result;
   if (passphrase_protection) {
     result = config_set_bool(KEY_PASSPHRASE_PROTECTION, true);

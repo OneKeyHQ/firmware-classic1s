@@ -88,8 +88,8 @@ void chargeDisTimer(void) {
 bool button_request(const ButtonRequestType code);
 void hide_icons(bool hide) { hide_icon = hide; }
 static uint8_t layoutPagination(char *title, char *content);
-static void layoutDialogCenterStrict(const BITMAP *bmp_no, const BITMAP *bmp_yes,
-                                     const char *desc);
+static void layoutDialogCenterStrict(const BITMAP *bmp_no,
+                                     const BITMAP *bmp_yes, const char *desc);
 
 const char *address_n_str(const uint32_t *address_n, size_t address_n_count,
                           bool address_is_account) {
@@ -843,16 +843,11 @@ static void _layout_home(bool update_menu) {
     b.width = 128;
     b.height = 64;
     b.data = homescreen;
-    // Draw custom homescreen image first
     oledDrawBitmap(0, 0, &b);
-
-    // Reserve a bottom bar for icons and model when using custom background
-    // Keep default behavior unchanged when there is no custom background
-    const int bar_height = 12;  // enough for 11px icons + 1px padding
+    const int bar_height = 12;
     oledBox(0, OLED_HEIGHT - bar_height, OLED_WIDTH - 1, OLED_HEIGHT - 1,
-            false);  // clear to black
+            false);
 
-    // Draw the same UI elements as default path on top of the bar
     oledDrawBitmap(OLED_WIDTH - 16 - 1, OLED_HEIGHT - 11,
                    &bmp_bottom_right_arrow);
 
@@ -861,14 +856,12 @@ static void _layout_home(bool update_menu) {
     }
 
     if (session_isUnlocked() || !config_hasPin()) {
-      // Show device BLE name on the bar when unlocked or no pin set
       oledDrawStringCenterAdapter(OLED_WIDTH / 2, OLED_HEIGHT - 10,
                                   ble_get_name(), FONT_STANDARD);
     } else {
-      // Locked state: keep the same info policy as default branch
       if (no_backup) {
-        oledDrawStringCenterAdapter(OLED_WIDTH / 2, OLED_HEIGHT - 9,
-                                    "SEEDLESS", FONT_STANDARD);
+        oledDrawStringCenterAdapter(OLED_WIDTH / 2, OLED_HEIGHT - 9, "SEEDLESS",
+                                    FONT_STANDARD);
       } else if (unfinished_backup) {
         oledDrawStringCenterAdapter(OLED_WIDTH / 2, OLED_HEIGHT - 9,
                                     "BACKUP FAILED!", FONT_STANDARD);
@@ -2300,9 +2293,9 @@ void layoutHomeInfo(void) {
       refreshUsbConnectTips();
 #endif
       if (key == KEY_CANCEL && (session_isUnlocked() || !config_hasPin())) {
-        layoutDialogCenterStrict(
-            &bmp_bottom_left_close, &bmp_bottom_right_confirm,
-            _(C__LOCK_THE_SCREEN));
+        layoutDialogCenterStrict(&bmp_bottom_left_close,
+                                 &bmp_bottom_right_confirm,
+                                 _(C__LOCK_THE_SCREEN));
         uint8_t k = protectWaitKey(timer1s * 5, 1);
         if (k == KEY_CONFIRM) {
           session_clear(true);
@@ -2890,8 +2883,8 @@ void layoutDialogCenterAdapterV2(const char *title, const BITMAP *icon,
   oledRefresh();
 }
 
-static void layoutDialogCenterStrict(const BITMAP *bmp_no, const BITMAP *bmp_yes,
-                                     const char *desc) {
+static void layoutDialogCenterStrict(const BITMAP *bmp_no,
+                                     const BITMAP *bmp_yes, const char *desc) {
   if (!desc) return;
   int lines = countlines((char *)desc);
   int height = font_get_height();

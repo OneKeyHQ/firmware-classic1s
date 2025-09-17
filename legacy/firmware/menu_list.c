@@ -13,13 +13,11 @@
 #include "protect.h"
 #include "recovery.h"
 #include "reset.h"
+#include "se_chip.h"
 #include "supervise.h"
 #include "timer.h"
 #include "usb.h"
 #include "util.h"
-#include "se_chip.h"
-#include "SEGGER_RTT.h"
-#include "rtt_log.h"
 
 #if !BITCOIN_ONLY
 #include "fido2/resident_credential.h"
@@ -28,10 +26,12 @@ static bool resident_credential_refresh = true;
 
 // Forward declarations
 void security_menu_update_items(void);
-static struct menu passphrase_manage_menu;  // forward declaration for .previous pointer
+static struct menu
+    passphrase_manage_menu;  // forward declaration for .previous pointer
 static void passphrase_menu_update_items(void);
 static uint8_t menu_attach_to_pin_pagination(void);
-static uint8_t menu_attach_passphrase_warning_pagination(const char *main_pin, const char *hidden_pin);
+static uint8_t menu_attach_passphrase_warning_pagination(
+    const char *main_pin, const char *hidden_pin);
 static int menu_countlines(char *text);
 static int menu_line_index(char *text, int lines);
 static void menu_pin_input_for_attach(void);
@@ -44,12 +44,10 @@ static void menu_remove_pin_input(void);
 static void menu_remove_pin_confirmation(const char *pin_to_remove);
 static bool require_standard_pin(bool cancel_allowed);
 
-// External declarations
 extern void drawScrollbar(int pages, int index);
 
 static struct menu settings_menu, main_menu, security_set_menu, about_menu;
 
-// Global storage for temporary data during attach to pin flow  
 static char g_temp_passphrase_pin[MAX_PIN_LEN + 1] = "";
 static char g_temp_main_pin[MAX_PIN_LEN + 1] = "";
 
@@ -113,31 +111,26 @@ void menu_set_passphrase(int index) {
   uint8_t key = KEY_NULL;
   char title[32] = {0};
   if (index) {
-    // Disabling passphrase - check if attach to pin is being used
     snprintf(title, 32, "%s %s", _(O__DISABLE), _(M__PASSPHRASE));
-    
-    // Check if user has used attach to pin feature
+
     uint8_t space_available = 0;
     bool attach_to_pin_used = false;
     if (se_get_pin_passphrase_space(&space_available)) {
       attach_to_pin_used = (space_available < 30);
     }
-    
+
     if (attach_to_pin_used) {
-      // Show warning about hidden wallet PIN not working
       layoutDialogCenterAdapterV2(
           title, NULL, &bmp_bottom_left_close, &bmp_bottom_right_confirm, NULL,
           NULL, NULL, NULL, NULL, NULL,
           _(C__DISABLE_PASSPHRASE_HIDDEN_WALLET_PIN_WILL_NOT_UNLOCK_YOUR_DEVICE));
     } else {
-      // Standard disable passphrase message
       layoutDialogCenterAdapterV2(
           title, NULL, &bmp_bottom_left_close, &bmp_bottom_right_confirm, NULL,
           NULL, NULL, NULL, NULL, NULL,
           _(C__DO_YOU_WANT_TO_DISABLE_PASSPHRASE_ENCRYPTION));
     }
   } else {
-    // Enabling passphrase
     snprintf(title, 32, "%s %s", _(O__ENABLE), _(M__PASSPHRASE));
     layoutDialogCenterAdapterV2(
         title, NULL, &bmp_bottom_left_close, &bmp_bottom_right_confirm, NULL,
@@ -153,7 +146,6 @@ void menu_set_passphrase(int index) {
   config_setPassphraseProtection(new_passphrase_state);
 
   if (!new_passphrase_state && is_passphrase_pin_enabled) {
-    // Lock device when passphrase feature is disabled while unlocked via hidden PIN
     session_clear(true);
     menu_default();
     layoutHome();
@@ -170,7 +162,7 @@ void menu_attach_to_pin_desc(int index) {
   (void)index;
 
   uint8_t key = KEY_NULL;
-  
+
   key = menu_attach_to_pin_pagination();
   if (key == KEY_CONFIRM) {
     menu_pin_input_for_attach();
@@ -183,8 +175,10 @@ static int menu_countlines(char *text) {
 }
 
 static int menu_line_index(char *text, int lines) {
-  string_lines_t split_lines = split_string_to_lines(text, OLED_WIDTH, FONT_STANDARD);
-  int line_index = lines > split_lines.line_count ? split_lines.line_count : lines;
+  string_lines_t split_lines =
+      split_string_to_lines(text, OLED_WIDTH, FONT_STANDARD);
+  int line_index =
+      lines > split_lines.line_count ? split_lines.line_count : lines;
   return split_lines.line_start[line_index] - text;
 }
 
@@ -196,7 +190,7 @@ static uint8_t menu_attach_to_pin_pagination(void) {
   char *content = _(C__ATTACH_TO_PIN_DESC);
 
   rows = menu_countlines(content);
-  pages = (rows + 4 - 1) / 4;  
+  pages = (rows + 4 - 1) / 4;
   if (pages <= 0) pages = 1;
 
   BITMAP *bmp_no = (BITMAP *)&bmp_bottom_left_close;
@@ -220,7 +214,7 @@ _layout:
   } else if (page == 0) {
     bmp_up = NULL;
     bmp_down = (BITMAP *)&bmp_bottom_middle_arrow_down;
-    bmp_yes = (BITMAP *)&bmp_bottom_right_arrow; 
+    bmp_yes = (BITMAP *)&bmp_bottom_right_arrow;
   } else if (page == pages - 1) {
     bmp_up = (BITMAP *)&bmp_bottom_middle_arrow_up;
     bmp_down = NULL;
@@ -462,7 +456,6 @@ static struct menu passphrase_manage_menu = {
     .previous = &security_set_menu,
     .button_type = BTN_TYPE_NEXT,
 };
-
 
 static const struct menu_item settings_menu_items[] = {
     {"Bluetooth", NULL, false, .sub_menu = &ble_set_menu, menu_para_ble_state,
@@ -753,13 +746,12 @@ void menu_fido2_resident_credential(int index) {
 }
 #endif
 
-// Static security menu items (no Passphrase state indicator here, no Attach to PIN)
 static const struct menu_item security_set_menu_items_base[] = {
     {"Change PIN", NULL, true, menu_changePin, NULL, false, NULL},
     {"Check Recovery Phrase", NULL, true, menu_check_all_words, NULL, false,
      NULL},
-    {"Passphrase", NULL, false, .sub_menu = &passphrase_manage_menu,
-     NULL, true, NULL},
+    {"Passphrase", NULL, false, .sub_menu = &passphrase_manage_menu, NULL, true,
+     NULL},
 #if !BITCOIN_ONLY
     {"FIDO Keys", NULL, true, menu_fido2_resident_credential, NULL, false,
      NULL},
@@ -952,22 +944,21 @@ void menu_autolock_added_custom(void) {
 }
 
 void security_menu_update_items(void) {
-  // Always use base items: Passphrase state/attach-to-pin are managed inside
-  // the Passphrase submenu. No status indicator on the Security list.
   security_set_menu.counts = COUNT_OF(security_set_menu_items_base);
   security_set_menu.items = (struct menu_item *)security_set_menu_items_base;
 }
 
-// Update Passphrase management submenu items according to current state
 static void passphrase_menu_update_items(void) {
   bool passphrase_protection = false;
   config_getPassphraseProtection(&passphrase_protection);
   if (passphrase_protection) {
-    passphrase_manage_menu.counts = COUNT_OF(passphrase_manage_menu_items_dynamic);
+    passphrase_manage_menu.counts =
+        COUNT_OF(passphrase_manage_menu_items_dynamic);
     passphrase_manage_menu.items = passphrase_manage_menu_items_dynamic;
   } else {
     passphrase_manage_menu.counts = COUNT_OF(passphrase_manage_menu_items_base);
-    passphrase_manage_menu.items = (struct menu_item *)passphrase_manage_menu_items_base;
+    passphrase_manage_menu.items =
+        (struct menu_item *)passphrase_manage_menu_items_base;
   }
 }
 
@@ -990,238 +981,176 @@ void menu_default(void) {
 }
 
 static void menu_pin_input_for_attach(void) {
-  // Ensure RTT is initialized for debug logging (no-op if disabled)
-  rtt_log_init();
-  SEGGER_RTT_printf(0, "RTT Running...\r\n");
   uint8_t available_space = 0;
-  
-  // Check available storage space first
   (void)se_get_pin_passphrase_space(&available_space);
-
   const char *main_pin = NULL;
   const char *hidden_pin1 = NULL;
   const char *hidden_pin2 = NULL;
   static char main_pin_copy[MAX_PIN_LEN + 1] = "";
   static char pin1_copy[MAX_PIN_LEN + 1] = "";
   static char pin2_copy[MAX_PIN_LEN + 1] = "";
-  
-  // Step 1: (If currently unlocked with hidden PIN) show guidance page, then get and verify standard wallet PIN
-get_main_pin:
-  {
-    if (session_isUnlocked() && is_passphrase_pin_enabled) {
-      // Show guidance page before asking for Standard PIN
-      layoutDialogCenterAdapterV2(
-          _(T__ENTER_PIN), NULL, &bmp_bottom_left_close, &bmp_bottom_right_arrow,
-          NULL, NULL, NULL, NULL, NULL, NULL,
-          _(C__NEXT_PLEASE_ENTER_THE_STANDARD_WALLET_PIN));
-      uint8_t guide_key = protectWaitKey(0, 0);
-      if (guide_key != KEY_CONFIRM) {
-        clear_temp_pin_data();
-        return;
-      }
-    }
 
-    // Get and verify standard wallet PIN (use same title logic as protectPinOnDevice)
-    const char *pin_title;
-    if (session_isUnlocked() && is_passphrase_pin_enabled) {
-      pin_title = _(T__STANDARD_PIN);
-    } else {
-      pin_title = _(T__ENTER_PIN);
-    }
-    main_pin = protectInputPin(pin_title, 4, MAX_PIN_LEN, true);
-    if (!main_pin) {
+get_main_pin : {
+  if (session_isUnlocked() && is_passphrase_pin_enabled) {
+    layoutDialogCenterAdapterV2(
+        _(T__ENTER_PIN), NULL, &bmp_bottom_left_close, &bmp_bottom_right_arrow,
+        NULL, NULL, NULL, NULL, NULL, NULL,
+        _(C__NEXT_PLEASE_ENTER_THE_STANDARD_WALLET_PIN));
+    uint8_t guide_key = protectWaitKey(0, 0);
+    if (guide_key != KEY_CONFIRM) {
       clear_temp_pin_data();
-      return; // PIN input cancelled
-    }
-    // Copy the main PIN to local and global storage
-    strlcpy(main_pin_copy, main_pin, sizeof(main_pin_copy));
-    strlcpy(g_temp_main_pin, main_pin, sizeof(g_temp_main_pin));
-
-    // Verify the main PIN
-    bool main_ok = config_verifyPin(main_pin, PIN_TYPE_USER_CHECK);
-    pin_result_t main_pin_result = se_get_pin_result_type();
-    (void)main_pin_result; // avoid -Werror when RTT logging is disabled
-    rtt_log_print("[ATTACH] USER_CHECK verify=%d, last_result=%d", main_ok,
-                  (int)main_pin_result);
-    SEGGER_RTT_printf(0, "[ATTACH] USER_CHECK verify=%d, last_result=%d\r\n",
-                      (int)main_ok, (int)main_pin_result);
-    if (!main_ok) {
-      // PIN verification failed: show error with "return" icon and go back to Enter PIN
-      protectPinErrorTips(true);
-      goto get_main_pin;
+      return;
     }
   }
-  
+
+  const char *pin_title;
+  if (session_isUnlocked() && is_passphrase_pin_enabled) {
+    pin_title = _(T__STANDARD_PIN);
+  } else {
+    pin_title = _(T__ENTER_PIN);
+  }
+  main_pin = protectInputPin(pin_title, 4, MAX_PIN_LEN, true);
+  if (!main_pin) {
+    clear_temp_pin_data();
+    return;
+  }
+  strlcpy(main_pin_copy, main_pin, sizeof(main_pin_copy));
+  strlcpy(g_temp_main_pin, main_pin, sizeof(g_temp_main_pin));
+
+  bool main_ok = config_verifyPin(main_pin, PIN_TYPE_USER_CHECK);
+  pin_result_t main_pin_result = se_get_pin_result_type();
+  (void)main_pin_result;  // avoid -Werror when RTT logging is disabled
+  if (!main_ok) {
+    protectPinErrorTips(true);
+    goto get_main_pin;
+  }
+}
+
 retry_pin:
-  // Step 2: Enter passphrase PIN (first time)
   hidden_pin1 = protectInputPin(_(T__SET_HIDDEN_PIN), 6, MAX_PIN_LEN, true);
   if (!hidden_pin1 || strlen(hidden_pin1) < 6) {
     clear_temp_pin_data();
-    return; // PIN input cancelled or too short
+    return;
   }
-  // Copy the first PIN immediately
   strlcpy(pin1_copy, hidden_pin1, sizeof(pin1_copy));
-  
-  // Step 2: Enter passphrase PIN again for confirmation
-  hidden_pin2 = protectInputPin(_(T__ENTER_NEW_PIN_AGAIN), 6, MAX_PIN_LEN, true);
+
+  hidden_pin2 =
+      protectInputPin(_(T__ENTER_NEW_PIN_AGAIN), 6, MAX_PIN_LEN, true);
   if (!hidden_pin2 || strlen(hidden_pin2) < 6) {
     clear_temp_pin_data();
-    return; // PIN confirmation cancelled or too short
+    return;
   }
-  // Copy the second PIN
   strlcpy(pin2_copy, hidden_pin2, sizeof(pin2_copy));
-  
-  // Step 2: Verify both passphrase PINs match
+
   if (strcmp(pin1_copy, pin2_copy) != 0) {
-    // PINs don't match, show warning
     layoutDialogCenterAdapterV2(
-        NULL, &bmp_icon_warning, NULL, &bmp_bottom_right_retry,
-        NULL, NULL, NULL, NULL, NULL, NULL,
-        _(C__PIN_NOT_MATCH_EXCLAM_TRY_AGAIN));
-    
+        NULL, &bmp_icon_warning, NULL, &bmp_bottom_right_retry, NULL, NULL,
+        NULL, NULL, NULL, NULL, _(C__PIN_NOT_MATCH_EXCLAM_TRY_AGAIN));
+
     uint8_t key = protectWaitKey(0, 1);
     if (key == KEY_CONFIRM) {
-      // User pressed return button, go back to set hidden PIN (without re-verifying main PIN)
       goto retry_pin;
     }
     return;
   }
-  
-  // Step 3: Check if main PIN and passphrase PIN are the same
+
   if (strcmp(main_pin_copy, pin1_copy) == 0) {
-    // Main PIN and hidden PIN are the same, show warning
     layoutDialogCenterAdapterV2(
-        NULL, &bmp_icon_warning, NULL, &bmp_bottom_right_retry,
-        NULL, NULL, NULL, NULL, NULL, NULL,
+        NULL, &bmp_icon_warning, NULL, &bmp_bottom_right_retry, NULL, NULL,
+        NULL, NULL, NULL, NULL,
         _(C__PIN_ALREADY_USED_PLEASE_TRY_A_DIFFERENT_ONE));
-    
+
     uint8_t key = protectWaitKey(0, 1);
     if (key == KEY_CONFIRM) {
-      // User pressed return button, go back to set hidden PIN
       goto retry_pin;
     }
     return;
   }
-  
-  // Step 4: Check if passphrase PIN already exists
-  // Use the boolean result of config_verifyPin to avoid reusing a stale
-  // g_last_pin_result value when communication fails.
+
   bool passphrase_pin_exists =
       config_verifyPin(pin1_copy, PIN_TYPE_PASSPHRASE_PIN_CHECK);
   pin_result_t check_result = se_get_pin_result_type();
-  (void)check_result; // avoid -Werror when RTT logging is disabled
-  rtt_log_print("[ATTACH] PASS_CHECK verify=%d, last_result=%d", (int)passphrase_pin_exists,
-                (int)check_result);
-  SEGGER_RTT_printf(0, "[ATTACH] PASS_CHECK verify=%d, last_result=%d\r\n",
-                    (int)passphrase_pin_exists, (int)check_result);
-  
+  (void)check_result;
+
   if (passphrase_pin_exists) {
-show_pin_exists_warning:
-    // Step 4.1: Show warning page that PIN has attached passphrase
-    layoutDialogCenterAdapterV2(
-        _(T__ATTACH_PASSPHRASE), NULL, &bmp_bottom_left_close, &bmp_bottom_right_arrow,
-        NULL, NULL, NULL, NULL, NULL, NULL,
-        _(C__PIN_HAS_ATTACHED_ONE_PASSPHRASE));
+  show_pin_exists_warning:
+    layoutDialogCenterAdapterV2(_(T__ATTACH_PASSPHRASE), NULL,
+                                &bmp_bottom_left_close, &bmp_bottom_right_arrow,
+                                NULL, NULL, NULL, NULL, NULL, NULL,
+                                _(C__PIN_HAS_ATTACHED_ONE_PASSPHRASE));
     {
       uint8_t key = protectWaitKey(0, 1);
       if (key == KEY_CANCEL) {
-        // Left button (close) - return to previous level
         return;
       } else if (key == KEY_CONFIRM) {
-        // Right button (arrow) - show options menu
-        // Step 4.2: Show options menu for existing passphrase PIN using proper menu system
         uint8_t ret = menu_attach_pin_options(pin1_copy);
         if (ret == KEY_CANCEL) {
-          // User pressed left arrow in options, go back one level to this warning
           goto show_pin_exists_warning;
         }
-        return; // Exit after handling the menu
+        return;
       }
     }
   } else {
-    
-    // Step 4.3: Check available PIN-passphrase storage space
     uint8_t space_available = 0;
     if (se_get_pin_passphrase_space(&space_available) == sectrue) {
-      
-      // Limit hidden PINs to at most 3. SE reports available "space" starting at 30
-      // and decreasing by 1 per attached PIN. When 3 are already used, space == 27.
-      // Block adding a 4th item by triggering the limit when space <= 27.
       if (space_available <= 27) {
-        // Show storage limit warning page
         layoutDialogCenterAdapterV2(
-            NULL, &bmp_icon_warning, &bmp_bottom_left_close, &bmp_bottom_right_confirm,
-            NULL, NULL, NULL, NULL, NULL, NULL,
+            NULL, &bmp_icon_warning, &bmp_bottom_left_close,
+            &bmp_bottom_right_confirm, NULL, NULL, NULL, NULL, NULL, NULL,
             _(C__HIT_THE_LIMIT_30_PINS_MAX));
-        
+
         uint8_t key = protectWaitKey(0, 0);
         if (key == KEY_CONFIRM) {
-          // User clicked confirm button, launch PIN removal flow
           menu_remove_pin_from_limit_warning();
         }
-        // Return to previous menu
         clear_temp_pin_data();
         return;
       }
-    } else {
-      // Continue anyway if we can't check space
     }
   }
-  
-  // Step 5: Continue to Attach Passphrase page
-  // TODO: Store the hidden PIN association with passphrase
-  layoutDialogCenterAdapterV2(
-      _(T__ATTACH_PASSPHRASE), NULL, &bmp_bottom_left_close, &bmp_bottom_right_arrow,
-      NULL, NULL, NULL, NULL, NULL, NULL,
-      _(C__YOU_CAN_ATTACH_A_PASSPHRASE_TO_THIS_PIN));
-  
+
+  layoutDialogCenterAdapterV2(_(T__ATTACH_PASSPHRASE), NULL,
+                              &bmp_bottom_left_close, &bmp_bottom_right_arrow,
+                              NULL, NULL, NULL, NULL, NULL, NULL,
+                              _(C__YOU_CAN_ATTACH_A_PASSPHRASE_TO_THIS_PIN));
+
   uint8_t key = protectWaitKey(0, 1);
   if (key == KEY_CANCEL) {
-    // Go back to Passphrase manage menu
     menu_init(&passphrase_manage_menu);
   } else if (key == KEY_CONFIRM) {
-    // Show WARNING page with pagination
     menu_attach_passphrase_warning_pagination(main_pin_copy, pin1_copy);
   }
 }
 
-static uint8_t menu_attach_passphrase_warning_pagination(const char *main_pin, const char *hidden_pin) {  
+static uint8_t menu_attach_passphrase_warning_pagination(
+    const char *main_pin, const char *hidden_pin) {
   uint8_t key = KEY_NULL;
-  int index = 0; // 0 = first page, 1 = second page
-  int pages = 2; // Fixed two pages
-  char *page_contents[2] = {
-    _(C__PASSPHRASE__ATTACH_ONE_PASSPHRASE_DESC1),
-    _(C__PASSPHRASE__ATTACH_ONE_PASSPHRASE_DESC2)
-  };
-  
+  int index = 0;
+  int pages = 2;
+  char *page_contents[2] = {_(C__PASSPHRASE__ATTACH_ONE_PASSPHRASE_DESC1),
+                            _(C__PASSPHRASE__ATTACH_ONE_PASSPHRASE_DESC2)};
+
   BITMAP *bmp_no = (BITMAP *)&bmp_bottom_left_close;
   BITMAP *bmp_yes = (BITMAP *)&bmp_bottom_right_arrow_off;
   BITMAP *bmp_down = (BITMAP *)&bmp_bottom_middle_arrow_down;
   BITMAP *bmp_up = (BITMAP *)&bmp_bottom_middle_arrow_up;
 
 _layout:
-  // Set button visibility based on current page - follow existing pattern
   if (index == 0) {
-    // First page: show down arrow, right arrow is off initially
     bmp_up = NULL;
     bmp_down = (BITMAP *)&bmp_bottom_middle_arrow_down;
     bmp_yes = (BITMAP *)&bmp_bottom_right_arrow_off;
   } else if (index == pages - 1) {
-    // Last page: show up arrow, right arrow is active
     bmp_up = (BITMAP *)&bmp_bottom_middle_arrow_up;
     bmp_down = NULL;
     bmp_yes = (BITMAP *)&bmp_bottom_right_arrow;
   } else {
-    // Middle pages (not applicable for 2 pages)
     bmp_up = (BITMAP *)&bmp_bottom_middle_arrow_up;
     bmp_down = (BITMAP *)&bmp_bottom_middle_arrow_down;
     bmp_yes = (BITMAP *)&bmp_bottom_right_arrow_off;
   }
-  
-  // Build i18n WARNING title with page index (e.g., "WARNING! (1/2)")
+
   char title[64] = {0};
-  // Use a generously sized buffer to satisfy -Wformat-truncation even if
-  // pages were ever increased beyond single digits.
   char page_str[32] = {0};
   strlcpy(title, _(T__WARNING_EXCLAM_BRACKET_STR_BRACKET), sizeof(title));
   snprintf(page_str, sizeof(page_str), "%d/%d", index + 1, pages);
@@ -1233,7 +1162,7 @@ _layout:
                               page_contents[index]);
   if (pages > 1) drawScrollbar(pages, index);
   oledRefresh();
-  
+
   key = protectWaitKey(0, 0);
   switch (key) {
     case KEY_UP:
@@ -1248,95 +1177,72 @@ _layout:
       goto _layout;
     case KEY_CONFIRM:
       if (index == 0) {
-        // First click on right arrow: execute down action (go to next page)
         index++;
         goto _layout;
       } else {
-        // On last page: launch passphrase input
         static char passphrase[MAX_PASSPHRASE_LEN + 1] = "";
         memset(passphrase, 0, sizeof(passphrase));
         bool result = inputPassphraseOnDeviceRequired(passphrase);
         if (result && strlen(passphrase) > 0) {
-          // Show confirmation page with length indicator (x/50)
           layoutShowPassphrase(passphrase);
           uint8_t confirm_key = protectWaitKey(0, 0);
           if (confirm_key != KEY_CONFIRM) {
-            // User cancelled confirmation; return to first WARNING page
             index = 0;
             goto _layout;
           }
 
-          // Show Save Passphrase confirmation page (i18n)
           layoutDialogCenterAdapterV2(
-              _(T__SAVE_PASSPHRASE), NULL, NULL, &bmp_bottom_right_arrow,
-              NULL, NULL, NULL, NULL, NULL, NULL,
-              _(C__PASSPHRASE_SAVE_DESC));
+              _(T__SAVE_PASSPHRASE), NULL, NULL, &bmp_bottom_right_arrow, NULL,
+              NULL, NULL, NULL, NULL, NULL, _(C__PASSPHRASE_SAVE_DESC));
           uint8_t save_key = protectWaitKey(0, 1);
           if (save_key == KEY_CONFIRM) {
-            
-            // Check SE state before calling se_set_pin_passphrase
             secbool pin_unlocked = se_getSecsta();
-            
-            // If SE PIN is not unlocked, verify it first
+
             if (pin_unlocked != sectrue) {
               secbool verify_result = se_verifyPin(main_pin, PIN_TYPE_USER);
-              
+
               if (verify_result != sectrue) {
-                // Show error message and return
-                layoutDialogCenterAdapterV2(
-                    NULL, &bmp_icon_error, NULL, &bmp_bottom_right_confirm,
-                    NULL, NULL, NULL, NULL, NULL, NULL,
-                    "Failed to verify PIN with SE");
+                layoutDialogCenterAdapterV2(NULL, &bmp_icon_error, NULL,
+                                            &bmp_bottom_right_confirm, NULL,
+                                            NULL, NULL, NULL, NULL, NULL,
+                                            "Failed to verify PIN with SE");
                 protectWaitKey(0, 1);
                 menu_init(&passphrase_manage_menu);
                 return KEY_CONFIRM;
               }
-              
-              // Check SE state again after verification
+
               pin_unlocked = se_getSecsta();
             } else {
             }
-            
-            // Call se_set_pin_passphrase with main_pin, hidden_pin, passphrase, and false
+
             bool override = false;
-            secbool se_result = se_set_pin_passphrase(main_pin, hidden_pin, passphrase, &override);
-            
-            // Get detailed error information (optional check)
+            secbool se_result = se_set_pin_passphrase(main_pin, hidden_pin,
+                                                      passphrase, &override);
+
             (void)se_get_pin_result_type();
-                       
+
             if (se_result == sectrue) {
-              
-              // According to reference implementation, we may need to generate seed
-              // But for now, let's proceed with success
-              
-              // Show final success message (i18n)
               layoutDialogCenterAdapterV2(
-                  NULL, &bmp_icon_ok, NULL, &bmp_bottom_right_arrow,
-                  NULL, NULL, NULL, NULL, NULL, NULL,
+                  NULL, &bmp_icon_ok, NULL, &bmp_bottom_right_arrow, NULL, NULL,
+                  NULL, NULL, NULL, NULL,
                   _(C__PASSPHRASE_SET_AND_ATTACHED_TO_PIN));
               protectWaitKey(0, 1);
-              
-              // If update affected current session, lock device and return to main menu
+
               if (override) {
                 session_clear(true);
                 menu_default();
                 layoutHome();
                 return KEY_CONFIRM;
               }
-              
-              // Return to Passphrase manage menu
+
               passphrase_menu_update_items();
               menu_init(&passphrase_manage_menu);
             } else {
-              
-              // Check for specific error codes like reference implementation
               (void)se_lasterror();
-              
-              // Show error message and return to menu
+
               layoutDialogCenterAdapterV2(
-                  NULL, &bmp_icon_error, NULL, &bmp_bottom_right_confirm,
-                  NULL, NULL, NULL, NULL, NULL, NULL,
-                  "Failed to save passphrase");
+                  NULL, &bmp_icon_error, NULL, &bmp_bottom_right_confirm, NULL,
+                  NULL, NULL, NULL, NULL, NULL, "Failed to save passphrase");
               protectWaitKey(0, 1);
               menu_init(&passphrase_manage_menu);
             }
@@ -1344,7 +1250,6 @@ _layout:
             menu_init(&passphrase_manage_menu);
           }
         } else {
-          // User cancelled input or entered empty value; return to the first WARNING page
           index = 0;
           goto _layout;
         }
@@ -1352,7 +1257,6 @@ _layout:
       }
       break;
     case KEY_CANCEL:
-      // Go back to Passphrase manage menu
       clear_temp_pin_data();
       menu_init(&passphrase_manage_menu);
       return KEY_CANCEL;
@@ -1360,12 +1264,11 @@ _layout:
       clear_temp_pin_data();
       return KEY_CANCEL;
   }
-  
+
   clear_temp_pin_data();
   return key;
 }
 
-// Function to clear sensitive temporary data
 static void clear_temp_pin_data(void) {
   memset(g_temp_passphrase_pin, 0, sizeof(g_temp_passphrase_pin));
   memset(g_temp_main_pin, 0, sizeof(g_temp_main_pin));
@@ -1380,8 +1283,8 @@ static bool require_standard_pin(bool cancel_allowed) {
       pin_title = _(T__ENTER_PIN);
     }
 
-    const char *pin =
-        protectInputPin(pin_title, DEFAULT_PIN_LEN, MAX_PIN_LEN, cancel_allowed);
+    const char *pin = protectInputPin(pin_title, DEFAULT_PIN_LEN, MAX_PIN_LEN,
+                                      cancel_allowed);
     if (!pin || pin == PIN_CANCELED_BY_BUTTON) {
       return false;
     }
@@ -1406,28 +1309,25 @@ static bool require_standard_pin(bool cancel_allowed) {
 // Menu callback functions
 static void menu_remove_pin_option(int index) {
   (void)index;
-  
-  
+
   // Show warning page with warning icon and i18n message
   layoutDialogCenterAdapterV2(
-      NULL, &bmp_icon_warning, &bmp_bottom_left_close, &bmp_bottom_right_confirm,
-      NULL, NULL, NULL, NULL, NULL, NULL,
+      NULL, &bmp_icon_warning, &bmp_bottom_left_close,
+      &bmp_bottom_right_confirm, NULL, NULL, NULL, NULL, NULL, NULL,
       _(C__REMOVE_PIN_YOU_WILL_NOT_BE_ABLE_TO_USE_IT_TO_UNLOCK_THE_DEVICE));
-  
+
   uint8_t key = protectWaitKey(0, 0);
   if (key == KEY_CONFIRM) {
-    
     // Call SE to delete the PIN-passphrase association
     bool current = false;
     secbool result = se_delete_pin_passphrase(g_temp_passphrase_pin, &current);
-    
+
     if (result == sectrue) {
       // Show success message
-      layoutDialogCenterAdapterV2(
-          NULL, &bmp_icon_ok, NULL, &bmp_bottom_right_arrow,
-          NULL, NULL, NULL, NULL, NULL, NULL,
-          _(C__PIN_REMOVED));
-      
+      layoutDialogCenterAdapterV2(NULL, &bmp_icon_ok, NULL,
+                                  &bmp_bottom_right_arrow, NULL, NULL, NULL,
+                                  NULL, NULL, NULL, _(C__PIN_REMOVED));
+
       // If removed session is current, auto-advance after brief display
       if (current) {
         protectWaitKey(timer1s * 2, 0);  // Auto advance for security
@@ -1440,16 +1340,15 @@ static void menu_remove_pin_option(int index) {
         // For non-current session, let user manually continue
         protectWaitKey(0, 0);  // Wait for user input
       }
-      
+
       // Clear temp data and return to Passphrase manage menu
       clear_temp_pin_data();
       passphrase_menu_update_items();
       menu_init(&passphrase_manage_menu);
     } else {
-      
       // Check detailed error
       (void)se_get_pin_result_type();
-      
+
       // Simply return without showing error message
       // The operation failed silently
     }
@@ -1459,124 +1358,93 @@ static void menu_remove_pin_option(int index) {
 
 static void menu_set_new_passphrase_option(int index) {
   (void)index;
-  
-  
-  // Show "Attach passphrase" page with "you can attach a passphrase to this pin" message
-  layoutDialogCenterAdapterV2(
-      _(T__ATTACH_PASSPHRASE), NULL, &bmp_bottom_left_close, &bmp_bottom_right_arrow,
-      NULL, NULL, NULL, NULL, NULL, NULL,
-      _(C__YOU_CAN_ATTACH_A_PASSPHRASE_TO_THIS_PIN));
-  
+
+  layoutDialogCenterAdapterV2(_(T__ATTACH_PASSPHRASE), NULL,
+                              &bmp_bottom_left_close, &bmp_bottom_right_arrow,
+                              NULL, NULL, NULL, NULL, NULL, NULL,
+                              _(C__YOU_CAN_ATTACH_A_PASSPHRASE_TO_THIS_PIN));
+
   uint8_t key = protectWaitKey(0, 0);
   if (key == KEY_CANCEL) {
-    // Go back to options menu
     return;
   } else if (key == KEY_CONFIRM) {
-    // Show the two-page WARNING flow before passphrase input and saving
-    (void)menu_attach_passphrase_warning_pagination(g_temp_main_pin, g_temp_passphrase_pin);
+    (void)menu_attach_passphrase_warning_pagination(g_temp_main_pin,
+                                                    g_temp_passphrase_pin);
     return;
   }
 }
 
-// Removed unused menu structures since we're using custom display
-
-// Custom display function for attach PIN options (using Chinese-compatible functions)
 static void display_attach_pin_options(uint8_t selected) {
   oledClear();
-  
-  // Get localized strings
+
   const char *option1 = _(O__REMOVE_THIS_PIN);
   const char *option2 = _(O__SET_A_NEW_PASSPHRASE);
-  
-  // Calculate positions for vertical centering
-  int y1 = 20; // First option position
-  int y2 = 35; // Second option position
-  
-  // Use Chinese-compatible text width calculation
+
+  int y1 = 20;
+  int y2 = 35;
+
   int text_width1 = oledStringWidthAdapter(option1, FONT_STANDARD);
   int text_width2 = oledStringWidthAdapter(option2, FONT_STANDARD);
-  
-  // Calculate horizontal centering
+
   int x1 = (OLED_WIDTH - text_width1) / 2;
   int x2 = (OLED_WIDTH - text_width2) / 2;
-  
-  
-  
-  // Draw first option with Chinese adapter
+
   oledDrawStringCenterAdapter(OLED_WIDTH / 2, y1, option1, FONT_STANDARD);
   if (selected == 0) {
-    // Highlight selected option by inverting the text area
     oledInvert(x1 - 2, y1 - 2, x1 + text_width1 + 2, y1 + 10);
   }
-  
-  // Draw second option with Chinese adapter
+
   oledDrawStringCenterAdapter(OLED_WIDTH / 2, y2, option2, FONT_STANDARD);
   if (selected == 1) {
-    // Highlight selected option by inverting the text area
     oledInvert(x2 - 2, y2 - 2, x2 + text_width2 + 2, y2 + 10);
   }
-  
-  // Draw navigation arrows based on current selection
-  // Always show left arrow (cancel)
+
   oledDrawBitmap(0, OLED_HEIGHT - 11, &bmp_bottom_left_arrow);
-  
-  // Always show right arrow (confirm)
+
   oledDrawBitmap(OLED_WIDTH - 16, OLED_HEIGHT - 11, &bmp_bottom_right_arrow);
-  
-  // Show appropriate navigation arrow in middle position based on selection
+
   if (selected == 0) {
-    // When first item selected, show down arrow (can go down to second item)
-    oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8, &bmp_bottom_middle_arrow_down);
+    oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8,
+                   &bmp_bottom_middle_arrow_down);
   } else {
-    // When second item selected, show up arrow (can go up to first item)  
-    oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8, &bmp_bottom_middle_arrow_up);
+    oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8,
+                   &bmp_bottom_middle_arrow_up);
   }
-  
+
   oledRefresh();
 }
 
-// Function to show attach PIN options menu
 static uint8_t menu_attach_pin_options(const char *passphrase_pin) {
-  
-  
-  // Store the passphrase PIN for use in callbacks
   strlcpy(g_temp_passphrase_pin, passphrase_pin, sizeof(g_temp_passphrase_pin));
-  
+
   uint8_t selected = 0;
   uint8_t key = KEY_NULL;
-  
-  // Custom menu loop with centered display
+
   while (1) {
     display_attach_pin_options(selected);
-    
+
     key = protectWaitKey(0, 0);
-    
-    
-    
+
     switch (key) {
       case KEY_UP:
         if (selected > 0) {
           selected--;
-          
+
         } else {
-          
         }
         break;
       case KEY_DOWN:
         if (selected < 1) {
           selected++;
-          
+
         } else {
-          
         }
         break;
       case KEY_CANCEL:
-        
-        // Go back one level (to previous page)
+
         return KEY_CANCEL;
       case KEY_CONFIRM:
-        
-        // Execute selected option
+
         if (selected == 0) {
           menu_remove_pin_option(0);
         } else {
@@ -1584,21 +1452,18 @@ static uint8_t menu_attach_pin_options(const char *passphrase_pin) {
         }
         return KEY_CONFIRM;
       default:
-        
+
         break;
     }
   }
 }
 
-// PIN removal flow implementation
-
 static void menu_remove_pin_from_limit_warning(void) {
-  // Show the remove PIN page
   layoutDialogCenterAdapterV2(
       _(T__REMOVE_PIN), NULL, &bmp_bottom_left_close, &bmp_bottom_right_arrow,
       NULL, NULL, NULL, NULL, NULL, NULL,
       _(C__NEXT_PLEASE_ENTER_THE_HIDDEN_WALLET_PIN_YOU_WANT_TO_REMOVE));
-  
+
   uint8_t key = protectWaitKey(0, 0);
   if (key == KEY_CONFIRM) {
     menu_remove_pin_input();
@@ -1609,39 +1474,30 @@ static void menu_remove_pin_input(void) {
   static char pin_to_remove[MAX_PIN_LEN + 1] = "";
   static int retry_count = 0;
   const int max_retries = 3;
-  
+
   if (retry_count >= max_retries) {
-    // Reset retry count and exit
     retry_count = 0;
     return;
   }
-  
-  // Get PIN input from user (minimum 6 digits)
-  const char *entered_pin = protectInputPin(_(T__ENTER_HIDDEN_PIN), 6, MAX_PIN_LEN, true);
+
+  const char *entered_pin =
+      protectInputPin(_(T__ENTER_HIDDEN_PIN), 6, MAX_PIN_LEN, true);
   if (entered_pin == NULL) {
-    // User canceled
     return;
   }
-  
+
   strncpy(pin_to_remove, entered_pin, MAX_PIN_LEN);
   pin_to_remove[MAX_PIN_LEN] = '\0';
-  
-  // Verify the PIN exists (use boolean result to avoid stale value reuse)
+
   bool passphrase_pin_exists =
       config_verifyPin(pin_to_remove, PIN_TYPE_PASSPHRASE_PIN_CHECK);
   pin_result_t remove_check = se_get_pin_result_type();
-  (void)remove_check; // avoid -Werror when RTT logging is disabled
-  rtt_log_print("[REMOVE] PASS_CHECK verify=%d, last_result=%d", (int)passphrase_pin_exists,
-                (int)remove_check);
-  SEGGER_RTT_printf(0, "[REMOVE] PASS_CHECK verify=%d, last_result=%d\r\n",
-                    (int)passphrase_pin_exists, (int)remove_check);
-  
+  (void)remove_check;
+
   if (passphrase_pin_exists) {
-    // PIN exists, show confirmation dialog
-    retry_count = 0; // Reset retry count on success
+    retry_count = 0;
     menu_remove_pin_confirmation(pin_to_remove);
   } else {
-    // PIN doesn't exist (or wrong), show Incorrect PIN dialog with only Retry (no Cancel)
     retry_count++;
     layoutDialogCenterAdapterV2(
         NULL, &bmp_icon_warning, NULL, &bmp_bottom_right_retry, NULL, NULL,
@@ -1650,48 +1506,38 @@ static void menu_remove_pin_input(void) {
 
     uint8_t key = protectWaitKey(0, 1);
     if (key == KEY_CONFIRM) {
-      // Retry
       menu_remove_pin_input();
     }
-    // If user does not press confirm, just return silently
   }
 }
 
 static void menu_remove_pin_confirmation(const char *pin_to_remove) {
-  // Show confirmation dialog using existing Remove PIN page
   layoutDialogCenterAdapterV2(
-      NULL, &bmp_icon_question, &bmp_bottom_left_close, &bmp_bottom_right_confirm,
-      NULL, NULL, NULL, NULL, NULL, NULL,
+      NULL, &bmp_icon_question, &bmp_bottom_left_close,
+      &bmp_bottom_right_confirm, NULL, NULL, NULL, NULL, NULL, NULL,
       _(C__REMOVE_PIN_YOU_WILL_NOT_BE_ABLE_TO_USE_IT_TO_UNLOCK_THE_DEVICE));
-  
+
   uint8_t key = protectWaitKey(0, 0);
   if (key == KEY_CONFIRM) {
-    // User confirmed, delete the PIN
     bool current = false;
     secbool result = se_delete_pin_passphrase(pin_to_remove, &current);
-    
+
     if (result == sectrue) {
-      // Success - use existing PIN removed page
-      layoutDialogCenterAdapterV2(
-          NULL, &bmp_icon_ok, NULL, &bmp_bottom_right_arrow,
-          NULL, NULL, NULL, NULL, NULL, NULL,
-          _(C__PIN_REMOVED));
-      
-      // If removed session is current, auto-advance for security
+      layoutDialogCenterAdapterV2(NULL, &bmp_icon_ok, NULL,
+                                  &bmp_bottom_right_arrow, NULL, NULL, NULL,
+                                  NULL, NULL, NULL, _(C__PIN_REMOVED));
+
       if (current) {
         session_clear(true);
         menu_default();
         layoutHome();
         return;
       } else {
-        // For non-current session, let user manually continue
-        protectWaitKey(0, 0);  // Wait for user input
+        protectWaitKey(0, 0);
       }
     } else {
-      // Failed
-      layoutDialog(&bmp_icon_error, NULL, "Continue", NULL,
-                   "Failed to", "remove PIN.", NULL,
-                   "Please try again.", NULL, NULL);
+      layoutDialog(&bmp_icon_error, NULL, "Continue", NULL, "Failed to",
+                   "remove PIN.", NULL, "Please try again.", NULL, NULL);
       protectWaitKey(0, 0);
     }
   }

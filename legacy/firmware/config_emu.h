@@ -21,11 +21,11 @@
 #define __CONFIG_EMU_H__
 
 #include "bip32.h"
-#include "se_chip.h"
 #include "messages-bitcoin.pb.h"
 #include "messages-common.pb.h"
 #include "messages-management.pb.h"
 #include "messages.pb.h"
+#include "se_chip.h"
 
 #define STORAGE_FIELD(TYPE, NAME) \
   bool has_##NAME;                \

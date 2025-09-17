@@ -17,15 +17,15 @@
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <stdbool.h>
+#include "base58.h"
 #include "firmware/config.h"
 #include "flash.h"
+#include "hasher.h"
 #include "menu_list.h"
 #include "mi2c.h"
-#include "se_chip.h"
-#include "base58.h"
-#include "hasher.h"
-#include "storage.h"
 #include "protect.h"
+#include "se_chip.h"
+#include "storage.h"
 
 extern char bootloader_version[8];
 
@@ -63,17 +63,17 @@ bool get_features(Features *resp) {
   resp->pin_protection = config_hasPin();
   resp->has_passphrase_protection = true;
   config_getPassphraseProtection(&(resp->passphrase_protection));
-  
+
   uint8_t pin_space_check = 0;
   bool attach_user_status = false;
   if (se_get_pin_passphrase_space(&pin_space_check)) {
     attach_user_status = (pin_space_check < 30);
   } else {
   }
-  
+
   resp->has_attach_to_pin_user = true;
-  resp->attach_to_pin_user = attach_user_status; 
-    
+  resp->attach_to_pin_user = attach_user_status;
+
   resp->has_unlocked_attach_pin = true;
   resp->unlocked_attach_pin = is_passphrase_pin_enabled;
 #ifdef SCM_REVISION
@@ -240,7 +240,7 @@ bool get_features(Features *resp) {
   resp->has_product = true;
   strlcpy(resp->product, ble_hw_ver_is_pure() ? "pure" : "classic1s",
           sizeof(resp->product));
-  
+
   // Set attach_to_pin_user based on available space
   resp->has_attach_to_pin_user = true;
   uint8_t space_available = 0;
@@ -250,97 +250,57 @@ bool get_features(Features *resp) {
   } else {
     resp->attach_to_pin_user = false;
   }
-  
-  // When unlocked via passphrase PIN but the host does not support attach
-  // capability, mimic Pro behavior by reporting passphrase_protection=false
-  // to keep backward compatibility with older clients.
-  if (session_isUnlocked() && is_passphrase_pin_enabled && !g_client_contains_attach) {
+
+  if (session_isUnlocked() && is_passphrase_pin_enabled &&
+      !g_client_contains_attach) {
     resp->passphrase_protection = false;
   }
-  
-  // Set unlocked_attach_pin to reflect current session unlock method
-  // It should indicate whether the current session was unlocked via
-  // hidden PIN (AttachToPin), independent of whether the user is an
-  // attach-to-pin user in general.
+
   if (session_isUnlocked()) {
     resp->has_unlocked_attach_pin = true;
     resp->unlocked_attach_pin = is_passphrase_pin_enabled;
   }
-  
+
   return resp;
 }
 
 void fsm_msgInitialize(const Initialize *msg) {
-  if (msg) {
-    if (msg->has_passphrase_state) {
-    }
-    if (msg->has_session_id && msg->session_id.size > 0) {
-    }
-    if (msg->has_is_contains_attach) {
-    }
-  } else {
-  }
-  
-  // Check current device state
-  bool passphrase_enabled = false;
-  if (config_getPassphraseProtection(&passphrase_enabled)) {
-  } else {
-  }
-  
-  // Optionally query attach-to-pin status (not used here)
-  uint8_t se_space_available = 0;
-  (void)se_space_available;
-  (void)se_get_pin_passphrase_space;  
-  
   fsm_abortWorkflows();
-
   uint8_t *session_id = NULL;
-  // Cache last session id to avoid unnecessary restarts (align with Pro cache+current_id idea)
   static uint8_t g_cached_session_id[32] = {0};
   static bool g_session_cached = false;
-  
-  // Store client attach support status (like Pro firmware)
   if (msg && msg->has_is_contains_attach) {
     g_client_contains_attach = msg->is_contains_attach;
   } else {
     g_client_contains_attach = false;
   }
-  
-  // If SE session is not open (e.g., device was locked and sessions cleared),
-  // drop any cached session id to avoid returning stale ids after lock.
   if (!se_session_is_open()) {
     g_session_cached = false;
     for (int i = 0; i < 32; i++) g_cached_session_id[i] = 0;
   }
-  
-  // Handle passphrase state and session management (align with Pro behavior)
   bool has_attach = false;
   if (msg && msg->has_is_contains_attach && msg->is_contains_attach) {
     has_attach = true;
   }
 
-  // Decode passphrase_state as Bitcoin testnet address if present
   bool ps_valid = false;
   if (msg && msg->has_passphrase_state && msg->passphrase_state[0]) {
     uint8_t addr_raw[MAX_ADDR_RAW_SIZE] = {0};
-    int decode_len = base58_decode_check(msg->passphrase_state, HASHER_SHA2D, addr_raw, MAX_ADDR_RAW_SIZE);
+    int decode_len = base58_decode_check(msg->passphrase_state, HASHER_SHA2D,
+                                         addr_raw, MAX_ADDR_RAW_SIZE);
     if (decode_len > 0 && decode_len <= MAX_ADDR_RAW_SIZE) {
       uint8_t prefix = addr_raw[0];
-      // Testnet P2PKH=0x6F, P2SH=0xC4
       if (prefix == 0x6F || prefix == 0xC4) {
         ps_valid = true;
       }
     }
   }
 
-  // Choose session according to Pro logic (apps/base.py::handle_Initialize)
-  // Prepare helpers
   const uint8_t *provided_sid =
       (msg && msg->has_session_id && msg->session_id.size == 32)
           ? msg->session_id.bytes
           : NULL;
 
-  // Re-evaluate ps_valid using SE helper to match Pro (check BTC testnet address)
   if (msg && msg->has_passphrase_state && msg->passphrase_state[0]) {
     if (!ps_valid) {
       ps_valid = (se_check_passphrase_btc_test_address(msg->passphrase_state) ==
@@ -349,7 +309,6 @@ void fsm_msgInitialize(const Initialize *msg) {
   }
 
   if (ps_valid) {
-    // If device unlocked and not using passphrase PIN, align with provided id
     if (session_isUnlocked() && !is_passphrase_pin_enabled) {
       session_id = provided_sid ? session_startSession(provided_sid)
                                 : session_startSession(NULL);
@@ -361,13 +320,10 @@ void fsm_msgInitialize(const Initialize *msg) {
     }
   } else if (has_attach && provided_sid &&
              (!msg->has_passphrase_state || !msg->passphrase_state[0])) {
-    // Client supports attach, no passphrase_state but session id present -> start fresh
     session_id = session_startSession(NULL);
   } else if (session_isUnlocked() && is_passphrase_pin_enabled) {
-    // Currently hidden-pin unlocked -> start a new session
     session_id = session_startSession(NULL);
   } else {
-    // Default: start with provided id, or allocate new if none
     if (provided_sid) {
       session_id = session_startSession(provided_sid);
     } else {
@@ -376,9 +332,6 @@ void fsm_msgInitialize(const Initialize *msg) {
   }
 
   if (msg && msg->has_derive_cardano && msg->derive_cardano) {
-    // Align with Pro: when host requests Cardano derivation, ensure session
-    // is suitable. If BTC seed exists but Cardano seed not yet, start a new
-    // session so subsequent seed generation can proceed without mixing.
     uint8_t seed_state = 0;
     if (se_get_session_seed_state(&seed_state)) {
       bool btc_seed = (seed_state & 0x80) != 0;
@@ -401,14 +354,10 @@ void fsm_msgInitialize(const Initialize *msg) {
   memcpy(resp->session_id.bytes, session_id, sizeof(resp->session_id.bytes));
   resp->session_id.size = sizeof(resp->session_id.bytes);
 
-  if (resp->has_session_id) {
-  }
-  // Update cache if we have a non-zero session id pointer
   if (session_id) {
     memcpy(g_cached_session_id, session_id, 32);
     g_session_cached = true;
   }
-  
 
   layoutHome();
   msg_write(MessageType_MessageType_Features, resp);
@@ -838,7 +787,6 @@ void fsm_msgApplySettings(const ApplySettings *msg) {
         attach_to_pin_used = (space_available < 30);
       }
 
-      
       if (attach_to_pin_used) {
         layoutDialogCenterAdapterV2(
             NULL, &bmp_icon_warning, &bmp_bottom_left_close,
@@ -1172,105 +1120,90 @@ void fsm_msgBixinVerifyDeviceRequest(const BixinVerifyDeviceRequest *msg) {
 
 void fsm_msgGetPassphraseState(const GetPassphraseState *msg) {
   (void)msg;
-  
+
   RESP_INIT(PassphraseState);
-  
+
   CHECK_INITIALIZED
   CHECK_PIN
-  
-  // Get or start a session ID
-  // Important: Do NOT always start a new session here. Starting a fresh
-  // session clears the SE session seed state, which leads to an extra
-  // passphrase prompt on the next derivation. Only start a new session
-  // if there is no open session yet; otherwise, keep the current one.
+
   uint8_t *session_id = NULL;
   if (session_isUnlocked()) {
     if (!se_session_is_open()) {
       session_id = session_startSession(NULL);
     } else {
-      // Session already open; keep it as-is to preserve generated seeds.
-      // We intentionally do not return a session_id here to avoid
-      // accidentally switching sessions on the host side.
       session_id = NULL;
     }
   }
-  
-  // Using fixed path m/44'/1'/0'/0/0 (Bitcoin testnet)
-  uint32_t address_n[5] = {PATH_HARDENED | 44, PATH_HARDENED | 1, PATH_HARDENED | 0, 0, 0};
+
+  uint32_t address_n[5] = {PATH_HARDENED | 44, PATH_HARDENED | 1,
+                           PATH_HARDENED | 0, 0, 0};
   HDNode *node = fsm_getDerivedNode(SECP256K1_NAME, address_n, 5, NULL);
   if (!node) {
-    strlcpy(resp->passphrase_state, "Error: Failed to derive key", sizeof(resp->passphrase_state));
+    strlcpy(resp->passphrase_state, "Error: Failed to derive key",
+            sizeof(resp->passphrase_state));
   } else {
     if (hdnode_fill_public_key(node) != 0) {
-      strlcpy(resp->passphrase_state, "Error: Failed to derive public key", sizeof(resp->passphrase_state));
+      strlcpy(resp->passphrase_state, "Error: Failed to derive public key",
+              sizeof(resp->passphrase_state));
     } else {
-      // Get Bitcoin testnet coin info
       const CoinInfo *coin = coinByName("Testnet");
       if (!coin) {
-        strlcpy(resp->passphrase_state, "Error: Bitcoin Testnet not found", sizeof(resp->passphrase_state));
+        strlcpy(resp->passphrase_state, "Error: Bitcoin Testnet not found",
+                sizeof(resp->passphrase_state));
       } else {
         char address[MAX_ADDR_SIZE];
-        if (!compute_address(coin, InputScriptType_SPENDADDRESS, node, false, NULL, address)) {
-          strlcpy(resp->passphrase_state, "Error: Failed to compute address", sizeof(resp->passphrase_state));
+        if (!compute_address(coin, InputScriptType_SPENDADDRESS, node, false,
+                             NULL, address)) {
+          strlcpy(resp->passphrase_state, "Error: Failed to compute address",
+                  sizeof(resp->passphrase_state));
         } else {
-          strlcpy(resp->passphrase_state, address, sizeof(resp->passphrase_state));
+          strlcpy(resp->passphrase_state, address,
+                  sizeof(resp->passphrase_state));
         }
       }
     }
   }
-  
-  // Set session ID only if we explicitly started a new session above.
+
   if (session_id) {
     resp->has_session_id = true;
     memcpy(resp->session_id.bytes, session_id, 32);
     resp->session_id.size = 32;
   }
-  
-  // Align with Pro semantics: unlocked_attach_pin reflects whether current
-  // unlocked session was established via passphrase PIN (hidden wallet).
+
   uint8_t space_check = 0;
   (void)space_check;
   (void)se_get_pin_passphrase_space;
   resp->has_unlocked_attach_pin = true;
   resp->unlocked_attach_pin = is_passphrase_pin_enabled;
-  
-  
+
   msg_write(MessageType_MessageType_PassphraseState, resp);
   layoutHome();
 }
 
 void fsm_msgUnLockDevice(const UnLockDevice *msg) {
   (void)msg;
-  
+
   RESP_INIT(UnLockDeviceResponse);
-  
-  // Check if device is unlocked (PIN has been entered)
   bool is_unlocked = session_isUnlocked();
-  
+
   if (!is_unlocked) {
-    // Device is locked, prompt for PIN
     CHECK_PIN
-    // After CHECK_PIN, the device should be unlocked if PIN was correct
     is_unlocked = session_isUnlocked();
   }
-  
-  // Set unlocked status
+
   resp->has_unlocked = true;
   resp->unlocked = is_unlocked;
-  
-  // If device is unlocked, report whether the current session was
-  // unlocked via hidden PIN (AttachToPin)
+
   if (is_unlocked) {
     resp->has_unlocked_attach_pin = true;
     resp->unlocked_attach_pin = is_passphrase_pin_enabled;
   }
-  
-  // Check if passphrase protection is enabled
+
   resp->has_passphrase_protection = true;
   bool passphrase_protection = false;
   config_getPassphraseProtection(&passphrase_protection);
   resp->passphrase_protection = passphrase_protection;
-  
+
   msg_write(MessageType_MessageType_UnLockDeviceResponse, resp);
   layoutHome();
 }

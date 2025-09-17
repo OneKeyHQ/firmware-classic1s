@@ -28,12 +28,13 @@
 #include "fsm.h"
 #include "gettext.h"
 #include "layout2.h"
-#include "menu_list.h"
 #include "memory.h"
 #include "memzero.h"
+#include "menu_list.h"
 #include "messages.h"
 #include "messages.pb.h"
 #include "oled.h"
+#include "oled_text.h"
 #include "pinmatrix.h"
 #include "prompt.h"
 #include "rng.h"
@@ -42,9 +43,6 @@
 #include "sys.h"
 #include "usb.h"
 #include "util.h"
-#include "oled_text.h"
-#include "SEGGER_RTT.h"
-#include "rtt_log.h"
 
 extern void drawScrollbar(int pages, int index);
 
@@ -431,7 +429,7 @@ bool protectPin(bool use_cached) {
       if (pin_result == PASSPHRASE_PIN_ENTERED) {
         is_passphrase_pin_enabled = true;
         if (se_sessionClose()) {
-          if (se_sessionClear()) {            
+          if (se_sessionClear()) {
             uint8_t *new_session = se_session_startSession(NULL);
             (void)new_session;
           }
@@ -439,8 +437,6 @@ bool protectPin(bool use_cached) {
         }
       } else if (pin_result == USER_PIN_ENTERED) {
         is_passphrase_pin_enabled = false;
-        // Do not reset SE session on USER PIN. Keep current session to avoid
-        // clearing passphrase-derived seed when adding a normal passphrase wallet.
       } else {
         is_passphrase_pin_enabled = false;
       }
@@ -569,7 +565,6 @@ bool protectChangeWipeCode(bool removal) {
     } else if (pin == PIN_CANCELED_BY_BUTTON)
       return false;
 
-    // If removing, defer the check to config_changeWipeCode().
     if (!removal) {
       usbTiny(1);
       bool ret = config_unlock(input, PIN_TYPE_USER_CHECK);
@@ -628,39 +623,30 @@ bool protectChangeWipeCode(bool removal) {
 }
 
 bool protectPassphrase(char *passphrase) {
-  // Initialize RTT logging (safe if already initialized)
-  rtt_log_init();
-  SEGGER_RTT_printf(0, "[ATTACH] protectPassphrase enter\r\n");
   memzero(passphrase, MAX_PASSPHRASE_LEN + 1);
   bool passphrase_protection = false;
   config_getPassphraseProtection(&passphrase_protection);
-  SEGGER_RTT_printf(0, "[ATTACH] passphrase_protection=%d, is_passphrase_pin_enabled=%d\r\n",
-                    (int)passphrase_protection, (int)is_passphrase_pin_enabled);
   if (!passphrase_protection) {
-    // passphrase already set to empty by memzero above
     return true;
   }
 
-  // If unlocked via passphrase PIN, return empty passphrase directly
-  // This matches the reference project behavior: return "" when unlocked via passphrase pin
   if (is_passphrase_pin_enabled) {
-    // passphrase already set to empty by memzero above
     return true;
   }
 
   PassphraseRequest resp = {0};
   memzero(&resp, sizeof(PassphraseRequest));
-  
+
   uint8_t space_available = 0;
   if (se_get_pin_passphrase_space(&space_available)) {
     resp.has_exists_attach_pin_user = true;
     resp.exists_attach_pin_user = (space_available < 30);
-    
+
   } else {
     resp.has_exists_attach_pin_user = true;
     resp.exists_attach_pin_user = false;
   }
-  
+
   usbTiny(1);
   msg_write(MessageType_MessageType_PassphraseRequest, &resp);
 
@@ -682,58 +668,42 @@ bool protectPassphrase(char *passphrase) {
     if (msg_tiny_id == MessageType_MessageType_PassphraseAck) {
       msg_tiny_id = 0xFFFF;
       PassphraseAck *ppa = (PassphraseAck *)msg_tiny;
-      SEGGER_RTT_printf(0, "[ATTACH] PassphraseAck received: has_on_device_attach_pin=%d, on_device_attach_pin=%d\r\n",
-                        (int)ppa->has_on_device_attach_pin,
-                        (int)(ppa->has_on_device_attach_pin ? ppa->on_device_attach_pin : 0));
-      
-      // Check for attach-to-pin request (like Pro firmware)
+
       if (ppa->has_on_device_attach_pin && ppa->on_device_attach_pin == true) {
-        SEGGER_RTT_printf(0, "[ATTACH] Host requested attach-to-pin flow\r\n");
-        
-        // Lock device and unlock with passphrase PIN (like Pro firmware)
         session_clear(true);
         layoutHome();
-        
-        // Send PinMatrixRequest to show 9-grid using AttachToPin type
         PinMatrixRequest pin_req;
         memzero(&pin_req, sizeof(PinMatrixRequest));
         pin_req.has_type = true;
         pin_req.type = PinMatrixRequestType_PinMatrixRequestType_AttachToPin;
         msg_write(MessageType_MessageType_PinMatrixRequest, &pin_req);
-        SEGGER_RTT_printf(0, "[ATTACH] Sent PinMatrixRequest AttachToPin\r\n");
-        
+
         // Show 9-grid matrix on device
         pinmatrix_start(_(T__ENTER_HIDDEN_PIN));
-        
-        // Handle PIN input with retry loop
+
         const char *entered_pin = NULL;
         bool pin_verified = false;
-        
+
         while (!pin_verified) {
           usbPoll();
-          
-          // Check for PinMatrixAck (user entered PIN via 9-grid)
+
           if (msg_tiny_id == MessageType_MessageType_PinMatrixAck) {
             msg_tiny_id = 0xFFFF;
             PinMatrixAck *pma = (PinMatrixAck *)msg_tiny;
-            SEGGER_RTT_printf(0, "[ATTACH] PinMatrixAck received\r\n");
-            
+
             // Decode PIN from matrix
             if (sectrue == pinmatrix_done(true, pma->pin)) {
               entered_pin = pma->pin;
-              SEGGER_RTT_printf(0, "[ATTACH] Decoded PIN from matrix, verifying...\r\n");
-              
+
               // Verify the entered PIN
               if (config_verifyPin(entered_pin, PIN_TYPE_PASSPHRASE_PIN)) {
                 pin_result_t pin_result = se_get_pin_result_type();
-                SEGGER_RTT_printf(0, "[ATTACH] verify ok, pin_result=%d\r\n", (int)pin_result);
                 if (pin_result == PASSPHRASE_PIN_ENTERED) {
                   is_passphrase_pin_enabled = true;
                   pin_verified = true;
 
                   if (se_sessionClose()) {
                     if (se_sessionClear()) {
-
                       uint8_t *new_session = se_session_startSession(NULL);
                       if (new_session != NULL) {
                       } else {
@@ -743,9 +713,8 @@ bool protectPassphrase(char *passphrase) {
                   } else {
                   }
                 } else {
-                  SEGGER_RTT_printf(0, "[ATTACH] verify ok but not PASSPHRASE_PIN_ENTERED: %d\r\n",
-                                    (int)pin_result);
-                  fsm_sendFailure(FailureType_Failure_PinInvalid, "Incorrect PIN");
+                  fsm_sendFailure(FailureType_Failure_PinInvalid,
+                                  "Incorrect PIN");
                   protectPinErrorTips(true);
 
                   if (msg_tiny_id == MessageType_MessageType_Cancel) {
@@ -758,9 +727,8 @@ bool protectPassphrase(char *passphrase) {
                   goto matrix_input_exit;
                 }
               } else {
-                SEGGER_RTT_printf(0, "[ATTACH] verify failed\r\n");
-
-                fsm_sendFailure(FailureType_Failure_PinInvalid, "Incorrect PIN");
+                fsm_sendFailure(FailureType_Failure_PinInvalid,
+                                "Incorrect PIN");
                 protectPinErrorTips(true);
 
                 if (msg_tiny_id == MessageType_MessageType_Cancel) {
@@ -773,39 +741,27 @@ bool protectPassphrase(char *passphrase) {
                 goto matrix_input_exit;
               }
             } else {
-              
-              
               result = false;
               break;
             }
-            
-          // Check for BixinPinInputOnDevice (user wants to enter on device)
-          } else if (msg_tiny_id == MessageType_MessageType_BixinPinInputOnDevice) {
-            msg_tiny_id = 0xFFFF;
-            SEGGER_RTT_printf(0, "[ATTACH] BixinPinInputOnDevice path\r\n");
-            
-            // Proceed directly to device PIN input without sending ButtonRequest
-            
 
-            // Device PIN input with retry logic
+          } else if (msg_tiny_id ==
+                     MessageType_MessageType_BixinPinInputOnDevice) {
+            msg_tiny_id = 0xFFFF;
+
             while (true) {
-              // Show device PIN input interface
-              
-              entered_pin = protectInputPin(_(T__ENTER_HIDDEN_PIN), 6, MAX_PIN_LEN, true);
+              entered_pin =
+                  protectInputPin(_(T__ENTER_HIDDEN_PIN), 6, MAX_PIN_LEN, true);
               if (!entered_pin || entered_pin == PIN_CANCELED_BY_BUTTON) {
-                
                 result = false;
                 goto matrix_input_exit;
               }
-              
-              // Verify the entered PIN
-              
-              bool verify_result = config_verifyPin(entered_pin, PIN_TYPE_PASSPHRASE_PIN);
+
+              bool verify_result =
+                  config_verifyPin(entered_pin, PIN_TYPE_PASSPHRASE_PIN);
               pin_result_t pin_result = se_get_pin_result_type();
-              SEGGER_RTT_printf(0, "[ATTACH] device input verify_result=%d, pin_result=%d\r\n",
-                                (int)verify_result, (int)pin_result);
-              
-              switch(pin_result) {
+
+              switch (pin_result) {
                 case PIN_SUCCESS:
                   break;
                 case USER_PIN_ENTERED:
@@ -819,69 +775,61 @@ bool protectPassphrase(char *passphrase) {
                 case USER_PIN_NOT_ENTERED:
                   break;
                 case PIN_FAILED:
-                  
+
                   break;
                 default:
-                  
+
                   break;
               }
-              
+
               if (verify_result && pin_result == PASSPHRASE_PIN_ENTERED) {
                 is_passphrase_pin_enabled = true;
                 pin_verified = true;
-                
-                          
-                
+
                 if (se_sessionClose()) {
-                  
                   if (se_sessionClear()) {
-                                        
                     uint8_t *new_session = se_session_startSession(NULL);
                     if (new_session != NULL) {
-                      
                     } else {
-                      
                     }
                   } else {
-                    
                   }
                 } else {
-                  
                 }
-                
-                break; // Exit device input retry loop
+
+                break;  // Exit device input retry loop
               }
-              
+
               protectPinErrorTips(true);
               result = false;
               goto matrix_input_exit;
             }
-            
-            matrix_input_exit:
+
+          matrix_input_exit:
             if (!pin_verified && result == false) {
-              break; // Exit main loop
+              break;  // Exit main loop
             }
-            
-          // Check for Cancel
+
+            // Check for Cancel
           } else if (msg_tiny_id == MessageType_MessageType_Cancel) {
             msg_tiny_id = 0xFFFF;
             result = false;
             break;
           }
         }
-        
+
         // If PIN input was cancelled or failed, exit
         if (!pin_verified) {
           result = false;
           break;
         }
-        
+
         // Set empty passphrase for attach-to-pin (like Pro firmware)
         memzero(passphrase, sizeof(passphrase));
         result = true;
         break;
       }
-      
+
       if (ppa->has_on_device && ppa->on_device == true) {
         return protectPassphraseOnDevice(passphrase);
       }
@@ -1254,9 +1202,9 @@ input:
     // input_pin = true;
     const char *pin_title;
     if (session_isUnlocked() && is_passphrase_pin_enabled) {
-      pin_title = _(T__STANDARD_PIN);  
+      pin_title = _(T__STANDARD_PIN);
     } else {
-      pin_title = _(T__ENTER_PIN);     
+      pin_title = _(T__ENTER_PIN);
     }
     pin = protectInputPin(pin_title, DEFAULT_PIN_LEN, MAX_PIN_LEN,
                           cancel_allowed);
@@ -1272,40 +1220,35 @@ input:
     protectPinErrorTips(true);
     goto input;
   }
-  
+
   if (ret) {
     pin_result_t pin_result = se_get_pin_result_type();
     if (pin_result == PASSPHRASE_PIN_ENTERED) {
       is_passphrase_pin_enabled = true;
-      
+
     } else if (pin_result == USER_PIN_ENTERED) {
       is_passphrase_pin_enabled = false;
-      
+
     } else {
       is_passphrase_pin_enabled = false;
-      
     }
   }
-  
+
   return ret;
 }
 
 bool protectChangePinOnDevice(bool is_prompt, bool set, bool cancel_allowed) {
-  rtt_log_init();
-  SEGGER_RTT_printf(0,
-                    "[PIN] protectChangePinOnDevice start: is_prompt=%d, set=%d, cancel=%d\r\n",
-                    (int)is_prompt, (int)set, (int)cancel_allowed);
   static CONFIDENTIAL char old_pin[MAX_PIN_LEN + 1] = "";
   static CONFIDENTIAL char new_pin[MAX_PIN_LEN + 1] = "";
-  const char *pin = NULL; 
-  bool is_change = false; 
-  uint8_t key;            
+  const char *pin = NULL;
+  bool is_change = false;
+  uint8_t key;
   pin_result_t pin_result = PIN_SUCCESS;
   bool deleted_passphrase_pin = false;
   bool deleted_passphrase_current = false;
 
 pin_set:
-  if (config_hasPin()) { 
+  if (config_hasPin()) {
     is_change = true;
   input:
     pin = protectInputPin(_(T__ENTER_PIN), DEFAULT_PIN_LEN, MAX_PIN_LEN, true);
@@ -1316,17 +1259,14 @@ pin_set:
       return false;
 
     bool ret = config_unlock(pin, PIN_TYPE_USER_AND_PASSPHRASE_PIN_CHECK);
-    
+
     if (ret == false) {
-      SEGGER_RTT_printf(0, "[PIN] verify current pin failed\r\n");
       protectPinErrorTips(true);
       goto input;
     }
     pin_result = se_get_pin_result_type();
-    SEGGER_RTT_printf(0, "[PIN] current pin result=%d\r\n", (int)pin_result);
-    
-    
-    layoutDialogCenterAdapterV2( 
+
+    layoutDialogCenterAdapterV2(
         _(T__SET_PIN), NULL, NULL, &bmp_bottom_right_arrow, NULL, NULL, NULL,
         NULL, NULL, NULL, _(C__SET_A_4_TO_9_DIGITS_PIN_TO_PROTECT_YOUR_WALLET));
     key = protectWaitKey(0, 1);
@@ -1359,11 +1299,10 @@ pin_set:
   }
 
 retry:
-  // Determine minimum length for the new PIN:
-  // - If current PIN entered was a passphrase PIN (hidden wallet), require at least 6 digits
-  // - If current PIN entered was a main/user PIN, require default minimum (4 digits)
-  uint8_t min_new_pin_len = (pin_result == PASSPHRASE_PIN_ENTERED) ? 6 : DEFAULT_PIN_LEN;
-  pin = protectInputPin(_(T__ENTER_NEW_PIN), min_new_pin_len, MAX_PIN_LEN, true);
+  uint8_t min_new_pin_len =
+      (pin_result == PASSPHRASE_PIN_ENTERED) ? 6 : DEFAULT_PIN_LEN;
+  pin =
+      protectInputPin(_(T__ENTER_NEW_PIN), min_new_pin_len, MAX_PIN_LEN, true);
   if (pin == PIN_CANCELED_BY_BUTTON) {
     return false;
   } else if (pin == NULL || pin[0] == '\0') {
@@ -1375,7 +1314,8 @@ retry:
   }
   strlcpy(new_pin, pin, sizeof(new_pin));
 
-  pin = protectInputPin(_(T__ENTER_NEW_PIN_AGAIN), min_new_pin_len, MAX_PIN_LEN, true);
+  pin = protectInputPin(_(T__ENTER_NEW_PIN_AGAIN), min_new_pin_len, MAX_PIN_LEN,
+                        true);
   if (pin == NULL) {
     memzero(old_pin, sizeof(old_pin));
     memzero(new_pin, sizeof(new_pin));
@@ -1386,7 +1326,6 @@ retry:
   } else if (pin == PIN_CANCELED_BY_BUTTON)
     return false;
   if (strncmp(new_pin, pin, sizeof(new_pin)) != 0) {
-    SEGGER_RTT_printf(0, "[PIN] new pin mismatch\r\n");
     memzero(old_pin, sizeof(old_pin));
     memzero(new_pin, sizeof(new_pin));
     layoutDialogCenterAdapterV2(
@@ -1407,35 +1346,23 @@ retry:
   } else if (is_change) {
   } else {
   }
-  
 
-  
   if (pin_result == USER_PIN_ENTERED) {
-    // When current (old) PIN is USER PIN, check whether the new PIN collides
-    // with an existing Passphrase PIN. Avoid relying on a stale pin result if
-    // the SE check fails for any reason.
     bool check_ok = config_verifyPin(new_pin, PIN_TYPE_PASSPHRASE_PIN_CHECK);
     pin_result_t new_pin_check_result = se_get_pin_result_type();
     if (!check_ok) {
-      SEGGER_RTT_printf(0, "[PIN] check new hidden pin failed (treat as not found)\r\n");
-      // Treat failed check as "not found" to prevent false "exists" prompts
       new_pin_check_result = PIN_FAILED;
     }
-  
-    
-    
+
     if (strncmp(old_pin, new_pin, MAX_PIN_LEN) == 0) {
-      SEGGER_RTT_printf(0, "[PIN] new pin equals old pin\r\n");
-      
-      
       memzero(old_pin, sizeof(old_pin));
       memzero(new_pin, sizeof(new_pin));
-      
+
       if (is_prompt) {
         layoutDialogCenterAdapter(
-            &bmp_icon_ok, NULL, NULL, &bmp_bottom_right_confirm, NULL, NULL, NULL,
-            NULL, NULL, is_change ? _(C__PIN_CHANGED) : _(C__PIN_IS_SET), NULL,
-            NULL);
+            &bmp_icon_ok, NULL, NULL, &bmp_bottom_right_confirm, NULL, NULL,
+            NULL, NULL, NULL, is_change ? _(C__PIN_CHANGED) : _(C__PIN_IS_SET),
+            NULL, NULL);
 
         while (1) {
           key = protectWaitKey(0, 1);
@@ -1444,11 +1371,9 @@ retry:
           }
         }
       }
-      return true; 
-    } else if(new_pin_check_result == PIN_SUCCESS ||
-              new_pin_check_result == PASSPHRASE_PIN_ENTERED) {
-      SEGGER_RTT_printf(0, "[PIN] new pin matches existing passphrase pin\r\n");
-
+      return true;
+    } else if (new_pin_check_result == PIN_SUCCESS ||
+               new_pin_check_result == PASSPHRASE_PIN_ENTERED) {
       layoutDialogCenterAdapterV2(
           NULL, &bmp_icon_warning, &bmp_bottom_left_close,
           &bmp_bottom_right_confirm, NULL, NULL, NULL, NULL, NULL, NULL,
@@ -1458,11 +1383,9 @@ retry:
         key = protectWaitKey(0, 1);
         if (key == KEY_CONFIRM) {
           bool is_current = false;
-          secbool delete_result = se_delete_pin_passphrase(new_pin, &is_current);
+          secbool delete_result =
+              se_delete_pin_passphrase(new_pin, &is_current);
           if (delete_result == sectrue) {
-            SEGGER_RTT_printf(0,
-                              "[PIN] deleted passphrase pin success, current=%d\r\n",
-                              (int)is_current);
             deleted_passphrase_pin = true;
             deleted_passphrase_current = is_current;
             if (is_current) {
@@ -1470,7 +1393,6 @@ retry:
             }
             break;
           } else {
-            SEGGER_RTT_printf(0, "[PIN] delete passphrase pin failed\r\n");
             layoutDialogCenterAdapterV2(
                 NULL, &bmp_icon_error, NULL, &bmp_bottom_right_confirm, NULL,
                 NULL, NULL, NULL, NULL, NULL,
@@ -1483,32 +1405,26 @@ retry:
         } else if (key == KEY_CANCEL) {
           memzero(old_pin, sizeof(old_pin));
           memzero(new_pin, sizeof(new_pin));
-          return false; 
+          return false;
         }
       }
     }
   } else if (pin_result == PASSPHRASE_PIN_ENTERED) {
-    // When current (old) PIN is PASSPHRASE PIN, check the new PIN against both
-    // USER and PASSPHRASE PINs (like Pro). Guard against SE check failure so we
-    // don't accidentally reuse the last successful result and show a wrong
-    // "already used" dialog.
-    bool check_ok = config_verifyPin(new_pin, PIN_TYPE_USER_AND_PASSPHRASE_PIN_CHECK);
+    bool check_ok =
+        config_verifyPin(new_pin, PIN_TYPE_USER_AND_PASSPHRASE_PIN_CHECK);
     pin_result_t new_pin_check_result = se_get_pin_result_type();
     if (!check_ok) {
-      // Consider the new PIN as not found on failure
       new_pin_check_result = PIN_FAILED;
     }
-    
-    
+
     if (strncmp(old_pin, new_pin, MAX_PIN_LEN) == 0) {
-      
       memzero(old_pin, sizeof(old_pin));
-      memzero(new_pin, sizeof(new_pin));      
+      memzero(new_pin, sizeof(new_pin));
       if (is_prompt) {
         layoutDialogCenterAdapter(
-            &bmp_icon_ok, NULL, NULL, &bmp_bottom_right_confirm, NULL, NULL, NULL,
-            NULL, NULL, is_change ? _(C__PIN_CHANGED) : _(C__PIN_IS_SET), NULL,
-            NULL);
+            &bmp_icon_ok, NULL, NULL, &bmp_bottom_right_confirm, NULL, NULL,
+            NULL, NULL, NULL, is_change ? _(C__PIN_CHANGED) : _(C__PIN_IS_SET),
+            NULL, NULL);
         while (1) {
           key = protectWaitKey(0, 1);
           if (key == KEY_CONFIRM) {
@@ -1516,14 +1432,13 @@ retry:
           }
         }
       }
-      return true; 
+      return true;
     } else if (new_pin_check_result == USER_PIN_ENTERED ||
                new_pin_check_result == PIN_SAME_AS_USER_PIN) {
-      
       layoutDialogCenterAdapterV2(
-          NULL, &bmp_icon_error, NULL, &bmp_bottom_right_retry, NULL, NULL, NULL,
-          NULL, NULL, NULL, _(C__PIN_ALREADY_USED_PLEASE_TRY_A_DIFFERENT_ONE));
-      SEGGER_RTT_printf(0, "[PIN] new pin clash with user pin\r\n");
+          NULL, &bmp_icon_error, NULL, &bmp_bottom_right_retry, NULL, NULL,
+          NULL, NULL, NULL, NULL,
+          _(C__PIN_ALREADY_USED_PLEASE_TRY_A_DIFFERENT_ONE));
       while (1) {
         key = protectWaitKey(0, 1);
         if (key == KEY_CONFIRM) {
@@ -1534,51 +1449,33 @@ retry:
           return false;
         }
       }
-    } else if (new_pin_check_result == PASSPHRASE_PIN_ENTERED){
-      SEGGER_RTT_printf(0, "[PIN] new pin matches another passphrase pin\r\n");
-      
-      
+    } else if (new_pin_check_result == PASSPHRASE_PIN_ENTERED) {
       layoutDialogCenterAdapterV2(
-          NULL, &bmp_icon_warning, &bmp_bottom_left_close, 
-          &bmp_bottom_right_confirm, NULL, NULL, NULL,
-          NULL, NULL, NULL, _(C__PIN_ALREADY_USED_DO_YOU_WANT_TO_OVERWRITE_IT));
-      
+          NULL, &bmp_icon_warning, &bmp_bottom_left_close,
+          &bmp_bottom_right_confirm, NULL, NULL, NULL, NULL, NULL, NULL,
+          _(C__PIN_ALREADY_USED_DO_YOU_WANT_TO_OVERWRITE_IT));
+
       while (1) {
         key = protectWaitKey(0, 1);
         if (key == KEY_CONFIRM) {
-          
           break;
         } else if (key == KEY_CANCEL) {
-          
           memzero(old_pin, sizeof(old_pin));
           memzero(new_pin, sizeof(new_pin));
-          return false; 
+          return false;
         }
       }
     }
   }
 
-
-  // switch(new_pin_check_result) {
-  //   case PIN_SUCCESS:
-  //     break;
-  //   case PASSPHRASE_PIN_NO_MATCHED:
-  //     break;
-  //   default:
-  //     break;
-  // }
-
   bool ret = false;
-  
+
   if (pin_result == PASSPHRASE_PIN_ENTERED) {
     ret = (se_change_pin_passphrase(old_pin, new_pin) == sectrue);
   } else {
     ret = config_changePin(old_pin, new_pin);
   }
-  SEGGER_RTT_printf(0, "[PIN] change pin result=%d deleted_pass_pin=%d current=%d\r\n",
-                    (int)ret, (int)deleted_passphrase_pin,
-                    (int)deleted_passphrase_current);
-  
+
   if (ret == false) {
     // No fallback UI here; simply cleanup and return
     memzero(old_pin, sizeof(old_pin));
@@ -1594,7 +1491,6 @@ retry:
           &bmp_icon_ok, NULL, NULL, &bmp_bottom_right_confirm, NULL, NULL, NULL,
           NULL, NULL, is_change ? _(C__PIN_CHANGED) : _(C__PIN_IS_SET), NULL,
           NULL);
-      SEGGER_RTT_printf(0, "[PIN] change pin success dialog\r\n");
 
       while (1) {
         key = protectWaitKey(0, 1);
@@ -1665,13 +1561,11 @@ void protectPinErrorTips(bool retry) {
   char times_str[3] = {0};
   snprintf(desc, 128, "%s", _(C__INCORRECT_PIN_STR_ATTEMPT_LEFT_TRY_AGAIN));
 
-  // Prefer SE's remaining retry times to avoid mismatches
   uint8_t remain = 0;
   if (se_getRetryTimes(&remain) != sectrue) {
-    remain = 0;  // Fail-safe: treat as no attempts left
+    remain = 0;
   }
 
-  // Show remaining attempts if any; otherwise trigger reset branch
   if (remain > 0) {
     uint2str(remain, times_str);
     bracket_replace(desc, times_str);
@@ -1702,81 +1596,68 @@ void protectPinErrorTips(bool retry) {
   }
   protectWaitKey(0, 0);
 
-  // Show additional CAUTION page only after 3 or more consecutive wrong attempts
-  // i.e., when remaining attempts are 2 or fewer (with total limit 5)
-  if ((5 - remain) >= 3 && !(protectAbortedByInitialize || protectAbortedByCancel)) {
+  if ((5 - remain) >= 3 &&
+      !(protectAbortedByInitialize || protectAbortedByCancel)) {
     fsm_sendFailure(FailureType_Failure_PinCancelled, NULL);
     memset(desc, 0, 128);
     memset(times_str, 0, 3);
     snprintf(desc, 128, "%s",
              _(C__CAUTION_DEVICE_WILL_BE_RESET_AFTER_STR_MORE_TIME_WRONG));
-    // Remaining wrong attempts before reset
     uint2str(remain, times_str);
     bracket_replace(desc, times_str);
-    
-    // Check if user is attach to pin user without passphrase enabled
+
     uint8_t space_available = 0;
     bool attach_to_pin_used = false;
     if (se_get_pin_passphrase_space(&space_available)) {
       attach_to_pin_used = (space_available < 30);
     }
-    
+
     bool passphrase_enabled = false;
     config_getPassphraseProtection(&passphrase_enabled);
-    
+
     if (attach_to_pin_used && !passphrase_enabled) {
-      // For attach to pin users without passphrase, show 2-page scrollable dialog
-      int page = 0;  // 0 = first page, 1 = second page
+      int page = 0;
       char page_indicator[8] = {0};
-      
+
       while (1) {
         oledClear_ex();
-        
+
         if (page == 0) {
-          // First page: Show reset warning with icon
           snprintf(page_indicator, sizeof(page_indicator), "1/2");
-          layoutDialogCenterAdapterV2(NULL, &bmp_icon_warning, NULL,
-                                      &bmp_bottom_right_arrow_off, 
-                                      NULL, 
-                                      (const BITMAP *)&bmp_bottom_middle_arrow_down, 
-                                      NULL, NULL, NULL, NULL,
-                                      desc);
+          layoutDialogCenterAdapterV2(
+              NULL, &bmp_icon_warning, NULL, &bmp_bottom_right_arrow_off, NULL,
+              (const BITMAP *)&bmp_bottom_middle_arrow_down, NULL, NULL, NULL,
+              NULL, desc);
         } else {
-          // Second page: Show only passphrase message without icon
           snprintf(page_indicator, sizeof(page_indicator), "2/2");
-          layoutDialogCenterAdapterV2(NULL, NULL, NULL,
-                                      &bmp_bottom_right_arrow, 
-                                      (const BITMAP *)&bmp_bottom_middle_arrow_up, 
-                                      NULL, 
-                                      NULL, NULL, NULL, NULL,
-                                      _(C__YOU_DO_NOT_HAVE_PASSPHRASE_TURNED_ON));
+          layoutDialogCenterAdapterV2(
+              NULL, NULL, NULL, &bmp_bottom_right_arrow,
+              (const BITMAP *)&bmp_bottom_middle_arrow_up, NULL, NULL, NULL,
+              NULL, NULL, _(C__YOU_DO_NOT_HAVE_PASSPHRASE_TURNED_ON));
         }
-        
-        // Draw page indicator at bottom center
-        oledDrawString(OLED_WIDTH/2 - strlen(page_indicator)*3, OLED_HEIGHT - 8, page_indicator, FONT_STANDARD);
+
+        oledDrawString(OLED_WIDTH / 2 - strlen(page_indicator) * 3,
+                       OLED_HEIGHT - 8, page_indicator, FONT_STANDARD);
         oledRefresh();
-        
+
         uint8_t key = protectWaitKey(0, 0);
         if (key == KEY_CONFIRM) {
           if (page == 0) {
-            // Require reading the next page first
             page = 1;
             continue;
           } else {
-            // On last page, allow confirm to exit
             break;
           }
         } else if (key == KEY_DOWN && page == 0) {
-          page = 1;  // Go to second page
+          page = 1;
         } else if (key == KEY_UP && page == 1) {
-          page = 0;  // Go back to first page
+          page = 0;
         }
       }
     } else {
-      // Normal warning display
       layoutDialogCenterAdapterV2(NULL, &bmp_icon_warning, NULL,
-                                  &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL,
-                                  NULL, NULL, desc);
+                                  &bmp_bottom_right_arrow, NULL, NULL, NULL,
+                                  NULL, NULL, NULL, desc);
       protectWaitKey(0, 0);
     }
   }
@@ -1788,7 +1669,6 @@ void auto_poweroff_timer(void) {
   if (config_getAutoLockDelayMs() == 0) return;
   if (timer_get_sleep_count() >= config_getAutoLockDelayMs()) {
     if (sys_usbState()) {
-      // do nothing when usb inserted
       timer_sleep_start_reset();
     } else {
       shutdown();
@@ -1810,10 +1690,7 @@ void enter_sleep(void) {
     layoutBack = layoutLast;
     oledBufferLoad(oled_prev);
     if (config_hasPin()) {
-      // Remember prior unlock state for wake-up flow
       unlocked = session_isUnlocked();
-      // When locking the screen, clear all SE sessions to remove any
-      // session-bound seeds and state (consistent with Pro firmware).
       session_clear(true);
     }
   }
@@ -2123,7 +2000,7 @@ bool inputPassphraseOnDeviceRequired(char *passphrase) {
   uint8_t counter = 0, index = 0, symbol_index = 0;
   static uint8_t symbol_table[33] = " \'\",./_\?!:;&*$#=+-()[]{}<>@\\^`%|~";
   static uint8_t last_symbol = 0;
-  (void)last_symbol; // Suppress unused variable warning
+  (void)last_symbol;  // Suppress unused variable warning
   bool ret = false;
   bool d = false;
   config_getInputDirection(&d);
@@ -2157,8 +2034,6 @@ wait_key:
   if (MENU_INPUT_PASSPHRASE == menu_status) {
     if (index == 0) {
       if (key == KEY_CONFIRM) {
-        // Always allow switching to input method selection at first position
-        // regardless of whether characters have been entered
         layoutInputMethod(input_type);
         menu_status = MENU_INPUT_SELECT;
 #if !EMULATOR
@@ -2170,10 +2045,9 @@ wait_key:
     switch (key) {
       case KEY_UP:
         if (index == 0) {
-          if (counter > 0) {  // Only allow going to confirm if we have input
+          if (counter > 0) {
             index = INPUT_CONFIRM;
           } else {
-            // When no characters entered, skip to last character instead
             if (INPUT_LOWERCASE == input_type) {
               index = 'z';
             } else if (INPUT_CAPITAL == input_type) {
@@ -2237,10 +2111,10 @@ wait_key:
           if (index == 0) {
             index = 'a';
           } else if (index == 'z') {
-            if (counter > 0) {  // Only allow going to confirm if we have input
+            if (counter > 0) {
               index = INPUT_CONFIRM;
             } else {
-              index = 0;  // Go back to 0 instead of confirm when no input
+              index = 0;
             }
           } else if (index == INPUT_CONFIRM) {
             index = 0;
@@ -2251,10 +2125,10 @@ wait_key:
           if (index == 0) {
             index = 'A';
           } else if (index == 'Z') {
-            if (counter > 0) {  // Only allow going to confirm if we have input
+            if (counter > 0) {
               index = INPUT_CONFIRM;
             } else {
-              index = 0;  // Go back to 0 instead of confirm when no input
+              index = 0;
             }
           } else if (index == INPUT_CONFIRM) {
             index = 0;
@@ -2265,10 +2139,10 @@ wait_key:
           if (index == 0) {
             index = '0';
           } else if (index == '9') {
-            if (counter > 0) {  // Only allow going to confirm if we have input
+            if (counter > 0) {
               index = INPUT_CONFIRM;
             } else {
-              index = 0;  // Go back to 0 instead of confirm when no input
+              index = 0;
             }
           } else if (index == INPUT_CONFIRM) {
             index = 0;
@@ -2280,12 +2154,12 @@ wait_key:
             symbol_index = 0;
             index = symbol_table[symbol_index];
           } else if (index == symbol_table[sizeof(symbol_table) - 1]) {
-            if (counter > 0) {  // Only allow going to confirm if we have input
+            if (counter > 0) {
               symbol_index = 0;
               index = INPUT_CONFIRM;
             } else {
               symbol_index = 0;
-              index = 0;  // Go back to 0 instead of confirm when no input
+              index = 0;
             }
           } else if (index == INPUT_CONFIRM) {
             symbol_index = 0;
@@ -2300,30 +2174,24 @@ wait_key:
         }
         goto input_passphrase;
       case KEY_CONFIRM:
-        
+
         if (index == INPUT_CONFIRM) {
-          
-          if (counter > 0) {  // Only allow confirm if at least one character entered
-            
+          if (counter > 0) {
             ret = true;
             goto __ret_required;
           } else {
-            
-            // Stay in the same state, don't allow empty confirmation
           }
         } else {
-          
           if (counter < MAX_PASSPHRASE_LEN) {
             words[counter] = index;
             counter++;
-            words[counter] = '\0'; // Ensure null termination
-            
+            words[counter] = '\0';
+
             if (counter == MAX_PASSPHRASE_LEN) {
               ret = true;
               goto __ret_required;
             }
           }
-          // Reset index to appropriate starting character for current input type
           if (INPUT_LOWERCASE == input_type) {
             index = 'a';
           } else if (INPUT_CAPITAL == input_type) {
@@ -2337,13 +2205,11 @@ wait_key:
         }
         goto input_passphrase;
       case KEY_CANCEL:
-        
+
         if (counter) {
-          
           counter--;
           words[counter] = '\0';
-          
-          // Reset index to appropriate starting character for current input type
+
           if (INPUT_LOWERCASE == input_type) {
             index = 'a';
           } else if (INPUT_CAPITAL == input_type) {
@@ -2355,7 +2221,6 @@ wait_key:
             index = symbol_table[symbol_index];
           }
         } else {
-          
           ret = false;
           goto __ret_required;
         }
@@ -2386,25 +2251,22 @@ wait_key:
         menu_status = MENU_INPUT_PASSPHRASE;
         goto input_passphrase;
       case KEY_CANCEL:
-        
+
         menu_status = MENU_INPUT_PASSPHRASE;
         goto input_passphrase;
       default:
-        
+
         break;
     }
   } else {
-    
   }
-  
-  // This should not happen - all cases should goto somewhere
-  
+
   goto wait_key;
 
 __ret_required:
-  
+
   strlcpy(passphrase, words, MAX_PASSPHRASE_LEN + 1);
-  
+
 #if !EMULATOR
   enableLongPress(false);
 #endif
@@ -2420,7 +2282,6 @@ bool protectPassphraseOnDevice(char *passphrase) {
   bool passphrase_protection = false;
   config_getPassphraseProtection(&passphrase_protection);
   if (!passphrase_protection) {
-    // passphrase already set to empty by memzero above
     return true;
   }
 
@@ -2437,7 +2298,6 @@ bool protectPassphraseOnDevice(char *passphrase) {
   while (timer_out_get(timer_out_oper)) {
     usbPoll();
 
-    // check for ButtonAck
     if (msg_tiny_id == MessageType_MessageType_ButtonAck) {
       msg_tiny_id = 0xFFFF;
       result = true;
@@ -2445,7 +2305,6 @@ bool protectPassphraseOnDevice(char *passphrase) {
       break;
     }
 
-    // check for Cancel / Initialize
     protectAbortedByCancel = (msg_tiny_id == MessageType_MessageType_Cancel);
     protectAbortedByInitialize =
         (msg_tiny_id == MessageType_MessageType_Initialize);
