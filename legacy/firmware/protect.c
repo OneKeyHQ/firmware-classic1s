@@ -761,27 +761,6 @@ bool protectPassphrase(char *passphrase) {
                   config_verifyPin(entered_pin, PIN_TYPE_PASSPHRASE_PIN);
               pin_result_t pin_result = se_get_pin_result_type();
 
-              switch (pin_result) {
-                case PIN_SUCCESS:
-                  break;
-                case USER_PIN_ENTERED:
-                  break;
-                case USER_PIN_FAILED:
-                  break;
-                case PASSPHRASE_PIN_ENTERED:
-                  break;
-                case PASSPHRASE_PIN_NO_MATCHED:
-                  break;
-                case USER_PIN_NOT_ENTERED:
-                  break;
-                case PIN_FAILED:
-
-                  break;
-                default:
-
-                  break;
-              }
-
               if (verify_result && pin_result == PASSPHRASE_PIN_ENTERED) {
                 is_passphrase_pin_enabled = true;
                 pin_verified = true;

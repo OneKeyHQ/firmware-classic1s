@@ -1898,6 +1898,10 @@ secbool se_set_pin_passphrase(const char *pin, const char *passphrase_pin,
   uint8_t percent = 0;
   (void)percent;  // Suppress unused variable warning
 
+  if (override) {
+    *override = false;
+  }
+
   // Parameter validation like reference implementation
   if (strlen(pin) == 0 || strlen(pin) > 50) {  // PIN_MAX_LENGTH
     g_last_pin_result = PIN_FAILED;
@@ -1969,9 +1973,13 @@ secbool se_set_pin_passphrase(const char *pin, const char *passphrase_pin,
   }
 
   resp_len = 1;
-  *override = true;
+  if (override) {
+    *override = true;
+  }
   if (se_transmit_mac(SE_INS_PIN, 0x00, 0x0D, NULL, 0, resp, &resp_len)) {
-    *override = resp[0] ? true : false;
+    if (override) {
+      *override = resp[0] ? true : false;
+    }
   }
 
   g_last_pin_result = PIN_SUCCESS;
@@ -2000,15 +2008,17 @@ secbool se_delete_pin_passphrase(const char *passphrase_pin, bool *current) {
 
   memset(pin_buff, 0, sizeof(pin_buff));
 
-  if (recv_len >= 2) {
-    g_last_pin_result = (pin_result_t)recv_buf[0];
-    if (current) {
-      *current = (recv_buf[1] == 0x55);  // Changed from 0x01 to 0x55
-    }
-  } else {
+  if (recv_len < 2) {
+    g_last_pin_result = PIN_FAILED;
+    return secfalse;
   }
 
-  return sectrue;
+  g_last_pin_result = (pin_result_t)recv_buf[0];
+  if (current) {
+    *current = (recv_buf[1] == 0x55);  // Changed from 0x01 to 0x55
+  }
+
+  return (g_last_pin_result == PIN_SUCCESS) ? sectrue : secfalse;
 }
 
 pin_result_t se_get_pin_passphrase_ret(void) {
@@ -2086,12 +2096,12 @@ secbool se_change_pin_passphrase_ex(uint8_t addr, uint8_t *session_key,
   if (!se_transmit_mac(SE_INS_PIN, 0x00, 0x0E, buf,
                        1 + strlen(old_pin) + 1 + strlen(new_pin), resp,
                        &resp_len)) {
+    g_last_pin_result = PIN_FAILED;
     return secfalse;
   }
-  if (resp[0] == PIN_SUCCESS) {
-    return sectrue;
-  }
-  return secfalse;
+
+  g_last_pin_result = (resp_len >= 1) ? (pin_result_t)resp[0] : PIN_FAILED;
+  return (g_last_pin_result == PIN_SUCCESS) ? sectrue : secfalse;
 }
 
 secbool se_change_pin_passphrase(const char *old_pin, const char *new_pin) {
@@ -2112,12 +2122,12 @@ secbool se_change_pin_passphrase(const char *old_pin, const char *new_pin) {
   if (!se_transmit_mac(SE_INS_PIN, 0x00, 0x0E, buf,
                        1 + strlen(old_pin) + 1 + strlen(new_pin), resp,
                        &resp_len)) {
+    g_last_pin_result = PIN_FAILED;
     return secfalse;
   }
-  if (resp[0] == PIN_SUCCESS) {
-    return sectrue;
-  }
-  return secfalse;
+
+  g_last_pin_result = (resp_len >= 1) ? (pin_result_t)resp[0] : PIN_FAILED;
+  return (g_last_pin_result == PIN_SUCCESS) ? sectrue : secfalse;
 }
 
 #endif

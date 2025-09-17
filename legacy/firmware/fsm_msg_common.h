@@ -693,7 +693,8 @@ void fsm_msgLockDevice(const LockDevice *msg) {
   (void)msg;
   // Clear all sessions and lock the device
   session_clear(true);
-  layoutScreensaver();
+  menu_default();
+  layoutHome();
   fsm_sendSuccess("Session cleared");
 }
 
@@ -891,6 +892,9 @@ void fsm_msgApplySettings(const ApplySettings *msg) {
   }
   if (msg->has_use_passphrase) {
     config_setPassphraseProtection(msg->use_passphrase);
+    if (!msg->use_passphrase && is_passphrase_pin_enabled) {
+      session_clear(true);
+    }
   }
   if (msg->has_homescreen) {
     config_setHomescreen(msg->homescreen.bytes, msg->homescreen.size);
