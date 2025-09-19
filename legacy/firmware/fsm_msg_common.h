@@ -241,11 +241,9 @@ bool get_features(Features *resp) {
   strlcpy(resp->product, ble_hw_ver_is_pure() ? "pure" : "classic1s",
           sizeof(resp->product));
 
-  // Set attach_to_pin_user based on available space
   resp->has_attach_to_pin_user = true;
   uint8_t space_available = 0;
   if (se_get_pin_passphrase_space(&space_available)) {
-    // If space < 30, attach to pin is being used
     resp->attach_to_pin_user = (space_available < 30);
   } else {
     resp->attach_to_pin_user = false;

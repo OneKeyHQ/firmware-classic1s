@@ -786,10 +786,9 @@ bool protectPassphrase(char *passphrase) {
 
           matrix_input_exit:
             if (!pin_verified && result == false) {
-              break;  // Exit main loop
+              break;
             }
 
-            // Check for Cancel
           } else if (msg_tiny_id == MessageType_MessageType_Cancel) {
             msg_tiny_id = 0xFFFF;
             result = false;
@@ -797,13 +796,10 @@ bool protectPassphrase(char *passphrase) {
           }
         }
 
-        // If PIN input was cancelled or failed, exit
         if (!pin_verified) {
           result = false;
           break;
         }
-
-        // Set empty passphrase for attach-to-pin (like Pro firmware)
         memzero(passphrase, sizeof(passphrase));
         result = true;
         break;

@@ -71,7 +71,6 @@ typedef struct {
   STORAGE_BOOL(usb_lock)
   STORAGE_BOOL(input_direction)
   STORAGE_BOOL(fido_switch)
-  STORAGE_BOOL(passphrase_attach_to_pin)
 } PubConfig __attribute__((aligned(1)));
 
 typedef struct {
@@ -94,8 +93,6 @@ typedef struct {
 #define KEY_USB_LOCK offsetof(PubConfig, usb_lock)
 #define KEY_INPUT_DIRECTION offsetof(PubConfig, input_direction)
 #define KEY_FIDO_SWITCH offsetof(PubConfig, fido_switch)
-#define KEY_PASSPHRASE_ATTACH_TO_PIN \
-  offsetof(PubConfig, passphrase_attach_to_pin)
 
 #define PRIVATE_KEY 1 << 31
 
@@ -323,10 +320,6 @@ void config_setPassphraseProtection(bool passphrase_protection) {
 
 bool config_getPassphraseProtection(bool *passphrase_protection) {
   return config_get_bool(KEY_PASSPHRASE_PROTECTION, passphrase_protection);
-}
-
-bool config_getPassphraseAttachToPin(bool *attach_to_pin) {
-  return config_get_bool(KEY_PASSPHRASE_ATTACH_TO_PIN, attach_to_pin);
 }
 
 void config_setHomescreen(const uint8_t *data, uint32_t size) {

@@ -1127,9 +1127,6 @@ secbool se_session_is_open() {
 
 secbool session_generate_master_seed(const char *passphrase, uint8_t *percent) {
   size_t passphrase_len = strlen(passphrase);
-  if (passphrase_len == 0 && g_last_pin_result == PASSPHRASE_PIN_ENTERED) {
-  }
-
   if (!se_transmit_mac(SE_INS_SESSION, 0x00, 0x05, (uint8_t *)passphrase,
                        passphrase_len, NULL, NULL)) {
     uint16_t error_code = thd89_last_error();

@@ -24,10 +24,8 @@
 static bool resident_credential_refresh = true;
 #endif
 
-// Forward declarations
 void security_menu_update_items(void);
-static struct menu
-    passphrase_manage_menu;  // forward declaration for .previous pointer
+static struct menu passphrase_manage_menu;
 static void passphrase_menu_update_items(void);
 static uint8_t menu_attach_to_pin_pagination(void);
 static uint8_t menu_attach_passphrase_warning_pagination(
