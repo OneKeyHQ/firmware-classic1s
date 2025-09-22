@@ -332,22 +332,20 @@ const uint8_t *msg_debug_out_data(void) {
 // msg_tiny needs to be large enough to hold the C struct decoded from a single
 // 64 byte USB packet. The decoded struct can be larger than the encoded
 // protobuf message. However, 128 bytes should be more than enough.
-CONFIDENTIAL uint8_t msg_tiny[128], msg_tiny_raw[128];
+#define MSG_TINY_SIZE 128
+#define MSG_DATA_SIZE \
+  (MSG_TINY_SIZE - MSG_HEADER_SIZE - (MSG_TINY_SIZE / USB_PACKET_SIZE) - 1)
+CONFIDENTIAL uint8_t msg_tiny[MSG_TINY_SIZE], msg_tiny_raw[MSG_TINY_SIZE];
 _Static_assert(sizeof(msg_tiny) >= sizeof(Cancel), "msg_tiny too tiny");
-_Static_assert(USB_PACKET_SIZE >= MSG_HEADER_SIZE + Cancel_size,
-               "msg_tiny too tiny");
+_Static_assert(MSG_DATA_SIZE >= Cancel_size, "msg_tiny too tiny");
 _Static_assert(sizeof(msg_tiny) >= sizeof(Initialize), "msg_tiny too tiny");
-_Static_assert(USB_PACKET_SIZE >= MSG_HEADER_SIZE + Initialize_size,
-               "msg_tiny too tiny");
+_Static_assert(MSG_DATA_SIZE >= Initialize_size, "msg_tiny too tiny");
 _Static_assert(sizeof(msg_tiny) >= sizeof(PassphraseAck), "msg_tiny too tiny");
-_Static_assert(USB_PACKET_SIZE >= MSG_HEADER_SIZE + PassphraseAck_size,
-               "msg_tiny too tiny");
+_Static_assert(MSG_DATA_SIZE >= PassphraseAck_size, "msg_tiny too tiny");
 _Static_assert(sizeof(msg_tiny) >= sizeof(ButtonAck), "msg_tiny too tiny");
-_Static_assert(USB_PACKET_SIZE >= MSG_HEADER_SIZE + ButtonAck_size,
-               "msg_tiny too tiny");
+_Static_assert(MSG_DATA_SIZE >= ButtonAck_size, "msg_tiny too tiny");
 _Static_assert(sizeof(msg_tiny) >= sizeof(PinMatrixAck), "msg_tiny too tiny");
-_Static_assert(USB_PACKET_SIZE >= MSG_HEADER_SIZE + PinMatrixAck_size,
-               "msg_tiny too tiny");
+_Static_assert(MSG_DATA_SIZE >= PinMatrixAck_size, "msg_tiny too tiny");
 #if DEBUG_LINK
 _Static_assert(sizeof(msg_tiny) >= sizeof(DebugLinkDecision),
                "msg_tiny too tiny");

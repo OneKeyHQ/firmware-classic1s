@@ -316,7 +316,7 @@ void layoutStatusLogo(void) {
 
   if (sys_usbState()) {
     offset_x += LOGO_WIDTH;
-    oledDrawBitmap(OLED_WIDTH - offset_x, 0, &bmp_status_charge);
+    oledDrawBitmap(OLED_WIDTH - offset_x, 0, &bmp_status_usb);
   }
 
   if (!ble_hw_ver_is_pure()) {
@@ -329,7 +329,7 @@ void layoutStatusLogo(void) {
   if (sys_usbState() == false) {
     usb_connect_status = 0;
   }
-  if (usb_connect_status) {
+  if (usb_connect_status && !sys_usbState()) {
     offset_x += LOGO_WIDTH;
     oledDrawBitmap(OLED_WIDTH - offset_x, 0, &bmp_status_usb);
   }

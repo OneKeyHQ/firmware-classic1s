@@ -1108,7 +1108,7 @@ bool config_containsMnemonic(const char *mnemonic) {
 /* Check whether pin matches storage.  The pin must be
  * a null-terminated string with at most 9 characters.
  */
-bool config_unlock(const char *pin) {
+bool config_unlock(const char *pin, pin_type_t pin_type) {
   if (g_bSelectSEFlag) {
     if (se_verifyPin((pin_to_int(pin)))) {
       se_unlocked = sectrue;

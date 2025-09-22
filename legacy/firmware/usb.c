@@ -531,7 +531,7 @@ void usbPoll(void) {
       };
       msg_write(MessageType_MessageType_Failure, &resp);
     }
-    config_lockDevice();
+    session_clear(true);
     svc_system_privileged();
     vector_table_t *ivt = (vector_table_t *)FLASH_PTR(FLASH_APP_START);
     __asm__ volatile("msr msp, %0" ::"r"(ivt->initial_sp_value));

@@ -28,6 +28,7 @@
 #include "messages-bitcoin.pb.h"
 #include "messages-common.pb.h"
 #include "messages-management.pb.h"
+#include "se_chip.h"
 
 #define STORAGE_FIELD(TYPE, NAME) \
   bool has_##NAME;                \
@@ -106,6 +107,7 @@ void config_setLanguage(const char *lang);
 void config_setPassphraseProtection(bool passphrase_protection);
 bool config_getPassphraseProtection(bool *passphrase_protection);
 
+
 bool config_getHomescreen(uint8_t *dest, uint16_t dest_size);
 void config_setHomescreen(const uint8_t *data, uint32_t size);
 
@@ -117,10 +119,10 @@ bool config_containsMnemonic(const char *mnemonic);
 bool config_getMnemonic(char *dest, uint16_t dest_size);
 
 bool config_setPin(const char *pin);
-bool config_verifyPin(const char *pin);
+bool config_verifyPin(const char *pin, pin_type_t pin_type);
 bool config_hasPin(void);
 bool config_changePin(const char *old_pin, const char *new_pin);
-bool config_unlock(const char *pin);
+bool config_unlock(const char *pin, pin_type_t pin_type);
 
 bool session_isUnlocked(void);
 bool config_hasWipeCode(void);

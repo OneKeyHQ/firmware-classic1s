@@ -17,14 +17,19 @@
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <stdbool.h>
+#include "base58.h"
 #include "firmware/config.h"
 #include "flash.h"
+#include "hasher.h"
 #include "menu_list.h"
 #include "mi2c.h"
+#include "protect.h"
 #include "se_chip.h"
 #include "storage.h"
 
 extern char bootloader_version[8];
+
+static bool g_client_contains_attach = false;
 
 bool get_features(Features *resp) {
   char *se_version = NULL;
@@ -58,6 +63,19 @@ bool get_features(Features *resp) {
   resp->pin_protection = config_hasPin();
   resp->has_passphrase_protection = true;
   config_getPassphraseProtection(&(resp->passphrase_protection));
+
+  uint8_t pin_space_check = 0;
+  bool attach_user_status = false;
+  if (se_get_pin_passphrase_space(&pin_space_check)) {
+    attach_user_status = (pin_space_check < 30);
+  } else {
+  }
+
+  resp->has_attach_to_pin_user = true;
+  resp->attach_to_pin_user = attach_user_status;
+
+  resp->has_unlocked_attach_pin = true;
+  resp->unlocked_attach_pin = is_passphrase_pin_enabled;
 #ifdef SCM_REVISION
   int len = sizeof(SCM_REVISION) - 1;
   resp->has_revision = true;
@@ -97,11 +115,12 @@ bool get_features(Features *resp) {
   }
 
 #if BITCOIN_ONLY
-  resp->capabilities_count = 2;
+  resp->capabilities_count = 3;
   resp->capabilities[0] = Capability_Capability_Bitcoin;
   resp->capabilities[1] = Capability_Capability_Crypto;
+  resp->capabilities[2] = Capability_Capability_AttachToPin;
 #else
-  resp->capabilities_count = 7;
+  resp->capabilities_count = 8;
   resp->capabilities[0] = Capability_Capability_Bitcoin;
   resp->capabilities[1] = Capability_Capability_Bitcoin_like;
   resp->capabilities[2] = Capability_Capability_Crypto;
@@ -109,6 +128,7 @@ bool get_features(Features *resp) {
   resp->capabilities[4] = Capability_Capability_NEM;
   resp->capabilities[5] = Capability_Capability_Stellar;
   resp->capabilities[6] = Capability_Capability_U2F;
+  resp->capabilities[7] = Capability_Capability_AttachToPin;
 #endif
   if (ble_name_state()) {
     char *ble_name = ble_get_name();
@@ -220,26 +240,105 @@ bool get_features(Features *resp) {
   resp->has_product = true;
   strlcpy(resp->product, ble_hw_ver_is_pure() ? "pure" : "classic1s",
           sizeof(resp->product));
+
+  resp->has_attach_to_pin_user = true;
+  uint8_t space_available = 0;
+  if (se_get_pin_passphrase_space(&space_available)) {
+    resp->attach_to_pin_user = (space_available < 30);
+  } else {
+    resp->attach_to_pin_user = false;
+  }
+
+  if (session_isUnlocked() && is_passphrase_pin_enabled &&
+      !g_client_contains_attach) {
+    resp->passphrase_protection = false;
+  }
+
+  if (session_isUnlocked()) {
+    resp->has_unlocked_attach_pin = true;
+    resp->unlocked_attach_pin = is_passphrase_pin_enabled;
+  }
+
   return resp;
 }
 
 void fsm_msgInitialize(const Initialize *msg) {
   fsm_abortWorkflows();
-
-  uint8_t *session_id;
-  if (msg && msg->has_session_id) {
-    session_id = session_startSession(msg->session_id.bytes);
+  uint8_t *session_id = NULL;
+  static uint8_t g_cached_session_id[32] = {0};
+  static bool g_session_cached = false;
+  if (msg && msg->has_is_contains_attach) {
+    g_client_contains_attach = msg->is_contains_attach;
   } else {
+    g_client_contains_attach = false;
+  }
+  if (!se_session_is_open()) {
+    g_session_cached = false;
+    for (int i = 0; i < 32; i++) g_cached_session_id[i] = 0;
+  }
+  bool has_attach = false;
+  if (msg && msg->has_is_contains_attach && msg->is_contains_attach) {
+    has_attach = true;
+  }
+
+  bool ps_valid = false;
+  if (msg && msg->has_passphrase_state && msg->passphrase_state[0]) {
+    uint8_t addr_raw[MAX_ADDR_RAW_SIZE] = {0};
+    int decode_len = base58_decode_check(msg->passphrase_state, HASHER_SHA2D,
+                                         addr_raw, MAX_ADDR_RAW_SIZE);
+    if (decode_len > 0 && decode_len <= MAX_ADDR_RAW_SIZE) {
+      uint8_t prefix = addr_raw[0];
+      if (prefix == 0x6F || prefix == 0xC4) {
+        ps_valid = true;
+      }
+    }
+  }
+
+  const uint8_t *provided_sid =
+      (msg && msg->has_session_id && msg->session_id.size == 32)
+          ? msg->session_id.bytes
+          : NULL;
+
+  if (msg && msg->has_passphrase_state && msg->passphrase_state[0]) {
+    if (!ps_valid) {
+      ps_valid = (se_check_passphrase_btc_test_address(msg->passphrase_state) ==
+                  sectrue);
+    }
+  }
+
+  if (ps_valid) {
+    if (session_isUnlocked() && !is_passphrase_pin_enabled) {
+      session_id = provided_sid ? session_startSession(provided_sid)
+                                : session_startSession(NULL);
+    } else if (provided_sid && g_session_cached &&
+               memcmp(provided_sid, g_cached_session_id, 32) == 0) {
+      session_id = session_startSession(provided_sid);
+    } else {
+      session_id = session_startSession(NULL);
+    }
+  } else if (has_attach && provided_sid &&
+             (!msg->has_passphrase_state || !msg->passphrase_state[0])) {
     session_id = session_startSession(NULL);
+  } else if (session_isUnlocked() && is_passphrase_pin_enabled) {
+    session_id = session_startSession(NULL);
+  } else {
+    if (provided_sid) {
+      session_id = session_startSession(provided_sid);
+    } else {
+      session_id = session_startSession(NULL);
+    }
   }
 
   if (msg && msg->has_derive_cardano && msg->derive_cardano) {
-    if (!config_getDeriveCardano()) {
-      // seed is already derived, and host wants to change derive_cardano
-      // setting
-      // => create a new session
-      session_endCurrentSession();
-      session_id = session_startSession(NULL);
+    uint8_t seed_state = 0;
+    if (se_get_session_seed_state(&seed_state)) {
+      bool btc_seed = (seed_state & 0x80) != 0;
+      bool ada_seed = (seed_state & 0x40) != 0;
+      if (btc_seed && !ada_seed) {
+        session_endCurrentSession();
+        session_id = session_startSession(NULL);
+      }
+    } else {
     }
     config_setDeriveCardano(true);
   } else {
@@ -252,6 +351,11 @@ void fsm_msgInitialize(const Initialize *msg) {
   resp->has_session_id = true;
   memcpy(resp->session_id.bytes, session_id, sizeof(resp->session_id.bytes));
   resp->session_id.size = sizeof(resp->session_id.bytes);
+
+  if (session_id) {
+    memcpy(g_cached_session_id, session_id, 32);
+    g_session_cached = true;
+  }
 
   layoutHome();
   msg_write(MessageType_MessageType_Features, resp);
@@ -585,8 +689,10 @@ void fsm_msgCancel(const Cancel *msg) {
 
 void fsm_msgLockDevice(const LockDevice *msg) {
   (void)msg;
-  config_lockDevice();
-  layoutScreensaver();
+  // Clear all sessions and lock the device
+  session_clear(true);
+  menu_default();
+  layoutHome();
   fsm_sendSuccess("Session cleared");
 }
 
@@ -673,10 +779,24 @@ void fsm_msgApplySettings(const ApplySettings *msg) {
           &bmp_bottom_right_confirm, NULL, NULL, NULL, NULL, NULL, NULL,
           _(C__DO_YOU_WANT_TO_ENABLE_PASSPHRASE_ENCRYPTION));
     } else {
-      layoutDialogCenterAdapterV2(
-          NULL, &bmp_icon_warning, &bmp_bottom_left_close,
-          &bmp_bottom_right_confirm, NULL, NULL, NULL, NULL, NULL, NULL,
-          _(C__DO_YOU_WANT_TO_DISABLE_PASSPHRASE_ENCRYPTION));
+      // Disabling passphrase - check if attach to pin is being used
+      uint8_t space_available = 0;
+      bool attach_to_pin_used = false;
+      if (se_get_pin_passphrase_space(&space_available)) {
+        attach_to_pin_used = (space_available < 30);
+      }
+
+      if (attach_to_pin_used) {
+        layoutDialogCenterAdapterV2(
+            NULL, &bmp_icon_warning, &bmp_bottom_left_close,
+            &bmp_bottom_right_confirm, NULL, NULL, NULL, NULL, NULL, NULL,
+            _(C__DISABLE_PASSPHRASE_HIDDEN_WALLET_PIN_WILL_NOT_UNLOCK_YOUR_DEVICE));
+      } else {
+        layoutDialogCenterAdapterV2(
+            NULL, &bmp_icon_warning, &bmp_bottom_left_close,
+            &bmp_bottom_right_confirm, NULL, NULL, NULL, NULL, NULL, NULL,
+            _(C__DO_YOU_WANT_TO_DISABLE_PASSPHRASE_ENCRYPTION));
+      }
     }
     if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
       fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
@@ -770,6 +890,9 @@ void fsm_msgApplySettings(const ApplySettings *msg) {
   }
   if (msg->has_use_passphrase) {
     config_setPassphraseProtection(msg->use_passphrase);
+    if (!msg->use_passphrase && is_passphrase_pin_enabled) {
+      session_clear(true);
+    }
   }
   if (msg->has_homescreen) {
     config_setHomescreen(msg->homescreen.bytes, msg->homescreen.size);
@@ -995,4 +1118,94 @@ void fsm_msgBixinVerifyDeviceRequest(const BixinVerifyDeviceRequest *msg) {
   layoutHome();
 #endif
   return;
+}
+
+void fsm_msgGetPassphraseState(const GetPassphraseState *msg) {
+  (void)msg;
+
+  RESP_INIT(PassphraseState);
+
+  CHECK_INITIALIZED
+  CHECK_PIN
+
+  uint8_t *session_id = NULL;
+  if (session_isUnlocked()) {
+    if (!se_session_is_open()) {
+      session_id = session_startSession(NULL);
+    } else {
+      session_id = NULL;
+    }
+  }
+
+  uint32_t address_n[5] = {PATH_HARDENED | 44, PATH_HARDENED | 1,
+                           PATH_HARDENED | 0, 0, 0};
+  HDNode *node = fsm_getDerivedNode(SECP256K1_NAME, address_n, 5, NULL);
+  if (!node) {
+    strlcpy(resp->passphrase_state, "Error: Failed to derive key",
+            sizeof(resp->passphrase_state));
+  } else {
+    if (hdnode_fill_public_key(node) != 0) {
+      strlcpy(resp->passphrase_state, "Error: Failed to derive public key",
+              sizeof(resp->passphrase_state));
+    } else {
+      const CoinInfo *coin = coinByName("Testnet");
+      if (!coin) {
+        strlcpy(resp->passphrase_state, "Error: Bitcoin Testnet not found",
+                sizeof(resp->passphrase_state));
+      } else {
+        char address[MAX_ADDR_SIZE];
+        if (!compute_address(coin, InputScriptType_SPENDADDRESS, node, false,
+                             NULL, address)) {
+          strlcpy(resp->passphrase_state, "Error: Failed to compute address",
+                  sizeof(resp->passphrase_state));
+        } else {
+          strlcpy(resp->passphrase_state, address,
+                  sizeof(resp->passphrase_state));
+        }
+      }
+    }
+  }
+
+  if (session_id) {
+    resp->has_session_id = true;
+    memcpy(resp->session_id.bytes, session_id, 32);
+    resp->session_id.size = 32;
+  }
+
+  uint8_t space_check = 0;
+  (void)space_check;
+  (void)se_get_pin_passphrase_space;
+  resp->has_unlocked_attach_pin = true;
+  resp->unlocked_attach_pin = is_passphrase_pin_enabled;
+
+  msg_write(MessageType_MessageType_PassphraseState, resp);
+  layoutHome();
+}
+
+void fsm_msgUnLockDevice(const UnLockDevice *msg) {
+  (void)msg;
+
+  RESP_INIT(UnLockDeviceResponse);
+  bool is_unlocked = session_isUnlocked();
+
+  if (!is_unlocked) {
+    CHECK_PIN
+    is_unlocked = session_isUnlocked();
+  }
+
+  resp->has_unlocked = true;
+  resp->unlocked = is_unlocked;
+
+  if (is_unlocked) {
+    resp->has_unlocked_attach_pin = true;
+    resp->unlocked_attach_pin = is_passphrase_pin_enabled;
+  }
+
+  resp->has_passphrase_protection = true;
+  bool passphrase_protection = false;
+  config_getPassphraseProtection(&passphrase_protection);
+  resp->passphrase_protection = passphrase_protection;
+
+  msg_write(MessageType_MessageType_UnLockDeviceResponse, resp);
+  layoutHome();
 }

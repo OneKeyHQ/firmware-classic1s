@@ -45,6 +45,8 @@ message Initialize {
     optional bytes session_id = 1;     // assumed device session id; Trezor clears caches if it is different or empty
     optional bool _skip_passphrase = 2 [deprecated=true]; // removed as part of passphrase redesign
     optional bool derive_cardano = 3;  // whether to derive Cardano Icarus root keys in this session
+    optional string passphrase_state = 8000;    
+    optional bool is_contains_attach = 8001;    
 }
 
 /**
@@ -109,6 +111,7 @@ message Features {
         Capability_Shamir = 15 [(bitcoin_only) = true];
         Capability_ShamirGroups = 16 [(bitcoin_only) = true];
         Capability_PassphraseEntry = 17 [(bitcoin_only) = true];  // the device is capable of passphrase entry directly on the device
+        Capability_AttachToPin = 8000;
     }
     optional BackupType backup_type = 31;       // type of device backup (BIP-39 / SLIP-39 basic / SLIP-39 advanced)
     optional bool sd_card_present = 32;         // is SD card present
@@ -176,6 +179,8 @@ message Features {
     optional string onekey_ble_version = 615;
     optional string onekey_ble_build_id = 616;
     optional bytes onekey_ble_hash = 617;
+    optional bool attach_to_pin_user = 625;     
+    optional bool unlocked_attach_pin = 626;    
 }
 
 /**
@@ -646,4 +651,40 @@ message UnlockedPathRequest {
  * @end
  */
 message DeviceEraseSector {
+}
+
+/**
+ * Request: Get passphrase state
+ * @start  
+ * @next PassphraseState
+ */
+message GetPassphraseState {
+}
+
+/**
+ * Response: Contains passphrase state information
+ * @end
+ */
+message PassphraseState {
+    required string passphrase_state = 1;      
+    optional bytes session_id = 2;             
+    optional bool unlocked_attach_pin = 3;     
+}
+
+/**
+ * Request: Unlock device
+ * @start
+ * @next UnLockDeviceResponse
+ */
+message UnLockDevice {
+}
+
+/**
+ * Response: Device unlock status
+ * @end
+ */
+message UnLockDeviceResponse {
+    optional bool unlocked = 1;               
+    optional bool unlocked_attach_pin = 2;     
+    optional bool passphrase_protection = 3;   
 }

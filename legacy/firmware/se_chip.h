@@ -24,6 +24,44 @@ enum {
 #define SE_FIDO2_SLOT_DATA_BUFFER_TOO_SMALL 2
 #define SE_FIDO2_SLOT_DATA_INVALID 3
 
+// PIN types
+typedef enum {
+  PIN_TYPE_USER = 0,
+  PIN_TYPE_USER_CHECK,
+  PIN_TYPE_USER_AND_PASSPHRASE_PIN,
+  PIN_TYPE_PASSPHRASE_PIN,
+  PIN_TYPE_PASSPHRASE_PIN_CHECK,
+  PIN_TYPE_USER_AND_PASSPHRASE_PIN_CHECK,
+  PIN_TYPE_MAX
+} pin_type_t;
+
+// PIN passphrase result types
+typedef enum {
+  PIN_SUCCESS,
+  USER_PIN_ENTERED,
+  USER_PIN_FAILED,
+  PASSPHRASE_PIN_ENTERED,
+  PASSPHRASE_PIN_NO_MATCHED,
+  USER_PIN_NOT_ENTERED,
+  WIPE_CODE_ENTERED,
+  PIN_SAME_AS_USER_PIN,
+  PIN_SAME_AS_WIPE_CODE,
+  PIN_PASSPHRASE_MAX_ITEMS_REACHED,
+  PIN_PASSPHRASE_SAVE_FAILED,
+  PIN_PASSPHRASE_READ_FAILED,
+  PIN_FAILED
+} pin_result_t;
+
+// PIN passphrase management functions
+pin_result_t se_get_pin_result_type(void);
+secbool se_set_pin_passphrase(const char *pin, const char *passphrase_pin,
+                              const char *passphrase, bool *override);
+secbool se_delete_pin_passphrase(const char *passphrase_pin, bool *current);
+pin_result_t se_get_pin_passphrase_ret(void);
+secbool se_get_pin_passphrase_space(uint8_t *space);
+secbool se_check_passphrase_btc_test_address(const char *address);
+secbool se_change_pin_passphrase(const char *old_pin, const char *new_pin);
+
 typedef void (*UI_WAIT_CALLBACK)(const char *message, int progress);
 void se_set_ui_callback(UI_WAIT_CALLBACK callback);
 UI_WAIT_CALLBACK se_get_ui_callback(void);
@@ -47,8 +85,9 @@ char *se_get_build_id(void);
 char *se_get_hash(void);
 secbool se_isInitialized(void);
 secbool se_hasPin(void);
+
 secbool se_setPin(const char *pin);
-secbool se_verifyPin(const char *pin);
+secbool se_verifyPin(const char *pin, pin_type_t pin_type);
 secbool se_changePin(const char *oldpin, const char *newpin);
 uint32_t se_pinFailedCounter(void);
 secbool se_getRetryTimes(uint8_t *ptimes);

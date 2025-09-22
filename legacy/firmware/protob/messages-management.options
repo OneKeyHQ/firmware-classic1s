@@ -1,4 +1,5 @@
 Initialize.session_id                   max_size:32
+Initialize.passphrase_state             max_size:64
 
 Features.vendor                         max_size:33
 Features.device_id                      max_size:25
@@ -86,3 +87,9 @@ BixinLoadDevice.language                max_size:17
 BixinLoadDevice.label                   max_size:33
 
 BixinBackupDeviceAck.mnemonics          max_size:241
+
+GetPassphraseState                      max_count:1
+PassphraseState.passphrase_state        max_size:64
+PassphraseState.session_id              max_size:32
+
+UnLockDevice                            max_count:1

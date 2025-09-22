@@ -88,6 +88,8 @@ void chargeDisTimer(void) {
 bool button_request(const ButtonRequestType code);
 void hide_icons(bool hide) { hide_icon = hide; }
 static uint8_t layoutPagination(char *title, char *content);
+static void layoutDialogCenterStrict(const BITMAP *bmp_no,
+                                     const BITMAP *bmp_yes, const char *desc);
 
 const char *address_n_str(const uint32_t *address_n, size_t address_n_count,
                           bool address_is_account) {
@@ -842,11 +844,43 @@ static void _layout_home(bool update_menu) {
     b.height = 64;
     b.data = homescreen;
     oledDrawBitmap(0, 0, &b);
+    const int bar_height = 12;
+    oledBox(0, OLED_HEIGHT - bar_height, OLED_WIDTH - 1, OLED_HEIGHT - 1,
+            false);
+
+    oledDrawBitmap(OLED_WIDTH - 16 - 1, OLED_HEIGHT - 11,
+                   &bmp_bottom_right_arrow);
+
+    if (session_isUnlocked() || !config_hasPin()) {
+      oledDrawBitmap(0, OLED_HEIGHT - 11, &bmp_bottom_left_lock);
+    }
+
+    if (session_isUnlocked() || !config_hasPin()) {
+      oledDrawStringCenterAdapter(OLED_WIDTH / 2, OLED_HEIGHT - 10,
+                                  ble_get_name(), FONT_STANDARD);
+    } else {
+      if (no_backup) {
+        oledDrawStringCenterAdapter(OLED_WIDTH / 2, OLED_HEIGHT - 9, "SEEDLESS",
+                                    FONT_STANDARD);
+      } else if (unfinished_backup) {
+        oledDrawStringCenterAdapter(OLED_WIDTH / 2, OLED_HEIGHT - 9,
+                                    "BACKUP FAILED!", FONT_STANDARD);
+      } else if (needs_backup) {
+        oledDrawStringCenterAdapter(OLED_WIDTH / 2, OLED_HEIGHT - 9,
+                                    "Need Backup", FONT_STANDARD);
+      } else {
+        oledDrawStringCenterAdapter(OLED_WIDTH / 2, OLED_HEIGHT - 10,
+                                    ble_get_name(), FONT_STANDARD);
+      }
+    }
   } else {
     char label[MAX_LABEL_LEN + 1] = "";
     config_getLabel(label, sizeof(label));
     oledDrawBitmap(OLED_WIDTH - 16 - 1, OLED_HEIGHT - 11,
                    &bmp_bottom_right_arrow);
+    if (session_isUnlocked() || !config_hasPin()) {
+      oledDrawBitmap(0, OLED_HEIGHT - 11, &bmp_bottom_left_lock);
+    }
     if (session_isUnlocked() || !config_hasPin()) {
       oledDrawBitmap(52, 0, &bmp_onekey_logo);
       oledDrawStringCenterAdapter(OLED_WIDTH / 2, 29, label, FONT_STANDARD);
@@ -2258,7 +2292,18 @@ void layoutHomeInfo(void) {
 #if !EMULATOR
       refreshUsbConnectTips();
 #endif
-      if (key == KEY_UP || key == KEY_DOWN || key == KEY_CONFIRM) {
+      if (key == KEY_CANCEL && (session_isUnlocked() || !config_hasPin())) {
+        layoutDialogCenterStrict(&bmp_bottom_left_close,
+                                 &bmp_bottom_right_confirm,
+                                 _(C__LOCK_THE_SCREEN));
+        uint8_t k = protectWaitKey(timer1s * 5, 1);
+        if (k == KEY_CONFIRM) {
+          session_clear(true);
+          layoutHome();
+          return;
+        }
+        layoutHome();
+      } else if (key == KEY_UP || key == KEY_DOWN || key == KEY_CONFIRM) {
         if (protectPinOnDevice(true, true)) {
           menu_run(KEY_NULL, 0);
         } else {
@@ -2834,6 +2879,27 @@ void layoutDialogCenterAdapterV2(const char *title, const BITMAP *icon,
   }
   if (bmp_down) {
     oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8, bmp_down);
+  }
+  oledRefresh();
+}
+
+static void layoutDialogCenterStrict(const BITMAP *bmp_no,
+                                     const BITMAP *bmp_yes, const char *desc) {
+  if (!desc) return;
+  int lines = countlines((char *)desc);
+  int height = font_get_height();
+  int total = lines * height;
+  int y = (OLED_HEIGHT - total) / 2;
+  if (y < 0) y = 0;
+
+  oledClear_ex();
+  oledDrawStringCenterAdapter(OLED_WIDTH / 2, y, desc, FONT_STANDARD);
+
+  if (bmp_no) {
+    oledDrawBitmap(0, OLED_HEIGHT - 11, bmp_no);
+  }
+  if (bmp_yes) {
+    oledDrawBitmap(OLED_WIDTH - 16, OLED_HEIGHT - 11, bmp_yes);
   }
   oledRefresh();
 }
@@ -3934,7 +4000,7 @@ bool layoutEnterSleep(int mode) {
 
 #else
   if ((timer_ms() - system_millis_lock_start) >= config_getAutoLockDelayMs()) {
-    config_lockDevice();
+    session_clear(true);
     layoutScreensaver();
   }
 #endif
