@@ -293,10 +293,11 @@ const char *requestPin(PinMatrixRequestType type, const char *text,
             pinmatrix_done(false, pma->new_pin))  // convert via pinmatrix
           *new_pin = pma->new_pin;
       }
-      if (sectrue == pinmatrix_done(true, pma->pin))  // convert via pinmatrix
+      if (sectrue == pinmatrix_done(true, pma->pin)) {  // convert via pinmatrix
         return pma->pin;
-      else
+      } else {
         return 0;
+      }
     } else if (msg_tiny_id == MessageType_MessageType_BixinPinInputOnDevice) {
       // uint8_t min_pin_len = MIN_PIN_LEN;
       // if (PinMatrixRequestType_PinMatrixRequestType_NewFirst == type ||

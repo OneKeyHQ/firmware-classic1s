@@ -104,6 +104,7 @@ secbool se_session_is_open(void);
 
 secbool se_sessionClose(void);
 secbool se_sessionClear(void);
+void se_clearPinStateCache(void);
 secbool se_set_public_region(uint16_t offset, const void *val_dest,
                              uint16_t len);
 secbool se_get_public_region(uint16_t offset, void *val_dest, uint16_t len);
@@ -131,7 +132,8 @@ secbool se_hasWipeCode(void);
 secbool se_changeWipeCode(const char *pin, const char *wipe_code);
 
 uint8_t *se_session_startSession(const uint8_t *received_session_id);
-secbool se_gen_session_seed(const char *passphrase, bool cardano);
+secbool se_gen_session_seed(const char *passphrase, bool cardano,
+                            bool force_regen);
 secbool se_derive_keys(HDNode *out, const char *curve,
                        const uint32_t *address_n, size_t address_n_count,
                        uint32_t *fingerprint);

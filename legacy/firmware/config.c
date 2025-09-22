@@ -146,6 +146,8 @@ static const uint8_t FALSE_BYTE = '\x00';
 static const uint8_t TRUE_BYTE = '\x01';
 
 static bool derive_cardano = 0;
+static bool session_seed_cached_btc = false;
+static bool session_seed_cached_cardano = false;
 
 static secbool usb_lock = secfalse;
 
@@ -342,12 +344,16 @@ bool config_genSessionSeed(void) {
     return false;
   }
 
+  bool btc_seed_ready = (status & 0x80) != 0;
+  bool cardano_seed_ready = (status & 0x40) != 0;
+
   if (derive_cardano) {
-    if (status & 0x40) {
+    if (btc_seed_ready && session_seed_cached_btc && cardano_seed_ready &&
+        session_seed_cached_cardano) {
       return true;
     }
   } else {
-    if (status & 0x80) {
+    if (btc_seed_ready && session_seed_cached_btc) {
       return true;
     }
   }
@@ -383,14 +389,26 @@ bool config_genSessionSeed(void) {
   }
 
   char oldTiny = usbTiny(1);
-  if (!(status & 0x80)) {
-    if (!se_gen_session_seed(passphrase, false)) {
+
+  bool need_btc_seed = !btc_seed_ready || !session_seed_cached_btc;
+  bool force_btc_regen = !session_seed_cached_btc && btc_seed_ready;
+  if (need_btc_seed) {
+    if (!se_gen_session_seed(passphrase, false, force_btc_regen)) {
       return false;
     }
+    session_seed_cached_btc = true;
   }
-  if (derive_cardano && !(status & 0x40)) {
-    if (!se_gen_session_seed(passphrase, true)) {
-      return false;
+
+  if (derive_cardano) {
+    bool need_cardano_seed =
+        !cardano_seed_ready || !session_seed_cached_cardano;
+    bool force_cardano_regen =
+        !session_seed_cached_cardano && cardano_seed_ready;
+    if (need_cardano_seed) {
+      if (!se_gen_session_seed(passphrase, true, force_cardano_regen)) {
+        return false;
+      }
+      session_seed_cached_cardano = true;
     }
   }
 
@@ -479,7 +497,15 @@ bool config_verifyPin(const char *pin, pin_type_t pin_type) {
   if (!passphrase_protection && pin_type == PIN_TYPE_USER_AND_PASSPHRASE_PIN) {
     pin_type = PIN_TYPE_USER;
   }
-  return (sectrue == se_verifyPin(pin, pin_type));
+  bool result = (sectrue == se_verifyPin(pin, pin_type));
+  if (!result) {
+    se_clearPinStateCache();
+    is_passphrase_pin_enabled = false;
+    session_seed_cached_btc = false;
+    session_seed_cached_cardano = false;
+  }
+
+  return result;
 }
 
 bool config_hasPin(void) { return sectrue == se_hasPin(); }
@@ -536,16 +562,21 @@ void session_endCurrentSession(void) {
 }
 
 bool session_isUnlocked(void) {
-  return sectrue == se_getSecsta() ? true : false;
+  bool unlocked = (sectrue == se_getSecsta()) ? true : false;
+  return unlocked;
 }
 
 void session_clear(bool lock) {
   se_sessionClear();
 
+  session_seed_cached_btc = false;
+  session_seed_cached_cardano = false;
+
   if (lock) {
     is_passphrase_pin_enabled = false;
     config_lockDevice();
   }
+  delay_ms(500);
 }
 
 bool config_isInitialized(void) { return se_isInitialized(); }
@@ -783,8 +814,9 @@ bool config_changeWipeCode(const char *pin, const char *wipe_code) {
 bool config_unlock(const char *pin, pin_type_t pin_type) {
   bool ret = config_verifyPin(pin, pin_type);
   if (!ret) {
+    uint16_t last_error = se_lasterror();
     // check wipe code
-    if (0x6f80 == se_lasterror()) {
+    if (0x6f80 == last_error) {
       error_shutdown("You have entered the", "wipe code. All private",
                      "data has been erased.", NULL);
     }
