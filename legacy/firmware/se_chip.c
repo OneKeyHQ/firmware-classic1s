@@ -828,10 +828,16 @@ secbool se_sessionClose(void) {
 }
 
 secbool se_sessionClear(void) {
+  // Clear PIN unlock state cache when session is cleared
+  se_state_cache.se_pin_unlocked_state_cache = false;
   if (!se_transmit_mac(SE_INS_SESSION, 0x00, 0x03, NULL, 0, NULL, NULL)) {
     return secfalse;
   }
   return sectrue;
+}
+
+void se_clearPinStateCache(void) {
+  se_state_cache.se_pin_unlocked_state_cache = false;
 }
 
 secbool se_set_public_region(const uint16_t offset, const void *val_dest,
@@ -1213,14 +1219,15 @@ secbool se_node_sign_digest(const uint8_t *hash, uint8_t *sig, uint8_t *by) {
   return sectrue;
 }
 
-secbool se_gen_session_seed(const char *passphrase, bool cardano) {
+secbool se_gen_session_seed(const char *passphrase, bool cardano,
+                            bool force_regen) {
   uint8_t status = 0;
   uint8_t percent;
   if (!se_get_session_seed_state(&status)) {
     return secfalse;
   }
   if (cardano) {
-    if (status & 0x40) {
+    if (!force_regen && (status & 0x40)) {
       return sectrue;
     }
     if (!session_generate_cardano_seed(passphrase, &percent)) {
@@ -1236,7 +1243,7 @@ secbool se_gen_session_seed(const char *passphrase, bool cardano) {
       hal_delay(100);
     }
   } else {
-    if (status & 0x80) {
+    if (!force_regen && (status & 0x80)) {
       return sectrue;
     }
     if (!session_generate_master_seed(passphrase, &percent)) {

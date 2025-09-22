@@ -1125,21 +1125,25 @@ void fsm_msgGetPassphraseState(const GetPassphraseState *msg) {
 
   RESP_INIT(PassphraseState);
 
-  CHECK_INITIALIZED
+  if (!config_isInitialized()) {
+    fsm_sendFailure(FailureType_Failure_NotInitialized, NULL);
+    return;
+  }
   CHECK_PIN
 
   uint8_t *session_id = NULL;
-  if (session_isUnlocked()) {
-    if (!se_session_is_open()) {
-      session_id = session_startSession(NULL);
-    } else {
-      session_id = NULL;
-    }
+  if (session_isUnlocked() && !se_session_is_open()) {
+    session_id = session_startSession(NULL);
   }
 
   uint32_t address_n[5] = {PATH_HARDENED | 44, PATH_HARDENED | 1,
                            PATH_HARDENED | 0, 0, 0};
   HDNode *node = fsm_getDerivedNode(SECP256K1_NAME, address_n, 5, NULL);
+
+  if (!node && !session_isUnlocked()) {
+    layoutHome();
+    return;
+  }
   if (!node) {
     strlcpy(resp->passphrase_state, "Error: Failed to derive key",
             sizeof(resp->passphrase_state));
