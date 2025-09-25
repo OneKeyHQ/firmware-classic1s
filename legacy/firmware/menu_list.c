@@ -38,6 +38,7 @@ static void menu_remove_pin_option(int index);
 static void menu_set_new_passphrase_option(int index);
 static void clear_temp_pin_data(void);
 static void menu_remove_pin_from_limit_warning(void);
+static uint8_t wait_for_confirm_only(uint8_t mode);
 static void menu_remove_pin_input(void);
 static void menu_remove_pin_confirmation(const char *pin_to_remove);
 static bool require_standard_pin(bool cancel_allowed);
@@ -751,7 +752,7 @@ static const struct menu_item security_set_menu_items_base[] = {
     {"Passphrase", NULL, false, .sub_menu = &passphrase_manage_menu, NULL, true,
      NULL},
 #if !BITCOIN_ONLY
-    {"FIDO Keys", NULL, true, menu_fido2_resident_credential, NULL, false,
+    {"Security Keys", NULL, true, menu_fido2_resident_credential, NULL, false,
      NULL},
 #endif
     {"Reset Device", NULL, true, menu_erase_device, NULL, false, NULL},
@@ -1192,7 +1193,7 @@ _layout:
           layoutDialogCenterAdapterV2(
               _(T__SAVE_PASSPHRASE), NULL, NULL, &bmp_bottom_right_arrow, NULL,
               NULL, NULL, NULL, NULL, NULL, _(C__PASSPHRASE_SAVE_DESC));
-          uint8_t save_key = protectWaitKey(0, 1);
+          uint8_t save_key = wait_for_confirm_only(0);
           if (save_key == KEY_CONFIRM) {
             secbool pin_unlocked = se_getSecsta();
 
@@ -1224,7 +1225,7 @@ _layout:
                   NULL, &bmp_icon_ok, NULL, &bmp_bottom_right_arrow, NULL, NULL,
                   NULL, NULL, NULL, NULL,
                   _(C__PASSPHRASE_SET_AND_ATTACHED_TO_PIN));
-              protectWaitKey(0, 1);
+              wait_for_confirm_only(1);
 
               if (override) {
                 session_clear(true);
@@ -1270,6 +1271,24 @@ _layout:
 static void clear_temp_pin_data(void) {
   memset(g_temp_passphrase_pin, 0, sizeof(g_temp_passphrase_pin));
   memset(g_temp_main_pin, 0, sizeof(g_temp_main_pin));
+}
+
+static uint8_t wait_for_confirm_only(uint8_t mode) {
+  while (1) {
+    uint8_t key = protectWaitKey(0, mode);
+    if (key == KEY_CONFIRM) {
+      return KEY_CONFIRM;
+    }
+    if (key == KEY_CANCEL) {
+      if (protectAbortedByCancel) {
+        return KEY_CANCEL;
+      }
+      continue;
+    }
+    if (key == KEY_NULL) {
+      return KEY_NULL;
+    }
+  }
 }
 
 static bool require_standard_pin(bool cancel_allowed) {

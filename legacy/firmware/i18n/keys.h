@@ -885,5 +885,13 @@
 #define C__INCORRECT_PIN_THE_PIN_YOU_ENTERED_IS_INCORRECT 421
 // Lock the screen?
 #define C__LOCK_THE_SCREEN 422
+// Confirm Typed Data
+#define T_CONFIRM_TYPED_DATA 423
+// {} authorization. Check dApp trust first.
+#define I_TYPED_DATA_AUTHORIZATION_WARNING 424
+// Review Struct
+#define I_REVIEW_STRUCT 425
+// Tips: Press “             ” both at once to switch case / numbers / symbols.
+#define C__TIPS_PRESS_BOTH_AT_ONCE_TO_SWITCH_CASE_NUMBERS_SYMBOLS 426
 #endif
 // clang-format on

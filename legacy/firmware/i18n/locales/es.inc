@@ -422,4 +422,8 @@ const char *const languages_es[] = {
     "Clave de Gestión",
     "¡PIN incorrecto! El PIN que ingresaste es incorrecto",
     "¿Bloquear la pantalla?",
+    "Confirmar datos escritos",
+    "{} autorización. Verifica primero la confiabilidad de la dApp.",
+    "Estructura de revisión",
+    "Consejos: Pulsa “             ”para cambiar entre letras, números y símbolos.",
 };
