@@ -133,7 +133,7 @@ const char *const languages_pt_br[] = {
     "Desativar as Verificações de Segurança temporariamente?",
     "Informe o PIN",
     "ATENÇÃO!\nO dispositivo será reiniciado após {} tentativas incorretas adicionais.",
-    "PIN Incorreto! 0\ntentativas restantes o\ndispositivo será\nredefinido agora...",
+    "PIN Incorreto! \n0 tentativas restantes \ndispositivo será redefinido agora...",
     "Apagando…",
     "Redefinição concluída\nConfirme para reiniciar.",
     "Inserir Passphrase",
@@ -422,4 +422,8 @@ const char *const languages_pt_br[] = {
     "Chave de Gerenciamento",
     "PIN incorreto! O PIN que você inseriu está incorreto",
     "Bloquear a tela?",
+    "Confirmar Dados Digitados",
+    "Autorização de {}. Verifique a confiança do dApp primeiro.",
+    "Revisar Struct",
+    "Dicas: Pressione \"             \" para alternar entre letras, números e símbolos.",
 };

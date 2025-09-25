@@ -1222,6 +1222,7 @@ bool protectChangePinOnDevice(bool is_prompt, bool set, bool cancel_allowed) {
   pin_result_t pin_result = PIN_SUCCESS;
   bool deleted_passphrase_pin = false;
   bool deleted_passphrase_current = false;
+  bool lock_required = false;
 
 pin_set:
   if (config_hasPin()) {
@@ -1367,6 +1368,7 @@ retry:
             if (is_current) {
               is_passphrase_pin_enabled = false;
             }
+            lock_required = is_current;
             break;
           } else {
             layoutDialogCenterAdapterV2(
@@ -1461,6 +1463,7 @@ retry:
     memzero(new_pin, sizeof(new_pin));
     if (deleted_passphrase_pin && deleted_passphrase_current) {
       is_passphrase_pin_enabled = false;
+      lock_required = true;
     }
     if (is_prompt) {
       layoutDialogCenterAdapter(
@@ -1473,6 +1476,21 @@ retry:
         if (key == KEY_CONFIRM) {
           break;
         }
+      }
+    }
+    if (lock_required) {
+      session_clear(true);  // lock after confirmation when main PIN replaces
+                            // passphrase PIN
+      layoutHome();
+      se_clearPinStateCache();
+      for (int attempt = 0; attempt < 5; ++attempt) {
+        bool unlocked = session_isUnlocked();
+        if (!unlocked) {
+          break;
+        }
+        se_clearSecsta();
+        delay_ms(100);
+        se_clearPinStateCache();
       }
     }
   }

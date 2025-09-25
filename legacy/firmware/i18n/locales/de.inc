@@ -258,7 +258,7 @@ const char *const languages_de[] = {
     "Memo:",
     "Multi-Senden:",
     "Beim Eingeben der PIN auf\n\"        \" klicken, um zu\nverringern, und auf \"        \"\nklicken, um zu erhöhen.",
-    "Beim Eingeben der PIN klicken Sie auf die Schaltfläche „        “, um zu erhöhen, und auf die Schaltfläche „        “, um zu verringern.",
+    "Beim Eingeben der PIN \nklicken Sie auf die Schaltfläche „        “, \num zu erhöhen, und auf die Schaltfläche „        “, \num zu verringern.",
     "Transaktion aktualisieren",
     "Transaktions-ID:",
     "Neue Transaktionsgebühr:",
@@ -422,4 +422,8 @@ const char *const languages_de[] = {
     "Verwaltungsschlüssel",
     "Falsche PIN! Die von Ihnen eingegebene PIN ist falsch.",
     "Den Bildschirm sperren?",
+    "Eingegebene Daten bestätigen",
+    "{}-Autorisierung. Überprüfe zuerst das Vertrauen in die dApp.",
+    "Struktur bewerten",
+    "Tipps:  „             “drücken, um Buchstaben, Zahlen und Symbole zu wechseln.",
 };
