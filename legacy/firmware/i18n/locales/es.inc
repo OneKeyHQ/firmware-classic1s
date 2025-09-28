@@ -413,7 +413,6 @@ const char *const languages_es[] = {
     "No tienes activada la Passphrase",
     "¡PIN ya utilizado! ¿Deseas sobrescribirlo?",
     "¡PIN ya utilizado! Por favor, prueba con otro diferente",
-    "Antes de comenzar, verifica el PIN de tu Billetera Estándar",
     "Alquiler de energía TRON",
     "El destinatario es una dirección conocida de un proveedor de servicios de alquiler de energía.",
     "Confirmar frase",
@@ -426,4 +425,8 @@ const char *const languages_es[] = {
     "{} autorización. Verifica primero la confiabilidad de la dApp.",
     "Estructura de revisión",
     "Consejos: Pulsa “             ”para cambiar entre letras, números y símbolos.",
+    "Safe transacción",
+    "Delegatecall puede permitir que el código externo afecte tu billetera.",
+    "Ver execTransaction",
+    "A continuación, introduce el PIN que quieres cambiar",
 };

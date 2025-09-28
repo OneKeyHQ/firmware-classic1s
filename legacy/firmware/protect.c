@@ -1173,11 +1173,13 @@ bool protectPinOnDevice(bool use_cached, bool cancel_allowed) {
   }
   //   if (input_pin) return true;
   const char *pin = "";
+  bool expect_standard_prompt =
+      session_isUnlocked() && is_passphrase_pin_enabled;
 input:
   if (config_hasPin()) {
     // input_pin = true;
     const char *pin_title;
-    if (session_isUnlocked() && is_passphrase_pin_enabled) {
+    if (expect_standard_prompt) {
       pin_title = _(T__STANDARD_PIN);
     } else {
       pin_title = _(T__ENTER_PIN);
@@ -1194,6 +1196,9 @@ input:
   bool ret = config_unlock(pin, PIN_TYPE_USER_AND_PASSPHRASE_PIN);
   if (ret == false) {
     protectPinErrorTips(true);
+    expect_standard_prompt =
+        expect_standard_prompt ||
+        (session_isUnlocked() && is_passphrase_pin_enabled);
     goto input;
   }
 
@@ -1223,6 +1228,8 @@ bool protectChangePinOnDevice(bool is_prompt, bool set, bool cancel_allowed) {
   bool deleted_passphrase_pin = false;
   bool deleted_passphrase_current = false;
   bool lock_required = false;
+  bool started_in_hidden_env =
+      session_isUnlocked() && is_passphrase_pin_enabled;
 
 pin_set:
   if (config_hasPin()) {
@@ -1367,8 +1374,10 @@ retry:
             deleted_passphrase_current = is_current;
             if (is_current) {
               is_passphrase_pin_enabled = false;
+              if (started_in_hidden_env) {
+                lock_required = true;
+              }
             }
-            lock_required = is_current;
             break;
           } else {
             layoutDialogCenterAdapterV2(
@@ -1420,9 +1429,12 @@ retry:
       while (1) {
         key = protectWaitKey(0, 1);
         if (key == KEY_CONFIRM) {
-          // Retry entering new PIN only; keep verified old_pin
+          deleted_passphrase_pin = false;
+          deleted_passphrase_current = false;
+          lock_required = false;
+          memzero(old_pin, sizeof(old_pin));
           memzero(new_pin, sizeof(new_pin));
-          goto retry;
+          return false;
         } else if (key == KEY_NULL) {
           return false;
         }
@@ -1436,6 +1448,9 @@ retry:
       while (1) {
         key = protectWaitKey(0, 1);
         if (key == KEY_CONFIRM) {
+          if (started_in_hidden_env) {
+            lock_required = true;
+          }
           break;
         } else if (key == KEY_CANCEL) {
           memzero(old_pin, sizeof(old_pin));
@@ -1461,7 +1476,10 @@ retry:
   } else {
     memzero(old_pin, sizeof(old_pin));
     memzero(new_pin, sizeof(new_pin));
-    if (deleted_passphrase_pin && deleted_passphrase_current) {
+    if (deleted_passphrase_pin && deleted_passphrase_current &&
+        started_in_hidden_env) {
+      // Only lock when another PIN overwrote the currently active PIN in the
+      // same hidden session. Otherwise keep the device unlocked.
       is_passphrase_pin_enabled = false;
       lock_required = true;
     }
@@ -1480,7 +1498,7 @@ retry:
     }
     if (lock_required) {
       session_clear(true);  // lock after confirmation when main PIN replaces
-                            // passphrase PIN
+                            // or active passphrase PIN changes
       layoutHome();
       se_clearPinStateCache();
       for (int attempt = 0; attempt < 5; ++attempt) {
