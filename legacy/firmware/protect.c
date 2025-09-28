@@ -1448,8 +1448,27 @@ retry:
       while (1) {
         key = protectWaitKey(0, 1);
         if (key == KEY_CONFIRM) {
-          if (started_in_hidden_env) {
-            lock_required = true;
+          bool is_current = false;
+          secbool delete_result =
+              se_delete_pin_passphrase(new_pin, &is_current);
+          if (delete_result == sectrue) {
+            deleted_passphrase_pin = true;
+            deleted_passphrase_current = is_current;
+            if (is_current) {
+              is_passphrase_pin_enabled = false;
+              if (started_in_hidden_env) {
+                lock_required = true;
+              }
+            }
+          } else {
+            layoutDialogCenterAdapterV2(
+                NULL, &bmp_icon_error, NULL, &bmp_bottom_right_confirm, NULL,
+                NULL, NULL, NULL, NULL, NULL,
+                _(C__PIN_ALREADY_USED_PLEASE_TRY_A_DIFFERENT_ONE));
+            protectWaitKey(0, 1);
+            memzero(old_pin, sizeof(old_pin));
+            memzero(new_pin, sizeof(new_pin));
+            return false;
           }
           break;
         } else if (key == KEY_CANCEL) {

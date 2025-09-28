@@ -497,8 +497,11 @@ bool config_verifyPin(const char *pin, pin_type_t pin_type) {
   if (!passphrase_protection && pin_type == PIN_TYPE_USER_AND_PASSPHRASE_PIN) {
     pin_type = PIN_TYPE_USER;
   }
+  bool is_check_type = (pin_type == PIN_TYPE_USER_CHECK ||
+                        pin_type == PIN_TYPE_PASSPHRASE_PIN_CHECK ||
+                        pin_type == PIN_TYPE_USER_AND_PASSPHRASE_PIN_CHECK);
   bool result = (sectrue == se_verifyPin(pin, pin_type));
-  if (!result) {
+  if (!result && !is_check_type) {
     se_clearPinStateCache();
     is_passphrase_pin_enabled = false;
     session_seed_cached_btc = false;
