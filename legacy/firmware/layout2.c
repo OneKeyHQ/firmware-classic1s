@@ -4369,6 +4369,126 @@ refresh_menu:
   HANDLE_KEY(bubble_key);
 }
 
+bool layoutTransactionSafeApproveHash(const char *chain_name,
+                                      const char *to_addr, const char *signer,
+                                      const char *approve_hash,
+                                      const char *nonce, const char *gas_fee,
+                                      const char *max_fee_per_gas,
+                                      const char *max_priority_fee_per_gas,
+                                      const char *chain_id_str) {
+  bool result = false;
+  int index = 0;
+  int y = 0;
+  uint8_t bubble_key;
+  uint8_t max_index = 6, detail_total_index = 1, detail_index = 0;
+
+  const char **tx_msg = format_tx_message(chain_name);
+
+  if (max_fee_per_gas) detail_total_index++;
+  if (max_priority_fee_per_gas) detail_total_index++;
+
+  if (!button_request(ButtonRequestType_ButtonRequest_SignTx)) {
+    return false;
+  }
+
+refresh_menu:
+  layoutSwipe();
+  oledClear();
+  bubble_key = KEY_NULL;
+  y = 13;
+  if (index == 0) {  // to address
+    layoutHeader(_(T_CONFIRM_SAFE_TX));
+    oledDrawStringAdapter(0, y, _(I__SEND_TO_COLON), FONT_STANDARD);
+    oledDrawStringAdapter(0, y + 10, to_addr, FONT_STANDARD);
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
+    layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
+  } else if (index == 1) {  // from address
+    layoutHeader(_(T_CONFIRM_SAFE_TX));
+    ;
+    oledDrawStringAdapter(0, y, _(I__ACCOUNT_COLON), FONT_STANDARD);
+    oledDrawStringAdapter(0, y + 10, signer, FONT_STANDARD);
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
+    layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
+  } else if (index == 2) {  // details
+    detail_index = 0;
+    const char *keys[] = {
+        _(I__ETH_MAXIMUM_FEE_COLON),
+        _(I__MAXIMUM_FEE_PER_GAS_COLON),
+        _(I__PRIORITY_FEE_PER_GAS_COLON),
+    };
+    const char *values[] = {gas_fee, max_fee_per_gas, max_priority_fee_per_gas};
+    while (1) {
+      layoutSwipe();
+      oledClear();
+      layoutHeader(_(T__TRANSACTION_DETAILS));
+      if (detail_index < detail_total_index) {
+        if (keys[detail_index] && values[detail_index]) {
+          oledDrawStringAdapter(0, y, keys[detail_index], FONT_STANDARD);
+          oledDrawStringAdapter(0, y + 10, values[detail_index], FONT_STANDARD);
+        }
+      }
+      // scrollbar
+      drawScrollbar(detail_total_index, detail_index);
+      layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
+      layoutButtonYesAdapter(NULL, &bmp_bottom_right_next);
+
+      layout_index_count(detail_index + 1, detail_total_index);
+
+      if (detail_index == 0) {
+        oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 7,
+                       &bmp_bottom_middle_arrow_down);
+      } else if (detail_index == detail_total_index - 1) {
+        oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 7,
+                       &bmp_bottom_middle_arrow_up);
+      } else {
+        oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 7,
+                       &bmp_bottom_middle_arrow_down);
+        oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 7,
+                       &bmp_bottom_middle_arrow_up);
+      }
+      oledRefresh();
+      WAIT_KEY_OR_ABORT(0, 0, bubble_key);
+      if (bubble_key == KEY_CANCEL) {
+        break;
+      } else if (bubble_key == KEY_CONFIRM) {
+        break;
+      } else if (bubble_key == KEY_UP) {
+        if (detail_index > 0) {
+          detail_index--;
+        }
+      } else if (bubble_key == KEY_DOWN) {
+        if (detail_index < detail_total_index - 1) {
+          detail_index++;
+        }
+      }
+    }
+  } else if (index == 3) {  // approve hash
+    layoutHeader(_(T_CONFIRM_SAFE_TX));
+    oledDrawStringAdapter(0, y, "SafeTxHash", FONT_STANDARD);
+    bubble_key = oledDrawPageableStringAdapter(
+        0, y + 10, approve_hash, FONT_STANDARD, &bmp_bottom_left_arrow,
+        &bmp_bottom_right_arrow);
+  } else if (index == 4) {
+    layoutHeader(_(T__SIGN_TRANSACTION));
+    oledDrawStringAdapter(0, y, "Nonce", FONT_STANDARD);
+    oledDrawStringAdapter(0, y + 10, nonce, FONT_STANDARD);
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
+    layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
+  } else if (index == 5) {
+    layoutHeader(_(T__SIGN_TRANSACTION));
+    oledDrawStringAdapter(0, y, "ChainID", FONT_STANDARD);
+    oledDrawStringAdapter(0, y + 10, chain_id_str, FONT_STANDARD);
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
+    layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
+  } else if (max_index == index) {
+    layoutHeader(_(T__SIGN_TRANSACTION));
+    layoutTxConfirmPage(tx_msg[1]);
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
+    layoutButtonYesAdapter(NULL, &bmp_bottom_right_confirm);
+  }
+  oledRefresh();
+  HANDLE_KEY(bubble_key);
+}
 bool layoutTransactionEIP7702(
     const char *chain_name, const char *delegator_address,
     const char *delegator_name, const char *delegator_network, bool is_revoke,
