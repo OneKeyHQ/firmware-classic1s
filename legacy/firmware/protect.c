@@ -1238,9 +1238,14 @@ pin_set:
     pin = protectInputPin(_(T__ENTER_PIN), DEFAULT_PIN_LEN, MAX_PIN_LEN, true);
 
     if (pin == NULL) {
+      memzero(old_pin, sizeof(old_pin));
+      memzero(new_pin, sizeof(new_pin));
       return false;
-    } else if (pin == PIN_CANCELED_BY_BUTTON)
+    } else if (pin == PIN_CANCELED_BY_BUTTON) {
+      memzero(old_pin, sizeof(old_pin));
+      memzero(new_pin, sizeof(new_pin));
       return false;
+    }
 
     bool ret = config_unlock(pin, PIN_TYPE_USER_AND_PASSPHRASE_PIN_CHECK);
 
@@ -1255,6 +1260,8 @@ pin_set:
         NULL, NULL, NULL, _(C__SET_A_4_TO_9_DIGITS_PIN_TO_PROTECT_YOUR_WALLET));
     key = protectWaitKey(0, 1);
     if (key != KEY_CONFIRM) {
+      memzero(old_pin, sizeof(old_pin));
+      memzero(new_pin, sizeof(new_pin));
       return false;
     }
     strlcpy(old_pin, pin, sizeof(old_pin));
@@ -1277,6 +1284,8 @@ pin_set:
           _(C__SET_A_4_TO_9_DIGITS_PIN_TO_PROTECT_YOUR_WALLET));
       key = protectWaitKey(0, 1);
       if (key != KEY_CONFIRM) {
+        memzero(old_pin, sizeof(old_pin));
+        memzero(new_pin, sizeof(new_pin));
         return false;
       }
     }
@@ -1288,12 +1297,13 @@ retry:
   pin =
       protectInputPin(_(T__ENTER_NEW_PIN), min_new_pin_len, MAX_PIN_LEN, true);
   if (pin == PIN_CANCELED_BY_BUTTON) {
+    memzero(old_pin, sizeof(old_pin));
     return false;
   } else if (pin == NULL || pin[0] == '\0') {
-    memzero(old_pin, sizeof(old_pin));
     if (set) {
       goto_check(pin_set);
     }
+    memzero(old_pin, sizeof(old_pin));
     return false;
   }
   strlcpy(new_pin, pin, sizeof(new_pin));
@@ -1301,16 +1311,18 @@ retry:
   pin = protectInputPin(_(T__ENTER_NEW_PIN_AGAIN), min_new_pin_len, MAX_PIN_LEN,
                         true);
   if (pin == NULL) {
-    memzero(old_pin, sizeof(old_pin));
     memzero(new_pin, sizeof(new_pin));
     if (set) {
       goto_check(retry);
     }
-    return false;
-  } else if (pin == PIN_CANCELED_BY_BUTTON)
-    return false;
-  if (strncmp(new_pin, pin, sizeof(new_pin)) != 0) {
     memzero(old_pin, sizeof(old_pin));
+    return false;
+  } else if (pin == PIN_CANCELED_BY_BUTTON) {
+    memzero(old_pin, sizeof(old_pin));
+    memzero(new_pin, sizeof(new_pin));
+    return false;
+  }
+  if (strncmp(new_pin, pin, sizeof(new_pin)) != 0) {
     memzero(new_pin, sizeof(new_pin));
     layoutDialogCenterAdapterV2(
         NULL, &bmp_icon_error, NULL, &bmp_bottom_right_retry, NULL, NULL, NULL,
@@ -1321,6 +1333,7 @@ retry:
       if (key == KEY_CONFIRM) {
         goto retry;
       } else if (key == KEY_NULL) {
+        memzero(old_pin, sizeof(old_pin));
         return false;
       }
     }
@@ -1436,6 +1449,8 @@ retry:
           memzero(new_pin, sizeof(new_pin));
           return false;
         } else if (key == KEY_NULL) {
+          memzero(old_pin, sizeof(old_pin));
+          memzero(new_pin, sizeof(new_pin));
           return false;
         }
       }

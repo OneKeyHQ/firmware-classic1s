@@ -751,10 +751,6 @@ static const struct menu_item security_set_menu_items_base[] = {
      NULL},
     {"Passphrase", NULL, false, .sub_menu = &passphrase_manage_menu, NULL, true,
      NULL},
-#if !BITCOIN_ONLY
-    {"Security Keys", NULL, true, menu_fido2_resident_credential, NULL, false,
-     NULL},
-#endif
     {"Reset Device", NULL, true, menu_erase_device, NULL, false, NULL},
 };
 
