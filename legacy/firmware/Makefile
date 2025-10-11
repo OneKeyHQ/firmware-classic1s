@@ -256,6 +256,7 @@ OBJS += ../vendor/trezor-crypto/cash_addr.o
 OBJS += protob/messages-ethereum.pb.o
 OBJS += protob/messages-ethereum-definitions.pb.o
 OBJS += protob/messages-ethereum-onekey.pb.o
+OBJS += protob/messages-ethereum-eip712-onekey.pb.o
 OBJS += protob/messages-nem.pb.o
 OBJS += protob/messages-solana.pb.o
 OBJS += protob/messages-starcoin.pb.o
@@ -302,7 +303,7 @@ else
 #CFLAGS += -fstack-protector-strong
 endif
 CFLAGS += -Wno-sequence-point
-CFLAGS += -I../vendor/nanopb -Iprotob -DPB_FIELD_16BIT=1 -DPB_ENCODE_ARRAYS_UNPACKED=1 -DPB_VALIDATE_UTF8=1
+CFLAGS += -I../vendor/nanopb -Iprotob -DPB_FIELD_16BIT=1 -DPB_ENABLE_MALLOC=1 -DPB_ENCODE_ARRAYS_UNPACKED=1 -DPB_VALIDATE_UTF8=1
 CFLAGS += -DSCM_REVISION='"$(shell git rev-parse HEAD | sed 's:\(..\):\\x\1:g')"'
 CFLAGS += -DBUILD_ID='"$(NAME)"'
 CFLAGS += -DUSE_MONERO=0

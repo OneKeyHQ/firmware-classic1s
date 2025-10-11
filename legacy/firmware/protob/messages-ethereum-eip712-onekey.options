@@ -1,0 +1,13 @@
+EthereumSignTypedDataOneKey.address_n           max_count:8
+EthereumSignTypedDataOneKey.primary_type        max_size:64
+
+EthereumTypedDataStructRequestOneKey.name       max_size:64
+EthereumTypedDataStructAckOneKey.members        max_count:16
+
+EthereumStructMemberOneKey.name                 max_size:64
+
+EthereumFieldTypeOneKey.struct_name             max_size:64
+EthereumFieldTypeOneKey.entry_type              type: FT_POINTER
+EthereumTypedDataValueRequestOneKey.member_path max_count:5
+
+EthereumTypedDataValueAckOneKey.value           max_size:1536

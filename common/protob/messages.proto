@@ -201,11 +201,12 @@ enum MessageType {
     MessageType_EthereumSignMessage = 64 [(wire_in) = true];
     MessageType_EthereumVerifyMessage = 65 [(wire_in) = true];
     MessageType_EthereumMessageSignature = 66 [(wire_out) = true];
-    MessageType_EthereumSignTypedData = 464 [(wire_in) = true];
-    MessageType_EthereumTypedDataStructRequest = 465 [(wire_out) = true];
-    MessageType_EthereumTypedDataStructAck = 466 [(wire_in) = true];
-    MessageType_EthereumTypedDataValueRequest = 467 [(wire_out) = true];
-    MessageType_EthereumTypedDataValueAck = 468 [(wire_in) = true];
+    // MessageType_EthereumSignTypedData = 464 [(wire_in) = true];
+    // MessageType_EthereumTypedDataStructRequest = 465 [(wire_out) = true];
+    // MessageType_EthereumTypedDataStructAck = 466 [(wire_in) = true];
+    // MessageType_EthereumTypedDataValueRequest = 467 [(wire_out) = true];
+    // MessageType_EthereumTypedDataValueAck = 468 [(wire_in) = true];
+    reserved 464 to 468;
     MessageType_EthereumTypedDataSignature = 469 [(wire_out) = true];
     MessageType_EthereumSignTypedHash = 470 [(wire_in) = true];
 
@@ -223,9 +224,9 @@ enum MessageType {
     MessageType_EthereumMessageSignatureOneKey = 20110 [(wire_out) = true];
     MessageType_EthereumSignTypedDataOneKey = 20111 [(wire_in) = true];
     MessageType_EthereumTypedDataStructRequestOneKey = 20112 [(wire_out) = true];
-    MessageType_EthereumTypedDataStructAckOneKey = 20113 [(wire_in) = true];
+    MessageType_EthereumTypedDataStructAckOneKey = 20113 [(wire_in) = true, (wire_no_fsm) = true];
     MessageType_EthereumTypedDataValueRequestOneKey = 20114 [(wire_out) = true];
-    MessageType_EthereumTypedDataValueAckOneKey = 20115 [(wire_in) = true];
+    MessageType_EthereumTypedDataValueAckOneKey = 20115 [(wire_in) = true, (wire_no_fsm) = true];
     MessageType_EthereumTypedDataSignatureOneKey = 20116 [(wire_out) = true];
     MessageType_EthereumSignTypedHashOneKey = 20117 [(wire_in) = true];
     reserved 20118, 20119;

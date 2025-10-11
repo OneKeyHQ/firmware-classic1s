@@ -23,6 +23,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "bip32.h"
+#include "messages-ethereum-eip712-onekey.pb.h"
 #include "messages-ethereum-onekey.pb.h"
 #include "messages-ethereum.pb.h"
 
@@ -44,6 +45,10 @@ int ethereum_message_verify_onekey(const EthereumVerifyMessageOneKey *msg);
 void ethereum_typed_hash_sign_onekey(const EthereumSignTypedHashOneKey *msg,
                                      const HDNode *node,
                                      EthereumTypedDataSignatureOneKey *resp);
+void ethereum_typed_data_sign_onekey(const EthereumSignTypedDataOneKey *msg,
+                                     const HDNode *node,
+                                     EthereumTypedDataSignatureOneKey *resp);
+
 bool ethereum_parse_onekey(const char *address, uint8_t pubkeyhash[20]);
 
 // To reduce space, only some EVM networks are supported

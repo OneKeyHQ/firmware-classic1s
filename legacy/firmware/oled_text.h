@@ -19,7 +19,7 @@ string_lines_t split_string_to_lines(const char *text, int max_width,
 int oledCharWidthEx(const char text, uint8_t font);
 int oledStringWidthAdapter(const char *text, uint8_t font);
 void oledDrawNumber_zh(int x, int y, const char font);
-void oledDrawStringAdapter(int x, int y, const char *text, uint8_t font);
+uint8_t oledDrawStringAdapter(int x, int y, const char *text, uint8_t font);
 void oledDrawStringCenterAdapter(int x, int y, const char *text, uint8_t font);
 int oledDrawStringCenterAdapterX(int x, int y, const char *text, uint8_t font);
 void oledDrawStringRightAdapter(int x, int y, const char *text, uint8_t font);

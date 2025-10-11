@@ -215,7 +215,7 @@ static int countlines(char *text) {
   return lines.line_count;
 }
 
-static void layout_index_count(int index, int count) {
+void layout_index_count(int index, int count) {
   char index_str[16] = "";
   uint2str(index, index_str);
   strcat(index_str + strlen(index_str), "/");

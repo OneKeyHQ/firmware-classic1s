@@ -31,6 +31,7 @@
 #include "messages-cosmos.pb.h"
 #include "messages-crypto.pb.h"
 #include "messages-debug.pb.h"
+#include "messages-ethereum-eip712-onekey.pb.h"
 #include "messages-ethereum-onekey.pb.h"
 #include "messages-ethereum.pb.h"
 #include "messages-filecoin.pb.h"
@@ -159,6 +160,7 @@ void fsm_msgEthereumTxAckOneKey(const EthereumTxAckOneKey *msg);
 void fsm_msgEthereumSignMessageOneKey(const EthereumSignMessageOneKey *msg);
 void fsm_msgEthereumVerifyMessageOneKey(const EthereumVerifyMessageOneKey *msg);
 void fsm_msgEthereumSignTypedHashOneKey(const EthereumSignTypedHashOneKey *msg);
+void fsm_msgEthereumSignTypedDataOneKey(const EthereumSignTypedDataOneKey *msg);
 
 // nem
 void fsm_msgNEMGetAddress(

@@ -32,12 +32,21 @@ SECTIONS
 INCLUDE cortex-m-generic.ld
 
 _codelen = SIZEOF(.text) + SIZEOF(.data) + SIZEOF(.ARM.exidx);
-ASSERT((end + 90K <= ORIGIN(ram) + LENGTH(ram)), "Error: not enough space for stack!");
+_data_size = SIZEOF(.data);
+
 _ram_start = ORIGIN(ram);
 _ram_end = ORIGIN(ram) + LENGTH(ram);
-_stay_in_bootloader_flag_addr = ABSOLUTE(0x20010000);
+
 _stack = _ram_end - 8;
 __stack_chk_guard = _ram_end - 8;
 system_millis = _ram_end - 4;
 
-_data_size = SIZEOF(.data);
+_heap_start = end; 
+_heap_end = _ram_end - 16K;
+_heap_size = _heap_end - _heap_start;
+
+ASSERT((_heap_size >= 16K), "Error: heap too small!");
+
+_stay_in_bootloader_flag_addr = ABSOLUTE(0x20010000);
+
+

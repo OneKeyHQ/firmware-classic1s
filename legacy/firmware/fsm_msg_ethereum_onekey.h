@@ -358,3 +358,23 @@ void fsm_msgEthereumSignTypedHashOneKey(
   ethereum_typed_hash_sign_onekey(msg, node, resp);
   layoutHome();
 }
+
+void fsm_msgEthereumSignTypedDataOneKey(
+    const EthereumSignTypedDataOneKey *msg) {
+  CHECK_INITIALIZED
+
+  CHECK_PIN
+  RESP_INIT(EthereumTypedDataSignatureOneKey);
+  if (!fsm_ethereumCheckPathOneKey(msg->address_n_count, msg->address_n, false,
+                                   msg->chain_id)) {
+    layoutHome();
+    return;
+  }
+
+  const HDNode *node = fsm_getDerivedNode(SECP256K1_NAME, msg->address_n,
+                                          msg->address_n_count, NULL);
+  if (!node) return;
+
+  ethereum_typed_data_sign_onekey(msg, node, resp);
+  layoutHome();
+}
