@@ -319,12 +319,14 @@ void msg_read_common(char type, const uint8_t *buf, uint32_t len) {
     fields = MessageFields(type, 'i', msg_id);
     if (!fields) {  // unknown message
       switch (msg_id) {
+#if !BITCOIN_ONLY
         case MessageType_MessageType_EthereumTypedDataStructAckOneKey:
           fields = EthereumTypedDataStructAckOneKey_fields;
           break;
         case MessageType_MessageType_EthereumTypedDataValueAckOneKey:
           fields = EthereumTypedDataValueAckOneKey_fields;
           break;
+#endif
         default:
           msg_pos = 0;
           read_state = READSTATE_IDLE;
