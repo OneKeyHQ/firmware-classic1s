@@ -96,7 +96,7 @@ void menu_changePin(int index) {
   layoutDialogCenterAdapterV2(_(M__CHANGE_PIN), NULL, &bmp_bottom_left_arrow,
                               &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL,
                               NULL, NULL,
-                              _(C__BEFORE_START_VERIFY_YOUR_CURRENT_PIN));
+                              _(C__NEXT_ENTER_THE_PIN_YOU_WANT_TO_CHANGE));
   key = protectWaitKey(0, 1);
   if (key != KEY_CONFIRM) {
     return;
@@ -751,10 +751,6 @@ static const struct menu_item security_set_menu_items_base[] = {
      NULL},
     {"Passphrase", NULL, false, .sub_menu = &passphrase_manage_menu, NULL, true,
      NULL},
-#if !BITCOIN_ONLY
-    {"Security Keys", NULL, true, menu_fido2_resident_credential, NULL, false,
-     NULL},
-#endif
     {"Reset Device", NULL, true, menu_erase_device, NULL, false, NULL},
 };
 
@@ -988,9 +984,11 @@ static void menu_pin_input_for_attach(void) {
   static char main_pin_copy[MAX_PIN_LEN + 1] = "";
   static char pin1_copy[MAX_PIN_LEN + 1] = "";
   static char pin2_copy[MAX_PIN_LEN + 1] = "";
+  bool was_passphrase_enabled = is_passphrase_pin_enabled;
+  bool expect_standard_prompt = session_isUnlocked() && was_passphrase_enabled;
 
 get_main_pin : {
-  if (session_isUnlocked() && is_passphrase_pin_enabled) {
+  if (expect_standard_prompt) {
     layoutDialogCenterAdapterV2(
         _(T__ENTER_PIN), NULL, &bmp_bottom_left_close, &bmp_bottom_right_arrow,
         NULL, NULL, NULL, NULL, NULL, NULL,
@@ -1003,7 +1001,7 @@ get_main_pin : {
   }
 
   const char *pin_title;
-  if (session_isUnlocked() && is_passphrase_pin_enabled) {
+  if (expect_standard_prompt) {
     pin_title = _(T__STANDARD_PIN);
   } else {
     pin_title = _(T__ENTER_PIN);
@@ -1017,10 +1015,12 @@ get_main_pin : {
   strlcpy(g_temp_main_pin, main_pin, sizeof(g_temp_main_pin));
 
   bool main_ok = config_verifyPin(main_pin, PIN_TYPE_USER_CHECK);
+  is_passphrase_pin_enabled = was_passphrase_enabled;
   pin_result_t main_pin_result = se_get_pin_result_type();
   (void)main_pin_result;  // avoid -Werror when RTT logging is disabled
   if (!main_ok) {
     protectPinErrorTips(true);
+    expect_standard_prompt = true;
     goto get_main_pin;
   }
 }
@@ -1068,6 +1068,7 @@ retry_pin:
 
   bool passphrase_pin_exists =
       config_verifyPin(pin1_copy, PIN_TYPE_PASSPHRASE_PIN_CHECK);
+  is_passphrase_pin_enabled = was_passphrase_enabled;
   pin_result_t check_result = se_get_pin_result_type();
   (void)check_result;
 
@@ -1292,9 +1293,11 @@ static uint8_t wait_for_confirm_only(uint8_t mode) {
 }
 
 static bool require_standard_pin(bool cancel_allowed) {
+  bool was_passphrase_enabled = is_passphrase_pin_enabled;
+  bool expect_standard_prompt = session_isUnlocked() && was_passphrase_enabled;
   while (1) {
     const char *pin_title;
-    if (session_isUnlocked() && is_passphrase_pin_enabled) {
+    if (expect_standard_prompt) {
       pin_title = _(T__STANDARD_PIN);
     } else {
       pin_title = _(T__ENTER_PIN);
@@ -1303,22 +1306,27 @@ static bool require_standard_pin(bool cancel_allowed) {
     const char *pin = protectInputPin(pin_title, DEFAULT_PIN_LEN, MAX_PIN_LEN,
                                       cancel_allowed);
     if (!pin || pin == PIN_CANCELED_BY_BUTTON) {
+      is_passphrase_pin_enabled = was_passphrase_enabled;
       return false;
     }
 
     bool ok = config_unlock(pin, PIN_TYPE_USER_CHECK);
     if (!ok) {
       protectPinErrorTips(true);
+      is_passphrase_pin_enabled = was_passphrase_enabled;
+      expect_standard_prompt = true;
       continue;
     }
 
     pin_result_t result = se_get_pin_result_type();
     if (result != USER_PIN_ENTERED && result != PIN_SUCCESS) {
       protectPinErrorTips(true);
+      is_passphrase_pin_enabled = was_passphrase_enabled;
+      expect_standard_prompt = true;
       continue;
     }
 
-    is_passphrase_pin_enabled = false;
+    is_passphrase_pin_enabled = was_passphrase_enabled;
     return true;
   }
 }
@@ -1495,8 +1503,10 @@ static void menu_remove_pin_input(void) {
   strncpy(pin_to_remove, entered_pin, MAX_PIN_LEN);
   pin_to_remove[MAX_PIN_LEN] = '\0';
 
+  bool was_passphrase_enabled = is_passphrase_pin_enabled;
   bool passphrase_pin_exists =
       config_verifyPin(pin_to_remove, PIN_TYPE_PASSPHRASE_PIN_CHECK);
+  is_passphrase_pin_enabled = was_passphrase_enabled;
   pin_result_t remove_check = se_get_pin_result_type();
   (void)remove_check;
 

@@ -413,7 +413,6 @@ const char *const languages_pt_br[] = {
     "Você não tem o Passphrase ativado",
     "PIN já utilizado! Deseja sobrescrever?",
     "PIN já utilizado! Por favor, tente um diferente",
-    "Antes de começar, verifique o PIN da sua Carteira Padrão",
     "Aluguel de Energia TRON",
     "O destinatário é um endereço conhecido de provedor de serviços de aluguel de energia.",
     "Confirmar Passphrase",
@@ -426,4 +425,8 @@ const char *const languages_pt_br[] = {
     "Autorização de {}. Verifique a confiança do dApp primeiro.",
     "Revisar Struct",
     "Dicas: Pressione \"             \" para alternar entre letras, números e símbolos.",
+    "Transação Safe",
+    "Delegatecall pode permitir que código externo afete sua carteira.",
+    "Ver execTransaction",
+    "Em seguida, digite o PIN que você deseja alterar",
 };

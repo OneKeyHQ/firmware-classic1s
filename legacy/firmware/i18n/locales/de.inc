@@ -413,7 +413,6 @@ const char *const languages_de[] = {
     "Sie haben Passphrase nicht aktiviert",
     "PIN bereits verwendet! Möchten Sie ihn überschreiben?",
     "PIN bereits verwendet! Bitte versuchen Sie einen anderen.",
-    "Bevor Sie beginnen, überprüfen Sie Ihre Standard-Wallet-PIN",
     "TRON Energy-Miete",
     "Der Empfänger ist eine bekannte Adresse eines Energie-Mietdienstleisters.",
     "Phrase bestätigen",
@@ -426,4 +425,8 @@ const char *const languages_de[] = {
     "{}-Autorisierung. Überprüfe zuerst das Vertrauen in die dApp.",
     "Struktur bewerten",
     "Tipps:  „             “drücken, um Buchstaben, Zahlen und Symbole zu wechseln.",
+    "Safe-Transaktion",
+    "Delegatecall kann es externem Code ermöglichen, Ihre Wallet zu beeinflussen.",
+    "execTransaction anzeigen",
+    "Geben Sie als Nächstes die PIN ein, die Sie ändern möchten",
 };

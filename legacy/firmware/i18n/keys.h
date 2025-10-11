@@ -867,31 +867,37 @@
 #define C__PIN_ALREADY_USED_DO_YOU_WANT_TO_OVERWRITE_IT 412
 // PIN already used! Please try a different one
 #define C__PIN_ALREADY_USED_PLEASE_TRY_A_DIFFERENT_ONE 413
-// Before start, verify your Standard Wallet PIN
-#define C__BEFORE_START_VERIFY_YOUR_TANDARD_WALLET_PIN 414
 // TRON Energy Rental
-#define T_ENERGY_RENTAL 415
+#define T_ENERGY_RENTAL 414
 // Recipient is a known energy rental service provider address.
-#define I_ENERGY_RENTAL 416
+#define I_ENERGY_RENTAL 415
 // Confirm Phrase
-#define T__CONFIRM_PHRASE 417
+#define T__CONFIRM_PHRASE 416
 // Save Passphrase
-#define T__SAVE_PASSPHRASE 418
+#define T__SAVE_PASSPHRASE 417
 // Remove PIN
-#define T__REMOVE_PIN 419
+#define T__REMOVE_PIN 418
 // Management Security Key
-#define M__MANAGEMENT_SECURITY_KEY 420
+#define M__MANAGEMENT_SECURITY_KEY 419
 // Incorrect PIN! The PIN you entered is incorrect
-#define C__INCORRECT_PIN_THE_PIN_YOU_ENTERED_IS_INCORRECT 421
+#define C__INCORRECT_PIN_THE_PIN_YOU_ENTERED_IS_INCORRECT 420
 // Lock the screen?
-#define C__LOCK_THE_SCREEN 422
+#define C__LOCK_THE_SCREEN 421
 // Confirm Typed Data
-#define T_CONFIRM_TYPED_DATA 423
+#define T_CONFIRM_TYPED_DATA 422
 // {} authorization. Check dApp trust first.
-#define I_TYPED_DATA_AUTHORIZATION_WARNING 424
+#define I_TYPED_DATA_AUTHORIZATION_WARNING 423
 // Review Struct
-#define I_REVIEW_STRUCT 425
+#define I_REVIEW_STRUCT 424
 // Tips: Press “             ” both at once to switch case / numbers / symbols.
-#define C__TIPS_PRESS_BOTH_AT_ONCE_TO_SWITCH_CASE_NUMBERS_SYMBOLS 426
+#define C__TIPS_PRESS_BOTH_AT_ONCE_TO_SWITCH_CASE_NUMBERS_SYMBOLS 425
+// Safe Transaction
+#define T_CONFIRM_SAFE_TX 426
+// Delegatecall may let external code affect your wallet.
+#define I_SAFE_DELEGATE_WARNING 427
+// View execTransaction
+#define I_VIEW_EXEC_TRANSACTION 428
+// Next, enter the PIN you want to change
+#define C__NEXT_ENTER_THE_PIN_YOU_WANT_TO_CHANGE 429
 #endif
 // clang-format on

@@ -413,7 +413,6 @@ const char *const languages_en[] = {
     "You do not have Passphrase turned on",
     "PIN Already Used! Do you want to overwrite it?",
     "PIN already used! Please try a different one",
-    "Before start, verify your Standard Wallet PIN",
     "TRON Energy Rental",
     "Recipient is a known energy rental service provider address.",
     "Confirm Phrase",
@@ -426,4 +425,8 @@ const char *const languages_en[] = {
     "{} authorization. Check dApp trust first.",
     "Review Struct",
     "Tips: Press “             ” both at once to switch case / numbers / symbols.",
+    "Safe Transaction",
+    "Delegatecall may let external code affect your wallet.",
+    "View execTransaction",
+    "Next, enter the PIN you want to change",
 };

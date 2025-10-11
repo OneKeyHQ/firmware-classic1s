@@ -413,7 +413,6 @@ const char *const languages_ko_kr[] = {
     "Passphrase 가 활성화되어 있지 않습니다.",
     "이미 사용된 PIN입니다! 덮어쓰시겠습니까?",
     "이미 사용된 PIN입니다! 다른 PIN을 시도해 주세요",
-    "시작하기 전에 Standard Wallet PIN을 확인하세요",
     "TRON 에너지 렌탈",
     "수신자는 알려진 에너지 렌탈 서비스 제공업체 주소입니다.",
     "문구 확인",
@@ -426,4 +425,8 @@ const char *const languages_ko_kr[] = {
     "{} 인가. 먼저 dApp 신뢰를 확인하세요.",
     "리뷰 구조체",
     "팁: 대/소문자·숫자·기호를 전환하려면 “             ”을(를) 동시에 누르세요.",
+    "Safe 트랜잭션",
+    "Delegatecall은 외부 코드가 지갑에 영향을 미치게 할 수 있습니다.",
+    "execTransaction 보기",
+    "다음으로, 변경하려는 PIN을 입력하세요",
 };
