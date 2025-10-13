@@ -863,7 +863,7 @@
 #define C__PIN_REMOVED 410
 // You do not have Passphrase turned on
 #define C__YOU_DO_NOT_HAVE_PASSPHRASE_TURNED_ON 411
-// PIN Already Used! Do you want to overwrite it?
+// PIN Already Used!Do you want to overwrite it?
 #define C__PIN_ALREADY_USED_DO_YOU_WANT_TO_OVERWRITE_IT 412
 // PIN already used! Please try a different one
 #define C__PIN_ALREADY_USED_PLEASE_TRY_A_DIFFERENT_ONE 413
@@ -899,5 +899,25 @@
 #define I_VIEW_EXEC_TRANSACTION 428
 // Next, enter the PIN you want to change
 #define C__NEXT_ENTER_THE_PIN_YOU_WANT_TO_CHANGE 429
+// Request Confirmation
+#define T_CONFIRM_REQUEST 430
+// Approve {}
+#define I_APPROVE_TOKEN 431
+// Revoke {}
+#define I_REVOKE_TOKEN 432
+// for {}
+#define I_AUTHORIZATION_PROVIDER 433
+// Full access to this asset. Trust the dApp before continuing.
+#define I_UNLIMITED_AUTHORIZATION_BANNER 434
+// Approve to:
+#define I_APPROVE_TO 435
+// Revoke from:
+#define I_REVOKE_FROM 436
+// Token Address:
+#define I_TOKEN_ADDRESS 437
+// Approve unlimited {}
+#define I_APPROVE_UNLIMITED_TOKEN 438
+// Revoke unlimited {}
+#define I_REVOKE_UNLIMITED_TOKEN 439
 #endif
 // clang-format on

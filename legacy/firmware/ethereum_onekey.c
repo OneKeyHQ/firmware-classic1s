@@ -25,6 +25,7 @@
 #include "curves.h"
 #include "ecdsa.h"
 #include "eip7702_delegators.h"
+#include "ethereum_approveres.h"
 #include "ethereum_networks_onekey.h"
 #include "ethereum_onekey.h"
 #include "ethereum_tokens_onekey.h"
@@ -552,8 +553,8 @@ static void ethereumFormatAmount(const bignum256 *amnt, const TokenType *token,
   const char *suffix = NULL;
   int decimals = 18;
   if (token == UnknownToken) {
-    strlcpy(buf, "Unknown token value", buflen);
-    return;
+    suffix = "UNKN";
+    decimals = 0;
   } else if (token != NULL) {
     suffix = token->ticker;
     decimals = token->decimals;
@@ -729,13 +730,13 @@ refresh_menu:
     }
   } else if (index == 5) {
     layoutHeader(_(T__SIGN_TRANSACTION));
-    oledDrawStringAdapter(0, y, "Nonce", FONT_STANDARD);
+    oledDrawStringAdapter(0, y, "Nonce:", FONT_STANDARD);
     oledDrawStringAdapter(0, y + 10, nonce, FONT_STANDARD);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
   } else if (index == 6) {
     layoutHeader(_(T__SIGN_TRANSACTION));
-    oledDrawStringAdapter(0, y, "ChainID", FONT_STANDARD);
+    oledDrawStringAdapter(0, y, "ChainID:", FONT_STANDARD);
     oledDrawStringAdapter(0, y + 10, chain_id_str, FONT_STANDARD);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
@@ -796,6 +797,139 @@ static bool layoutEthereumConfirmExecTx(
       max_gas_fee, max_fee_per_gas, max_priority_fee_per_gas, chain_id_str);
 }
 
+static bool layoutEthereumConfirmERC20Approve(
+    const char *chain_name, const char *token_address, const char *signer,
+    const char *spender, bool is_unlimited, bool is_revoke,
+    const char *overview_text, const char *nonce, const char *gas_fee,
+    const char *max_fee_per_gas, const char *max_priority_fee_per_gas,
+    const char *chain_id_str) {
+  bool result = false;
+  int index = 0;
+  int y = 0;
+  uint8_t bubble_key;
+  uint8_t max_index = 7, detail_total_index = 1, detail_index = 0;
+
+  const char **tx_msg = format_tx_message(chain_name);
+
+  if (max_fee_per_gas) detail_total_index++;
+  if (max_priority_fee_per_gas) detail_total_index++;
+
+  if (!button_request(ButtonRequestType_ButtonRequest_SignTx)) {
+    return false;
+  }
+  if (is_unlimited) {
+    layoutDialogCenterAdapterV2(NULL, &bmp_icon_warning, &bmp_bottom_left_close,
+                                &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL,
+                                NULL, NULL,
+                                _(I_UNLIMITED_AUTHORIZATION_BANNER));
+    if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
+      return false;
+    }
+  }
+
+refresh_menu:
+  layoutSwipe();
+  oledClear();
+  bubble_key = KEY_NULL;
+  y = 13;
+  if (index == 0) {  // approve overview
+    layoutHeader(_(T_CONFIRM_REQUEST));
+    oledDrawStringAdapter(0, y, overview_text, FONT_STANDARD);
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
+    layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
+  } else if (index == 1) {  // spender address
+    layoutHeader(_(T__TRANSACTION_DETAILS));
+    oledDrawStringAdapter(0, y, is_revoke ? _(I_REVOKE_FROM) : _(I_APPROVE_TO),
+                          FONT_STANDARD);
+    oledDrawStringAdapter(0, y + 10, spender, FONT_STANDARD);
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
+    layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
+  } else if (index == 2) {  // signer address
+    layoutHeader(_(T__TRANSACTION_DETAILS));
+    oledDrawStringAdapter(0, y, _(I__FROM_COLON), FONT_STANDARD);
+    oledDrawStringAdapter(0, y + 10, signer, FONT_STANDARD);
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
+    layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
+  } else if (index == 3) {  // token address
+    layoutHeader(_(T__TRANSACTION_DETAILS));
+    oledDrawStringAdapter(0, y, _(I_TOKEN_ADDRESS), FONT_STANDARD);
+    oledDrawStringAdapter(0, y + 10, token_address, FONT_STANDARD);
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
+    layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
+  } else if (index == 4) {  // gas details
+    detail_index = 0;
+    const char *keys[] = {
+        _(I__ETH_MAXIMUM_FEE_COLON),
+        _(I__MAXIMUM_FEE_PER_GAS_COLON),
+        _(I__PRIORITY_FEE_PER_GAS_COLON),
+    };
+    const char *values[] = {gas_fee, max_fee_per_gas, max_priority_fee_per_gas};
+    while (1) {
+      layoutSwipe();
+      oledClear();
+      layoutHeader(_(T__TRANSACTION_DETAILS));
+      if (detail_index < detail_total_index) {
+        if (keys[detail_index] && values[detail_index]) {
+          oledDrawStringAdapter(0, y, keys[detail_index], FONT_STANDARD);
+          oledDrawStringAdapter(0, y + 10, values[detail_index], FONT_STANDARD);
+        }
+      }
+      // scrollbar
+      drawScrollbar(detail_total_index, detail_index);
+      layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
+      layoutButtonYesAdapter(NULL, &bmp_bottom_right_next);
+
+      layout_index_count(detail_index + 1, detail_total_index);
+
+      if (detail_index == 0) {
+        oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 7,
+                       &bmp_bottom_middle_arrow_down);
+      } else if (detail_index == detail_total_index - 1) {
+        oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 7,
+                       &bmp_bottom_middle_arrow_up);
+      } else {
+        oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 7,
+                       &bmp_bottom_middle_arrow_down);
+        oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 7,
+                       &bmp_bottom_middle_arrow_up);
+      }
+      oledRefresh();
+      WAIT_KEY_OR_ABORT(0, 0, bubble_key);
+      if (bubble_key == KEY_CANCEL) {
+        break;
+      } else if (bubble_key == KEY_CONFIRM) {
+        break;
+      } else if (bubble_key == KEY_UP) {
+        if (detail_index > 0) {
+          detail_index--;
+        }
+      } else if (bubble_key == KEY_DOWN) {
+        if (detail_index < detail_total_index - 1) {
+          detail_index++;
+        }
+      }
+    }
+  } else if (index == 5) {
+    layoutHeader(_(T__TRANSACTION_DETAILS));
+    oledDrawStringAdapter(0, y, "Nonce:", FONT_STANDARD);
+    oledDrawStringAdapter(0, y + 10, nonce, FONT_STANDARD);
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
+    layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
+  } else if (index == 6) {
+    layoutHeader(_(T__TRANSACTION_DETAILS));
+    oledDrawStringAdapter(0, y, "ChainID:", FONT_STANDARD);
+    oledDrawStringAdapter(0, y + 10, chain_id_str, FONT_STANDARD);
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
+    layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
+  } else if (max_index == index) {
+    layoutHeader(_(T__SIGN_TRANSACTION));
+    layoutTxConfirmPage(tx_msg[1]);
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
+    layoutButtonYesAdapter(NULL, &bmp_bottom_right_confirm);
+  }
+  oledRefresh();
+  HANDLE_KEY(bubble_key);
+}
 static bool layoutEthereumConfirmTx(
     const struct signing_params *params, const char *signer, const uint8_t *to,
     uint32_t to_len, const uint8_t *value, uint32_t value_len,
@@ -1055,7 +1189,7 @@ static void ethereum_signing_handle_erc20(struct signing_params *params) {
   }
 }
 
-static bool ethereum_signing_handle_nft(struct signing_params *params,
+static bool ethereum_signing_handle_nft(const struct signing_params *params,
                                         uint8_t *recipient, char *token_id,
                                         char *value) {
   // detect ERC-721/ERC1155 token
@@ -1104,6 +1238,19 @@ static bool ethereum_signing_handle_nft(struct signing_params *params,
   return false;
 }
 
+static bool is_erc20_approve(const struct signing_params *params) {
+  return params->pubkeyhash_set && params->value_size == 0 &&
+         params->data_length == 68 &&
+         ((memcmp(params->data_initial_chunk_bytes,
+                  "\x09\x5e\xa7\xb3\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+                  "\x00",  // approve
+                  16) == 0) ||
+          (memcmp(params->data_initial_chunk_bytes,
+                  "\x39\x50\x93\x51\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+                  "\x00",  // increaseAllowance
+                  16) == 0));
+}
+
 static bool is_safe_approve_hash(const struct signing_params *params) {
   // detect approveHash(bytes32 hashToApprove) 0xd4d9bdcd
   if (params->pubkeyhash_set && params->value_size == 0 &&
@@ -1131,6 +1278,21 @@ static bool is_safe_tx(const struct signing_params *params) {
   return is_safe_approve_hash(params) || is_safe_exec_transaction(params);
 }
 
+static void detect_contract_action(const struct signing_params *params,
+                                   bool *is_approve, bool *is_nft_transfer,
+                                   bool *is_safe, uint8_t *recipient,
+                                   char *token_id, char *token_value) {
+  *is_approve = is_erc20_approve(params);
+  if (*is_approve) {
+    return;
+  }
+  *is_nft_transfer =
+      ethereum_signing_handle_nft(params, recipient, token_id, token_value);
+  if (*is_nft_transfer) {
+    return;
+  }
+  *is_safe = is_safe_tx(params);
+}
 static bool ethereum_signing_handle_safe_tx(const struct signing_params *params,
                                             SafeTxContext *safe_tx_context,
                                             bool *is_delegate_call) {
@@ -1412,6 +1574,99 @@ static bool ethereum_signing_safe_tx(
   return result;
 }
 
+static bool ethereum_signing_confirm_approve(
+    const struct signing_params *params, const char *signer,
+    const uint8_t *gas_price, uint32_t gas_price_len, const uint8_t *gas_limit,
+    uint32_t gas_limit_len, const uint8_t *nonce, uint32_t nonce_len,
+    const uint8_t *max_fee_per_gas, uint32_t max_fee_per_gas_len,
+    const uint8_t *max_priority_fee_per_gas,
+    uint32_t max_priority_fee_per_gas_len) {
+  const TokenType *token =
+      tokenByChainAddress(params->chain_id, params->pubkeyhash);
+  const EthereumApprover *approver = ethereum_approver_by_chain_address(
+      params->chain_id, params->data_initial_chunk_bytes + 16);
+  const char *provider_name = approver ? approver->name : NULL;
+  char spender_str[52] = "____________";
+  char token_address_str[52] = "____________";
+  bool rskip60 = false;
+  switch (params->chain_id) {
+    case 30:
+    case 31:
+      rskip60 = true;
+      break;
+  }
+  ethereum_address_checksum(params->data_initial_chunk_bytes + 16, spender_str,
+                            rskip60, params->chain_id);
+  ethereum_address_checksum(params->pubkeyhash, token_address_str, rskip60,
+                            params->chain_id);
+  bignum256 amount = {0};
+  bn_read_be(params->data_initial_chunk_bytes + 36, &amount);
+  bignum256 bn_max_value = {0};
+  bignum256 one = {0};
+  bn_one(&one);
+  bn_setbit(&bn_max_value, 256);
+  bn_subtract(&bn_max_value, &one, &bn_max_value);
+  bool is_unlimited = false;
+  bool is_revoke = false;
+  char overview_text[256] = {0};
+  const char *token_name = token == UnknownToken ? "UNKN" : token->ticker;
+  if (bn_is_zero(&amount)) {
+    is_revoke = true;
+    strcat(overview_text, _(I_REVOKE_TOKEN));
+    bracket_replace(overview_text, token_name);
+    if (provider_name != NULL) {
+      strcat(overview_text, " ");
+      strcat(overview_text, _(I_AUTHORIZATION_PROVIDER));
+      bracket_replace(overview_text, provider_name);
+    }
+  } else if (bn_is_equal(&amount, &bn_max_value)) {
+    is_unlimited = true;
+    strcat(overview_text, _(I_APPROVE_UNLIMITED_TOKEN));
+    bracket_replace(overview_text, token_name);
+    if (provider_name != NULL) {
+      strcat(overview_text, " ");
+      strcat(overview_text, _(I_AUTHORIZATION_PROVIDER));
+      bracket_replace(overview_text, provider_name);
+    }
+  } else {
+    char amount_str[64] = {0};
+    ethereumFormatAmount(&amount, token, amount_str, sizeof(amount_str));
+    strcat(overview_text, _(I_APPROVE_TOKEN));
+    bracket_replace(overview_text, amount_str);
+    if (provider_name != NULL) {
+      strcat(overview_text, " ");
+      strcat(overview_text, _(I_AUTHORIZATION_PROVIDER));
+      bracket_replace(overview_text, provider_name);
+    }
+  }
+  char max_fee_per_gas_str[32] = {0};
+  char priority_fee_per_gas_str[32] = {0};
+  char max_fee_str[32] = {0};
+  char nonce_str[32] = {0};
+  if (max_fee_per_gas != NULL) {
+    fillEthereumFee(max_fee_per_gas, max_fee_per_gas_len, NULL, 0,
+                    max_fee_per_gas_str);
+    fillEthereumFee(max_priority_fee_per_gas, max_priority_fee_per_gas_len,
+                    NULL, 0, priority_fee_per_gas_str);
+    fillEthereumFee(gas_limit, gas_limit_len, max_fee_per_gas,
+                    max_fee_per_gas_len, max_fee_str);
+  } else {
+    fillEthereumFee(gas_limit, gas_limit_len, gas_price, gas_price_len,
+                    max_fee_str);
+  }
+  char *nonce_ptr = decode_typed_data(nonce, nonce_len, "uint");
+  memcpy(nonce_str, nonce_ptr, strlen(nonce_ptr));
+  free(nonce_ptr);
+  char chain_id_str[21] = {0};
+  snprintf(chain_id_str, sizeof(chain_id_str), "%" PRIu32,
+           (uint32_t)params->chain_id);
+  const char *chain_name = NULL;
+  ASSIGN_ETHEREUM_NAME(chain_name, params->chain_id);
+  return layoutEthereumConfirmERC20Approve(
+      chain_name, token_address_str, signer, spender_str, is_unlimited,
+      is_revoke, overview_text, nonce_str, max_fee_str, max_fee_per_gas_str,
+      priority_fee_per_gas_str, chain_id_str);
+}
 static bool ethereum_signing_confirm_common(
     const struct signing_params *params, const char *signer,
     const uint8_t *gas_price, uint32_t gas_price_len, const uint8_t *gas_limit,
@@ -1479,15 +1734,13 @@ void ethereum_signing_init_onekey(const EthereumSignTxOneKey *msg,
 
   bool is_nft_transfer = false;
   bool is_safe = false;
+  bool is_approve = false;
   char token_id[256] = {0}, token_value[32] = {0};
   uint8_t recipient[20];
   ethereum_signing_handle_erc20(&params);
   if (params.token == NULL) {
-    is_nft_transfer =
-        ethereum_signing_handle_nft(&params, recipient, token_id, token_value);
-    if (!is_nft_transfer) {
-      is_safe = is_safe_tx(&params);
-    }
+    detect_contract_action(&params, &is_approve, &is_nft_transfer, &is_safe,
+                           recipient, token_id, token_value);
   }
   // signer address
   uint8_t signerhash[20];
@@ -1515,14 +1768,25 @@ void ethereum_signing_init_onekey(const EthereumSignTxOneKey *msg,
 
   ethereum_address_checksum(signerhash, signer, rskip60, chainid);
   if (!is_safe) {
-    if (!ethereum_signing_confirm_common(
-            &params, signer, msg->gas_price.bytes, msg->gas_price.size,
-            msg->gas_limit.bytes, msg->gas_limit.size, false, is_nft_transfer,
-            recipient, token_id, token_value, NULL, NULL, NULL, NULL, NULL,
-            NULL)) {
-      fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
-      ethereum_signing_abort_onekey();
-      return;
+    if (is_approve) {
+      if (!ethereum_signing_confirm_approve(
+              &params, signer, msg->gas_price.bytes, msg->gas_price.size,
+              msg->gas_limit.bytes, msg->gas_limit.size, msg->nonce.bytes,
+              msg->nonce.size, NULL, 0, NULL, 0)) {
+        fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
+        ethereum_signing_abort_onekey();
+        return;
+      }
+    } else {
+      if (!ethereum_signing_confirm_common(
+              &params, signer, msg->gas_price.bytes, msg->gas_price.size,
+              msg->gas_limit.bytes, msg->gas_limit.size, false, is_nft_transfer,
+              recipient, token_id, token_value, NULL, NULL, NULL, NULL, NULL,
+              NULL)) {
+        fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
+        ethereum_signing_abort_onekey();
+        return;
+      }
     }
   }
 
@@ -1626,15 +1890,13 @@ void ethereum_signing_init_eip1559_onekey(
 
   bool is_nft_transfer = false;
   bool is_safe = false;
+  bool is_approve = false;
   char token_id[256] = {0}, token_value[32] = {0};
   uint8_t recipient[20];
   ethereum_signing_handle_erc20(&params);
   if (params.token == NULL) {
-    is_nft_transfer =
-        ethereum_signing_handle_nft(&params, recipient, token_id, token_value);
-    if (!is_nft_transfer) {
-      is_safe = is_safe_tx(&params);
-    }
+    detect_contract_action(&params, &is_approve, &is_nft_transfer, &is_safe,
+                           recipient, token_id, token_value);
   }
 
   // signer address
@@ -1663,25 +1925,38 @@ void ethereum_signing_init_eip1559_onekey(
 
   ethereum_address_checksum(signerhash, signer, rskip60, chainid);
 
-  char max_fee_per_gas_str[32] = {0};
-  char priority_fee_per_gas_str[32] = {0};
-  char max_fee_str[32] = {0};
-  fillEthereumFee(msg->max_gas_fee.bytes, msg->max_gas_fee.size, NULL, 0,
-                  max_fee_per_gas_str);
-  fillEthereumFee(msg->max_priority_fee.bytes, msg->max_priority_fee.size, NULL,
-                  0, priority_fee_per_gas_str);
-  fillEthereumFee(msg->gas_limit.bytes, msg->gas_limit.size,
-                  msg->max_gas_fee.bytes, msg->max_gas_fee.size, max_fee_str);
   if (!is_safe) {
-    if (!ethereum_signing_confirm_common(
-            &params, signer, msg->max_gas_fee.bytes, msg->max_gas_fee.size,
-            msg->gas_limit.bytes, msg->gas_limit.size, true, is_nft_transfer,
-            recipient, token_id, token_value, _(I__ETH_MAXIMUM_FEE_COLON),
-            max_fee_str, _(I__MAXIMUM_FEE_PER_GAS_COLON), max_fee_per_gas_str,
-            _(I__PRIORITY_FEE_PER_GAS_COLON), priority_fee_per_gas_str)) {
-      fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
-      ethereum_signing_abort_onekey();
-      return;
+    if (is_approve) {
+      if (!ethereum_signing_confirm_approve(
+              &params, signer, NULL, 0, msg->gas_limit.bytes,
+              msg->gas_limit.size, msg->nonce.bytes, msg->nonce.size,
+              msg->max_gas_fee.bytes, msg->max_gas_fee.size,
+              msg->max_priority_fee.bytes, msg->max_priority_fee.size)) {
+        fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
+        ethereum_signing_abort_onekey();
+        return;
+      }
+    } else {
+      char max_fee_per_gas_str[32] = {0};
+      char priority_fee_per_gas_str[32] = {0};
+      char max_fee_str[32] = {0};
+      fillEthereumFee(msg->max_gas_fee.bytes, msg->max_gas_fee.size, NULL, 0,
+                      max_fee_per_gas_str);
+      fillEthereumFee(msg->max_priority_fee.bytes, msg->max_priority_fee.size,
+                      NULL, 0, priority_fee_per_gas_str);
+      fillEthereumFee(msg->gas_limit.bytes, msg->gas_limit.size,
+                      msg->max_gas_fee.bytes, msg->max_gas_fee.size,
+                      max_fee_str);
+      if (!ethereum_signing_confirm_common(
+              &params, signer, msg->max_gas_fee.bytes, msg->max_gas_fee.size,
+              msg->gas_limit.bytes, msg->gas_limit.size, true, is_nft_transfer,
+              recipient, token_id, token_value, _(I__ETH_MAXIMUM_FEE_COLON),
+              max_fee_str, _(I__MAXIMUM_FEE_PER_GAS_COLON), max_fee_per_gas_str,
+              _(I__PRIORITY_FEE_PER_GAS_COLON), priority_fee_per_gas_str)) {
+        fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
+        ethereum_signing_abort_onekey();
+        return;
+      }
     }
   }
 

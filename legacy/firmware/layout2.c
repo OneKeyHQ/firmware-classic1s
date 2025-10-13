@@ -4470,13 +4470,13 @@ refresh_menu:
         &bmp_bottom_right_arrow);
   } else if (index == 4) {
     layoutHeader(_(T__SIGN_TRANSACTION));
-    oledDrawStringAdapter(0, y, "Nonce", FONT_STANDARD);
+    oledDrawStringAdapter(0, y, "Nonce:", FONT_STANDARD);
     oledDrawStringAdapter(0, y + 10, nonce, FONT_STANDARD);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
   } else if (index == 5) {
     layoutHeader(_(T__SIGN_TRANSACTION));
-    oledDrawStringAdapter(0, y, "ChainID", FONT_STANDARD);
+    oledDrawStringAdapter(0, y, "ChainID:", FONT_STANDARD);
     oledDrawStringAdapter(0, y + 10, chain_id_str, FONT_STANDARD);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
