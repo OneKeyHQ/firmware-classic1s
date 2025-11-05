@@ -246,7 +246,6 @@ void layoutInputPin(uint8_t pos, const char *text, int index,
 void layoutInputWord(const char *text, uint8_t prefix_len, const char *prefix,
                      const char *letter);
 
-void layoutInputMethod(uint8_t index);
 void layoutInputPassphrase(const char *text, uint8_t prefix_len,
                            const char *prefix, uint8_t char_index,
                            uint8_t input_type);

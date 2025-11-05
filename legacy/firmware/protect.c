@@ -1796,529 +1796,285 @@ void enter_sleep(void) {
 }
 #endif
 
-enum { MENU_INPUT_PASSPHRASE = 0, MENU_INPUT_SELECT };
 enum { INPUT_LOWERCASE = 0, INPUT_CAPITAL, INPUT_NUMS, INPUT_SYMBOLS };
 #define INPUT_CONFIRM 0xFF
+static const uint8_t SYMBOL_TABLE[33] = "\'\",./_\?!:;&*$#=+-()[]{}<>@\\^`%|~ ";
+#define SYMBOL_TABLE_SIZE (sizeof(SYMBOL_TABLE))
 
-bool inputPassphraseOnDevice(char *passphrase) {
+static uint8_t getFirstChar(uint8_t input_type) {
+  switch (input_type) {
+    case INPUT_LOWERCASE:
+      return 'a';
+    case INPUT_CAPITAL:
+      return 'A';
+    case INPUT_NUMS:
+      return '0';
+    case INPUT_SYMBOLS:
+      return SYMBOL_TABLE[0];
+    default:
+      return 0;
+  }
+}
+
+static uint8_t getLastChar(uint8_t input_type) {
+  switch (input_type) {
+    case INPUT_LOWERCASE:
+      return 'z';
+    case INPUT_CAPITAL:
+      return 'Z';
+    case INPUT_NUMS:
+      return '9';
+    case INPUT_SYMBOLS:
+      return SYMBOL_TABLE[SYMBOL_TABLE_SIZE - 1];
+    default:
+      return 0;
+  }
+}
+
+static void navigateUp(uint8_t input_type, uint8_t *current_char,
+                       uint8_t *symbol_index, bool allow_empty,
+                       uint8_t counter) {
+  uint8_t first_char = getFirstChar(input_type);
+  uint8_t last_char = getLastChar(input_type);
+  if (*current_char == first_char) {
+    *current_char = (allow_empty || counter > 0) ? INPUT_CONFIRM : last_char;
+    if (*current_char == last_char && input_type == INPUT_SYMBOLS) {
+      *symbol_index = SYMBOL_TABLE_SIZE - 1;
+    }
+  } else if (*current_char == INPUT_CONFIRM) {
+    *current_char = last_char;
+    if (input_type == INPUT_SYMBOLS) {
+      *symbol_index = SYMBOL_TABLE_SIZE - 1;
+    }
+  } else {
+    if (input_type == INPUT_SYMBOLS) {
+      (*symbol_index)--;
+      *current_char = SYMBOL_TABLE[*symbol_index];
+    } else {
+      (*current_char)--;
+    }
+  }
+}
+
+static void navigateDown(uint8_t input_type, uint8_t *current_char,
+                         uint8_t *symbol_index, bool allow_empty,
+                         uint8_t counter) {
+  uint8_t first_char = getFirstChar(input_type);
+  uint8_t last_char = getLastChar(input_type);
+
+  if (*current_char == last_char) {
+    *current_char = (allow_empty || counter > 0) ? INPUT_CONFIRM : first_char;
+    if (*current_char == first_char && input_type == INPUT_SYMBOLS) {
+      *symbol_index = 0;
+    }
+  } else if (*current_char == INPUT_CONFIRM) {
+    *current_char = first_char;
+    if (input_type == INPUT_SYMBOLS) {
+      *symbol_index = 0;
+    }
+  } else {
+    if (input_type == INPUT_SYMBOLS) {
+      (*symbol_index)++;
+      *current_char = SYMBOL_TABLE[*symbol_index];
+    } else {
+      (*current_char)++;
+    }
+  }
+}
+
+static void restoreFromLastChar(uint8_t last_char, uint8_t *input_type,
+                                uint8_t *current_char, uint8_t *symbol_index) {
+  if (last_char >= 'a' && last_char <= 'z') {
+    *input_type = INPUT_LOWERCASE;
+  } else if (last_char >= 'A' && last_char <= 'Z') {
+    *input_type = INPUT_CAPITAL;
+  } else if (last_char >= '0' && last_char <= '9') {
+    *input_type = INPUT_NUMS;
+  } else {
+    *input_type = INPUT_SYMBOLS;
+    *symbol_index = 0;
+    for (uint8_t i = 0; i < SYMBOL_TABLE_SIZE - 1; i++) {
+      if (SYMBOL_TABLE[i] == last_char) {
+        *symbol_index = i;
+        break;
+      }
+    }
+  }
+  *current_char = last_char;
+}
+
+static bool _inputPassphraseOnDevice(char *passphrase, bool allow_empty) {
   char words[MAX_PASSPHRASE_LEN + 1] = {0};
-  uint8_t key = KEY_NULL;
   uint8_t input_type = INPUT_LOWERCASE;
-  uint8_t menu_status = MENU_INPUT_PASSPHRASE;
-  uint8_t counter = 0, index = 0, symbol_index = 0;
-  static uint8_t symbol_table[33] = " \'\",./_\?!:;&*$#=+-()[]{}<>@\\^`%|~";
-  static uint8_t last_symbol = 0;
+  uint8_t counter = 0, current_char = 'a', symbol_index = 0;
+
+  bool reverse_direction = false;
   bool ret = false;
-  bool d = false;
-  config_getInputDirection(&d);
+
+  config_getInputDirection(&reverse_direction);
 
 #if !EMULATOR
   enableLongPress(true);
 #endif
 
-input_passphrase:
-  layoutInputPassphrase(_(T__ENTER_PASSPHRASE), counter, words, index,
-                        input_type);
-wait_key:
-  key = protectWaitKey(0, 0);
+  uint8_t key = KEY_NULL;
+  while (true) {
+    layoutInputPassphrase(_(T__ENTER_PASSPHRASE), counter, words, current_char,
+                          input_type);
+
+    WAIT_KEY_OR_ABORT(0, 0, key);
+
 #if !EMULATOR
-  if (isLongPress(KEY_UP_OR_DOWN) && getLongPressStatus()) {
-    if (isLongPress(KEY_UP)) {
-      key = KEY_UP;
-    } else if (isLongPress(KEY_DOWN)) {
-      key = KEY_DOWN;
+    if (key == KEY_COMBO_UP_DOWN) {
+      input_type = (input_type + 1) % 4;
+      current_char = getFirstChar(input_type);
+      if (input_type == INPUT_SYMBOLS) {
+        symbol_index = 0;
+      }
+
+      delay_ms(200);
+      buttonUpdate();
+      clearButtonState();
+      continue;
     }
-    delay_ms(75);
-  }
-  if (d && menu_status == MENU_INPUT_PASSPHRASE) {  // Reverse direction
-    if (key == KEY_UP) {
-      key = KEY_DOWN;
-    } else if (key == KEY_DOWN) {
-      key = KEY_UP;
+
+    if (isLongPress(KEY_UP_OR_DOWN) && getLongPressStatus()) {
+      if (isLongPress(KEY_UP)) {
+        key = KEY_UP;
+      } else if (isLongPress(KEY_DOWN)) {
+        key = KEY_DOWN;
+      }
+      delay_ms(75);
     }
-  }
-#endif
-  if (MENU_INPUT_PASSPHRASE == menu_status) {
-    if (index == 0) {
-      if (key == KEY_CONFIRM) {
-        layoutInputMethod(input_type);
-        menu_status = MENU_INPUT_SELECT;
-#if !EMULATOR
-        enableLongPress(false);
-#endif
-        goto wait_key;
+
+    if (reverse_direction) {
+      if (key == KEY_UP) {
+        key = KEY_DOWN;
+      } else if (key == KEY_DOWN) {
+        key = KEY_UP;
       }
     }
+#endif
+
     switch (key) {
       case KEY_UP:
-        if (index == 0) {
-          index = INPUT_CONFIRM;
-        } else {
-          if (INPUT_LOWERCASE == input_type) {
-            if (index == INPUT_CONFIRM) {
-              index = 'z';
-            } else if (index == 'a') {
-              index = 0;
-            } else {
-              index--;
-            }
-          } else if (INPUT_CAPITAL == input_type) {
-            if (index == INPUT_CONFIRM) {
-              index = 'Z';
-            } else if (index == 'A') {
-              index = 0;
-            } else {
-              index--;
-            }
-          } else if (INPUT_NUMS == input_type) {
-            if (index == INPUT_CONFIRM) {
-              index = '9';
-            } else if (index == '0') {
-              index = 0;
-            } else {
-              index--;
-            }
-          } else {
-            if (index == INPUT_CONFIRM) {
-              symbol_index = sizeof(symbol_table) - 1;
-              index = symbol_table[symbol_index];
-            } else if (index == symbol_table[0]) {
-              symbol_index = 0;
-              index = 0;
-            } else {
-              symbol_index--;
-              index = symbol_table[symbol_index];
-            }
-          }
-        }
+        navigateUp(input_type, &current_char, &symbol_index, allow_empty,
+                   counter);
+        break;
 
-        goto input_passphrase;
       case KEY_DOWN:
-        if (INPUT_LOWERCASE == input_type) {
-          if (index == 0) {
-            index = 'a';
-          } else if (index == 'z') {
-            index = INPUT_CONFIRM;
-          } else if (index == INPUT_CONFIRM) {
-            index = 0;
-          } else {
-            index++;
-          }
-        } else if (INPUT_CAPITAL == input_type) {
-          if (index == 0) {
-            index = 'A';
-          } else if (index == 'Z') {
-            index = INPUT_CONFIRM;
-          } else if (index == INPUT_CONFIRM) {
-            index = 0;
-          } else {
-            index++;
-          }
-        } else if (INPUT_NUMS == input_type) {
-          if (index == 0) {
-            index = '0';
-          } else if (index == '9') {
-            index = INPUT_CONFIRM;
-          } else if (index == INPUT_CONFIRM) {
-            index = 0;
-          } else {
-            index++;
-          }
-        } else {
-          if (index == 0) {
-            symbol_index = 0;
-            index = symbol_table[symbol_index];
-          } else if (index == symbol_table[sizeof(symbol_table) - 1]) {
-            symbol_index = 0;
-            index = INPUT_CONFIRM;
-          } else if (index == INPUT_CONFIRM) {
-            symbol_index = 0;
-            index = 0;
-          } else {
-            symbol_index++;
-            index = symbol_table[symbol_index];
-          }
-        }
-        goto input_passphrase;
+        navigateDown(input_type, &current_char, &symbol_index, allow_empty,
+                     counter);
+        break;
+
       case KEY_CANCEL:
         if (counter > 0) {
-          words[counter--] = 0;
-          last_symbol = words[counter];
+          counter--;
+          uint8_t last_char = words[counter];
           words[counter] = 0;
-          if (last_symbol >= 'a' && last_symbol <= 'z') {
-            input_type = INPUT_LOWERCASE;
-            index = last_symbol;
-          } else if (last_symbol >= 'A' && last_symbol <= 'Z') {
-            input_type = INPUT_CAPITAL;
-            index = last_symbol;
-          } else if (last_symbol >= '0' && last_symbol <= '9') {
-            input_type = INPUT_NUMS;
-            index = last_symbol;
-          } else {
-            input_type = INPUT_SYMBOLS;
-            symbol_index = 0;
-            for (int i = 0; i < 32 /*sizeof(symbol_table) - 1*/; i++) {
-              if (symbol_table[i] == last_symbol) {
-                symbol_index = i;
-                break;
-              }
-            }
-            index = symbol_table[symbol_index];
-          }
+          restoreFromLastChar(last_char, &input_type, &current_char,
+                              &symbol_index);
         } else {
           ret = false;
-          goto __ret;
+          goto cleanup;
         }
-        goto input_passphrase;
+        break;
+
       case KEY_CONFIRM:
-        if (index == INPUT_CONFIRM) {
+        if (current_char == INPUT_CONFIRM) {
           strlcpy(passphrase, words, sizeof(words));
           ret = true;
-          goto __ret;
+          goto cleanup;
         }
+
         if (counter < MAX_PASSPHRASE_LEN) {
-          words[counter++] = index;
+          words[counter++] = current_char;
           if (counter == MAX_PASSPHRASE_LEN) {
             strlcpy(passphrase, words, sizeof(words));
             ret = true;
-            goto __ret;
+            goto cleanup;
           }
         }
-        if (INPUT_LOWERCASE == input_type) {
-          index = 'a';
-        } else if (INPUT_CAPITAL == input_type) {
-          index = 'A';
-        } else if (INPUT_NUMS == input_type) {
-          index = '0';
-        } else {
+
+        current_char = getFirstChar(input_type);
+        if (input_type == INPUT_SYMBOLS) {
           symbol_index = 0;
-          index = symbol_table[symbol_index];
         }
-        goto input_passphrase;
-      default:
         break;
-    }
-  }
-  if (MENU_INPUT_SELECT == menu_status) {
-    switch (key) {
-      case KEY_UP:
-        if (input_type > 0) input_type--;
-        layoutInputMethod(input_type);
-        goto wait_key;
-      case KEY_DOWN:
-        if (input_type < 3) input_type++;
-        layoutInputMethod(input_type);
-        goto wait_key;
-      case KEY_CANCEL:
-      case KEY_CONFIRM:
-        menu_status = MENU_INPUT_PASSPHRASE;
-        if (INPUT_LOWERCASE == input_type) {
-          index = 'a';
-        } else if (INPUT_CAPITAL == input_type) {
-          index = 'A';
-        } else if (INPUT_NUMS == input_type) {
-          index = '0';
-        } else {
-          symbol_index = 0;
-          index = symbol_table[symbol_index];
-        }
-#if !EMULATOR
-        enableLongPress(true);
-#endif
-        goto input_passphrase;
+
       default:
         break;
     }
   }
 
-__ret:
+cleanup:
 #if !EMULATOR
   enableLongPress(false);
 #endif
   return ret;
 }
-
-bool inputPassphraseOnDeviceRequired(char *passphrase) {
-  char words[MAX_PASSPHRASE_LEN + 1] = {0};
-  uint8_t key = KEY_NULL;
-  uint8_t input_type = INPUT_LOWERCASE;
-  uint8_t menu_status = MENU_INPUT_PASSPHRASE;
-  uint8_t counter = 0, index = 0, symbol_index = 0;
-  static uint8_t symbol_table[33] = " \'\",./_\?!:;&*$#=+-()[]{}<>@\\^`%|~";
-  static uint8_t last_symbol = 0;
-  (void)last_symbol;  // Suppress unused variable warning
-  bool ret = false;
-  bool d = false;
-  config_getInputDirection(&d);
-
-#if !EMULATOR
-  enableLongPress(true);
-#endif
-
-input_passphrase:
-  layoutInputPassphrase(_(T__ENTER_PASSPHRASE), counter, words, index,
-                        input_type);
-wait_key:
-  key = protectWaitKey(0, 0);
-#if !EMULATOR
-  if (isLongPress(KEY_UP_OR_DOWN) && getLongPressStatus()) {
-    if (isLongPress(KEY_UP)) {
-      key = KEY_UP;
-    } else if (isLongPress(KEY_DOWN)) {
-      key = KEY_DOWN;
-    }
-    delay_ms(75);
+static bool layoutInputPassphraseTips(void) {
+  layoutDialogCenterAdapterV2(
+      _(T__ENTER_PASSPHRASE), NULL, &bmp_bottom_left_close,
+      &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL, NULL, NULL,
+      _(C__TIPS_PRESS_BOTH_AT_ONCE_TO_SWITCH_CASE_NUMBERS_SYMBOLS));
+  uint8_t up_x = 0, down_x = 0;
+  uint8_t up_y = 18, down_y = 18;
+  switch (ui_language) {
+    case I18N_LANG_EN:
+      up_x = 68;
+      break;
+    case I18N_LANG_ZH_CN:
+    case I18N_LANG_ZH_TW:
+      up_x = 70;
+      break;
+    case I18N_LANG_JA:
+      up_x = 30;
+      break;
+    case I18N_LANG_ES:
+      up_x = 96;
+      up_y = down_y = 14;
+      break;
+    case I18N_LANG_PT_BR:
+      up_x = 94;
+      up_y = down_y = 14;
+      break;
+    case I18N_LANG_DE:
+      up_x = 43;
+      break;
+    case I18N_LANG_KO_KR:
+      up_x = 50;
+      up_y = down_y = 28;
+      break;
+    default:
+      break;
   }
-  if (d && menu_status == MENU_INPUT_PASSPHRASE) {  // Reverse direction
-    if (key == KEY_UP) {
-      key = KEY_DOWN;
-    } else if (key == KEY_DOWN) {
-      key = KEY_UP;
-    }
-  }
-#endif
-  if (MENU_INPUT_PASSPHRASE == menu_status) {
-    if (index == 0) {
-      if (key == KEY_CONFIRM) {
-        layoutInputMethod(input_type);
-        menu_status = MENU_INPUT_SELECT;
-#if !EMULATOR
-        enableLongPress(false);
-#endif
-        goto wait_key;
+  down_x = up_x + 12;
+  oledDrawBitmap(up_x, up_y, &bmp_btn_up);
+  oledDrawBitmap(down_x, down_y, &bmp_btn_down);
+
+  oledRefresh();
+  uint8_t key;
+  WAIT_KEY_OR_ABORT(0, 0, key);
+  return key == KEY_CONFIRM;
+}
+bool inputPassphraseOnDevice(char *passphrase, bool allow_empty) {
+  while (true) {
+    if (layoutInputPassphraseTips()) {
+      if (_inputPassphraseOnDevice(passphrase, allow_empty)) {
+        return true;
+      } else {
+        if (protectAbortedByInitialize || protectAbortedByCancel) {
+          return false;
+        }
+        continue;
       }
+    } else {
+      return false;
     }
-    switch (key) {
-      case KEY_UP:
-        if (index == 0) {
-          if (counter > 0) {
-            index = INPUT_CONFIRM;
-          } else {
-            if (INPUT_LOWERCASE == input_type) {
-              index = 'z';
-            } else if (INPUT_CAPITAL == input_type) {
-              index = 'Z';
-            } else if (INPUT_NUMS == input_type) {
-              index = '9';
-            } else {
-              index = symbol_table[sizeof(symbol_table) - 1];
-              symbol_index = sizeof(symbol_table) - 1;
-            }
-          }
-        } else {
-          if (INPUT_LOWERCASE == input_type) {
-            if (index == INPUT_CONFIRM) {
-              index = 'z';
-            } else if (index == 'a') {
-              index = 0;
-            } else {
-              index--;
-            }
-          } else if (INPUT_CAPITAL == input_type) {
-            if (index == INPUT_CONFIRM) {
-              index = 'Z';
-            } else if (index == 'A') {
-              index = 0;
-            } else {
-              index--;
-            }
-          } else if (INPUT_NUMS == input_type) {
-            if (index == INPUT_CONFIRM) {
-              index = '9';
-            } else if (index == '0') {
-              index = 0;
-            } else {
-              index--;
-            }
-          } else {
-            if (index == INPUT_CONFIRM) {
-              index = symbol_table[sizeof(symbol_table) - 1];
-              symbol_index = sizeof(symbol_table) - 1;
-            } else {
-              for (uint32_t i = 0; i < sizeof(symbol_table); i++) {
-                if (symbol_table[i] == index) {
-                  symbol_index = i;
-                  break;
-                }
-              }
-              if (symbol_index == 0) {
-                symbol_index = 0;
-                index = 0;
-              } else {
-                symbol_index--;
-                index = symbol_table[symbol_index];
-              }
-            }
-          }
-        }
-        goto input_passphrase;
-      case KEY_DOWN:
-        if (INPUT_LOWERCASE == input_type) {
-          if (index == 0) {
-            index = 'a';
-          } else if (index == 'z') {
-            if (counter > 0) {
-              index = INPUT_CONFIRM;
-            } else {
-              index = 0;
-            }
-          } else if (index == INPUT_CONFIRM) {
-            index = 0;
-          } else {
-            index++;
-          }
-        } else if (INPUT_CAPITAL == input_type) {
-          if (index == 0) {
-            index = 'A';
-          } else if (index == 'Z') {
-            if (counter > 0) {
-              index = INPUT_CONFIRM;
-            } else {
-              index = 0;
-            }
-          } else if (index == INPUT_CONFIRM) {
-            index = 0;
-          } else {
-            index++;
-          }
-        } else if (INPUT_NUMS == input_type) {
-          if (index == 0) {
-            index = '0';
-          } else if (index == '9') {
-            if (counter > 0) {
-              index = INPUT_CONFIRM;
-            } else {
-              index = 0;
-            }
-          } else if (index == INPUT_CONFIRM) {
-            index = 0;
-          } else {
-            index++;
-          }
-        } else {
-          if (index == 0) {
-            symbol_index = 0;
-            index = symbol_table[symbol_index];
-          } else if (index == symbol_table[sizeof(symbol_table) - 1]) {
-            if (counter > 0) {
-              symbol_index = 0;
-              index = INPUT_CONFIRM;
-            } else {
-              symbol_index = 0;
-              index = 0;
-            }
-          } else if (index == INPUT_CONFIRM) {
-            symbol_index = 0;
-            index = 0;
-          } else {
-            symbol_index++;
-            if (symbol_index >= sizeof(symbol_table)) {
-              symbol_index = sizeof(symbol_table) - 1;
-            }
-            index = symbol_table[symbol_index];
-          }
-        }
-        goto input_passphrase;
-      case KEY_CONFIRM:
-
-        if (index == INPUT_CONFIRM) {
-          if (counter > 0) {
-            ret = true;
-            goto __ret_required;
-          } else {
-          }
-        } else {
-          if (counter < MAX_PASSPHRASE_LEN) {
-            words[counter] = index;
-            counter++;
-            words[counter] = '\0';
-
-            if (counter == MAX_PASSPHRASE_LEN) {
-              ret = true;
-              goto __ret_required;
-            }
-          }
-          if (INPUT_LOWERCASE == input_type) {
-            index = 'a';
-          } else if (INPUT_CAPITAL == input_type) {
-            index = 'A';
-          } else if (INPUT_NUMS == input_type) {
-            index = '0';
-          } else {
-            symbol_index = 0;
-            index = symbol_table[symbol_index];
-          }
-        }
-        goto input_passphrase;
-      case KEY_CANCEL:
-
-        if (counter) {
-          counter--;
-          words[counter] = '\0';
-
-          if (INPUT_LOWERCASE == input_type) {
-            index = 'a';
-          } else if (INPUT_CAPITAL == input_type) {
-            index = 'A';
-          } else if (INPUT_NUMS == input_type) {
-            index = '0';
-          } else {
-            symbol_index = 0;
-            index = symbol_table[symbol_index];
-          }
-        } else {
-          ret = false;
-          goto __ret_required;
-        }
-        goto input_passphrase;
-      default:
-        break;
-    }
-  } else if (MENU_INPUT_SELECT == menu_status) {
-    switch (key) {
-      case KEY_UP:
-        if (input_type == 0) {
-          input_type = 3;
-        } else {
-          input_type--;
-        }
-        layoutInputMethod(input_type);
-        goto wait_key;
-      case KEY_DOWN:
-        if (input_type == 3) {
-          input_type = 0;
-        } else {
-          input_type++;
-        }
-        layoutInputMethod(input_type);
-        goto wait_key;
-      case KEY_CONFIRM:
-        last_symbol = input_type;
-        menu_status = MENU_INPUT_PASSPHRASE;
-        goto input_passphrase;
-      case KEY_CANCEL:
-
-        menu_status = MENU_INPUT_PASSPHRASE;
-        goto input_passphrase;
-      default:
-
-        break;
-    }
-  } else {
   }
-
-  goto wait_key;
-
-__ret_required:
-
-  strlcpy(passphrase, words, MAX_PASSPHRASE_LEN + 1);
-
-#if !EMULATOR
-  enableLongPress(false);
-#endif
-  return ret;
+  return false;
 }
-
 bool protectPassphraseOnDevice(char *passphrase) {
   ButtonRequest resp = {0};
   bool result = false;
@@ -2366,7 +2122,7 @@ bool protectPassphraseOnDevice(char *passphrase) {
   if (timeout_flag) protectAbortedByTimeout = true;
 
   if (result) {
-    if (false == inputPassphraseOnDevice(passphrase)) {
+    if (!inputPassphraseOnDevice(passphrase, true)) {
       fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
       return false;
     }

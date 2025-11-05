@@ -824,11 +824,7 @@ void onboarding(uint8_t key) {
 }
 
 static void _layout_home(bool update_menu) {
-  if (layoutLast == layoutHome || layoutLast == layoutScreensaver) {
-    oledClear_ex();
-  } else {
-    layoutSwipe();
-  }
+  oledClear();
   layoutLast = layoutHome;
 
   bool no_backup = false;
@@ -906,7 +902,7 @@ static void _layout_home(bool update_menu) {
       }
     }
   }
-
+  layoutStatusLogoEx(false);
   oledRefresh();
 
   bool initialized = config_isInitialized();
@@ -3084,41 +3080,10 @@ void layoutInputWord(const char *text, uint8_t prefix_len, const char *prefix,
   oledRefresh();
 }
 
-static char *input1[4] = {"a", "A", "0", "="};
-static char *inputTitle[4] = {"Switch Input (Lowercase)",
-                              "Switch Input (Uppercase)",
-                              "Switch Input (Number)", "Switch Input (Symbol)"};
-
-void layoutInputMethod(uint8_t index) {
-  layout_item_t items[4] = {
-      {.label = "abc", .value = NULL, .center = true},
-      {.label = "ABC", .value = NULL, .center = true},
-      {.label = "123", .value = NULL, .center = true},
-      {.label = "=/<", .value = NULL, .center = true},
-  };
-
-  layout_screen_t screen = {
-      .bmp_up = &bmp_bottom_middle_arrow_up,
-      .bmp_down = &bmp_bottom_middle_arrow_down,
-      .bmp_no = &bmp_bottom_left_close,
-      .bmp_yes = &bmp_bottom_right_confirm,
-      .btn_no = NULL,
-      .btn_yes = NULL,
-      .title = gettext_from_en(inputTitle[index]),
-      .title_space = true,
-      .items = items,
-      .item_count = 4,
-      .item_index = index,
-      .item_offset = 0,
-      .show_index = true,
-      .show_scroll_bar = true,
-  };
-
-  layout_screen(screen);
-}
-
+const char *const inputTypeDesc[4] = {"abc", "ABC", "123", "#?!"};
+#define INPUT_TYPE_COUNT (sizeof(inputTypeDesc) / sizeof(inputTypeDesc[0]))
 void layoutInputPassphrase(const char *text, uint8_t prefix_len,
-                           const char *prefix, uint8_t char_index,
+                           const char *prefix, uint8_t current_char,
                            uint8_t input_type) {
   int l, y = 10;
   char word_show[14] = "______________";
@@ -3137,7 +3102,7 @@ void layoutInputPassphrase(const char *text, uint8_t prefix_len,
 
   layout_index_count(prefix_len + 1, 50);
 
-  y += 18;
+  y += 13;
   if (prefix_len < 14) {
     for (uint32_t i = 0; i < sizeof(word_show); i++) {
       buf[0] = word_show[i];
@@ -3154,32 +3119,39 @@ void layoutInputPassphrase(const char *text, uint8_t prefix_len,
   }
 
   location = prefix_len > 13 ? 13 : prefix_len;
-  if (char_index == 0) {
-    layoutItemsSelect_ex(x + 9 * location + 7, y, input1[input_type],
-                         FONT_STANDARD, true);
-    oledDrawBitmap(OLED_WIDTH - 16 - 1, OLED_HEIGHT - 11,
-                   &bmp_bottom_right_change);
-  } else if (char_index == 0xFF) {
+  if (current_char == 0xFF) {
     layoutBmpSelect(x + 9 * location + 7, y, &bmp_btn_confirm);
     oledDrawBitmap(OLED_WIDTH - 16 - 1, OLED_HEIGHT - 11,
                    &bmp_bottom_right_confirm);
   } else {
-    buf[0] = char_index;
+    buf[0] = current_char;
     layoutItemsSelect_ex(x + 9 * location + 7, y, buf, FONT_STANDARD, false);
     if (prefix_len == (MAX_PASSPHRASE_LEN - 1)) {
       oledDrawBitmap(OLED_WIDTH - 16 - 1, OLED_HEIGHT - 11,
                      &bmp_bottom_right_confirm);
     } else {
       oledDrawBitmap(OLED_WIDTH - 16 - 1, OLED_HEIGHT - 11,
-                     &bmp_bottom_right_confirm);
+                     &bmp_bottom_right_arrow);
     }
   }
-
-  if (prefix_len == 0) {
-    oledDrawBitmap(0, OLED_HEIGHT - 11, &bmp_bottom_left_close);
-  } else {
-    oledDrawBitmap(0, OLED_HEIGHT - 11, &bmp_bottom_left_delete);
+  int item_offset = 7;
+  for (uint8_t i = 0; i < INPUT_TYPE_COUNT; i++) {
+    l = oledStringWidth(inputTypeDesc[i], FONT_STANDARD);
+    int loc_x = item_offset + i * 16;
+    int loc_y = OLED_HEIGHT - 23;
+    oledDrawStringAdapter(loc_x, loc_y, inputTypeDesc[i], FONT_STANDARD);
+    if (i == input_type) {
+      if (ui_language == 0) {
+        oledInvert(loc_x - 3, loc_y - 2, loc_x + l + 2, loc_y + 8);
+      } else {
+        oledInvert(loc_x - 3, loc_y - 1, loc_x + l + 2, loc_y + 8);
+      }
+    }
+    item_offset += l;
   }
+  oledDrawBitmap(
+      0, OLED_HEIGHT - 11,
+      prefix_len == 0 ? &bmp_bottom_left_arrow : &bmp_bottom_left_delete);
 
   oledRefresh();
 }
@@ -3715,11 +3687,7 @@ bool layoutInputDirection(int direction) {
   oledRefresh();
 
   WAIT_KEY_OR_ABORT(0, 1, key);
-  if (key != KEY_CONFIRM) {
-    return false;
-  }
-
-  return true;
+  return key == KEY_CONFIRM;
 }
 
 void layoutDeviceParameters(int num) {

@@ -411,7 +411,7 @@ const char *const languages_en[] = {
     "Remove PIN?\nYou won’t be able to use it to unlock the device",
     "PIN removed!",
     "You do not have Passphrase turned on",
-    "PIN Already Used! Do you want to overwrite it?",
+    "PIN Already Used! Do you want to overwrite it?",
     "PIN already used! Please try a different one",
     "TRON Energy Rental",
     "Recipient is a known energy rental service provider address.",
@@ -423,7 +423,7 @@ const char *const languages_en[] = {
     "Lock the screen?",
     "Confirm Typed Data",
     "{} authorization. Check dApp trust first.",
-    "Review Struct",
+    "Review Struct:",
     "Tips: Press “             ” both at once to switch case / numbers / symbols.",
     "Safe Transaction",
     "Delegatecall may let external code affect your wallet.",

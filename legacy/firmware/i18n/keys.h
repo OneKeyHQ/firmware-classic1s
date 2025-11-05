@@ -863,7 +863,7 @@
 #define C__PIN_REMOVED 410
 // You do not have Passphrase turned on
 #define C__YOU_DO_NOT_HAVE_PASSPHRASE_TURNED_ON 411
-// PIN Already Used!Do you want to overwrite it?
+// PIN Already Used! Do you want to overwrite it?
 #define C__PIN_ALREADY_USED_DO_YOU_WANT_TO_OVERWRITE_IT 412
 // PIN already used! Please try a different one
 #define C__PIN_ALREADY_USED_PLEASE_TRY_A_DIFFERENT_ONE 413
@@ -887,7 +887,7 @@
 #define T_CONFIRM_TYPED_DATA 422
 // {} authorization. Check dApp trust first.
 #define I_TYPED_DATA_AUTHORIZATION_WARNING 423
-// Review Struct
+// Review Struct:
 #define I_REVIEW_STRUCT 424
 // Tips: Press “             ” both at once to switch case / numbers / symbols.
 #define C__TIPS_PRESS_BOTH_AT_ONCE_TO_SWITCH_CASE_NUMBERS_SYMBOLS 425

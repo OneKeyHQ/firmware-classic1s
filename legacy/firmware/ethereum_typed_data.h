@@ -1061,13 +1061,12 @@ refresh_menu:
                                 FONT_STANDARD);
         }
       }
-      // scrollbar
-      drawScrollbar(detail_total_index, detail_index);
       layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
       layoutButtonYesAdapter(NULL, &bmp_bottom_right_next);
-
-      layout_index_count(detail_index + 1, detail_total_index);
       if (detail_total_index > 1) {
+        // scrollbar
+        drawScrollbar(detail_total_index, detail_index);
+        layout_index_count(detail_index + 1, detail_total_index);
         if (detail_index == 0) {
           oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 7,
                          &bmp_bottom_middle_arrow_down);
@@ -1131,17 +1130,17 @@ refresh_menu:
   bubble_key = KEY_NULL;
   y = 13;
   if (index == 0) {
-    oledDrawStringAdapter(0, y, "Domain Hash", FONT_STANDARD);
+    oledDrawStringAdapter(0, y, "Domain Hash:", FONT_STANDARD);
     bubble_key = oledDrawPageableStringAdapter(
         0, y + 10, domain_hash_str, FONT_STANDARD, &bmp_bottom_left_close,
         &bmp_bottom_right_arrow);
   } else if (index == 1) {
-    oledDrawStringAdapter(0, y, "Message Hash", FONT_STANDARD);
+    oledDrawStringAdapter(0, y, "Message Hash:", FONT_STANDARD);
     bubble_key = oledDrawPageableStringAdapter(
         0, y + 10, message_hash_str, FONT_STANDARD, &bmp_bottom_left_arrow,
         &bmp_bottom_right_arrow);
   } else {
-    oledDrawStringAdapter(0, y, "SafeTx Hash", FONT_STANDARD);
+    oledDrawStringAdapter(0, y, "SafeTx Hash:", FONT_STANDARD);
     bubble_key = oledDrawPageableStringAdapter(
         0, y + 10, safe_tx_hash_str, FONT_STANDARD, &bmp_bottom_left_arrow,
         &bmp_bottom_right_arrow);

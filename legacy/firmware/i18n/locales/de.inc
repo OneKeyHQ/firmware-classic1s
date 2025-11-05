@@ -423,7 +423,7 @@ const char *const languages_de[] = {
     "Den Bildschirm sperren?",
     "Eingegebene Daten bestätigen",
     "{}-Autorisierung. Überprüfe zuerst das Vertrauen in die dApp.",
-    "Struktur bewerten",
+    "Review-Struktur:",
     "Tipps:  „             “drücken, um Buchstaben, Zahlen und Symbole zu wechseln.",
     "Safe-Transaktion",
     "Delegatecall kann es externem Code ermöglichen, Ihre Wallet zu beeinflussen.",

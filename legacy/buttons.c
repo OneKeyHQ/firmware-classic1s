@@ -328,10 +328,19 @@ bool hasbutton(void) {
   }
   return false;
 }
-
+void clearButtonState(void) {
+  button.UpUp = false;
+  button.DownUp = false;
+  button.YesUp = false;
+  button.NoUp = false;
+}
 uint8_t keyScan(void) {
   delay_ms(5);
   buttonUpdate();
+  if (!button.UpUp && (button.UpDown > SHAKE_DELAY) &&
+      (!button.DownUp && (button.DownDown > SHAKE_DELAY))) {
+    return KEY_COMBO_UP_DOWN;
+  }
   if (button.YesUp)
     return KEY_CONFIRM;
   else if (button.NoUp)

@@ -693,24 +693,24 @@ refresh_menu:
           oledDrawStringAdapter(0, y + 10, values[detail_index], FONT_STANDARD);
         }
       }
-      // scrollbar
-      drawScrollbar(detail_total_index, detail_index);
       layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
       layoutButtonYesAdapter(NULL, &bmp_bottom_right_next);
-
-      layout_index_count(detail_index + 1, detail_total_index);
-
-      if (detail_index == 0) {
-        oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 7,
-                       &bmp_bottom_middle_arrow_down);
-      } else if (detail_index == detail_total_index - 1) {
-        oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 7,
-                       &bmp_bottom_middle_arrow_up);
-      } else {
-        oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 7,
-                       &bmp_bottom_middle_arrow_down);
-        oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 7,
-                       &bmp_bottom_middle_arrow_up);
+      if (detail_total_index > 1) {
+        // scrollbar
+        drawScrollbar(detail_total_index, detail_index);
+        layout_index_count(detail_index + 1, detail_total_index);
+        if (detail_index == 0) {
+          oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 7,
+                         &bmp_bottom_middle_arrow_down);
+        } else if (detail_index == detail_total_index - 1) {
+          oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 7,
+                         &bmp_bottom_middle_arrow_up);
+        } else {
+          oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 7,
+                         &bmp_bottom_middle_arrow_down);
+          oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 7,
+                         &bmp_bottom_middle_arrow_up);
+        }
       }
       oledRefresh();
       WAIT_KEY_OR_ABORT(0, 0, bubble_key);
@@ -874,24 +874,24 @@ refresh_menu:
           oledDrawStringAdapter(0, y + 10, values[detail_index], FONT_STANDARD);
         }
       }
-      // scrollbar
-      drawScrollbar(detail_total_index, detail_index);
       layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
       layoutButtonYesAdapter(NULL, &bmp_bottom_right_next);
-
-      layout_index_count(detail_index + 1, detail_total_index);
-
-      if (detail_index == 0) {
-        oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 7,
-                       &bmp_bottom_middle_arrow_down);
-      } else if (detail_index == detail_total_index - 1) {
-        oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 7,
-                       &bmp_bottom_middle_arrow_up);
-      } else {
-        oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 7,
-                       &bmp_bottom_middle_arrow_down);
-        oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 7,
-                       &bmp_bottom_middle_arrow_up);
+      if (detail_total_index > 1) {
+        // scrollbar
+        drawScrollbar(detail_total_index, detail_index);
+        layout_index_count(detail_index + 1, detail_total_index);
+        if (detail_index == 0) {
+          oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 7,
+                         &bmp_bottom_middle_arrow_down);
+        } else if (detail_index == detail_total_index - 1) {
+          oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 7,
+                         &bmp_bottom_middle_arrow_up);
+        } else {
+          oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 7,
+                         &bmp_bottom_middle_arrow_down);
+          oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 7,
+                         &bmp_bottom_middle_arrow_up);
+        }
       }
       oledRefresh();
       WAIT_KEY_OR_ABORT(0, 0, bubble_key);
@@ -1009,14 +1009,16 @@ static bool layoutEthereumConfirmTx(
     if (!is_eip1559) {
       return layoutTransactionSignEVM(
           chain_name, params->chain_id, false, amount, to_str, signer, NULL,
-          NULL, params->data_initial_chunk_bytes, data_total,
-          _(I__ETH_MAXIMUM_FEE_COLON), gas_value, _(I__TOTAL_AMOUNT_COLON),
-          total_amount, NULL, NULL, NULL, NULL);
+          NULL, params->data_initial_chunk_bytes,
+          data_total > 1024 ? 1024 : data_total, _(I__ETH_MAXIMUM_FEE_COLON),
+          gas_value, _(I__TOTAL_AMOUNT_COLON), total_amount, NULL, NULL, NULL,
+          NULL);
     } else {
       return layoutTransactionSignEVM(
           chain_name, params->chain_id, false, amount, to_str, signer, NULL,
-          NULL, params->data_initial_chunk_bytes, data_total, key1, value1,
-          key2, value2, key3, value3, _(I__TOTAL_AMOUNT_COLON), total_amount);
+          NULL, params->data_initial_chunk_bytes,
+          data_total > 1024 ? 1024 : data_total, key1, value1, key2, value2,
+          key3, value3, _(I__TOTAL_AMOUNT_COLON), total_amount);
     }
   } else {
     ethereumFormatAmount(&val, token, amount, sizeof(amount));
@@ -1664,8 +1666,10 @@ static bool ethereum_signing_confirm_approve(
   ASSIGN_ETHEREUM_NAME(chain_name, params->chain_id);
   return layoutEthereumConfirmERC20Approve(
       chain_name, token_address_str, signer, spender_str, is_unlimited,
-      is_revoke, overview_text, nonce_str, max_fee_str, max_fee_per_gas_str,
-      priority_fee_per_gas_str, chain_id_str);
+      is_revoke, overview_text, nonce_str, max_fee_str,
+      max_fee_per_gas != NULL ? max_fee_per_gas_str : NULL,
+      max_priority_fee_per_gas != NULL ? priority_fee_per_gas_str : NULL,
+      chain_id_str);
 }
 static bool ethereum_signing_confirm_common(
     const struct signing_params *params, const char *signer,
