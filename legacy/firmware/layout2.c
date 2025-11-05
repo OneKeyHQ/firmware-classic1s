@@ -4372,7 +4372,6 @@ refresh_menu:
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
   } else if (index == 1) {  // from address
     layoutHeader(_(T_CONFIRM_SAFE_TX));
-    ;
     oledDrawStringAdapter(0, y, _(I__ACCOUNT_COLON), FONT_STANDARD);
     oledDrawStringAdapter(0, y + 10, signer, FONT_STANDARD);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
