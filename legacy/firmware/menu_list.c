@@ -1182,7 +1182,7 @@ _layout:
       } else {
         static char passphrase[MAX_PASSPHRASE_LEN + 1] = "";
         memset(passphrase, 0, sizeof(passphrase));
-        bool result = inputPassphraseOnDeviceRequired(passphrase);
+        bool result = inputPassphraseOnDevice(passphrase, false);
         if (result && strlen(passphrase) > 0) {
           layoutShowPassphrase(passphrase);
           uint8_t confirm_key = protectWaitKey(0, 0);

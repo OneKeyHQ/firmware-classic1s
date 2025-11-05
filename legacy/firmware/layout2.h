@@ -246,7 +246,6 @@ void layoutInputPin(uint8_t pos, const char *text, int index,
 void layoutInputWord(const char *text, uint8_t prefix_len, const char *prefix,
                      const char *letter);
 
-void layoutInputMethod(uint8_t index);
 void layoutInputPassphrase(const char *text, uint8_t prefix_len,
                            const char *prefix, uint8_t char_index,
                            uint8_t input_type);
@@ -310,6 +309,13 @@ bool layoutTransactionSignEVM(const char *chain_name, uint64_t chain_id,
                               const char *key2, const char *value2,
                               const char *key3, const char *value3,
                               const char *key4, const char *value4);
+bool layoutTransactionSafeApproveHash(const char *chain_name,
+                                      const char *to_addr, const char *signer,
+                                      const char *approve_hash,
+                                      const char *nonce, const char *gas_fee,
+                                      const char *max_fee_per_gas,
+                                      const char *max_priority_fee_per_gas,
+                                      const char *chain_id_str);
 bool layoutTransactionEIP7702(
     const char *chain_name, const char *delegator_address,
     const char *delegator_name, const char *delegator_network, bool is_revoke,

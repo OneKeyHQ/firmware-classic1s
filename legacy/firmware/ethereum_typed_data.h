@@ -31,6 +31,25 @@ static const char *const HIGH_RISK_PRIMARY_TYPES_ORDER[] = {
     "OrderComponents",
 };
 
+/**
+ * keccak256(
+ *      "EIP712Domain(uint256 chainId,address verifyingContract)");
+ */
+static const char DOMAIN_SEPARATOR_TYPEHASH[] = {
+    71,  231, 149, 52,  162, 69,  149, 46,  139, 22,  137,
+    58,  51,  107, 133, 163, 217, 234, 159, 168, 197, 115,
+    243, 216, 3,   175, 185, 42,  121, 70,  146, 24};
+
+/**
+ * keccak256(
+ *     "SafeTx(address to,uint256 value,bytes data,uint8 operation,uint256
+ * safeTxGas,uint256 baseGas,uint256 gasPrice,address gasToken,address
+ * refundReceiver,uint256 nonce)");
+ */
+static const char SAFE_TX_TYPEHASH[] = {187, 131, 16,  212, 134, 54,  141, 182,
+                                        189, 111, 132, 148, 2,   253, 215, 58,
+                                        213, 61,  49,  107, 90,  75,  38,  68,
+                                        173, 110, 254, 15,  148, 18,  134, 216};
 typedef struct {
   char *name;
   char *value;
@@ -709,11 +728,11 @@ static bool get_and_encode_data(const TypedDataEnvelope *envelope,
           snprintf(array_item_str, 80, "%s[%" PRIu32 "]", field_name, j);
           display_info_add_item_name(&display_info, array_item_str,
                                      name_intent + 4);
-          char *value_str = decode_typed_data(
+          char *array_item_value_str = decode_typed_data(
               value, value_len,
               TYPE_TRANSLATION_DICT[entry_type->data_type - 1]);
-          display_info_set_value(&display_info, value_str);
-          free(value_str);
+          display_info_set_value(&display_info, array_item_value_str);
+          free(array_item_value_str);
         }
       }
       keccak_256(arr_w.buffer, arr_w.position, w->buffer + w->position);
@@ -728,10 +747,10 @@ static bool get_and_encode_data(const TypedDataEnvelope *envelope,
       if (!encode_field(w, field_type, value, value_len)) {
         return false;
       }
-      char *value_str = decode_typed_data(
+      char *field_value_str = decode_typed_data(
           value, value_len, TYPE_TRANSLATION_DICT[field_type->data_type - 1]);
-      display_info_set_value(&display_info, value_str);
-      free(value_str);
+      display_info_set_value(&display_info, field_value_str);
+      free(field_value_str);
     }
   }
   return true;
@@ -1042,13 +1061,12 @@ refresh_menu:
                                 FONT_STANDARD);
         }
       }
-      // scrollbar
-      drawScrollbar(detail_total_index, detail_index);
       layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
       layoutButtonYesAdapter(NULL, &bmp_bottom_right_next);
-
-      layout_index_count(detail_index + 1, detail_total_index);
       if (detail_total_index > 1) {
+        // scrollbar
+        drawScrollbar(detail_total_index, detail_index);
+        layout_index_count(detail_index + 1, detail_total_index);
         if (detail_index == 0) {
           oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 7,
                          &bmp_bottom_middle_arrow_down);
@@ -1082,5 +1100,128 @@ refresh_menu:
   oledRefresh();
   HANDLE_KEY(bubble_key);
   return true;
+}
+static bool layoutSafeTx(bool is_delegate_call, const uint8_t *domain_hash,
+                         const uint8_t *message_hash,
+                         const uint8_t *safe_tx_hash) {
+  bool result = false;
+  int index = 0;
+  int y = 0;
+  uint8_t bubble_key;
+  int max_index = 2;
+  if (is_delegate_call) {
+    layoutDialogCenterAdapterV2(NULL, &bmp_icon_warning, &bmp_bottom_left_close,
+                                &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL,
+                                NULL, NULL, _(I_SAFE_DELEGATE_WARNING));
+    if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
+      return false;
+    }
+  }
+  char domain_hash_str[67] = {'0', 'x'};
+  char message_hash_str[67] = {'0', 'x'};
+  char safe_tx_hash_str[67] = {'0', 'x'};
+  data2hex(domain_hash, 32, domain_hash_str + 2);
+  data2hex(message_hash, 32, message_hash_str + 2);
+  data2hex(safe_tx_hash, 32, safe_tx_hash_str + 2);
+refresh_menu:
+  layoutSwipe();
+  oledClear();
+  layoutHeader(_(T_CONFIRM_SAFE_TX));
+  bubble_key = KEY_NULL;
+  y = 13;
+  if (index == 0) {
+    oledDrawStringAdapter(0, y, "Domain Hash:", FONT_STANDARD);
+    bubble_key = oledDrawPageableStringAdapter(
+        0, y + 10, domain_hash_str, FONT_STANDARD, &bmp_bottom_left_close,
+        &bmp_bottom_right_arrow);
+  } else if (index == 1) {
+    oledDrawStringAdapter(0, y, "Message Hash:", FONT_STANDARD);
+    bubble_key = oledDrawPageableStringAdapter(
+        0, y + 10, message_hash_str, FONT_STANDARD, &bmp_bottom_left_arrow,
+        &bmp_bottom_right_arrow);
+  } else {
+    oledDrawStringAdapter(0, y, "SafeTx Hash:", FONT_STANDARD);
+    bubble_key = oledDrawPageableStringAdapter(
+        0, y + 10, safe_tx_hash_str, FONT_STANDARD, &bmp_bottom_left_arrow,
+        &bmp_bottom_right_arrow);
+  }
+  oledRefresh();
+  HANDLE_KEY(bubble_key);
+  return true;
+}
+static void prepare_domain_items(DisplayInfo *info,
+                                 const EthereumGnosisSafeTxAck *ack) {
+  display_info_add_item_name(info, "chainId", 0);
+  uint8_t chain_id_bytes[8] = {0};
+  for (int i = 0; i < 8; i++) {
+    chain_id_bytes[7 - i] = (ack->chain_id >> (i * 8)) & 0xFF;
+  }
+  char *chain_id_str = decode_typed_data(chain_id_bytes, 8, "uint");
+  display_info_set_value(info, chain_id_str);
+  free(chain_id_str);
+  display_info_add_item_name(info, "verifyingContract", 0);
+  uint8_t verifying_contract_bytes[20] = {0};
+  ethereum_parse_onekey(ack->verifyingContract, verifying_contract_bytes);
+  char *verifying_contract_str =
+      decode_typed_data(verifying_contract_bytes, 20, "address");
+  display_info_set_value(info, verifying_contract_str);
+  free(verifying_contract_str);
+}
+static void prepare_safe_items(DisplayInfo *info,
+                               const EthereumGnosisSafeTxAck *ack) {
+  display_info_add_item_name(info, "to", 0);
+  uint8_t to_bytes[20] = {0};
+  ethereum_parse_onekey(ack->to, to_bytes);
+  char *to_str = decode_typed_data(to_bytes, 20, "address");
+  display_info_set_value(info, to_str);
+  free(to_str);
+  display_info_add_item_name(info, "value", 0);
+  char *value_str =
+      decode_typed_data(ack->value.bytes, ack->value.size, "uint");
+  display_info_set_value(info, value_str);
+  free(value_str);
+  display_info_add_item_name(info, "data", 0);
+  char *data_str = decode_typed_data(ack->data.bytes, ack->data.size, "bytes");
+  display_info_set_value(info, data_str);
+  free(data_str);
+  display_info_add_item_name(info, "operation", 0);
+  if (ack->operation == EthereumGnosisSafeTxOperation_DELEGATE_CALL) {
+    display_info_set_value(info, "1(DELEGATECALL)");
+  } else {
+    display_info_set_value(info, "0(CALL)");
+  }
+  display_info_add_item_name(info, "safeTxGas", 0);
+  char *safeTxGas_str =
+      decode_typed_data(ack->safeTxGas.bytes, ack->safeTxGas.size, "uint");
+  display_info_set_value(info, safeTxGas_str);
+  free(safeTxGas_str);
+  display_info_add_item_name(info, "baseGas", 0);
+  char *baseGas_str =
+      decode_typed_data(ack->baseGas.bytes, ack->baseGas.size, "uint");
+  display_info_set_value(info, baseGas_str);
+  free(baseGas_str);
+  display_info_add_item_name(info, "gasPrice", 0);
+  char *gasPrice_str =
+      decode_typed_data(ack->gasPrice.bytes, ack->gasPrice.size, "uint");
+  display_info_set_value(info, gasPrice_str);
+  free(gasPrice_str);
+  display_info_add_item_name(info, "gasToken", 0);
+  uint8_t gas_token_bytes[20] = {0};
+  ethereum_parse_onekey(ack->gasToken, gas_token_bytes);
+  char *gasToken_str = decode_typed_data(gas_token_bytes, 20, "address");
+  display_info_set_value(info, gasToken_str);
+  free(gasToken_str);
+  display_info_add_item_name(info, "refundReceiver", 0);
+  uint8_t refund_receiver_bytes[20] = {0};
+  ethereum_parse_onekey(ack->refundReceiver, refund_receiver_bytes);
+  char *refundReceiver_str =
+      decode_typed_data(refund_receiver_bytes, 20, "address");
+  display_info_set_value(info, refundReceiver_str);
+  free(refundReceiver_str);
+  display_info_add_item_name(info, "nonce", 0);
+  char *nonce_str =
+      decode_typed_data(ack->nonce.bytes, ack->nonce.size, "uint");
+  display_info_set_value(info, nonce_str);
+  free(nonce_str);
 }
 #endif /* __ETHEREUM_TYPED_DATA_H__ */

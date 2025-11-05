@@ -50,6 +50,7 @@ enum {
 uint16_t buttonRead(void);
 void buttonUpdate(void);
 bool hasbutton(void);
+void clearButtonState(void);
 void buttonsIrqInit(void);
 void buttonsTimer(void);
 void longPressTimer(void);
@@ -68,6 +69,7 @@ bool isLongPress(uint8_t key);
 #define KEY_CANCEL 'C'
 #define KEY_UP_LONG 'V'
 #define KEY_DOWN_LONG 'E'
+#define KEY_COMBO_UP_DOWN 'A'
 
 #define HANDLE_KEY(bubble_key)                                  \
   do {                                                          \

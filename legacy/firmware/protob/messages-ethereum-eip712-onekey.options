@@ -11,3 +11,16 @@ EthereumFieldTypeOneKey.entry_type              type: FT_POINTER
 EthereumTypedDataValueRequestOneKey.member_path max_count:5
 
 EthereumTypedDataValueAckOneKey.value           max_size:1536
+
+EthereumGnosisSafeTxAck.to                  max_size:43
+EthereumGnosisSafeTxAck.value               max_size:32
+EthereumGnosisSafeTxAck.data                max_size:1536
+EthereumGnosisSafeTxAck.safeTxGas           max_size:32
+EthereumGnosisSafeTxAck.baseGas             max_size:32
+EthereumGnosisSafeTxAck.gasPrice            max_size:32
+EthereumGnosisSafeTxAck.gasToken            max_size:43
+EthereumGnosisSafeTxAck.refundReceiver      max_size:43
+EthereumGnosisSafeTxAck.nonce               max_size:32
+EthereumGnosisSafeTxAck.verifyingContract   max_size:43
+
+

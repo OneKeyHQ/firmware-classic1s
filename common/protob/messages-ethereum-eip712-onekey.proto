@@ -88,3 +88,37 @@ message EthereumTypedDataValueAckOneKey {
     // * array types: number of elements, encoded as uint16.
     // * struct types: undefined, Trezor will not query a struct field.
 }
+
+enum EthereumGnosisSafeTxOperation {
+    CALL = 0;
+    DELEGATE_CALL = 1;
+}
+
+/**
+ * Request: Ask device for Gnosis Safe transaction data
+ * @start
+ * @next EthereumGnosisSafeTxAck
+ * @next Failure
+ */
+message EthereumGnosisSafeTxRequest {
+}
+/**
+ * Request: the Gnosis Safe transaction data
+ * @start
+ * @next EthereumTypedDataSignatureOneKey
+ * @next Failure
+ */
+message EthereumGnosisSafeTxAck {
+    required string to = 1;
+    required bytes value = 2;
+    optional bytes data = 3;
+    required EthereumGnosisSafeTxOperation operation = 4;
+    required bytes safeTxGas = 5;
+    required bytes baseGas = 6;
+    required bytes gasPrice = 7;
+    required string gasToken = 8;
+    required string refundReceiver = 9;
+    required bytes nonce = 10;
+    required uint64 chain_id = 11;
+    required string verifyingContract = 12;
+}
