@@ -33,12 +33,5 @@ parser_error_t _polkadot_readTx(parser_context_t *c, parser_tx_t *v,
       return parser_unexpected_value;
     }
   }
-  if (c->offset < c->bufferLen) {
-    return parser_unexpected_unparsed_bytes;
-  }
-
-  if (c->offset > c->bufferLen) {
-    return parser_unexpected_buffer_end;
-  }
   return parser_ok;
 }

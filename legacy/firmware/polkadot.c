@@ -133,7 +133,7 @@ scan_key:
 
 static bool get_signer_address(const PolkadotSignTx *msg, const HDNode *node,
                                char *address) {
-  uint16_t addressType = 0;
+  uint16_t addressType = 42;
   if (!strncmp(msg->network, "polkadot", 8)) {
     addressType = 0;
   } else if (!strncmp(msg->network, "kusama", 6)) {
@@ -146,8 +146,6 @@ static bool get_signer_address(const PolkadotSignTx *msg, const HDNode *node,
     addressType = 126;
   } else if (!strncmp(msg->network, "manta", 5)) {
     addressType = 77;
-  } else {
-    return false;
   }
   polkadot_get_address_from_public_key(node->public_key + 1, address,
                                        addressType);
@@ -162,7 +160,7 @@ bool polkadot_sign_tx(const PolkadotSignTx *msg, const HDNode *node,
     layoutHome();
     return false;
   }
-
+  memzero(polkadot_network, sizeof(polkadot_network));
   memcpy(polkadot_network, msg->network, strlen(msg->network) + 1);
   parser_error_t ret = polkadot_tx_parse(msg->raw_tx.bytes, msg->raw_tx.size);
   if (ret == parser_unexpected_callIndex) {
