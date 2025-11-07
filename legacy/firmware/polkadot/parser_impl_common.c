@@ -343,6 +343,8 @@ uint16_t _getAddressType() { return __address_type; }
 uint16_t _detectAddressType(const parser_context_t *c) {
   (void)c;
   memset(__polkadot_ticker, 0, sizeof(__polkadot_ticker));
+  memcpy(__polkadot_ticker, " UNKN", 5);
+  __polkadot_decimal = 0;
   if (!strncmp(polkadot_network, "polkadot", 8)) {
     __polkadot_decimal = COIN_AMOUNT_DECIMAL_PLACES;
     memcpy(__polkadot_ticker, COIN_TICKER, 4);
@@ -368,7 +370,7 @@ uint16_t _detectAddressType(const parser_context_t *c) {
     memcpy(__polkadot_ticker, MANTA_COIN_TICKER, 6);
     return 77;
   }
-
+  memcpy(polkadot_network, "unkn Chain", 11);
   return 42;
 }
 
