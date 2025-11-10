@@ -89,6 +89,11 @@ static void send_msg_features(usbd_device *dev) {
     0xc0, 0x01, (version >> 16) & 0xff,
   };
 
+    // OneKey Bitcoin-only
+  const uint8_t fw_vendor_bitcoin_only[] = {
+    0xca, 0x01, 0x13, 'O', 'n', 'e', 'K', 'e', 'y', ' ', 'B', 'i', 't', 'c', 'o', 'i', 'n', '-', 'o', 'n', 'l', 'y',
+  };
+
   uint8_t battery_level[] = {
     0xc0, 0x20, 0x00
   };
@@ -210,7 +215,12 @@ static void send_msg_features(usbd_device *dev) {
 
   int len =  sizeof(feature_bytes) + (firmware_present ? sizeof(version_bytes) : 0) + sizeof(battery_level)
     + product_len + onekey_device_type_len + sizeof(onekey_se_type) + se_ver_len + se_build_id_len + se_hash_len
-    + boot_version_len + boot_hash_len + firmware_version_len + firmware_hash_len;
+    + boot_version_len + boot_hash_len + firmware_version_len + firmware_hash_len ;
+
+  if (current_hdr->purpose == FIRMWARE_PURPOSE_BTC_ONLY) {
+    len += sizeof(fw_vendor_bitcoin_only);
+  }
+
   uint8_t header_bytes[] = {
     // header
     '?', '#', '#',
@@ -219,6 +229,8 @@ static void send_msg_features(usbd_device *dev) {
     // msg_size
     0x00, 0x00, 0x00, len,
   };
+
+  len += sizeof(header_bytes);
 
   // clang-format on
 
@@ -264,6 +276,13 @@ static void send_msg_features(usbd_device *dev) {
   offset += firmware_version_len;
 
   memcpy(response + offset, firmware_hash, firmware_hash_len);
+  offset += firmware_hash_len;
+
+  if (current_hdr->purpose == FIRMWARE_PURPOSE_BTC_ONLY) {
+    memcpy(response + offset, fw_vendor_bitcoin_only,
+           sizeof(fw_vendor_bitcoin_only));
+    offset += sizeof(fw_vendor_bitcoin_only);
+  }
 
   uint8_t bt_pkg[256] = {0};
   const uint8_t *pkg = response;

@@ -4,15 +4,17 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "aes/aes.h"
+#ifdef APPVER
 #include "bip32.h"
 #include "cardano.h"
-#include "common.h"
 #include "config.h"
 #include "curves.h"
 #include "fido2/resident_credential.h"
-#include "flash.h"
 #include "gettext.h"
+#endif
+#include "aes/aes.h"
+#include "common.h"
+#include "flash.h"
 #include "memzero.h"
 #include "nist256p1.h"
 #include "otp.h"
@@ -67,8 +69,10 @@ typedef enum {
 static uint8_t se_session_key[SESSION_KEYLEN];
 static bool se_session_init = false;
 
+#ifdef APPVER
 // Static variable to store the last PIN result
 static pin_result_t g_last_pin_result = PIN_SUCCESS;
+#endif
 
 static uint8_t se_send_buffer[SE_BUF_MAX_LEN];
 static uint8_t se_recv_buffer[SE_BUF_MAX_LEN];
@@ -113,13 +117,6 @@ secbool se_get_rand(uint8_t *rand, uint16_t rand_len) {
   rand_cmd[5] = (rand_len >> 8) & 0xff;
   rand_cmd[6] = rand_len & 0xff;
   return thd89_transmit(rand_cmd, sizeof(rand_cmd), rand, &resp_len);
-}
-
-secbool se_reset_se(void) {
-  uint8_t cmd[5] = {0x00, 0xF0, 0x00, 0x00, 0x00};
-  uint16_t resp_len;
-
-  return thd89_transmit(cmd, sizeof(cmd), NULL, &resp_len);
 }
 
 static void cal_mac(uint8_t *data, uint32_t len, uint8_t *mac) {
@@ -413,6 +410,32 @@ secbool se_sync_session_key_old(void) {
   return sectrue;
 }
 
+secbool se_reset_storage(void) {
+  uint8_t rand[16];
+
+  if (!se_get_rand(rand, sizeof(rand))) {
+    return secfalse;
+  }
+
+  if (!se_session_init) {
+    ensure(se_sync_session_key(), "se sync session key failed");
+  }
+  se_state_cache.se_init_state_cache = false;
+  if (!se_transmit_mac(0xE1, 0x00, 0x00, rand, sizeof(rand), NULL, NULL)) {
+    return secfalse;
+  }
+  return sectrue;
+}
+
+#ifdef APPVER
+
+secbool se_reset_se(void) {
+  uint8_t cmd[5] = {0x00, 0xF0, 0x00, 0x00, 0x00};
+  uint16_t resp_len;
+
+  return thd89_transmit(cmd, sizeof(cmd), NULL, &resp_len);
+}
+
 secbool se_derive_keys(HDNode *out, const char *curve,
                        const uint32_t *address_n, size_t address_n_count,
                        uint32_t *fingerprint) {
@@ -437,23 +460,6 @@ secbool se_derive_keys(HDNode *out, const char *curve,
   }
   memcpy((void *)out, resp + 4, sizeof(HDNode) - 4);
 
-  return sectrue;
-}
-
-secbool se_reset_storage(void) {
-  uint8_t rand[16];
-
-  if (!se_get_rand(rand, sizeof(rand))) {
-    return secfalse;
-  }
-
-  if (!se_session_init) {
-    ensure(se_sync_session_key(), "se sync session key failed");
-  }
-  se_state_cache.se_init_state_cache = false;
-  if (!se_transmit_mac(0xE1, 0x00, 0x00, rand, sizeof(rand), NULL, NULL)) {
-    return secfalse;
-  }
   return sectrue;
 }
 
@@ -1615,6 +1621,8 @@ bool se_isFactoryMode(void) {
   //   return true;
   // }
 
+  return false;
+
   uint8_t cmd[5] = {0x00, 0xf8, 0x04, 0x00, 0x00};
   uint8_t flag = 0xff;
   uint16_t len = sizeof(flag);
@@ -2134,4 +2142,5 @@ secbool se_change_pin_passphrase(const char *old_pin, const char *new_pin) {
   return (g_last_pin_result == PIN_SUCCESS) ? sectrue : secfalse;
 }
 
+#endif
 #endif

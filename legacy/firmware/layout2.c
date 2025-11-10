@@ -3752,8 +3752,14 @@ refresh_menu:
       break;
     case 1:
 
-      oledDrawStringAdapter(0, y, _(I__FIRMWARE_UPPERCASE_COLON),
-                            FONT_STANDARD);
+      char firmware_title[32] = {0};
+
+      strcat(firmware_title, _(I__FIRMWARE_UPPERCASE_COLON));
+      if (hdr->purpose == FIRMWARE_PURPOSE_BTC_ONLY) {
+        strcat(firmware_title, "(Bitcoin-Only)");
+      }
+
+      oledDrawStringAdapter(0, y, firmware_title, FONT_STANDARD);
       y += font->pixel + 1;
       oledDrawStringAdapter(0, y, firmware_ver, FONT_STANDARD);
       y += font->pixel + 4;

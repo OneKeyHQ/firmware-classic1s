@@ -303,6 +303,8 @@ bool load_thd89_image_header(const uint8_t *const data, const uint32_t magic,
 
   memcpy(&hdr->codelen, data + 12, 4);
 
+  memcpy(&hdr->version, data + 16, 4);
+
   memcpy(hdr->hashes, data + 32, 512);
 
   memcpy(hdr->sig1, data + 32 + 512, 64);

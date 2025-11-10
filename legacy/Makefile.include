@@ -296,7 +296,7 @@ field_10x26_arm.o:
 
 %.o: %.S Makefile
 	@printf "  AS      $@\n"
-	$(Q)$(CC) $(CPUFLAGS) -o $@ -c $<
+	$(Q)$(CC) $(CFLAGS) -o $@ -c $<
 
 %.o: %.c Makefile
 	@printf "  CC      $@\n"

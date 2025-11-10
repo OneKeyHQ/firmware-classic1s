@@ -10,6 +10,8 @@ OBJS += swd.o
 OBJS += updateble.o
 OBJS += layout_boot.o
 OBJS += thd89_boot.o
+OBJS += ../firmware/otp.small.o
+OBJS += ../firmware/se_chip.small.o
 
 # Overrides from libtrezor.
 # Objects ending with 'small.o' are built with -Os to make the bootloader smaller.
@@ -20,12 +22,19 @@ OBJS += ../gen/fonts.small.o
 CFLAGS += -DUSE_PRECOMPUTED_CP=0
 CFLAGS += -DUSE_PRECOMPUTED_IV=0
 CFLAGS += -DUSE_PRECOMPUTED_CP=0
+# Disable static AES tables to save ROM space (tables will be computed at runtime)
+CFLAGS += -DAES_DYNAMIC_TABLES
 OBJS += ../vendor/trezor-crypto/bignum.small.o
 OBJS += ../vendor/trezor-crypto/ecdsa.small.o
 OBJS += ../vendor/trezor-crypto/secp256k1.small.o
 OBJS += ../vendor/trezor-crypto/sha2.small.o
 OBJS += ../vendor/trezor-crypto/memzero.small.o
 OBJS += ../vendor/trezor-crypto/hmac_drbg.small.o
+OBJS += ../vendor/trezor-crypto/rand.small.o
+OBJS += ../vendor/trezor-crypto/aes/aescrypt.small.o
+OBJS += ../vendor/trezor-crypto/aes/aeskey.small.o
+OBJS += ../vendor/trezor-crypto/aes/aestab.small.o
+OBJS += ../vendor/trezor-crypto/aes/aes_modes.small.o
 
 OPTFLAGS ?= -Os
 

@@ -45,7 +45,11 @@ bool get_features(Features *resp) {
   const image_header *hdr =
       (const image_header *)FLASH_PTR(FLASH_FWHEADER_START);
   // No signature verification needed, unofficial firmware cannot be started
-  strlcpy(resp->fw_vendor, "OneKey", sizeof(resp->fw_vendor));
+  if (hdr->purpose == FIRMWARE_PURPOSE_BTC_ONLY) {
+    strlcpy(resp->fw_vendor, "OneKey Bitcoin-only", sizeof(resp->fw_vendor));
+  } else {
+    strlcpy(resp->fw_vendor, "OneKey", sizeof(resp->fw_vendor));
+  }
   bool trezor_comp_mode = false;
   config_getTrezorCompMode(&trezor_comp_mode);
   if (trezor_comp_mode) {

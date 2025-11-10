@@ -80,22 +80,25 @@ void int2str(int64_t num, char *str) {
 
 uint32_t version_string_to_int(const char *version_str) {
   uint32_t version = 0;
-  int part = 0;
-  int shift = 24;
+  uint32_t parts[4] = {0, 0, 0, 0};  // MAJOR, MINOR, PATCH, BUILD
+  int part_idx = 0;
 
-  for (uint8_t i = 0; i < strlen(version_str); i++) {
+  if (!version_str) {
+    return 0;
+  }
+
+  // Parse version string "major.minor.patch" or "major.minor.patch.build"
+  for (uint8_t i = 0; version_str[i] != '\0' && part_idx < 4; i++) {
     if (version_str[i] == '.') {
-      version |= (part << shift);
-      part = 0;
-      shift -= 8;
+      part_idx++;
     } else if (version_str[i] >= '0' && version_str[i] <= '9') {
-      part = part * 10 + (version_str[i] - '0');
+      parts[part_idx] = parts[part_idx] * 10 + (version_str[i] - '0');
     } else {
-      return 0;
+      return 0;  // Invalid character
     }
   }
 
-  version |= (part << shift);
+  version = parts[0] | (parts[1] << 8) | (parts[2] << 16) | (parts[3] << 24);
   return version;
 }
 
