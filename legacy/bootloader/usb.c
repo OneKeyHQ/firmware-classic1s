@@ -56,6 +56,8 @@
 #include "webusb.h"
 #include "winusb.h"
 
+#include "../firmware/se_chip.h"
+
 enum {
   STATE_READY,
   STATE_OPEN,
@@ -205,6 +207,8 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
   static int wi;
   static secbool se_isUpdate = secfalse;
   static int old_was_signed;
+  static uint32_t previous_purpose = FIRMWARE_PURPOSE_GENERAL;
+  static secbool erase_storage = secfalse;
   static uint32_t fix_version_current = 0xffffffff;
   uint8_t *p_buf;
 
@@ -265,6 +269,7 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
       } else {
         if (but) {
           erase_code_progress();
+          se_reset_storage();
           flash_state = STATE_END;
           show_unplug("Device", "successfully wiped.");
           send_msg_success(dev);
@@ -317,6 +322,7 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
         proceed = true;
       }
       if (proceed) {
+        erase_storage = secfalse;
         // check whether the current firmware is signed (old or new method)
         if (firmware_present_new()) {
           const image_header *hdr =
@@ -325,9 +331,11 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
           old_was_signed =
               signatures_match(hdr, NULL) & check_firmware_hashes(hdr);
           fix_version_current = hdr->fix_version;
+          previous_purpose = hdr->purpose;
         } else {
           old_was_signed = SIG_FAIL;
           fix_version_current = 0xffffffff;
+          previous_purpose = FIRMWARE_PURPOSE_GENERAL;
         }
         erase_code_progress();
         flash_unlock_ex();
@@ -560,6 +568,40 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
           return;
         }
 
+        char *se_version = se_get_version();
+        if (se_version == NULL) {
+          send_msg_failure(dev, 9);  // Failure_ProcessError
+          show_halt("SE version", "not found.");
+          return;
+        }
+
+        uint32_t se_version_uint32 = 0;
+        if (se_isUpdate) {
+          load_thd89_image_header((uint8_t *)COMBINED_FW_HEADER,
+                                  FIRMWARE_MAGIC_SE, &se_hdr);
+
+          se_version_uint32 = version_string_to_int(se_version);
+          if (version_compare(se_hdr.version, se_version_uint32) < 0) {
+            send_msg_failure(dev, 9);  // Failure_ProcessError
+            show_halt("Downgrade SE", "not allowed.");
+            return;
+          }
+          se_version_uint32 = se_hdr.version;
+        } else {
+          se_version_uint32 = version_string_to_int(se_version);
+        }
+        if (hdr->se_minimum_version != 0) {
+          if (version_compare(se_version_uint32, hdr->se_minimum_version) < 0) {
+            send_msg_failure(dev, 9);  // Failure_ProcessError
+            show_halt("SE version", "too old.");
+            return;
+          }
+        }
+
+        if (hdr->purpose != previous_purpose) {
+          erase_storage = sectrue;
+        }
+
         if (se_isUpdate) {
           load_thd89_image_header((uint8_t *)COMBINED_FW_HEADER,
                                   FIRMWARE_MAGIC_SE, &se_hdr);
@@ -624,6 +666,10 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
       layoutProgress("Programing...", 1000);
 
       if (SIG_OK != should_keep_storage(old_was_signed, fix_version_current)) {
+      }
+
+      if (erase_storage) {
+        se_reset_storage();
       }
 
       flash_enter();

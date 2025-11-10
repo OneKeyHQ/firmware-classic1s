@@ -28,6 +28,9 @@ extern const uint32_t FIRMWARE_MAGIC_NEW;  // TRZF
 extern const uint32_t FIRMWARE_MAGIC_BLE;  // 5283
 extern const uint32_t FIRMWARE_MAGIC_SE;
 
+#define FIRMWARE_PURPOSE_GENERAL 0x00000000   // General
+#define FIRMWARE_PURPOSE_BTC_ONLY 0x00000001  // Bitcoin-Only
+
 #define SIG_OK 0x5A3CA5C3
 #define SIG_FAIL 0x00000000
 
@@ -61,16 +64,17 @@ typedef struct {
       uint8_t sigindex2;
       uint8_t sigindex3;
       uint8_t sigindex4;
-      uint8_t __reserved2[151];
+      uint8_t __reserved2[143];
     } signatures_4;
     struct {
       uint8_t sigindex1;
       uint8_t sigindex2;
       uint8_t sigindex3;
-      uint8_t __reserved2[216];
+      uint8_t __reserved2[208];
     } signatures_3;
   };
-
+  uint32_t purpose;
+  uint32_t se_minimum_version;
   uint32_t onekey_version;
   uint8_t __sigmask;
   uint8_t __sig[64];
