@@ -33,7 +33,13 @@ g_header:
     .byte 0                          // sigindex2
     .byte 0                          // sigindex3
     .byte 0                          // sigindex4
-    . = . + 151                      // reserved
+    . = . + 143                      // reserved
+#if BITCOIN_ONLY
+    .word 1                          // purpose (bitcoin-only firmware)
+#else
+    .word 0                          // purpose (general firmware)
+#endif
+    .word SE_MINIMUM_VERSION_UINT32  // se_minimum_version
     .byte ONEKEY_VER_MAJOR           // onekey major
     .byte ONEKEY_VER_MINOR           // onekey minor
     .byte ONEKEY_VER_PATCH           // onekey patch

@@ -346,8 +346,12 @@ Issue Date: 20/12/2007
     statically into the binary file.  Otherwise the subroutine aes_init()
     must be called to compute them before the code is first used.
 */
-#if 1 && !(defined( _MSC_VER ) && ( _MSC_VER <= 800 ))
-#  define STATIC_TABLES
+#ifndef STATIC_TABLES
+#ifdef AES_DYNAMIC_TABLES
+/* AES_DYNAMIC_TABLES is defined, do not define STATIC_TABLES */
+#elif 1 && !(defined(_MSC_VER) && (_MSC_VER <= 800))
+#define STATIC_TABLES
+#endif
 #endif
 
 /*  9. MASKING OR CASTING FROM LONGER VALUES TO BYTES
