@@ -139,6 +139,7 @@ enum MessageType {
     MessageType_FirmwareUpload = 7 [(wire_in) = true, (wire_bootloader) = true];
     MessageType_FirmwareRequest = 8 [(wire_out) = true, (wire_bootloader) = true];
     MessageType_SelfTest = 32 [(wire_in) = true, (wire_bootloader) = true];
+    MessageType_UpgradeFileHeader = 10050 [(wire_out) = true, (wire_bootloader) = true];
 
     // Bitcoin
     MessageType_GetPublicKey = 11 [(bitcoin_only) = true, (wire_in) = true];

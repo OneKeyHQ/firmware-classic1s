@@ -243,3 +243,35 @@ secbool flash_write_word_item_ex(uint32_t offset, uint32_t data) {
 void flash_unlock_ex(void) { fmc_unlock(); }
 
 void flash_lock_ex(void) { fmc_lock(); }
+
+// Page erase function (4KB page)
+// page_addr must be 4KB aligned (0x1000)
+// Only available for GD32F425, GD32F427, GD32F470
+#if defined(GD32F425) || defined(GD32F427) || defined(GD32F470)
+secbool flash_page_erase(uint32_t page_addr) {
+  if (page_addr % 0x1000 != 0) {
+    return secfalse;  // Address must be 4KB aligned
+  }
+
+  // Use the existing fmc_page_erase function from GD32 library
+  fmc_state_enum fmc_state = fmc_page_erase(page_addr);
+  if (FMC_READY != fmc_state) {
+    return secfalse;
+  }
+
+  // Check whether the page was really erased (contains only 0xFF).
+  for (uint32_t addr = page_addr; addr < page_addr + 0x1000; addr += 4) {
+    if (*((const uint32_t *)FLASH_PTR(addr)) != 0xFFFFFFFF) {
+      return secfalse;
+    }
+  }
+
+  return sectrue;
+}
+#else
+// For other chips, page erase is not supported, return error
+secbool flash_page_erase(uint32_t page_addr) {
+  (void)page_addr;
+  return secfalse;
+}
+#endif

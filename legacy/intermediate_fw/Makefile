@@ -1,8 +1,8 @@
 APPVER = 1.8.0
 
-FIRMWARE_BUILD_VERSION=$(shell echo "VERSION_MAJOR.VERSION_MINOR.VERSION_PATCH" | cpp -include ../bootloader/version.h -nostdinc -P | tr -d " ")
+FIRMWARE_BUILD_VERSION=$(shell cat version.h | grep "ONEKEY_VERSION " | awk -F "[\"\"]" '{print $$2}')
 
-NAME  = classic_boot_update_$(FIRMWARE_BUILD_VERSION)
+NAME  = classic1s_boot_update_$(FIRMWARE_BUILD_VERSION)
 
 OBJS += trezor.o
 OBJS += header.o

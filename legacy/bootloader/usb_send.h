@@ -23,7 +23,8 @@ static void send_msg_success(usbd_device *dev) {
   send_response(dev, response);
 }
 
-static void send_msg_failure(usbd_device *dev, uint8_t code) {
+static void send_msg_failure(usbd_device *dev, uint8_t code,
+                             const char *message) {
   uint8_t response[64];
   memzero(response, sizeof(response));
   // response: Failure message (id 3), payload len 2
@@ -39,6 +40,15 @@ static void send_msg_failure(usbd_device *dev, uint8_t code) {
          10);
   // assign code value
   response[10] = code;
+  // message field id is 0x12, max length is 64 - 13 = 51
+  if (message != NULL && strlen(message) < 52) {
+    response[11] = 0x12;  // message field id
+    response[12] = strlen(message);
+    memcpy(response + 13, message, strlen(message));
+
+    uint32_t len = 4 + strlen(message);
+    response[8] = len & 0xff;
+  }
   send_response(dev, response);
 }
 

@@ -122,10 +122,6 @@ int main(void) {
   volatile uint32_t stay_in_bootloader_flag = r11;
 
   static bool force_boot = false;
-  if (memcmp((uint8_t *)(ST_RAM_END - 4), "boot", 4) == 0) {
-    force_boot = true;
-  }
-
   if (stay_in_bootloader_flag == STAY_IN_BOOTLOADER_FLAG) {
     force_boot = true;
   }
@@ -176,7 +172,7 @@ int main(void) {
         show_halt("Unofficial firmware", "aborted.");
       }
 
-      if (SIG_OK != check_firmware_hashes(hdr)) {
+      if (SIG_OK != check_firmware_hashes(hdr, NULL, 0)) {
         show_halt("Broken firmware", "detected.");
       }
       mpu_config_off();

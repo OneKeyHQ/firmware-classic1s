@@ -27,6 +27,9 @@
 extern const uint32_t FIRMWARE_MAGIC_NEW;  // TRZF
 extern const uint32_t FIRMWARE_MAGIC_BLE;  // 5283
 extern const uint32_t FIRMWARE_MAGIC_SE;
+extern const uint32_t FIRMWARE_MAGIC_UPGRADING;  // TRZP
+
+#define HW_MODEL_C2B2 "C2B2"
 
 #define FIRMWARE_PURPOSE_GENERAL 0x00000000   // General
 #define FIRMWARE_PURPOSE_BTC_ONLY 0x00000001  // Bitcoin-Only
@@ -82,11 +85,54 @@ typedef struct {
 
 #define FW_CHUNK_SIZE 65536
 
+// Upgrade file header structure (1024 bytes total)
+#define UPGRADE_HEADER_MAGIC 0x55475244  // "UGRD" - Upgrade Header
+#define UPGRADE_HEADER_VERSION 1
+
+// Flags for upgrade header
+#define UPGRADE_FLAG_MCU_PRESENT 0x01  // MCU firmware is present
+#define UPGRADE_FLAG_SE_PRESENT 0x02   // SE firmware is present
+#define UPGRADE_FLAG_BLE_PRESENT 0x04  // BLE firmware is present
+
+// Module upgrade information structure (64 bytes each)
+typedef struct {
+  uint32_t version;             // Firmware version (major.minor.patch.build)
+  uint32_t length;              // Firmware file length in bytes
+  uint32_t se_minimum_version;  // SE minimum version requirement (for MCU info)
+  uint32_t purpose;             // Firmware purpose (FIRMWARE_PURPOSE_*)
+  uint8_t reserved[48];
+} __attribute__((packed)) module_upgrade_info_t;
+
+typedef struct {
+  uint32_t magic;          // Magic number: 0x55475244 ("UGRD")
+  uint8_t header_version;  // Header format version
+  uint8_t flags;  // Flags: bit0=MCU present, bit1=SE present, bit2=BLE present
+  uint8_t reserved[2];  // Reserved for future use
+
+  // MCU firmware information (64 bytes, if UPGRADE_FLAG_MCU_PRESENT is set)
+  module_upgrade_info_t mcu_info;
+
+  // SE firmware information (64 bytes, if UPGRADE_FLAG_SE_PRESENT is set)
+  module_upgrade_info_t se_info;
+
+  // BLE firmware information (64 bytes, if UPGRADE_FLAG_BLE_PRESENT is set)
+  module_upgrade_info_t ble_info;
+
+  // Reserved area for future extensions
+  uint8_t reserved_area[792];  // 1024 - 232 = 792 bytes reserved
+
+  // Header checksum (SHA256 of header data excluding this checksum field)
+  // Placed at the end of the header (last 32 bytes)
+  uint8_t header_checksum[32];  // SHA256 checksum
+} __attribute__((packed)) upgrade_file_header_t;
+
 /**
  * Check if firmware with FIRMWARE_MAGIC_NEW is installed
  * @return true if magic present with some size checks
  */
 bool firmware_present_new(void);
+
+bool firmware_present_upgrade(void);
 
 /**
  * Compute fingerprint for given header. Fingerprint is done
@@ -148,7 +194,8 @@ int signatures_match(const image_header *hdr, uint8_t store_fingerprint[32]);
  * @param hdr header with chunk hashes
  * @return SIG_OK or SIG_FAIL
  */
-int check_firmware_hashes(const image_header *hdr);
+int check_firmware_hashes(const image_header *hdr, const uint8_t *external_data,
+                          uint32_t external_data_len);
 
 uint8_t *get_firmware_hash(const image_header *hdr);
 
