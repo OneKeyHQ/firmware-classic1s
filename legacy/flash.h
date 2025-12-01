@@ -54,4 +54,7 @@ void flash_lock_ex(void);
 secbool __wur flash_write_byte(uint8_t sector, uint32_t offset, uint8_t data);
 secbool __wur flash_write_word(uint8_t sector, uint32_t offset, uint32_t data);
 
+// page_addr must be 4KB aligned (0x1000)
+secbool flash_page_erase(uint32_t page_addr);
+
 #endif  // FLASH_H

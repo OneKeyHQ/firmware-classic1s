@@ -689,3 +689,12 @@ message UnLockDeviceResponse {
     optional bool unlocked_attach_pin = 2;     
     optional bool passphrase_protection = 3;   
 }
+
+
+/**
+ * Request: Upgrade file header
+ * @end
+ */
+message UpgradeFileHeader {
+    required bytes data = 1;
+}

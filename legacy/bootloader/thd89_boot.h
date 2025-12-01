@@ -21,8 +21,8 @@ bool se_update_firmware(uint8_t *data, uint32_t data_len,
 bool se_active_app_progress(void);
 bool se_verify_firmware(uint8_t *header, uint32_t header_len);
 bool se_check_firmware(void);
-char *se_get_version(void);
-char *se_get_build_id(void);
-char *se_get_hash(void);
+// char *se_get_version(void);
+// char *se_get_build_id(void);
+// char *se_get_hash(void);
 
 #endif

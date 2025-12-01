@@ -27,9 +27,10 @@
 #include "secp256k1.h"
 #include "sha2.h"
 
-const uint32_t FIRMWARE_MAGIC_NEW = 0x465a5254;  // TRZF
-const uint32_t FIRMWARE_MAGIC_BLE = 0x33383235;  // 5283
-const uint32_t FIRMWARE_MAGIC_SE = 0x39384654;   // TF89
+const uint32_t FIRMWARE_MAGIC_NEW = 0x465a5254;        // TRZF
+const uint32_t FIRMWARE_MAGIC_BLE = 0x33383235;        // 5283
+const uint32_t FIRMWARE_MAGIC_SE = 0x39384654;         // TF89
+const uint32_t FIRMWARE_MAGIC_UPGRADING = 0x465a5250;  // TRZP
 
 /*
  * There are 3 schemes in history of T1, for clarity naming:
@@ -149,6 +150,21 @@ bool firmware_present_new(void) {
   return true;
 }
 
+bool firmware_present_upgrade(void) {
+  const image_header *hdr =
+      (const image_header *)FLASH_PTR(FLASH_FWHEADER_START);
+  if (hdr->magic != FIRMWARE_MAGIC_UPGRADING) return false;
+  // we need to ignore hdrlen for now
+  // because we keep reset_handler ptr there
+  // for compatibility with older bootloaders
+  // after this is no longer necessary, let's uncomment the line below:
+  // if (hdr->hdrlen != FLASH_FWHEADER_LEN) return false;
+  if (hdr->codelen > FLASH_APP_LEN) return false;
+  if (hdr->codelen < 4096) return false;
+
+  return true;
+}
+
 int signatures_ok(const image_header *hdr, uint8_t store_fingerprint[32],
                   secbool use_verifymessage) {
   uint8_t hash[32] = {0};
@@ -237,11 +253,31 @@ int mem_is_empty(const uint8_t *src, uint32_t len) {
   return 1;
 }
 
-int check_firmware_hashes(const image_header *hdr) {
+int check_firmware_hashes(const image_header *hdr, const uint8_t *external_data,
+                          uint32_t external_data_len) {
   uint8_t hash[32] = {0};
+  uint32_t first_chunk_size = (256 - 1) * 1024;
+
   // check hash of the first code chunk
-  sha256_Raw(FLASH_PTR(FLASH_APP_START), (256 - 1) * 1024, hash);
+  if (external_data != NULL && external_data_len > FLASH_FWHEADER_LEN) {
+    // Use external data for first chunk
+    if (external_data_len > first_chunk_size) {
+      return SIG_FAIL;
+    }
+    // Partially in external buffer, partially in Flash
+    SHA256_CTX ctx;
+    sha256_Init(&ctx);
+    sha256_Update(&ctx, external_data, external_data_len);
+    sha256_Update(&ctx, FLASH_PTR(FLASH_APP_START + external_data_len),
+                  first_chunk_size - external_data_len);
+    sha256_Final(&ctx, hash);
+  } else {
+    // Use Flash data (original behavior)
+    sha256_Raw(FLASH_PTR(FLASH_APP_START), first_chunk_size, hash);
+  }
+
   if (0 != memcmp(hash, hdr->hashes, 32)) return SIG_FAIL;
+
   // check remaining used chunks
   uint32_t total_len = FLASH_FWHEADER_LEN + hdr->codelen;
   int used_chunks = total_len / (4 * FW_CHUNK_SIZE);
@@ -302,6 +338,8 @@ bool load_thd89_image_header(const uint8_t *const data, const uint32_t magic,
   // if (hdr->expiry != 0) return secfalse;
 
   memcpy(&hdr->codelen, data + 12, 4);
+
+  memcpy(&hdr->version, data + 16, 4);
 
   memcpy(hdr->hashes, data + 32, 512);
 
