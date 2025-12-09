@@ -1042,6 +1042,9 @@ refresh_menu:
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
   } else {  // details
     detail_index = 0;
+#if !EMULATOR
+    enableLongPress(true);
+#endif
     while (1) {
       layoutSwipe();
       oledClear();
@@ -1082,6 +1085,16 @@ refresh_menu:
       }
       oledRefresh();
       WAIT_KEY_OR_ABORT(0, 0, bubble_key);
+#if !EMULATOR
+      if (isLongPress(KEY_UP_OR_DOWN) && getLongPressStatus()) {
+        if (isLongPress(KEY_UP)) {
+          bubble_key = KEY_UP;
+        } else if (isLongPress(KEY_DOWN)) {
+          bubble_key = KEY_DOWN;
+        }
+        delay_ms(75);
+      }
+#endif
       if (bubble_key == KEY_CANCEL) {
         break;
       } else if (bubble_key == KEY_CONFIRM) {
@@ -1096,6 +1109,9 @@ refresh_menu:
         }
       }
     }
+#if !EMULATOR
+    enableLongPress(false);
+#endif
   }
   oledRefresh();
   HANDLE_KEY(bubble_key);

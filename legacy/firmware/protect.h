@@ -78,6 +78,7 @@ extern bool is_passphrase_pin_enabled;
   do {                                                          \
     key = protectWaitKey(timeout, mode);                        \
     if (protectAbortedByInitialize || protectAbortedByCancel) { \
+      enableLongPress(false);                                   \
       return false;                                             \
     }                                                           \
   } while (0)

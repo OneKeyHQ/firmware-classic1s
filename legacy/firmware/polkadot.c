@@ -130,7 +130,9 @@ scan_key:
 
   return result;
 }
+
 extern uint16_t getAddressType(void);
+
 bool polkadot_sign_tx(const PolkadotSignTx *msg, const HDNode *node,
                       PolkadotSignedTx *resp) {
   memzero(polkadot_network, sizeof(polkadot_network));

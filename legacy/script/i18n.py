@@ -175,7 +175,7 @@ def main():
         CHARS_NORMAL.update(c for c in lang_display_text if len(c.encode("UTF-8")) > 1)
 
     all_keys = client.keys(
-        LOKALISE_PROJECT_ID, {"include_translations": 1, "limit": 1000}
+        LOKALISE_PROJECT_ID, {"include_translations": 1, "limit": 1000, "replace_breaks": 1}
     ).items
     all_keys.sort(key=lambda k: k.key_id)
 

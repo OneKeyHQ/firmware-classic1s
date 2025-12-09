@@ -48,5 +48,6 @@ _heap_size = _heap_end - _heap_start;
 ASSERT((_heap_size >= 16K), "Error: heap too small!");
 
 _stay_in_bootloader_flag_addr = ABSOLUTE(0x20010000);
+_preserved_reset_data_addr = ABSOLUTE(0x20010004);  /* Data to preserve across soft reset */
 
 
