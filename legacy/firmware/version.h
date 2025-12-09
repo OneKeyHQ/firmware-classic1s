@@ -7,10 +7,11 @@
 #define FIX_VERSION_PATCH 99
 
 #define ONEKEY_VER_MAJOR 3
-#define ONEKEY_VER_MINOR 15
+#define ONEKEY_VER_MINOR 16
 #define ONEKEY_VER_PATCH 0
 
-#define ONEKEY_VERSION "3.15.0"
+#define ONEKEY_VERSION "3.16.0"
+// Deprecated
 #define ONEKEY_VERSION_HEX 0x3F00
 
 // Minimum SE version required for firmware upgrade
