@@ -70,7 +70,7 @@ jobs:
           fi
 
           if [ "${{ matrix.build_type }}" = "qa" ]; then
-            export FIRMWARE_QA=1
+            export FIRMWARE_QA=0
             export PRODUCTION=0
             export BOOTLOADER_QA=1
             SIGN_SCRIPT="./legacy/debug_signing/sign_onekey_qa.py"
@@ -97,6 +97,20 @@ jobs:
 
           if [ "${{ matrix.bitcoin_only }}" = "0" ]; then
             cp ./legacy/bootloader/classic1s_bootloader*Stable*.bin ${{ matrix.artifact_suffix }}
+
+            if [ "${{ matrix.build_type }}" = "qa" ]; then
+              nix-shell --run "poetry run $SIGN_SCRIPT \
+                ./legacy/intermediate_fw/classic1s_boot_update*.bin \
+                -S 1:${{ secrets.SECRET_QA_KEY_1 }} \
+                -S 2:${{ secrets.SECRET_QA_KEY_2 }} \
+                -S 3:${{ secrets.SECRET_QA_KEY_3 }} \
+                -S 4:${{ secrets.SECRET_QA_KEY_4 }}"
+
+              cp ./legacy/intermediate_fw/classic1s_boot_update*qa.signed.bin ${{ matrix.artifact_suffix }}
+            else
+              cp ./legacy/intermediate_fw/classic1s_boot_update*.bin ${{ matrix.artifact_suffix }}
+            fi
+
             ./legacy/script/hash.py -t bootloader -f ${{ matrix.artifact_suffix }}/classic1s_bootloader*Stable*.bin > ${{ matrix.artifact_suffix }}/hash.txt
             ./legacy/script/hash.py -t firmware -f ${{ matrix.artifact_suffix }}/classic1s.*Stable*.bin >> ${{ matrix.artifact_suffix }}/hash.txt
           else

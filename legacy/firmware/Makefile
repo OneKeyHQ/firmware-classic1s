@@ -10,7 +10,7 @@ BUILD_COMMIT=$(shell git rev-parse HEAD | cut -c1-7)
 ifneq ($(BITCOIN_ONLY),1)
 NAME=classic1s.$(FIRMWARE_BUILD_VERSION)-Stable-$(BUILD_COMMIT)
 else
-NAME=classic1s.$(FIRMWARE_BUILD_VERSION)-Stable-bc-only-$(BUILD_COMMIT)
+NAME=classic1s.$(FIRMWARE_BUILD_VERSION)-Stable-btc-$(BUILD_COMMIT)
 endif
 else
 NAME=classic1s.$(FIRMWARE_BUILD_VERSION)-Alpha-$(BUILD_ID)
