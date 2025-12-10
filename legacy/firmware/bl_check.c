@@ -139,7 +139,9 @@ void check_and_replace_bootloader(bool shutdown_on_replace) {
                  "detected.", NULL, "Shutdown your OneKey",
                  "contact our support.", NULL);
     delay_ms(1000);
+#if PRODUCTION
     shutdown();
+#endif
   }
 
   if (is_mode_unprivileged()) {
