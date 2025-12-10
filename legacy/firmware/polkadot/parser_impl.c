@@ -19,6 +19,14 @@ parser_error_t _polkadot_readTx(parser_context_t *c, parser_tx_t *v,
   CHECK_ERROR(_readCompactIndex(c, &v->nonce))
   CHECK_ERROR(_readCompactBalance(c, &v->tip))
   if (mode_enabled) {
+    if (c->bufferLen - c->offset >
+        74) {  // 74 is the length without assetId but with mode
+      CHECK_ERROR(_readu8(c, &v->assetId))
+      if (v->assetId != 0) {
+        CHECK_ERROR(_readu8(c, &v->assetLocation.parents))
+        CHECK_ERROR(_readu8(c, &v->assetLocation.interior))
+      }
+    }
     CHECK_ERROR(_readu8(c, &v->mode))
   }
   CHECK_ERROR(_readu32(c, &v->specVersion))

@@ -9,6 +9,10 @@
 #define MAX_CALL_VEC_SIZE 5
 
 typedef struct {
+  uint8_t parents;
+  uint8_t interior;
+} asset_location_t;
+typedef struct {
   pd_CallIndex_t callIndex;
   pd_Method_t method;
 
@@ -18,6 +22,8 @@ typedef struct {
   uint32_t specVersion;
   uint32_t transactionVersion;
   uint8_t mode;
+  uint8_t assetId;
+  asset_location_t assetLocation;
 
   pd_Hash_t genesisHash;
   pd_Hash_t blockHash;

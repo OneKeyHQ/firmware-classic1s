@@ -668,7 +668,8 @@ parser_error_t _readTupleAccountIdData(parser_context_t* c,
 parser_error_t _readAccountIdLookupOfT(parser_context_t* c,
                                        pd_AccountIdLookupOfT_t* v) {
   CHECK_INPUT()
-  if (strncmp(polkadot_network, "joystream", 9) != 0) {
+  if (strcmp(polkadot_network, "joystream") != 0 &&
+      strcmp(polkadot_network, "hydration") != 0) {
     CHECK_ERROR(_preadUInt8(c, &v->value))
   }
   switch (v->value) {

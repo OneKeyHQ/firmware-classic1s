@@ -612,6 +612,9 @@ refresh_menu:
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
   } else if (index == 1) {  // safe transaction details
     detail_index_safe_tx = 0;
+#if !EMULATOR
+    enableLongPress(true);
+#endif
     while (1) {
       layoutSwipe();
       oledClear();
@@ -649,6 +652,16 @@ refresh_menu:
       }
       oledRefresh();
       WAIT_KEY_OR_ABORT(0, 0, bubble_key);
+#if !EMULATOR
+      if (isLongPress(KEY_UP_OR_DOWN) && getLongPressStatus()) {
+        if (isLongPress(KEY_UP)) {
+          bubble_key = KEY_UP;
+        } else if (isLongPress(KEY_DOWN)) {
+          bubble_key = KEY_DOWN;
+        }
+        delay_ms(75);
+      }
+#endif
       if (bubble_key == KEY_CANCEL) {
         break;
       } else if (bubble_key == KEY_CONFIRM) {
@@ -663,6 +676,9 @@ refresh_menu:
         }
       }
     }
+#if !EMULATOR
+    enableLongPress(false);
+#endif
   } else if (index == 2) {  // to address
     layoutHeader(_(T_CONFIRM_SAFE_TX));
     oledDrawStringAdapter(0, y, _(I__SEND_TO_COLON), FONT_STANDARD);
@@ -683,6 +699,9 @@ refresh_menu:
         _(I__PRIORITY_FEE_PER_GAS_COLON),
     };
     const char *values[] = {gas_fee, max_fee_per_gas, max_priority_fee_per_gas};
+#if !EMULATOR
+    enableLongPress(true);
+#endif
     while (1) {
       layoutSwipe();
       oledClear();
@@ -714,6 +733,16 @@ refresh_menu:
       }
       oledRefresh();
       WAIT_KEY_OR_ABORT(0, 0, bubble_key);
+#if !EMULATOR
+      if (isLongPress(KEY_UP_OR_DOWN) && getLongPressStatus()) {
+        if (isLongPress(KEY_UP)) {
+          bubble_key = KEY_UP;
+        } else if (isLongPress(KEY_DOWN)) {
+          bubble_key = KEY_DOWN;
+        }
+        delay_ms(75);
+      }
+#endif
       if (bubble_key == KEY_CANCEL) {
         break;
       } else if (bubble_key == KEY_CONFIRM) {
@@ -728,6 +757,9 @@ refresh_menu:
         }
       }
     }
+#if !EMULATOR
+    enableLongPress(false);
+#endif
   } else if (index == 5) {
     layoutHeader(_(T__SIGN_TRANSACTION));
     oledDrawStringAdapter(0, y, "Nonce:", FONT_STANDARD);
@@ -864,6 +896,10 @@ refresh_menu:
         _(I__PRIORITY_FEE_PER_GAS_COLON),
     };
     const char *values[] = {gas_fee, max_fee_per_gas, max_priority_fee_per_gas};
+
+#if !EMULATOR
+    enableLongPress(true);
+#endif
     while (1) {
       layoutSwipe();
       oledClear();
@@ -895,6 +931,16 @@ refresh_menu:
       }
       oledRefresh();
       WAIT_KEY_OR_ABORT(0, 0, bubble_key);
+#if !EMULATOR
+      if (isLongPress(KEY_UP_OR_DOWN) && getLongPressStatus()) {
+        if (isLongPress(KEY_UP)) {
+          bubble_key = KEY_UP;
+        } else if (isLongPress(KEY_DOWN)) {
+          bubble_key = KEY_DOWN;
+        }
+        delay_ms(75);
+      }
+#endif
       if (bubble_key == KEY_CANCEL) {
         break;
       } else if (bubble_key == KEY_CONFIRM) {
@@ -909,6 +955,9 @@ refresh_menu:
         }
       }
     }
+#if !EMULATOR
+    enableLongPress(false);
+#endif
   } else if (index == 5) {
     layoutHeader(_(T__TRANSACTION_DETAILS));
     oledDrawStringAdapter(0, y, "Nonce:", FONT_STANDARD);

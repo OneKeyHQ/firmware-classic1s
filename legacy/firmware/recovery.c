@@ -658,6 +658,7 @@ void recovery_abort(void) {
 static bool select_complete_word(char *title, int start, int len) {
   uint8_t key = KEY_NULL;
   int index = 0;
+  bool ret = false;
 
 #if !EMULATOR
   enableLongPress(false);
@@ -689,7 +690,8 @@ refresh_menu:
       strlcpy(words[word_index], mnemonic_get_word(start + index),
               sizeof(words[word_index]));
       word_index++;
-      return true;
+      ret = true;
+      break;
     case KEY_CANCEL:
       break;
     default:
@@ -699,7 +701,7 @@ refresh_menu:
 #if !EMULATOR
   enableLongPress(true);
 #endif
-  return false;
+  return ret;
 }
 
 static uint8_t recovery_check_words(void) {
@@ -813,7 +815,7 @@ refresh_menu:
     }
     delay_ms(75);
   }
-  if (d) {  // Reverse direction
+  if (d) {
     if (key == KEY_UP) {
       key = KEY_DOWN;
     } else if (key == KEY_DOWN) {
