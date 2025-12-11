@@ -203,7 +203,10 @@ bool waitButtonResponse(uint8_t btn, uint32_t time_out) {
 // stub implementations
 void enableLongPress(bool on) { (void)on; }
 bool getLongPressStatus(void) { return false; }
-bool isLongPress(uint8_t key) { (void)key; return false; }
+bool isLongPress(uint8_t key) {
+  (void)key;
+  return false;
+}
 #endif
 
 void buttonUpdate(void) {

@@ -1363,7 +1363,7 @@ static bool ethereum_signing_handle_safe_tx(const struct signing_params *params,
   } else {
     // safe exec transaction
     display_info_init(&display_info, 14);
-    const uint8_t *data = params->data_initial_chunk_bytes + 16;
+    uint8_t *data = (uint8_t *)params->data_initial_chunk_bytes + 16;
     display_info_add_item_name(&display_info, "to", 0);
     uint8_t to[20];
     memcpy(to, data, 20);
@@ -1375,7 +1375,7 @@ static bool ethereum_signing_handle_safe_tx(const struct signing_params *params,
     display_info_set_value(&display_info, value_str);
     free(value_str);
     // display_info_add_item_name(&display_info, "operation", 0);
-    uint8_t operation = data[105];
+    uint8_t operation = data[115];
     char operation_str[16];
     if (operation == 0) {
       strcpy(operation_str, "0(Call)");
@@ -1396,24 +1396,35 @@ static bool ethereum_signing_handle_safe_tx(const struct signing_params *params,
     for (uint8_t i = 0; i < 32; i++) {
       data_len = (data_len << 8) | data[308 + i];
     }
-    data_left = params->data_length - params->data_initial_chunk_size;
+    uint8_t *remaining_data = NULL;
     if (data_left > 0) {
+      data = (uint8_t *)malloc(668);
+      if (data == NULL) {
+        fsm_sendFailure(FailureType_Failure_DataError,
+                        "Failed to allocate memory");
+        return false;
+      }
+      memcpy(data, (uint8_t *)params->data_initial_chunk_bytes + 356, 668);
       data_left_bytes = (uint8_t *)malloc(data_left);
       if (data_left_bytes == NULL) {
+        free(data);
         fsm_sendFailure(FailureType_Failure_DataError,
                         "Failed to allocate memory");
         return false;
       }
       uint32_t data_left_pos = 0;
-      while (data_left > 0) {
+      uint32_t data_left_dummy = data_left;
+      while (data_left_dummy > 0) {
         msg_tx_request.has_data_length = true;
-        msg_tx_request.data_length = data_left <= 1024 ? data_left : 1024;
+        msg_tx_request.data_length =
+            data_left_dummy <= 1024 ? data_left_dummy : 1024;
         void *response_ptr =
             call(MessageType_MessageType_EthereumTxRequestOneKey,
                  &msg_tx_request, MessageType_MessageType_EthereumTxAckOneKey);
         if (response_ptr == NULL) {
           free(data_left_bytes);
           data_left_bytes = NULL;
+          free(data);
           display_info_cleanup(&display_info);
           fsm_sendFailure(FailureType_Failure_DataError, "Invalid call data");
           return false;
@@ -1422,11 +1433,28 @@ static bool ethereum_signing_handle_safe_tx(const struct signing_params *params,
         memcpy(data_left_bytes + data_left_pos, resp.data_chunk.bytes,
                resp.data_chunk.size);
         data_left_pos += resp.data_chunk.size;
-        data_left -= resp.data_chunk.size;
+        data_left_dummy -= resp.data_chunk.size;
       }
     }
-    if (data_len > 0 && data_left == 0) {
-      const uint8_t *nest_data = data + 340;
+    if (data_len > 0) {
+      const uint8_t *nest_data = NULL;
+      if (data_left_bytes != NULL) {
+        remaining_data = (uint8_t *)malloc(params->data_length - 356);
+        if (remaining_data == NULL) {
+          free(data);
+          free(data_left_bytes);
+          data_left_bytes = NULL;
+          fsm_sendFailure(FailureType_Failure_DataError,
+                          "Failed to allocate memory");
+          return false;
+        }
+        memcpy(remaining_data, data, 668);
+        memcpy(remaining_data + 668, data_left_bytes, data_left);
+        nest_data = (const uint8_t *)remaining_data;
+        free(data);
+      } else {
+        nest_data = data + 340;
+      }
       display_info_add_item_name(&display_info, "data", 0);
       if (data_len == 68 && memcmp(nest_data,
                                    "\xa9\x05\x9c\xbb\x00\x00\x00\x00\x00\x00"
@@ -1514,6 +1542,8 @@ static bool ethereum_signing_handle_safe_tx(const struct signing_params *params,
         free(gas_price_str);
         free(gas_token_str);
         free(refund_receiver_str);
+        free(remaining_data);
+        remaining_data = NULL;
         data_left_bytes = NULL;
       }
       display_info_cleanup(&display_info);
@@ -1538,16 +1568,7 @@ static bool ethereum_signing_handle_safe_tx(const struct signing_params *params,
     display_info_set_value(&display_info, refund_receiver_str);
     free(refund_receiver_str);
     uint8_t *signature_data = NULL;
-    uint8_t *remaining_data = NULL;
     if (data_left_bytes != NULL) {
-      remaining_data = (uint8_t *)malloc(params->data_length - 340);
-      if (remaining_data == NULL) {
-        fsm_sendFailure(FailureType_Failure_DataError,
-                        "Failed to allocate memory");
-        return false;
-      }
-      memcpy(remaining_data, data + 340, 1024 - 340);
-      memcpy(remaining_data + 1024 - 340, data_left_bytes, data_left);
       signature_data = remaining_data + (signature_pos - 340);
     } else {
       signature_data = (uint8_t *)(data + signature_pos);
@@ -1579,14 +1600,6 @@ static bool ethereum_signing_safe_tx(
     uint32_t max_priority_fee_per_gas_len) {
   SafeTxContext safe_tx_context = {0};
   bool is_delegate_call = false;
-  if (!ethereum_signing_handle_safe_tx(params, &safe_tx_context,
-                                       &is_delegate_call)) {
-    if (safe_tx_context.payload.approve_hash != NULL) {
-      free(safe_tx_context.payload.approve_hash);
-      safe_tx_context.payload.approve_hash = NULL;
-    }
-    return false;
-  }
   char max_fee_per_gas_str[32] = {0};
   char priority_fee_per_gas_str[32] = {0};
   char max_fee_str[32] = {0};
@@ -1605,6 +1618,14 @@ static bool ethereum_signing_safe_tx(
   char *nonce_ptr = decode_typed_data(nonce, nonce_len, "uint");
   memcpy(nonce_str, nonce_ptr, strlen(nonce_ptr));
   free(nonce_ptr);
+  if (!ethereum_signing_handle_safe_tx(params, &safe_tx_context,
+                                       &is_delegate_call)) {
+    if (safe_tx_context.payload.approve_hash != NULL) {
+      free(safe_tx_context.payload.approve_hash);
+      safe_tx_context.payload.approve_hash = NULL;
+    }
+    return false;
+  }
   bool result = false;
   if (safe_tx_context.type == SafeTxContextType_APPROVE_HASH) {
     result = layoutEthereumConfirmApproveHash(
@@ -1905,6 +1926,7 @@ void ethereum_signing_init_onekey(const EthereumSignTxOneKey *msg,
       hash_data(data_left_bytes, data_left);
       free(data_left_bytes);
       data_left_bytes = NULL;
+      data_left = 0;
     }
     send_signature();
   }
@@ -2082,6 +2104,7 @@ void ethereum_signing_init_eip1559_onekey(
       hash_data(data_left_bytes, data_left);
       free(data_left_bytes);
       data_left_bytes = NULL;
+      data_left = 0;
     }
     send_signature();
   }
