@@ -1142,7 +1142,8 @@ void ctap_hid_keepalive_register(void) {
   if (transport_type == TRANSPORT_BLE) {
     register_loop_callback(ctap_hid_keepalive_status, timer_ms(), timer1s / 12);
   } else {
-    register_timer("ctap_keepalive", timer1s / 12, ctap_hid_keepalive_status);
+    register_timer(TIMER_NAME_CTAP_KEEPALIVE, timer1s / 12,
+                   ctap_hid_keepalive_status);
   }
 }
 
@@ -1150,7 +1151,7 @@ void ctap_hid_keepalive_unregister(void) {
   if (transport_type == TRANSPORT_BLE) {
     unregister_loop_callback();
   } else {
-    unregister_timer("ctap_keepalive");
+    unregister_timer(TIMER_NAME_CTAP_KEEPALIVE);
   }
 }
 

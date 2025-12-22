@@ -13,7 +13,11 @@ CHARS_SUBTITLE = set()
 def write_keys(parsed):
     content = []
     for key in parsed:
-        en_text = key["translations"]["en"].replace("\\n", " ")
+        en_text = key["translations"]["en"]
+        en_text = en_text.replace("\\n", " ")
+        en_text = en_text.replace('\r\n', ' ')  # Windows
+        en_text = en_text.replace('\r', ' ')    # Mac
+        en_text = en_text.replace('\n', ' ')     # Unix
         content += [
             f"// {wrapped}"
             for wrapped in [
@@ -37,6 +41,9 @@ def write_lang(parsed, lang_iso):
     content = [content]
     for key in parsed:
         text = key["translations"][lang_iso]
+        text = text.replace('\r\n', '\\n')  # Windows
+        text = text.replace('\r', '\\n')    # Mac
+        text = text.replace('\n', '\\n')    # Unix
         text = text.replace('"', '\\"')
         text = f'    "{text}",'
         content.append(text)

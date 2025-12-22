@@ -15,7 +15,7 @@ static bool get_ble_hash = false;
 static bool ble_connect = false;
 static bool ble_switch = false;
 static bool get_ble_switch = false;
-static bool passkey_state = false;
+static uint8_t current_passkey[6] = {0};
 static int ble_request_state = -1;
 static uint8_t ble_response_buf[64];
 static char ble_name[BLE_NAME_LEN + 1] = {0};
@@ -62,15 +62,33 @@ void ble_request_info(uint8_t type) {
 
 void ble_request_switch_state(void) {
   uint8_t cmd[64] = {0};
-  cmd[0] = BLE_CMD_ONOFF_BLE;
+  cmd[0] = BLE_CMD_CTL_BLE;
   cmd[1] = 0x01;
   cmd[2] = 0x07;
   ble_cmd_packet(cmd, 3);
 }
 
-void ble_ctl_onoff(void) {
+void ble_passkey_confirm(void) {
   uint8_t cmd[64] = {0};
-  cmd[0] = BLE_CMD_ONOFF_BLE;
+  cmd[0] = BLE_CMD_CTL_BLE;
+  cmd[1] = 6 + 1;  // 6 is the length of the passkey
+  cmd[2] = BLE_PASSKEY_CONFIRM;
+  memcpy(cmd + 3, current_passkey, 6);
+  ble_cmd_packet(cmd, 9);
+}
+
+void ble_passkey_cancel(void) {
+  uint8_t cmd[64] = {0};
+  cmd[0] = BLE_CMD_CTL_BLE;
+  cmd[1] = 0x01;
+  cmd[2] = BLE_PASSKEY_CANCEL;
+  ble_cmd_packet(cmd, 3);
+  ble_connect = false;
+}
+
+void ble_ctl_disconnect(void) {
+  uint8_t cmd[64] = {0};
+  cmd[0] = BLE_CMD_CTL_BLE;
   cmd[1] = 0x01;
   cmd[2] = 0x03;
   ble_cmd_packet(cmd, 0x03);
@@ -78,7 +96,7 @@ void ble_ctl_onoff(void) {
 
 void change_ble_sta(uint8_t mode) {
   uint8_t cmd[64] = {0};
-  cmd[0] = BLE_CMD_ONOFF_BLE;
+  cmd[0] = BLE_CMD_CTL_BLE;
   cmd[1] = 0x01;
   cmd[2] = mode;
   if (ble_switch != mode) {
@@ -212,7 +230,6 @@ uint8_t *ble_get_hash(void) { return ble_hash; }
 
 void ble_set_switch(bool flag) { ble_switch = flag; }
 bool ble_get_switch(void) { return ble_switch; }
-bool ble_passkey_state(void) { return passkey_state; }
 
 void ble_reset(void) {
   ble_power_off();
@@ -249,7 +266,6 @@ void ble_update_poll(void) {
 
 void ble_uart_poll(uint8_t *buf) {
   uint8_t passkey[17] = {0};
-  static bool need_refresh = false;
 
   ble_usart_msg.len = (buf[2] << 8) + buf[3];
   ble_usart_msg.cmd = buf[4];
@@ -258,19 +274,25 @@ void ble_uart_poll(uint8_t *buf) {
 
   switch (ble_usart_msg.cmd) {
     case BLE_CMD_CONNECT_STATE:
-    case BLE_CMD_PAIR_STATE:
-      if (ble_usart_msg.cmd_vale[0] == 0x01)
+      if (ble_usart_msg.cmd_vale[0] == 0x01) {
         ble_connect = true;
-      else
+      } else {
         ble_connect = false;
-      if (need_refresh) {
-        need_refresh = false;
-        passkey_state = false;
+      }
+      if (!layoutBlePairResultShowing()) {
         layoutRefreshSet(true);
+      }
+      break;
+    case BLE_CMD_PAIR_STATE:
+      if (ble_usart_msg.cmd_vale[0] == BLE_PAIR_STATE_SUCCESS) {
+        layoutBlePairSuccess();
+      } else if (ble_usart_msg.cmd_vale[0] == BLE_PAIR_STATE_FAILED) {
+        layoutBlePairFailed();
       }
       break;
     case BLE_CMD_PASSKEY:
       if (ble_usart_msg.cmd_len == 0x06) {
+        memcpy(current_passkey, ble_usart_msg.cmd_vale, 6);
         for (int i = 0, j = 0; i < 16; i++) {
           if (i % 3 == 0) {
             passkey[i] = ble_usart_msg.cmd_vale[j++];
@@ -278,9 +300,7 @@ void ble_uart_poll(uint8_t *buf) {
             passkey[i] = ' ';
           }
         }
-        passkey_state = true;
         layoutBlePasskey(passkey);
-        need_refresh = true;
       }
       break;
     case BLE_CMD_BT_NAME:
@@ -302,14 +322,13 @@ void ble_uart_poll(uint8_t *buf) {
         get_ble_ver = true;
       }
       break;
-    case BLE_CMD_ONOFF_BLE:
+    case BLE_CMD_CTL_BLE:
       get_ble_switch = true;
       if (ble_usart_msg.cmd_vale[0] == 0) {
         ble_switch = false;
       } else {
         ble_switch = true;
       }
-      passkey_state = false;
       layoutRefreshSet(true);
       break;
     case BLE_CMD_DEVICE_PUBKEY:

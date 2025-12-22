@@ -239,6 +239,7 @@ static bool ping_boot(uint8_t id) {
 static void enter_boot(void) {
   uint8_t cmd[64] = "\x5a\xa5\x00\x04\x08\x01\x01\xf3";
   ble_usart_irq_disable();
+  ble_usart_disable_dma();
   SET_COMBUS_HIGH();
   ble_usart_send(cmd, 8);
   // ble power rest

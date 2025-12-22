@@ -74,6 +74,7 @@ OBJS += config_emu.o
 else
 OBJS += config.o
 endif
+OBJS += ../layout.o
 OBJS += trezor.o
 OBJS += pinmatrix.o
 OBJS += fsm.o
@@ -324,6 +325,8 @@ CFLAGS += -DUSE_PRECOMPUTED_CP=0
 CFLAGS += -DCBOR_NO_FLOATING_POINT=l
 
 CFLAGS += -DUSE_CARDANO=1
+
+CFLAGS += -DFIRMWARE=1
 
 %:: %.mako defs
 	@printf "  MAKO    $@\n"

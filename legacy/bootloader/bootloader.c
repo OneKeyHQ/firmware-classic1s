@@ -132,7 +132,7 @@ int main(void) {
                                      // unpredictable stack protection check
     buttonsIrqInit();
     timer_init();
-    register_timer("button", timer1s / 2, buttonsTimer);
+    register_timer(TIMER_NAME_BUTTON, timer1s / 2, buttonsTimer);
     mpu_config_bootloader();
   } else {
 #ifndef APPVER
@@ -147,7 +147,7 @@ int main(void) {
     sys_poweron();
     buttonsIrqInit();
     timer_init();
-    register_timer("button", timer1s / 2, buttonsTimer);
+    register_timer(TIMER_NAME_BUTTON, timer1s / 2, buttonsTimer);
 #endif
     mpu_config_bootloader();
 #ifndef APPVER

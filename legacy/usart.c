@@ -20,6 +20,7 @@
 
 #include <errno.h>
 #include <libopencm3/cm3/nvic.h>
+#include <libopencm3/stm32/dma.h>
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/usart.h>
@@ -28,11 +29,15 @@
 
 #include "ble.h"
 #include "compatible.h"
+#include "timer.h"
 #include "usart.h"
 
-// 500ms
-#define USART_TIMEOUT 10000
 #define UART_PACKET_MAX_LEN 128
+
+#define USART_DMA_RX_BUFFER_SIZE 256
+
+static uint8_t usart_dma_rx_buffer[USART_DMA_RX_BUFFER_SIZE];
+static volatile uint16_t usart_dma_rx_read_pos = 0;
 
 #if (_SUPPORT_DEBUG_UART_)
 
@@ -114,14 +119,20 @@ void usart_setup(void) {
 #endif
 
 void ble_usart_init(void) {
-  // enable USART clock
-  rcc_periph_clock_enable(RCC_USART2);
-  //	set GPIO for USART1
-  rcc_periph_clock_enable(RCC_GPIOA);
-  gpio_mode_setup(GPIOA, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO2 | GPIO3);
-  gpio_set_af(GPIOA, GPIO_AF7, GPIO2 | GPIO3);
+  nvic_disable_irq(NVIC_USART2_IRQ);
 
   usart_disable(BLE_UART);
+  usart_disable_rx_dma(BLE_UART);
+
+  dma_disable_stream(DMA1, DMA_STREAM5);
+  dma_stream_reset(DMA1, DMA_STREAM5);
+
+  rcc_periph_clock_enable(RCC_USART2);
+  rcc_periph_clock_enable(RCC_DMA1);
+  rcc_periph_clock_enable(RCC_GPIOA);
+
+  gpio_mode_setup(GPIOA, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO2 | GPIO3);
+  gpio_set_af(GPIOA, GPIO_AF7, GPIO2 | GPIO3);
   // usart2 set
   usart_set_baudrate(BLE_UART, 115200);
   usart_set_databits(BLE_UART, 8);
@@ -129,37 +140,61 @@ void ble_usart_init(void) {
   usart_set_parity(BLE_UART, USART_PARITY_NONE);
   usart_set_flow_control(BLE_UART, USART_FLOWCONTROL_NONE);
   usart_set_mode(BLE_UART, USART_MODE_TX_RX);
-  usart_enable(BLE_UART);
 
-  // set NVIC
+  dma_set_peripheral_address(DMA1, DMA_STREAM5, (uint32_t)&USART_DR(BLE_UART));
+  dma_set_memory_address(DMA1, DMA_STREAM5, (uint32_t)usart_dma_rx_buffer);
+  dma_set_number_of_data(DMA1, DMA_STREAM5, USART_DMA_RX_BUFFER_SIZE);
+
+  dma_set_transfer_mode(DMA1, DMA_STREAM5, DMA_SxCR_DIR_PERIPHERAL_TO_MEM);
+  dma_disable_peripheral_increment_mode(DMA1, DMA_STREAM5);
+  dma_enable_memory_increment_mode(DMA1, DMA_STREAM5);
+  dma_set_peripheral_size(DMA1, DMA_STREAM5, DMA_SxCR_PSIZE_8BIT);
+  dma_set_memory_size(DMA1, DMA_STREAM5, DMA_SxCR_MSIZE_8BIT);
+  dma_set_priority(DMA1, DMA_STREAM5, DMA_SxCR_PL_VERY_HIGH);
+
+  dma_channel_select(DMA1, DMA_STREAM5, DMA_SxCR_CHSEL_4);
+  dma_enable_circular_mode(DMA1, DMA_STREAM5);
+
+  memset((void *)usart_dma_rx_buffer, 0, USART_DMA_RX_BUFFER_SIZE);
+  usart_dma_rx_read_pos = 0;
+
   ble_usart_irq_set();
+
+  usart_enable(BLE_UART);
+  usart_enable_rx_dma(BLE_UART);
+  dma_enable_stream(DMA1, DMA_STREAM5);
 }
 
 void ble_usart_irq_set(void) {
-  // set NVIC
   nvic_set_priority(NVIC_USART2_IRQ, 0);
   nvic_enable_irq(NVIC_USART2_IRQ);
-  usart_enable_rx_interrupt(BLE_UART);
+
+  usart_enable_idle_interrupt(BLE_UART);
+
+  usart_disable_rx_interrupt(BLE_UART);
 }
 
 void ble_usart_enable(void) { usart_enable(BLE_UART); }
 void ble_usart_disable(void) { usart_disable(BLE_UART); }
 
-void ble_usart_irq_enable(void) { usart_enable_rx_interrupt(BLE_UART); }
-void ble_usart_irq_disable(void) { usart_disable_rx_interrupt(BLE_UART); }
+void ble_usart_irq_enable(void) { usart_enable_idle_interrupt(BLE_UART); }
+void ble_usart_irq_disable(void) { usart_disable_idle_interrupt(BLE_UART); }
+
+void ble_usart_disable_dma(void) {
+  usart_disable_rx_dma(BLE_UART);
+  dma_disable_stream(DMA1, DMA_STREAM5);
+}
 
 void ble_usart_sendByte(uint8_t data) {
   usart_send_blocking(BLE_UART, data);
-  while (!usart_get_flag(BLE_UART, USART_SR_TXE))
-    ;
+  while (!usart_get_flag(BLE_UART, USART_SR_TXE));
 }
 
 void ble_usart_send(uint8_t *buf, uint32_t len) {
   uint32_t i;
   for (i = 0; i < len; i++) {
     usart_send_blocking(BLE_UART, buf[i]);
-    while (!usart_get_flag(BLE_UART, USART_SR_TXE))
-      ;
+    while (!usart_get_flag(BLE_UART, USART_SR_TXE));
   }
 }
 
@@ -182,65 +217,109 @@ static uint8_t calXor(uint8_t *buf, uint32_t len) {
   return tmp;
 }
 
-static bool usart_read_bytes(uint8_t *buf, uint32_t len, uint32_t timeout) {
-  for (uint32_t i = 0; i < len; i++) {
-    while (usart_get_flag(BLE_UART, USART_SR_RXNE) == 0) {
-      timeout--;
-      if (timeout == 0) {
-        return false;
-      }
-    }
-    buf[i] = usart_recv(BLE_UART) & 0xff;
-    timeout = USART_TIMEOUT;
-  }
-  return true;
-}
-
 extern trans_fifo ble_update_fifo;
 
-static bool usart_rev_package(uint8_t *buf) {
-  uint8_t len = 0;
-  uint8_t *p_buf = buf;
-  if (!usart_read_bytes(p_buf, 2, USART_TIMEOUT)) {
-    return false;
-  }
-  if (p_buf[0] == 0x0B && p_buf[1] <= 100) {
-    if (!fifo_write_no_overflow(&ble_update_fifo, p_buf, 2)) {
-    }
-    return false;
-  }
-  if (p_buf[0] != 0x5A || p_buf[1] != 0xA5) {
-    return false;
-  }
-  p_buf += 2;
-  if (!usart_read_bytes(p_buf, 2, USART_TIMEOUT)) {
-    return false;
+void usart_process_dma_rx(void) {
+  uint16_t dma_remaining = dma_get_number_of_data(DMA1, DMA_STREAM5);
+
+  uint16_t write_pos =
+      (USART_DMA_RX_BUFFER_SIZE - dma_remaining) % USART_DMA_RX_BUFFER_SIZE;
+
+  uint16_t read_pos = usart_dma_rx_read_pos;
+
+  if (write_pos == read_pos) {
+    return;
   }
 
-  len = (p_buf[0] << 8) + p_buf[1];
-  if (len > UART_PACKET_MAX_LEN - 5) {
-    return false;
+  uint16_t available = 0;
+  if (write_pos > read_pos) {
+    available = write_pos - read_pos;
+  } else {
+    available = USART_DMA_RX_BUFFER_SIZE - read_pos + write_pos;
   }
-  p_buf += 2;
-  if (!usart_read_bytes(p_buf, len - 1, USART_TIMEOUT)) {
-    return false;
+
+  uint16_t processed = 0;
+  uint16_t current_pos = read_pos;
+
+  while (processed < available) {
+    if (available - processed < 2) {
+      break;
+    }
+    uint8_t byte0 = usart_dma_rx_buffer[current_pos];
+    uint8_t byte1 =
+        usart_dma_rx_buffer[(current_pos + 1) % USART_DMA_RX_BUFFER_SIZE];
+
+    if (byte0 == 0x0B && byte1 <= 100) {
+      fifo_write_no_overflow(&ble_update_fifo,
+                             usart_dma_rx_buffer + current_pos, 2);
+      current_pos = (current_pos + 2) % USART_DMA_RX_BUFFER_SIZE;
+      processed += 2;
+      continue;
+    }
+
+    if (available - processed < 4) {
+      break;
+    }
+
+    if (byte0 != 0x5A || byte1 != 0xA5) {
+      current_pos = (current_pos + 1) % USART_DMA_RX_BUFFER_SIZE;
+      processed++;
+      continue;
+    }
+
+    uint8_t byte2 =
+        usart_dma_rx_buffer[(current_pos + 2) % USART_DMA_RX_BUFFER_SIZE];
+    uint8_t byte3 =
+        usart_dma_rx_buffer[(current_pos + 3) % USART_DMA_RX_BUFFER_SIZE];
+    uint16_t packet_len = ((uint16_t)byte2 << 8) | byte3;
+    uint16_t total_packet_len = 4 + packet_len;
+
+    if (total_packet_len > UART_PACKET_MAX_LEN || total_packet_len == 0) {
+      current_pos = (current_pos + 1) % USART_DMA_RX_BUFFER_SIZE;
+      processed++;
+      continue;
+    }
+
+    if (available - processed < total_packet_len) {
+      break;
+    }
+
+    uint8_t packet_buf[UART_PACKET_MAX_LEN];
+    for (uint16_t i = 0; i < total_packet_len; i++) {
+      packet_buf[i] =
+          usart_dma_rx_buffer[(current_pos + i) % USART_DMA_RX_BUFFER_SIZE];
+    }
+
+    uint8_t xor = calXor(packet_buf, total_packet_len - 1);
+    uint8_t received_xor = packet_buf[total_packet_len - 1];
+
+    if (xor != received_xor) {
+      current_pos = (current_pos + 1) % USART_DMA_RX_BUFFER_SIZE;
+      processed++;
+      continue;
+    }
+
+    ble_uart_poll(packet_buf);
+
+    current_pos = (current_pos + total_packet_len) % USART_DMA_RX_BUFFER_SIZE;
+    processed += total_packet_len;
   }
-  p_buf += len - 1;
-  if (!usart_read_bytes(p_buf, 1, USART_TIMEOUT)) {
-    return false;
-  }
-  uint8_t xor = calXor(buf, len + 3);
-  if (xor != *p_buf) {
-    return false;
-  }
-  return true;
+
+  usart_dma_rx_read_pos = current_pos;
 }
 
 void usart2_isr(void) {
-  uint8_t uart_buf[UART_PACKET_MAX_LEN] = {0};
-  if (usart_get_flag(BLE_UART, USART_SR_RXNE) != 0) {
-    if (usart_rev_package(uart_buf)) {
-      ble_uart_poll(uart_buf);
-    }
+  uint32_t isr = USART_SR(BLE_UART);
+  volatile uint8_t temp;
+
+  if (isr & USART_SR_IDLE) {
+    temp = USART_DR(BLE_UART);
+    (void)temp;
+    usart_process_dma_rx();
+  }
+
+  if (isr & (USART_SR_ORE | USART_SR_FE | USART_SR_NE)) {
+    temp = USART_DR(BLE_UART);
+    (void)temp;
   }
 }

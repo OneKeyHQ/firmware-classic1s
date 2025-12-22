@@ -244,9 +244,9 @@ int main(void) {
 #endif
   // ble_reset();
 #if !EMULATOR
-  register_timer("button", timer1s / 2, buttonsTimer);
-  register_timer("button_long", timer1s / 5, longPressTimer);
-  register_timer("charge_dis", timer1s, chargeDisTimer);
+  register_timer(TIMER_NAME_BUTTON, timer1s / 2, buttonsTimer);
+  register_timer(TIMER_NAME_LONG_PRESS, timer1s / 5, longPressTimer);
+  register_timer(TIMER_NAME_CHARGE_DIS, timer1s, chargeDisTimer);
 #endif
   __stack_chk_guard = random32();  // this supports compiler provided
                                    // unpredictable stack protection checks

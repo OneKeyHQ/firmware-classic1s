@@ -5,7 +5,7 @@
 #define T__WELCOME_TO_ONEKEY_EXCLAM 0
 // Quick Start
 #define T__QUICK_START 1
-// Next, Follow the onscreen instructions to set up your OneKey Classic.
+// Next, follow the onscreen instructions to set up your OneKey Classic.
 #define C__NEXT_FOLLOW_THE_ONSCREEN_INSTRUCTIONS_TO_SET_UP_YOUR_ONEKEY_CLASSIC 2
 // Set Up
 #define T__SET_UP 3
@@ -27,8 +27,8 @@
 #define O__24_WORDS 10
 // Back Up Phrase
 #define T__BACK_UP_RECOVERY_PHRASE 11
-// The next screen will start display {} words called Recovery Phrase. Write it
-// down on sheet in order
+// The next screen will start displaying {} words called Recovery Phrase. Write
+// them down on a sheet in order.
 #define C__THE_NEXT_SCREEN_WILL_START_DISPLAY_STR_WORDS_CALLED_RECOVERY_PHRASE_WRITE_IT_DOWN_ON_SHEET_IN_ORDER 12
 // Word #{}
 #define T__WORD_SHARP_STR 13
@@ -48,7 +48,7 @@
 #define C__NEXT_FOLLOW_THE_GUIDE_AND_CHECK_WORDS_ONE_BY_ONE 20
 // Check Word #{}
 #define T__CHECK_WORD_SHARP_STR 21
-// Incorrect word! check your backup and try again.
+// Incorrect word! Check your backup and try again.
 #define C__INCORRECT_WORD_EXCLAM_CHECK_YOUR_BACKUP_AND_TRY_AGAIN 22
 // Awesome! Your backup is complete.
 #define C__AWESOME_EXCLAM_YOUR_BACKUP_IS_COMPLETE 23
@@ -59,7 +59,7 @@
 #define C__RECOVERY_PHRASE_IS_THE_ONLY_WAY_TO_RECOVER_YOUR_ASSETS_SO_KEEP_IT_IN_A_SAFE_PLACE 25
 // Set PIN
 #define T__SET_PIN 26
-// Set a 4 to 9-digits PIN to protect your wallet.
+// Set a 4- to 9-digit PIN to protect your wallet.
 #define C__SET_A_4_TO_9_DIGITS_PIN_TO_PROTECT_YOUR_WALLET 27
 // Enter New PIN
 #define T__ENTER_NEW_PIN 28
@@ -73,7 +73,7 @@
 #define C__PIN_IS_SET 32
 // Congratulations!
 #define T__CONGRATULATIONS_EXCLAM 33
-// Wallet is ready! Download OneKey App and have fun with your wallet.
+// Wallet is ready! Download OneKey App and start using your OneKey Classic.
 #define C__WALLET_IS_READY_EXCLAM_DOWNLOAD_ONEKEY_APPS_AND_HAVE_FUN_WITH_YOUR_ONEKEY_CLASSIC 34
 // Download OneKey Apps
 #define T__DOWNLOAD_ONEKEY_APPS 35
@@ -97,7 +97,7 @@
 #define T__ENTER_WORD_SHARP_STR 44
 // Review Wordlist
 #define T__REVIEW_WORDLIST 45
-// The next screen will start display the {} words you just entered.
+// The next screen will start displaying the {} words you just entered.
 #define C__THE_NEXT_SCREEN_WILL_START_DISPLAY_THE_STR_WORDS_YOU_JUST_ENTERED 46
 // Abort Import?
 #define T__ABORT_IMPORT_QUES 47
@@ -272,7 +272,7 @@
 #define C__THIS_WILL_PREVENT_YOU_FROM_USING_THIRD_PARTY_WALLET_CLIENT_AND_WEBSITES_WHICH_ONLY_SUPPORT_TREZOR 123
 // It will take effect after the restart.
 #define C__IT_WILL_TAKE_EFFECT_AFTER_DEVICE_RESTART 124
-// WARNING! Do not change this setting if you not sure.
+// WARNING! Do not change this setting if you are not sure.
 #define C__WARNING_EXCLAM_DONOT_CHANGE_THIS_SETTING_IF_YOU_NOT_SURE 125
 // Turn On Trezor Mode
 #define T__RESTORE_TREZOR_COMPAT 126
@@ -857,7 +857,7 @@
 #define C__NEXT_PLEASE_ENTER_THE_HIDDEN_WALLET_PIN_YOU_WANT_TO_REMOVE 407
 // Enter Hidden PIN
 #define T__ENTER_HIDDEN_PIN 408
-// Remove PIN? You won’t be able to use it to unlock the device
+// Remove this PIN? You won’t be able to use it to unlock the device
 #define C__REMOVE_PIN_YOU_WILL_NOT_BE_ABLE_TO_USE_IT_TO_UNLOCK_THE_DEVICE 409
 // PIN removed!
 #define C__PIN_REMOVED 410
@@ -889,7 +889,7 @@
 #define I_TYPED_DATA_AUTHORIZATION_WARNING 423
 // Review Struct:
 #define I_REVIEW_STRUCT 424
-// Tips: Press “             ” both at once to switch case / numbers / symbols.
+// Tips: Press “             ” both at once to switch case, numbers, symbols.
 #define C__TIPS_PRESS_BOTH_AT_ONCE_TO_SWITCH_CASE_NUMBERS_SYMBOLS 425
 // Safe Transaction
 #define T_CONFIRM_SAFE_TX 426
@@ -919,5 +919,17 @@
 #define I_APPROVE_UNLIMITED_TOKEN 438
 // Revoke unlimited {}
 #define I_REVOKE_UNLIMITED_TOKEN 439
+// Do you want to change language?
+#define C_CHANGE_LANGUAGE 440
+// Do you want to change auto lock time?
+#define C_CHANGE_AUTO_LOCK 441
+// Do you want to change auto shutdown time?
+#define C_CHANGE_AUTO_SHUTDOWN 442
+// Confirm Pairing
+#define T__CONFIRM_PAIRING 443
+// Pair failed
+#define C__PAIR_FAILED 444
+// Device paired
+#define C__DEVICE_PAIRED 445
 #endif
 // clang-format on

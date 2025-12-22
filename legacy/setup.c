@@ -200,6 +200,8 @@ void setupApp(void) {
   // change oled refresh frequency
   oledUpdateClk();
   gd32_flash_init();
+
+  ble_usart_init();
 }
 
 void mpu_config_off(void) {

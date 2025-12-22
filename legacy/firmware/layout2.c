@@ -225,8 +225,6 @@ void layout_index_count(int index, int count) {
                         FONT_SMALL);
 }
 
-void *layoutLast = NULL;
-
 void layoutDialogSwipeWrapping(const BITMAP *icon, const char *btnNo,
                                const char *btnYes, const char *heading,
                                const char *description, const char *wrap_text) {
@@ -373,7 +371,7 @@ void refreshUsbConnectTips(void) {
 void layoutStatusLogoEx(bool fresh) {
 #if !EMULATOR
   if (hide_icon) return;
-  if (ble_passkey_state()) return;
+  if (layoutLast == layoutBlePasskey) return;
 #endif
 
   static int logo_width = 0;
@@ -2272,12 +2270,30 @@ void layoutHomeInfo(void) {
   uint8_t key = KEY_NULL;
   key = keyScan();
   msg_command_inprogress = false;
-  if (layoutLast == onboarding) {
 #if !EMULATOR
-    if (ble_passkey_state()) {
+  if (layoutLast == layoutBlePasskey) {
+    if (key == KEY_CONFIRM) {
+      ble_passkey_confirm();
+      layoutBlePasskeyDismiss();
+      return;
+    } else if (key == KEY_CANCEL) {
+      ble_passkey_cancel();
+      layoutBlePairFailed();
       return;
     }
+    return;
+  }
+
+  if (layoutBlePairResultShowing()) {
+    if (key == KEY_CONFIRM) {
+      layoutBlePairResultDismiss();
+      layoutHome();
+      return;
+    }
+    return;
+  }
 #endif
+  if (layoutLast == onboarding) {
     onboarding(key);
   } else {
     layoutEnterSleep(0);
