@@ -64,8 +64,6 @@ typedef struct {
   bool loop;
 } layout_screen_t;
 
-extern void *layoutLast;
-
 void layout_screen(layout_screen_t screen);
 
 int get_truncate_position(const char *msg, bool *is_end);

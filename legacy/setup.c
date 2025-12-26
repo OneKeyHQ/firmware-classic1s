@@ -131,10 +131,10 @@ void setup(void) {
   gpio_set_af(OLED_CS_PORT, GPIO_AF5, OLED_SCK_PIN | OLED_MOSI_PIN);
   gpio_mode_setup(OLED_CS_PORT, GPIO_MODE_AF, GPIO_PUPD_NONE,
                   OLED_SCK_PIN | OLED_MOSI_PIN);
-  gpio_set_output_options(OLED_CS_PORT, GPIO_OTYPE_PP, GPIO_OSPEED_50MHZ,
+  gpio_set_output_options(OLED_CS_PORT, GPIO_OTYPE_PP, GPIO_OSPEED_25MHZ,
                           OLED_SCK_PIN | OLED_MOSI_PIN);
   gpio_mode_setup(OLED_CS_PORT, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO0);
-  gpio_set_output_options(OLED_CS_PORT, GPIO_OTYPE_PP, GPIO_OSPEED_50MHZ,
+  gpio_set_output_options(OLED_CS_PORT, GPIO_OTYPE_PP, GPIO_OSPEED_25MHZ,
                           GPIO0);
 
   spi_init_master(OLED_SPI_BASE, SPI_CR1_BAUDRATE_FPCLK_DIV_8,
@@ -200,6 +200,8 @@ void setupApp(void) {
   // change oled refresh frequency
   oledUpdateClk();
   gd32_flash_init();
+
+  ble_usart_init();
 }
 
 void mpu_config_off(void) {

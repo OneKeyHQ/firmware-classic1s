@@ -29,6 +29,8 @@
 // USB/BLE/BATTERY/CHARGE
 #define STATUS_LOGO_WIDTH_MAX 5 * LOGO_WIDTH
 
+extern void *layoutLast, *layoutLastBackup;
+
 #if !EMULATOR
 void chargeDisTimer(void);
 #endif
@@ -56,6 +58,11 @@ void layoutProgress(const char *desc, int permil);
 void layoutStatusLogo(void);
 void disBatteryLevel(int offset_x, uint8_t cur_level);
 void layoutBlePasskey(uint8_t *passkey);
+void layoutBlePairSuccess(void);
+void layoutBlePairFailed(void);
+bool layoutBlePairResultShowing(void);
+void layoutBlePairResultDismiss(void);
+void layoutBlePasskeyDismiss(void);
 void layoutFillBleName(uint8_t line);
 void layoutFillBleVersion(uint8_t line);
 void layoutError(const char *line1, const char *line2);

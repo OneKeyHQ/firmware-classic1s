@@ -22,6 +22,7 @@
 #include <libopencm3/cm3/systick.h>
 #include <libopencm3/cm3/vector.h>
 #include <libopencm3/stm32/rcc.h>
+#include <vendor/libopencm3/include/libopencmsis/core_cm3.h>
 
 #include "buttons.h"
 #include "layout.h"
@@ -48,7 +49,7 @@ void delay_us(uint32_t uiDelay_us) {
   }
 }
 
-#define TIMER_NUM 5
+#define TIMER_NUM 6
 typedef struct {
   char name[32];
   uint32_t current;
@@ -61,26 +62,36 @@ TimerDsec timer_array[TIMER_NUM] = {0};
 void register_timer(char *name, uint32_t cyc, timer_func fp) {
   int i;
 
+  __disable_irq();
+
   for (i = 0; i < TIMER_NUM; i++) {
     if (!timer_array[i].fp) {
       strcpy(timer_array[i].name, name);
       timer_array[i].current = system_millis;
       timer_array[i].cycle = cyc;
       timer_array[i].fp = fp;
+      __enable_irq();
       return;
     }
   }
+
+  __enable_irq();
 }
 
 void unregister_timer(char *name) {
   int i;
 
+  __disable_irq();
+
   for (i = 0; i < TIMER_NUM; i++) {
     if (!strcmp(timer_array[i].name, name)) {
-      memset(timer_array[i].name, 0x00, sizeof(TimerDsec));
+      memset(&timer_array[i], 0x00, sizeof(TimerDsec));
+      __enable_irq();
       return;
     }
   }
+
+  __enable_irq();
 }
 
 static uint32_t timer_out_array[timer_out_null];
@@ -119,6 +130,9 @@ void timer_init(void) {
 
   /* SysTick as interrupt */
   systick_interrupt_enable();
+
+  // set systick interrupt priority lowest level
+  nvic_set_priority(NVIC_SYSTICK_IRQ, 0x0f << 4);
 
   systick_counter_enable();
 }

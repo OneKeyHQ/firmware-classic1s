@@ -82,6 +82,18 @@ def load_hash_entries(txt_file) -> dict[bytes, str]:
     }
 
 
+def load_hash_entries_reversed(txt_file) -> list[tuple[bytes, str]]:
+    """Load hash entries from bl_check.txt, reversed (last line first)."""
+    lines = txt_file.read_text().splitlines()
+    # Reverse the lines so last entry (newest) is processed first
+    return [
+        (bytes.fromhex(digest), comment)
+        for digest, comment in (
+            line.split(" ", maxsplit=1) for line in reversed(lines)
+        )
+    ]
+
+
 def regenerate_bl_check(
     hash_entries: t.Iterable[tuple[bytes, str]],
     begin,
@@ -143,9 +155,9 @@ def main(comment: str | None, qa: bool) -> None:
     end = BL_CHECK_AUTO_QA_END if qa else BL_CHECK_AUTO_END
     image = BOOTLOADER_QA_IMAGE if qa else BOOTLOADER_IMAGE
 
-    entries = load_hash_entries(txt_file)
-    if digest in entries:
-        click.echo("Bootloader already in bl_check.txt: " + entries[digest])
+    entries_dict = load_hash_entries(txt_file)
+    if digest in entries_dict:
+        click.echo("Bootloader already in bl_check.txt: " + entries_dict[digest])
 
     else:
         if comment is None:
@@ -157,11 +169,12 @@ def main(comment: str | None, qa: bool) -> None:
         with open(txt_file, "a") as f:
             f.write(f"{digest.hex()} {comment}\n")
 
-        entries[digest] = comment
+        entries_dict[digest] = comment
         click.echo("Inserted new entry: " + comment)
 
-    # rewrite bl_check.c
-    regenerate_bl_check(entries.items(), begin, end)
+    # rewrite bl_check.c with entries in reverse order (last line first)
+    entries_list = load_hash_entries_reversed(txt_file)
+    regenerate_bl_check(entries_list, begin, end)
     click.echo("Regenerated bl_check.c")
 
     # overwrite bootloader.dat

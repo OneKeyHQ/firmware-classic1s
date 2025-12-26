@@ -32,6 +32,14 @@
 #define default_oper_time timer1s * 300
 #define default_resp_time timer1s * 300
 
+#define TIMER_NAME_BUTTON "BUTTON"
+#define TIMER_NAME_PAIR_RESULT "PAIR_RESULT"
+#define TIMER_NAME_USB_POLL "USB_POLL"
+#define TIMER_NAME_LONG_PRESS "LONG_PRESS"
+#define TIMER_NAME_POWEROFF "POWEROFF"
+#define TIMER_NAME_CHARGE_DIS "CHARGE_DIS"
+#define TIMER_NAME_CTAP_KEEPALIVE "CTAP_KEEPALIVE"
+
 typedef enum _TimerOut {
   timer_out_cmd = 0,
   timer_out_countdown,

@@ -1121,12 +1121,12 @@ bool config_unlock(const char *pin, pin_type_t pin_type) {
   } else {
     char oldTiny = usbTiny(1);
 #if !EMULATOR
-    register_timer("usbpoll", timer1s / 30, usbPoll);
+    register_timer(TIMER_NAME_USB_POLL, timer1s / 30, usbPoll);
 #endif
     secbool ret =
         storage_unlock((const uint8_t *)pin, strnlen(pin, MAX_PIN_LEN), NULL);
 #if !EMULATOR
-    unregister_timer("usbpoll");
+    unregister_timer(TIMER_NAME_USB_POLL);
 #endif
     usbTiny(oldTiny);
     return sectrue == ret;

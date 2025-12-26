@@ -3,6 +3,7 @@ BOOT_BUILD_VERSION=$(shell ../../tools/version.sh version.h)
 BUILD_COMMIT=$(shell git rev-parse HEAD | cut -c1-7)
 NAME  = classic1s_bootloader.$(BOOT_BUILD_VERSION)-Stable-$(BUILD_COMMIT)
 
+OBJS += ../layout.o
 OBJS += startup.o
 OBJS += bootloader.o
 OBJS += usb.o

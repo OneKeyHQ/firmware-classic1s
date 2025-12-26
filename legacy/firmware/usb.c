@@ -358,7 +358,7 @@ static void main_rx_callback(usbd_device *dev, uint8_t ep) {
     host_channel = CHANNEL_SLAVE;
   }
   timer_sleep_start_reset();
-  unregister_timer("poweroff");
+  unregister_timer(TIMER_NAME_POWEROFF);
   debugLog(0, "", "main_rx_callback");
   if (!tiny) {
     msg_read(buf, sizeof(buf));
@@ -539,6 +539,7 @@ void usbPoll(void) {
     if (cpu_mode == UNPRIVILEGED) {
       mpu_config_firmware();
     }
+    ble_ctl_disconnect();
     __asm__ volatile("b reset_handler");
   } else if (reset) {
     clear_msg_out();

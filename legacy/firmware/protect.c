@@ -20,6 +20,7 @@
 #include "protect.h"
 #include <stdint.h>
 #include <sys/types.h>
+#include "ble.h"
 #include "buttons.h"
 #include "common.h"
 #include "config.h"
@@ -966,7 +967,7 @@ uint8_t protectWaitKey(uint32_t time_out, uint8_t mode) {
       if (layoutLast == onboarding) {
 #if !EMULATOR
         timer_sleep_start_reset();
-        unregister_timer("poweroff");
+        unregister_timer(TIMER_NAME_POWEROFF);
 #endif
       } else {
         key = KEY_NULL;
@@ -1008,6 +1009,21 @@ uint8_t protectWaitKey(uint32_t time_out, uint8_t mode) {
 
     key = keyScan();
     if (key != KEY_NULL) {
+      if (layoutLast == layoutBlePasskey) {
+        if (key == KEY_CONFIRM) {
+          ble_passkey_confirm();
+          layoutBlePasskeyDismiss();
+        } else if (key == KEY_CANCEL) {
+          ble_passkey_cancel();
+          layoutBlePairFailed();
+        }
+        continue;
+      }
+      if (layoutLast == layoutBlePairSuccess ||
+          layoutLast == layoutBlePairFailed) {
+        layoutBlePairResultDismiss();
+        continue;
+      }
       if (device_sleep_state) device_sleep_state = SLEEP_CANCEL_BY_BUTTON;
       if (mode == 0) {
         break;
@@ -1732,7 +1748,7 @@ void enter_sleep(void) {
   if (sleep_count == 1) {
     timer_sleep_start_reset();
     config_getAutoLockDelayMs();  // Cached
-    register_timer("poweroff", timer1s, auto_poweroff_timer);
+    register_timer(TIMER_NAME_POWEROFF, timer1s, auto_poweroff_timer);
     layoutBack = layoutLast;
     oledBufferLoad(oled_prev);
     if (config_hasPin()) {

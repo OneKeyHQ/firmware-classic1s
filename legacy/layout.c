@@ -19,9 +19,17 @@
 
 #include "layout.h"
 #include "ble.h"
+#include "common.h"
 #include "oled.h"
 #include "prompt.h"
 #include "usart.h"
+#include "util.h"
+
+#ifdef FIRMWARE
+#include "firmware/gettext.h"
+#include "firmware/i18n/keys.h"
+#include "firmware/oled_text.h"
+#endif
 
 #if !EMULATOR
 #include "sys.h"
@@ -29,6 +37,37 @@
 #endif
 
 static bool refresh_home = true;
+void *layoutLast = NULL, *layoutLastBackup = NULL;
+
+void pair_cancel_timeout_callback(void) {
+  if (layoutLast == layoutBlePasskey) {
+    unregister_timer(TIMER_NAME_PAIR_RESULT);
+    layoutLast = layoutLastBackup;
+    oledRefresh();
+    ble_passkey_cancel();
+  }
+}
+
+static void pair_result_timeout_callback(void) {
+  if (layoutLast == layoutBlePairSuccess || layoutLast == layoutBlePairFailed) {
+    unregister_timer(TIMER_NAME_PAIR_RESULT);
+    layoutLast = layoutLastBackup;
+    oledRefresh();
+  }
+}
+
+bool layoutBlePairResultShowing(void) {
+  return (layoutLast == layoutBlePairSuccess ||
+          layoutLast == layoutBlePairFailed);
+}
+
+void layoutBlePairResultDismiss(void) {
+  if (layoutLast == layoutBlePairSuccess || layoutLast == layoutBlePairFailed) {
+    unregister_timer(TIMER_NAME_PAIR_RESULT);
+    layoutLast = layoutLastBackup;
+    oledRefresh();
+  }
+}
 
 bool layoutNeedRefresh(void) {
   if (refresh_home) {
@@ -109,6 +148,28 @@ inline void layoutDialogEx(const BITMAP *icon, const char *btnNo,
   oledRefresh();
 }
 
+#ifdef FIRMWARE
+static void layoutTitle(const char *title) {
+  oledBox(0, 0, OLED_WIDTH, 10, false);
+  if (ui_language == 0) {
+    oledDrawStringCenterAdapter(OLED_WIDTH / 2, 2, title, FONT_STANDARD);
+  } else {
+    oledDrawStringCenterAdapter(OLED_WIDTH / 2, 1, title, FONT_STANDARD);
+  }
+
+  oledInvert(0, 0, OLED_WIDTH, 10);
+
+  oledBox(0, 0, 2, 2, false);
+  oledBox(1, 1, 2, 2, true);
+  oledBox(0, 10 - 2, 2, 10, false);
+  oledBox(1, 10 - 2, 2, 10 - 1, true);
+
+  oledBox(OLED_WIDTH - 3, 0, OLED_WIDTH - 1, 2, false);
+  oledBox(OLED_WIDTH - 3, 1, OLED_WIDTH - 2, 2, true);
+  oledBox(OLED_WIDTH - 3, 10 - 2, OLED_WIDTH - 1, 10, false);
+  oledBox(OLED_WIDTH - 3, 10 - 3, OLED_WIDTH - 2, 10 - 1, true);
+}
+#else
 static void layoutTitle(const char *title) {
   oledBox(0, 0, OLED_WIDTH, 10, false);
   oledDrawStringCenter(OLED_WIDTH / 2, 2, title, FONT_STANDARD);
@@ -125,6 +186,7 @@ static void layoutTitle(const char *title) {
   oledBox(OLED_WIDTH - 3, 10 - 2, OLED_WIDTH - 1, 10, false);
   oledBox(OLED_WIDTH - 3, 10 - 3, OLED_WIDTH - 2, 10 - 1, true);
 }
+#endif
 
 void layoutDialogCenterAdapterEx(const BITMAP *icon, const BITMAP *bmp_no,
                                  const BITMAP *bmp_yes, const char *title,
@@ -346,10 +408,111 @@ void layoutStatusLogo(void) {
 }
 
 void layoutBlePasskey(uint8_t *passkey) {
+  unregister_timer(TIMER_NAME_PAIR_RESULT);
+  oledSwitchToOverlayBuffer();
   oledClear();
-  layoutTitle("Bluetooth Pair");
-  oledDrawStringCenter(60, 20, (char *)passkey, FONT_DOUBLE);
-  oledDrawStringCenter(60, 40, "Enter pair code on device", FONT_STANDARD);
+#ifdef FIRMWARE
+  bool use_new_display = false;
+  char *ble_ver = NULL;
+  if (ble_ver_state() && ble_get_version(&ble_ver) && ble_ver != NULL) {
+    if (compare_str_version(ble_ver, "1.5.6") >= 0) {
+      use_new_display = true;
+    }
+  }
+  if (use_new_display) {
+    layoutTitle(_(T__CONFIRM_PAIRING));
+    oledDrawStringCenter(60, 20, (char *)passkey, FONT_DOUBLE);
+    oledDrawBitmap(1, OLED_HEIGHT - 11, &bmp_bottom_left_close);
+    oledDrawBitmap(OLED_WIDTH - 16 - 1, OLED_HEIGHT - 11,
+                   &bmp_bottom_right_confirm);
+  } else {
+    layoutTitle(_(T__BLUETOOTH_PAIR));
+    oledDrawStringCenter(60, 20, (char *)passkey, FONT_DOUBLE);
+    oledDrawStringCenterAdapter(60, 40, _(C__ENTER_PAIR_CODE_ON_DEVICE),
+                                FONT_STANDARD);
+    oledDrawBitmap(1, OLED_HEIGHT - 11, &bmp_bottom_left_close);
+    oledDrawBitmap(OLED_WIDTH - 16 - 1, OLED_HEIGHT - 11,
+                   &bmp_bottom_right_confirm);
+  }
+
+#else
+
+  (void)passkey;
+  oledDrawBitmap(56, 8, &bmp_icon_error);
+  oledDrawStringCenter(OLED_WIDTH / 2, 21 + (1 * 10), "Pairing unavailable",
+                       FONT_STANDARD);
+  oledDrawStringCenter(OLED_WIDTH / 2, 21 + (2 * 10), "in bootloader mode",
+                       FONT_STANDARD);
+  register_timer(TIMER_NAME_PAIR_RESULT, timer1s * 3,
+                 pair_cancel_timeout_callback);
+
+#endif
+  oledRefresh();
+  if (layoutLast != layoutBlePairSuccess && layoutLast != layoutBlePairFailed &&
+      layoutLast != layoutBlePasskey) {
+    layoutLastBackup = layoutLast;
+  }
+  layoutLast = layoutBlePasskey;
+  oledSwitchToMainBuffer();
+}
+
+void layoutBlePairSuccess(void) {
+  oledSwitchToOverlayBuffer();
+  oledClear();
+  oledDrawBitmap(56, 8, &bmp_icon_ok);
+#ifdef FIRMWARE
+  oledDrawStringCenterAdapter(OLED_WIDTH / 2, 21 + (1 * 10),
+                              _(C__DEVICE_PAIRED), FONT_STANDARD);
+#else
+  oledDrawStringCenter(OLED_WIDTH / 2, 21 + (1 * 10), "Device paired",
+                       FONT_STANDARD);
+#endif
+  oledDrawBitmap(OLED_WIDTH - 16 - 1, OLED_HEIGHT - 11,
+                 &bmp_bottom_right_arrow);
+  oledRefresh();
+
+  if (layoutLast != layoutBlePairSuccess && layoutLast != layoutBlePairFailed &&
+      layoutLast != layoutBlePasskey) {
+    layoutLastBackup = layoutLast;
+  }
+  layoutLast = layoutBlePairSuccess;
+  unregister_timer(TIMER_NAME_PAIR_RESULT);
+  register_timer(TIMER_NAME_PAIR_RESULT, timer1s * 3,
+                 pair_result_timeout_callback);
+  oledSwitchToMainBuffer();
+}
+
+void layoutBlePairFailed(void) {
+  if (layoutLast == layoutBlePairFailed) {
+    return;
+  }
+  oledSwitchToOverlayBuffer();
+  oledClear();
+  oledDrawBitmap(56, 8, &bmp_icon_error);
+#ifdef FIRMWARE
+  oledDrawStringCenterAdapter(OLED_WIDTH / 2, 21 + (1 * 10), _(C__PAIR_FAILED),
+                              FONT_STANDARD);
+#else
+  oledDrawStringCenter(OLED_WIDTH / 2, 21 + (1 * 10), "Pair failed",
+                       FONT_STANDARD);
+#endif
+  oledDrawBitmap(OLED_WIDTH - 16 - 1, OLED_HEIGHT - 11,
+                 &bmp_bottom_right_retry);
+  oledRefresh();
+  if (layoutLast != layoutBlePairSuccess && layoutLast != layoutBlePairFailed &&
+      layoutLast != layoutBlePasskey) {
+    layoutLastBackup = layoutLast;
+  }
+  layoutLast = layoutBlePairFailed;
+  unregister_timer(TIMER_NAME_PAIR_RESULT);
+  register_timer(TIMER_NAME_PAIR_RESULT, timer1s * 3,
+                 pair_result_timeout_callback);
+  oledSwitchToMainBuffer();
+}
+
+void layoutBlePasskeyDismiss(void) {
+  layoutLast = layoutLastBackup;
+  layoutLastBackup = NULL;
   oledRefresh();
 }
 
@@ -369,8 +532,6 @@ void layoutFillBleVersion(uint8_t line) {
       oledDrawStringCenter(64, line * 8, ble_get_ver(), FONT_STANDARD);
   }
 }
-
-extern void shutdown(void);
 
 void layoutError(const char *line1, const char *line2) {
   layoutDialogCenterAdapterEx(&bmp_icon_error, NULL, NULL, NULL, line1, line2,

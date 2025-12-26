@@ -13,8 +13,14 @@
 #define BLE_ADV_ON_TEMP 0x05
 #define BLE_ADV_OFF_TEMP 0x06
 
+#define BLE_PASSKEY_CONFIRM 0x08
+#define BLE_PASSKEY_CANCEL 0x09
+
 #define BUTTON_PRESS_BLE_ON 0x01
 #define BUTTON_PRESS_BLE_OFF 0x02
+
+#define BLE_PAIR_STATE_SUCCESS 0x01
+#define BLE_PAIR_STATE_FAILED 0x02
 
 enum {
   BLE_CMD_CONNECT_STATE = 0x01,
@@ -23,7 +29,7 @@ enum {
   BLE_CMD_BT_NAME = 0x04,
   BLE_CMD_BATTERY = 0x05,
   BLE_CMD_VER = 0x06,
-  BLE_CMD_ONOFF_BLE = 0x07,
+  BLE_CMD_CTL_BLE = 0x07,
   BLE_CMD_DFU_STA = 0x0A,
   BLE_CMD_DEVICE_PUBKEY = 0x0B,
   BLE_CMD_DEVICE_SIGN = 0x0C,
@@ -44,7 +50,7 @@ enum { BLE_PBUKEY_GET = 0x00, BLE_PBUKEY_LOCK = 0x01 };
 
 bool ble_connect_state(void);
 void ble_request_info(uint8_t type);
-void ble_ctl_onoff(void);
+void ble_ctl_disconnect(void);
 void ble_reset(void);
 void ble_uart_poll(uint8_t *buf);
 void ble_update_poll(void);
@@ -73,8 +79,9 @@ void ble_set_switch(bool flag);
 bool ble_get_switch(void);
 void ble_request_switch_state(void);
 void change_ble_sta(uint8_t mode);
-bool ble_passkey_state(void);
 bool ble_hw_ver_state(void);
+void ble_passkey_confirm(void);
+void ble_passkey_cancel(void);
 #else
 #define ble_name_state(...) false
 #define ble_ver_state(...) false

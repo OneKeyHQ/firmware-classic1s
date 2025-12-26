@@ -59,7 +59,10 @@
 
 static uint8_t _oledbuffer[OLED_BUFSIZE];
 static uint8_t _oledbuffer_bak[OLED_BUFSIZE];
+static uint8_t _oledbuffer_overlay[OLED_BUFSIZE];
 static bool is_debug_link = 0;
+static bool overlay_buffer_active = false;
+static uint8_t *current_buffer = _oledbuffer;
 
 /*
  * macros to convert coordinate to bit position
@@ -71,7 +74,7 @@ static bool is_debug_link = 0;
  * Return the state of the pixel at x, y
  */
 bool oledGetPixel(int x, int y) {
-  return _oledbuffer[OLED_OFFSET(x, y)] & OLED_MASK(x, y);
+  return current_buffer[OLED_OFFSET(x, y)] & OLED_MASK(x, y);
 }
 
 /*
@@ -81,7 +84,7 @@ void oledDrawPixel(int x, int y) {
   if ((x < 0) || (y < 0) || (x >= OLED_WIDTH) || (y >= OLED_HEIGHT)) {
     return;
   }
-  _oledbuffer[OLED_OFFSET(x, y)] |= OLED_MASK(x, y);
+  current_buffer[OLED_OFFSET(x, y)] |= OLED_MASK(x, y);
 }
 
 /*
@@ -91,7 +94,7 @@ void oledClearPixel(int x, int y) {
   if ((x < 0) || (y < 0) || (x >= OLED_WIDTH) || (y >= OLED_HEIGHT)) {
     return;
   }
-  _oledbuffer[OLED_OFFSET(x, y)] &= ~OLED_MASK(x, y);
+  current_buffer[OLED_OFFSET(x, y)] &= ~OLED_MASK(x, y);
 }
 
 /*
@@ -101,7 +104,7 @@ void oledInvertPixel(int x, int y) {
   if ((x < 0) || (y < 0) || (x >= OLED_WIDTH) || (y >= OLED_HEIGHT)) {
     return;
   }
-  _oledbuffer[OLED_OFFSET(x, y)] ^= OLED_MASK(x, y);
+  current_buffer[OLED_OFFSET(x, y)] ^= OLED_MASK(x, y);
 }
 
 #if !EMULATOR
@@ -184,15 +187,15 @@ void oledUpdateClk(void) {
 /*
  * Clears the display buffer (sets all pixels to black)
  */
-void oledClear() { memzero(_oledbuffer, sizeof(_oledbuffer)); }
+void oledClear() { memzero(current_buffer, OLED_BUFSIZE); }
 
 void oledClearFrom_x_y(int x, int y) {
-  memzero(_oledbuffer, sizeof(_oledbuffer) -
-                           (OLED_OFFSET(OLED_WIDTH - x, OLED_HEIGHT - y - 8)));
+  memzero(current_buffer,
+          OLED_BUFSIZE - (OLED_OFFSET(OLED_WIDTH - x, OLED_HEIGHT - y - 8)));
 }
 void oledClearPart() {
   // do not clear logo status,logo line 12
-  memzero(_oledbuffer, sizeof(_oledbuffer) - (OLED_WIDTH * (LOGO_HEIGHT / 8)));
+  memzero(current_buffer, OLED_BUFSIZE - (OLED_WIDTH * (LOGO_HEIGHT / 8)));
 }
 
 void oledInvertDebugLink() {
@@ -241,7 +244,8 @@ void oledRefresh() {
 
   gpio_set(OLED_DC_PORT, OLED_DC_PIN);    // set to DATA
   gpio_clear(OLED_CS_PORT, OLED_CS_PIN);  // SPI select
-  SPISend(OLED_SPI_BASE, _oledbuffer, sizeof(_oledbuffer));
+
+  SPISend(OLED_SPI_BASE, current_buffer, OLED_BUFSIZE);
   gpio_set(OLED_CS_PORT, OLED_CS_PIN);    // SPI deselect
   gpio_clear(OLED_DC_PORT, OLED_DC_PIN);  // set to CMD
 
@@ -252,33 +256,45 @@ void oledRefresh() {
 
 #endif
 
-const uint8_t *oledGetBuffer() { return _oledbuffer; }
+const uint8_t *oledGetBuffer() { return current_buffer; }
 
-void oledSetBuffer(uint8_t *buf) {
-  memcpy(_oledbuffer, buf, sizeof(_oledbuffer));
-}
+void oledSetBuffer(uint8_t *buf) { memcpy(current_buffer, buf, OLED_BUFSIZE); }
 
 void oledSetDebugLink(bool set) {
   is_debug_link = set;
   oledRefresh();
 }
 
-void oledBufferBak(void) { memcpy(_oledbuffer_bak, _oledbuffer, OLED_BUFSIZE); }
+void oledBufferBak(void) {
+  memcpy(_oledbuffer_bak, current_buffer, OLED_BUFSIZE);
+}
 void oledBufferResume(void) {
-  memcpy(_oledbuffer, _oledbuffer_bak, OLED_BUFSIZE);
+  memcpy(current_buffer, _oledbuffer_bak, OLED_BUFSIZE);
 }
 
 void oledBufferLoad(uint8_t *buffer) {
-  memcpy(buffer, _oledbuffer, OLED_BUFSIZE);
+  memcpy(buffer, current_buffer, OLED_BUFSIZE);
 }
 
 void oledBufferRestore(uint8_t *buffer) {
-  memcpy(_oledbuffer, buffer, OLED_BUFSIZE);
+  memcpy(current_buffer, buffer, OLED_BUFSIZE);
+}
+
+void oledSwitchToOverlayBuffer(void) {
+  if (!overlay_buffer_active) {
+    current_buffer = _oledbuffer_overlay;
+    overlay_buffer_active = true;
+  }
+}
+
+void oledSwitchToMainBuffer(void) {
+  current_buffer = _oledbuffer;
+  overlay_buffer_active = false;
 }
 
 void oledclearLine(uint8_t line) {
   if (line < (OLED_HEIGHT / 8)) {
-    memzero(_oledbuffer + OLED_WIDTH * (OLED_HEIGHT / 8 - line - 1),
+    memzero(current_buffer + OLED_WIDTH * (OLED_HEIGHT / 8 - line - 1),
             OLED_WIDTH);
   }
 }
@@ -476,9 +492,10 @@ void oledSwipeLeft(void) {
   for (int i = 0; i < OLED_WIDTH; i++) {
     for (int j = 0; j < OLED_HEIGHT / 8; j++) {
       for (int k = OLED_WIDTH - 1; k > 0; k--) {
-        _oledbuffer[j * OLED_WIDTH + k] = _oledbuffer[j * OLED_WIDTH + k - 1];
+        current_buffer[j * OLED_WIDTH + k] =
+            current_buffer[j * OLED_WIDTH + k - 1];
       }
-      _oledbuffer[j * OLED_WIDTH] = 0;
+      current_buffer[j * OLED_WIDTH] = 0;
     }
     oledRefresh();
   }
@@ -492,19 +509,19 @@ void oledSwipeRight(void) {
   for (int i = 0; i < OLED_WIDTH / 4; i++) {
     for (int j = 0; j < OLED_HEIGHT / 8; j++) {
       for (int k = 0; k < OLED_WIDTH / 4 - 1; k++) {
-        _oledbuffer[k * 4 + 0 + j * OLED_WIDTH] =
-            _oledbuffer[k * 4 + 4 + j * OLED_WIDTH];
-        _oledbuffer[k * 4 + 1 + j * OLED_WIDTH] =
-            _oledbuffer[k * 4 + 5 + j * OLED_WIDTH];
-        _oledbuffer[k * 4 + 2 + j * OLED_WIDTH] =
-            _oledbuffer[k * 4 + 6 + j * OLED_WIDTH];
-        _oledbuffer[k * 4 + 3 + j * OLED_WIDTH] =
-            _oledbuffer[k * 4 + 7 + j * OLED_WIDTH];
+        current_buffer[k * 4 + 0 + j * OLED_WIDTH] =
+            current_buffer[k * 4 + 4 + j * OLED_WIDTH];
+        current_buffer[k * 4 + 1 + j * OLED_WIDTH] =
+            current_buffer[k * 4 + 5 + j * OLED_WIDTH];
+        current_buffer[k * 4 + 2 + j * OLED_WIDTH] =
+            current_buffer[k * 4 + 6 + j * OLED_WIDTH];
+        current_buffer[k * 4 + 3 + j * OLED_WIDTH] =
+            current_buffer[k * 4 + 7 + j * OLED_WIDTH];
       }
-      _oledbuffer[j * OLED_WIDTH + OLED_WIDTH - 1] = 0;
-      _oledbuffer[j * OLED_WIDTH + OLED_WIDTH - 2] = 0;
-      _oledbuffer[j * OLED_WIDTH + OLED_WIDTH - 3] = 0;
-      _oledbuffer[j * OLED_WIDTH + OLED_WIDTH - 4] = 0;
+      current_buffer[j * OLED_WIDTH + OLED_WIDTH - 1] = 0;
+      current_buffer[j * OLED_WIDTH + OLED_WIDTH - 2] = 0;
+      current_buffer[j * OLED_WIDTH + OLED_WIDTH - 3] = 0;
+      current_buffer[j * OLED_WIDTH + OLED_WIDTH - 4] = 0;
     }
     oledRefresh();
   }

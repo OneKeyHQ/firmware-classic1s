@@ -24,8 +24,8 @@ with open("bl_data.h", "wt") as f:
     )
 
 if fn != "bootloader_qa.dat":
-    # make sure the last item listed in known_bootloader function
-    # is our bootloader
+    # make sure the bootloader hash is listed in known_bootloader function
+    # (now the first item is the newest bootloader)
     with open("bl_check.c", "rt") as f:
         hashes = []
         for l in f.readlines():
@@ -36,6 +36,10 @@ if fn != "bootloader_qa.dat":
             for i in range(0, len(l), 4):
                 h += l[i + 2 : i + 4]
             hashes.append(h)
-        check = hashes[-2] + hashes[-1]
-        if check != bh.hex():
+        # Combine pairs of hash fragments (each hash is split into 2 lines)
+        combined_hashes = []
+        for i in range(0, len(hashes), 2):
+            if i + 1 < len(hashes):
+                combined_hashes.append(hashes[i] + hashes[i + 1])
+        if bh.hex() not in combined_hashes:
             raise Exception("bootloader hash not listed in bl_check.c")

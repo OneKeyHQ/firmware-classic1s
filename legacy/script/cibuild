@@ -17,7 +17,7 @@ else
     make -C vendor/libopencm3 lib/gd32/f4xx
 fi
 make -C vendor/libsol
-
+rm layout.o || true
 make
 
 if [ "$EMULATOR" != 1 ]; then
@@ -28,6 +28,7 @@ fi
 # invoking nanopb_generator to make sure its proto files are generated
 nanopb_generator >/dev/null || true
 make -C firmware/protob
+rm layout.o || true
 make -C firmware
 
 if [ "$EMULATOR" != 1 ]; then
