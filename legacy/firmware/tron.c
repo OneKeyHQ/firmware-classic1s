@@ -173,7 +173,7 @@ int pack_contract(TronSignTx *msg, uint8_t *buf, int *index,
 
   int ret = *index, len = 0, cmessage_len = 0, cmessage_index = 0, capi_len = 0,
       capi_index = 0;
-  uint8_t cmessage[1024] = {0};
+  uint8_t cmessage[2560] = {0};
   uint8_t capi[64] = {0};
   uint8_t addr_raw[MAX_ADDR_RAW_SIZE] = {0};
 
@@ -1289,7 +1289,7 @@ bool tron_sign_tx(TronSignTx *msg, const char *owner_address,
   // fill response
   resp->signature.bytes[64] = 27 + v;
   resp->signature.size = 65;
-  resp->has_serialized_tx = 1;
+  resp->has_serialized_tx = true;
   resp->serialized_tx.size = index;
 
   return true;

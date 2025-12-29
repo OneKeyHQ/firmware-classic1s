@@ -517,11 +517,6 @@ write_mnemonic:
     if (!protectChangePinOnDevice(true, true, false)) {
       goto_check(check_mnemonic);
     }
-#if EMULATOR
-    config_setMnemonic(mnemonic, false);
-#else
-    se_set_mnemonic(mnemonic, strlen(mnemonic));
-#endif
     return true;
   }
   return false;
