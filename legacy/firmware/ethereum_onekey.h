@@ -96,6 +96,9 @@ bool ethereum_parse_onekey(const char *address, uint8_t pubkeyhash[20]);
     case 1030:                                     \
       chain_name = "Conflux eSpace";               \
       break;                                       \
+    case 1672:                                     \
+      chain_name = "Pharos";                       \
+      break;                                       \
     case 8453:                                     \
       chain_name = "Base";                         \
       break;                                       \
