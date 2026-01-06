@@ -66,7 +66,7 @@ const char *const languages_en[] = {
     "Enable",
     "Disable",
     "1 minute",
-    "{} minutes",
+    "{} min",
     "Never",
     "1 hour",
     "{} hours",

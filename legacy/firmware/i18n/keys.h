@@ -147,7 +147,7 @@
 #define O__DISABLE 65
 // 1 minute
 #define O__1_MINUTE 66
-// {} minutes
+// {} min
 #define O__STR_MINUTES 67
 // Never
 #define O__NEVER 68
