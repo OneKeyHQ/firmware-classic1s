@@ -971,7 +971,9 @@ void menu_default(void) {
   menu_init_settings_menu();
   bool fido_switch = false;
   config_getFidoSwitch(&fido_switch);
+#if !BITCOIN_ONLY
   menu_update(&main_menu, counts, fido_switch ? 5 : 4);
+#endif
   menu_init(&main_menu);
 }
 
