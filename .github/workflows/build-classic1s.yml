@@ -1,12 +1,14 @@
 name: "build-classic1s"
 
 on:
-  schedule:
-    - cron: '30 19 * * 0,1,2,3,4'
+  pull_request:
+    branches: [master]
+    types: [closed]
   workflow_dispatch:
 
 jobs:
   build-classic1s:
+    if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     name: "Build Classic1S (${{ matrix.artifact_suffix }})"
     outputs:
