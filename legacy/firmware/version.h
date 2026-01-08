@@ -8,9 +8,9 @@
 
 #define ONEKEY_VER_MAJOR 3
 #define ONEKEY_VER_MINOR 17
-#define ONEKEY_VER_PATCH 0
+#define ONEKEY_VER_PATCH 1
 
-#define ONEKEY_VERSION "3.17.0"
+#define ONEKEY_VERSION "3.17.1"
 // Deprecated
 #define ONEKEY_VERSION_HEX 0x3F00
 
