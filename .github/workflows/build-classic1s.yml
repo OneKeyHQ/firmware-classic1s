@@ -1,14 +1,12 @@
 name: "build-classic1s"
 
 on:
-  pull_request:
+  push:
     branches: [master]
-    types: [closed]
   workflow_dispatch:
 
 jobs:
   build-classic1s:
-    if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     name: "Build Classic1S (${{ matrix.artifact_suffix }})"
     outputs:
