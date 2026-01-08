@@ -1621,8 +1621,6 @@ bool se_isFactoryMode(void) {
   //   return true;
   // }
 
-  return false;
-
   uint8_t cmd[5] = {0x00, 0xf8, 0x04, 0x00, 0x00};
   uint8_t flag = 0xff;
   uint16_t len = sizeof(flag);
