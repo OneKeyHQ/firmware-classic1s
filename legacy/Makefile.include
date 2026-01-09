@@ -171,11 +171,12 @@ endif
 
 ifeq ($(BITCOIN_ONLY), 1)
 CFLAGS += -DBITCOIN_ONLY=1
-CFLAGS += -DU2F_ENABLED=0
 else
 CFLAGS += -DBITCOIN_ONLY=0
-CFLAGS += -DU2F_ENABLED=1
 endif
+
+# U2F_ENABLED always enabled to support factory mode
+CFLAGS += -DU2F_ENABLED=1
 
 ifeq ($(PRODUCTION), 0)
 CFLAGS   += -DPRODUCTION=0
