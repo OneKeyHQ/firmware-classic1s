@@ -97,6 +97,8 @@ uint16_t s_usOffset;
 static const char *usb_strings[] = {USB_STRINGS};
 #undef X
 
+static bool usb_fido_switch = true;
+
 static struct usb_device_descriptor dev_descr = {
     .bLength = USB_DT_DEVICE_SIZE,
     .bDescriptorType = USB_DT_DEVICE,
@@ -277,9 +279,17 @@ static struct usb_config_descriptor config = {
 };
 
 static void usb_init_ifaces(void) {
-  bool fido_switch = true;
-  config_getFidoSwitch(&fido_switch);
+#if BITCOIN_ONLY
 
+  if (se_isFactoryMode()) {
+    usb_fido_switch = true;
+  } else {
+    usb_fido_switch = false;
+  }
+
+#else
+  config_getFidoSwitch(&usb_fido_switch);
+#endif
   int idx = 0;
   ifaces[idx].num_altsetting = 1;
   ifaces[idx].altsetting = webusb_iface_main;
@@ -292,7 +302,7 @@ static void usb_init_ifaces(void) {
 #endif
 
 #if U2F_ENABLED
-  if (fido_switch) {
+  if (usb_fido_switch) {
     ifaces[idx].num_altsetting = 1;
     ifaces[idx].altsetting = hid_iface_u2f;
     idx++;
@@ -394,9 +404,7 @@ static void set_config(usbd_device *dev, uint16_t wValue) {
                 USB_PACKET_SIZE, main_rx_callback);
 #if U2F_ENABLED
 
-  bool fido_switch = false;
-  config_getFidoSwitch(&fido_switch);
-  if (fido_switch) {
+  if (usb_fido_switch) {
     usbd_ep_setup(dev, ENDPOINT_ADDRESS_U2F_IN, USB_ENDPOINT_ATTR_INTERRUPT,
                   USB_PACKET_SIZE, 0);
     usbd_ep_setup(dev, ENDPOINT_ADDRESS_U2F_OUT, USB_ENDPOINT_ATTR_INTERRUPT,
@@ -410,7 +418,7 @@ static void set_config(usbd_device *dev, uint16_t wValue) {
                 USB_PACKET_SIZE, debug_rx_callback);
 #endif
 #if U2F_ENABLED
-  if (fido_switch) {
+  if (usb_fido_switch) {
     usbd_register_control_callback(
         dev, USB_REQ_TYPE_STANDARD | USB_REQ_TYPE_INTERFACE,
         USB_REQ_TYPE_TYPE | USB_REQ_TYPE_RECIPIENT, hid_control_request);
@@ -594,7 +602,6 @@ void usbPoll(void) {
 #endif
 }
 
-#if !BITCOIN_ONLY
 void usb_u2f_data_send(void) {
   static const uint8_t *data;
   while (1) {
@@ -608,7 +615,7 @@ void usb_u2f_data_send(void) {
     }
   }
 }
-#endif
+
 void usbReconnect(void) {
   if (usbd_dev != NULL) {
     usbd_disconnect(usbd_dev, 1);

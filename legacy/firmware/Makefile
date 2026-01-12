@@ -91,11 +91,13 @@ OBJS += se_chip.o
 OBJS += psbt/psbt.o
 OBJS += bip322_simple/bip322_simple.o
 
-ifneq ($(BITCOIN_ONLY),1)
+# FIDO2 support (always compiled for factory mode)
 OBJS += fido2/ctap_trans.o
 OBJS += fido2/ctap.o
 OBJS += fido2/ctap_parse.o
 OBJS += fido2/resident_credential.o
+
+ifneq ($(BITCOIN_ONLY),1)
 OBJS += ethereum.o
 OBJS += ethereum_definitions.o
 OBJS += ethereum_networks.o
