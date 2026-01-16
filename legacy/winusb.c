@@ -138,6 +138,12 @@ static void winusb_set_config(usbd_device *usbd_dev, uint16_t wValue) {
   usbd_register_control_callback(usbd_dev, USB_REQ_TYPE_VENDOR,
                                  USB_REQ_TYPE_TYPE,
                                  winusb_control_vendor_request);
+
+  /* Re-register descriptor callback for MS OS String Descriptor (0xEE)
+   * This is needed because SET_CONFIGURATION clears all user callbacks */
+  usbd_register_control_callback(usbd_dev, USB_REQ_TYPE_DEVICE,
+                                 USB_REQ_TYPE_RECIPIENT,
+                                 winusb_descriptor_request);
 }
 
 void winusb_setup(usbd_device *usbd_dev, uint8_t interface) {

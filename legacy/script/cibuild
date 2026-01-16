@@ -12,7 +12,11 @@ vendor/trezor-common/tools/cointool.py render firmware/fido2
 if [ "$EMULATOR" = 1 ]; then
     make -C emulator
 else
-    make -C vendor/libopencm3 lib/gd32/f4xx
+    # Pass MAX_USER_CONTROL_CALLBACK to libopencm3 build
+    # Read value from Makefile.include to keep it in sync
+    MAX_USB_CALLBACKS=$(grep "^MAX_USB_CALLBACKS" Makefile.include | cut -d'=' -f2 | tr -d ' ?')
+    MAX_USB_CALLBACKS=${MAX_USB_CALLBACKS:-6}  # Default to 6 if not found
+    CFLAGS="-DMAX_USER_CONTROL_CALLBACK=$MAX_USB_CALLBACKS" make -C vendor/libopencm3 lib/gd32/f4xx
 fi
 make -C vendor/libsol
 rm layout.o || true

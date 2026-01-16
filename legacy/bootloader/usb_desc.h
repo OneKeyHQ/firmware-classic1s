@@ -13,7 +13,7 @@ static const struct usb_device_descriptor dev_descr = {
     .bMaxPacketSize0 = 64,
     .idVendor = 0x1209,
     .idProduct = 0x53c0,
-    .bcdDevice = 0x0100,
+    .bcdDevice = 0x0101,
     .iManufacturer = 1,
     .iProduct = 2,
     .iSerialNumber = 3,
@@ -71,7 +71,7 @@ static const struct usb_config_descriptor config = {
 };
 
 static const char *usb_strings[] = {
-    "ByteForge",
-    "ONEKEY",
+    "OneKey",
+    "Classic",
     "000000000000000000000000",
 };
