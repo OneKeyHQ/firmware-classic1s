@@ -46,6 +46,9 @@ FPUFLAGS ?= -msoft-float
 DEVICEFLAG ?= -D GD32F470
 CFLAGS += $(DEVICEFLAG)
 
+# USB control callback configuration
+MAX_USB_CALLBACKS ?= 6
+CFLAGS += -DMAX_USER_CONTROL_CALLBACK=$(MAX_USB_CALLBACKS)
 
 ifeq ($(MAC_OS), 1)
 CONFFLAG ?= -DCONFIDENTIAL='__attribute__((used)) __attribute__((section("__CONFIDENTIAL,__confidential")))'

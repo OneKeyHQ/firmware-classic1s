@@ -76,12 +76,12 @@
 #endif
 
 #define USB_STRINGS                                 \
-  X(MANUFACTURER, "ByteForge")                      \
-  X(PRODUCT, "ONEKEY CLASSIC")                      \
+  X(MANUFACTURER, "OneKey")                         \
+  X(PRODUCT, "Classic")                             \
   X(SERIAL_NUMBER, config_uuid_str)                 \
-  X(INTERFACE_MAIN, "ONEKEY Interface")             \
-  X(INTERFACE_DEBUG, "ONEKEY Debug Link Interface") \
-  X(INTERFACE_U2F, "ONEKEY U2F Interface")
+  X(INTERFACE_MAIN, "OneKey Interface")             \
+  X(INTERFACE_DEBUG, "OneKey Debug Link Interface") \
+  X(INTERFACE_FIDO, "OneKey FIDO Interface")
 
 #define X(name, value) USB_STRING_##name,
 enum {
@@ -109,7 +109,7 @@ static struct usb_device_descriptor dev_descr = {
     .bMaxPacketSize0 = USB_PACKET_SIZE,
     .idVendor = 0x1209,
     .idProduct = 0x4F4B,
-    .bcdDevice = 0x0100,
+    .bcdDevice = 0x0101,
     .iManufacturer = USB_STRING_MANUFACTURER,
     .iProduct = USB_STRING_PRODUCT,
     .iSerialNumber = USB_STRING_SERIAL_NUMBER,
@@ -184,7 +184,7 @@ static const struct usb_interface_descriptor hid_iface_u2f[] = {{
     .bInterfaceClass = USB_CLASS_HID,
     .bInterfaceSubClass = 0,
     .bInterfaceProtocol = 0,
-    .iInterface = USB_STRING_INTERFACE_U2F,
+    .iInterface = USB_STRING_INTERFACE_FIDO,
     .endpoint = hid_endpoints_u2f,
     .extra = &hid_function_u2f,
     .extralen = sizeof(hid_function_u2f),
