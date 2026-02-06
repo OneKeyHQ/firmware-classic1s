@@ -142,6 +142,7 @@ message Features {
 
     optional uint32 coin_switch = 517;
     optional string build_id = 518;
+    reserved 519, 522, 523; // used in pro 
     optional uint32 battery_level = 520;
     optional string product = 521;
 

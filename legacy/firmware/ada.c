@@ -2052,7 +2052,9 @@ bool ada_sign_messages(const CardanoSignMessage *msg,
     memcpy(address_params.address_n_staking, staking_path,
            address_params.address_n_staking_count * sizeof(uint32_t));
   }
-  if (!derive_bytes(&address_params, msg->network_id, MAINNET_PROTOCOL_MAGIC,
+  if (!derive_bytes(&address_params, msg->network_id,
+                    msg->has_protocol_magic ? msg->protocol_magic
+                                            : MAINNET_PROTOCOL_MAGIC,
                     address_bytes, &address_bytes_len)) {
     return false;
   }

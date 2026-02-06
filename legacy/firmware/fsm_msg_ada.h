@@ -279,8 +279,9 @@ void fsm_msgCardanoSignMessage(CardanoSignMessage *msg) {
               "Invalid path");
   CHECK_PIN
 
-  if ((msg->network_id != 0) && (msg->network_id != 1)) {
-    fsm_sendFailure(FailureType_Failure_ProcessError, "Invalid Networ ID");
+  if (!msg->has_protocol_magic && (msg->network_id != 1)) {
+    fsm_sendFailure(FailureType_Failure_ProcessError,
+                    "Invalid Network id, need protocol magic provide");
     return;
   }
   if (!ada_sign_messages(msg, resp)) {

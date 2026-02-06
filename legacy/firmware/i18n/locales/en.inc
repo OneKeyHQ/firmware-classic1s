@@ -445,4 +445,13 @@ const char *const languages_en[] = {
     "Confirm Pairing",
     "Pair failed",
     "Device paired",
+    "Memo {}:",
+    "Tx Source:",
+    "Asset Issuer:",
+    "Sequence Number:",
+    "Missing Memo/Tag during exchange deposits may result in fund loss.",
+    "Add Trust:",
+    "Source Account:",
+    "Remove Trust:",
+    "Trust Account:",
 };

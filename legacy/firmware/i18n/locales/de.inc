@@ -445,4 +445,13 @@ const char *const languages_de[] = {
     "Kopplung bestätigen",
     "Kopplung fehlgeschlagen",
     "Gerät gekoppelt",
+    "Memo {}:",
+    "Tx-quelle:",
+    "Asset-Emittent:",
+    "Sequenznummer:",
+    "Fehlendes Memo/Tag kann zu Geldverlust führen.",
+    "Füge Vertrauen hinzu:",
+    "Quellkonto:",
+    "Entfernen Sie das Vertrauen:",
+    "Treuhandkonto:",
 };
