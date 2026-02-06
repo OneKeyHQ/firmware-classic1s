@@ -364,6 +364,7 @@
 #define T__SIGN_TRANSACTION 167
 // {} Transaction
 #define T__STR_CHAIN_TRANSACTION 168
+#define I_TRANSACTION_XLM 168
 // Total Amount:
 #define I__TOTAL_AMOUNT_COLON 169
 // Do you want to sign this {} transaction?
@@ -920,16 +921,34 @@
 // Revoke unlimited {}
 #define I_REVOKE_UNLIMITED_TOKEN 439
 // Do you want to change language?
-#define C_CHANGE_LANGUAGE 440
+#define C__CHANGE_LANGUAGE 440
 // Do you want to change auto lock time?
-#define C_CHANGE_AUTO_LOCK 441
+#define C__CHANGE_AUTO_LOCK 441
 // Do you want to change auto shutdown time?
-#define C_CHANGE_AUTO_SHUTDOWN 442
+#define C__CHANGE_AUTO_SHUTDOWN 442
 // Confirm Pairing
 #define T__CONFIRM_PAIRING 443
 // Pair failed
 #define C__PAIR_FAILED 444
 // Device paired
 #define C__DEVICE_PAIRED 445
+// Memo {}:
+#define I_MEMO_TEXT 446
+// Tx Source:
+#define I_TX_SOURCE 447
+// Asset Issuer:
+#define I_ASSET_ISSUER 448
+// Sequence Number:
+#define I_SEQUENCE_NUMBER 449
+// Missing Memo/Tag during exchange deposits may result in fund loss.
+#define I_MISSING_MEMO_WARNING 450
+// Add Trust:
+#define I_ADD_TRUST 451
+// Source Account:
+#define I_SOURCE_ACCOUNT 452
+// Remove Trust:
+#define I_REMOVE_TRUST 453
+// Trust Account:
+#define I_TRUST_ACCOUNT 454
 #endif
 // clang-format on

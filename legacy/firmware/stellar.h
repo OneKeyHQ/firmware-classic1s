@@ -75,14 +75,12 @@ bool stellar_confirmManageDataOp(const StellarManageDataOp *msg);
 bool stellar_confirmBumpSequenceOp(const StellarBumpSequenceOp *msg);
 
 // Layout
-void stellar_layoutTransactionDialog(const char *line1, const char *line2,
-                                     const char *line3, const char *line4,
-                                     const char *line5);
+bool stellar_layoutTransactionDialog(size_t n, const char *const keys[n],
+                                     const char *const values[n]);
 void stellar_layoutTransactionSummary(const StellarSignTx *msg);
-void stellar_layoutSigningDialog(const char *line1, const char *line2,
-                                 const char *line3, const char *line4,
-                                 const char *line5, uint32_t *address_n,
-                                 size_t address_n_count, const char *warning,
+bool stellar_layoutSigningDialog(const char *title, size_t n,
+                                 const char *const keys[n],
+                                 const char *const values[n],
                                  bool is_final_step);
 
 // Helpers

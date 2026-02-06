@@ -35,7 +35,7 @@ EthereumAuthorizationSignature.r              max_size:32
 EthereumAuthorizationSignature.s              max_size:32
 
 EthereumAccessListOneKey.address              max_size:43
-EthereumAccessListOneKey.storage_keys         max_count:8 max_size:32
+EthereumAccessListOneKey.storage_keys         max_count:16 max_size:32
 
 EthereumTxRequestOneKey.signature_r           max_size:32
 EthereumTxRequestOneKey.signature_s           max_size:32

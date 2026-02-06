@@ -61,7 +61,7 @@ bool ethereum_parse_onekey(const char *address, uint8_t pubkeyhash[20]);
       chain_name = "Rinkeby";                      \
       break;                                       \
     case 10:                                       \
-      chain_name = "Optimistic";                   \
+      chain_name = "Optimism";                     \
       break;                                       \
     case 30:                                       \
       chain_name = "Rootstock";                    \
