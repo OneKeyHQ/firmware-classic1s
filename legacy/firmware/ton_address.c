@@ -1,6 +1,5 @@
 #include "ton_address.h"
 #include <string.h>
-#include "fsm.h"
 
 static inline unsigned char to_uchar(char ch) { return ch; }
 
@@ -130,7 +129,7 @@ uint16_t crc16(uint8_t *ptr, size_t count) {
   return (crc);
 }
 
-void ton_decode_addr(TonWorkChain workchain, const char *hash,
+void ton_encode_addr(TonWorkChain workchain, const char *hash,
                      bool is_bounceable, bool is_testnet_only, char *output) {
   char address[36] = {0};
   // Address Tag
@@ -158,7 +157,7 @@ void ton_decode_addr(TonWorkChain workchain, const char *hash,
   ton_base64_encode(address, sizeof(address), output, USER_FRIENDLY_B64_LEN);
 }
 
-bool ton_parse_addr(const char *dest, TON_PARSED_ADDRESS *parsed_addr) {
+bool ton_decode_addr(const char *dest, TON_PARSED_ADDRESS *parsed_addr) {
   // Base64
   uint8_t decode_res[36];
   if (!ton_base64_decode(dest, USER_FRIENDLY_B64_LEN, decode_res,

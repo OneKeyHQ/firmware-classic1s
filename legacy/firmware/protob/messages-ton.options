@@ -26,3 +26,13 @@ TonSignProof.address_n                      max_count:8
 TonSignProof.appdomain                      max_size:256
 TonSignProof.comment                        max_size:1024
 TonSignedProof.signature                    max_size:64
+
+
+TonSignData.address_n                        max_count:8
+TonSignData.payload                          max_size:1024
+TonSignData.schema                           max_size:256
+TonSignData.appdomain                        max_size:126
+TonSignData.from_address                     max_size:49
+
+TonSignedData.signature                      max_size:64
+TonSignedData.digest                         max_size:32

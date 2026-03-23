@@ -347,3 +347,20 @@ const char *truncate_text_for_display(const char *text, uint8_t max_lines) {
 
   return truncated_value;
 }
+
+uint32_t legacy_crc32(const uint8_t *data, size_t len) {
+  uint32_t crc = 0xffffffff;
+
+  for (size_t i = 0; i < len; i++) {
+    crc ^= data[i];
+    for (int j = 0; j < 8; j++) {
+      if (crc & 1) {
+        crc = (crc >> 1) ^ 0xedb88320;
+      } else {
+        crc >>= 1;
+      }
+    }
+  }
+
+  return crc ^ 0xffffffff;
+}

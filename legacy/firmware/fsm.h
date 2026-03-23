@@ -348,6 +348,7 @@ void fsm_msgLnurlAuth(const LnurlAuth *msg);
 void fsm_msgTonGetAddress(const TonGetAddress *msg);
 void fsm_msgTonSignMessage(const TonSignMessage *msg);
 void fsm_msgTonSignProof(const TonSignProof *msg);
+void fsm_msgTonSignData(const TonSignData *msg);
 
 // webauthn
 void fsm_msgWebAuthnListResidentCredentials(

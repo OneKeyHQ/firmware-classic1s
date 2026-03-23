@@ -18,18 +18,14 @@
  */
 
 #include "ton.h"
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
-#include "base32.h"
+#include <string.h>
 #include "base64.h"
-#include "buttons.h"
-#include "config.h"
-#include "font.h"
 #include "fsm.h"
-#include "gettext.h"
 #include "layout2.h"
-#include "messages.h"
-#include "messages.pb.h"
-#include "protect.h"
+#include "messages-ton.pb.h"
 #include "sha2.h"
 #include "ton_address.h"
 #include "ton_bits.h"
@@ -55,10 +51,11 @@ static const uint8_t TON_WALLET_CODE_HASH_V4R2[V4R2_SIZE] = {
 static const uint8_t TON_WALLET_DATA_HASH_PREFIX[DATA_PREFIX_SIZE] = {
     0x00, 0x51, 0x00, 0x00, 0x00, 0x00, 0x29, 0xa9, 0xa3, 0x17};
 
-void ton_to_user_friendly(TonWorkChain workchain, const char *hash,
+void ton_to_user_friendly(TonWorkChain workchain, const char *code_hash,
                           bool is_bounceable, bool is_testnet_only,
                           char *address) {
-  ton_decode_addr(workchain, hash, is_bounceable, is_testnet_only, address);
+  ton_encode_addr(workchain, code_hash, is_bounceable, is_testnet_only,
+                  address);
 }
 
 void ton_append_data_cell_hash(const uint8_t *public_key, SHA256_CTX *ctx) {
@@ -134,13 +131,13 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
 
   // parse dest&resp addr
   TON_PARSED_ADDRESS parsed_dest, parsed_resp = {0};
-  if (!ton_parse_addr(msg->destination, &parsed_dest)) {
+  if (!ton_decode_addr(msg->destination, &parsed_dest)) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
                     "Failed to parse destination address");
     layoutHome();
     return false;
   }
-  if (!ton_parse_addr(usr_friendly_address, &parsed_resp)) {
+  if (!ton_decode_addr(usr_friendly_address, &parsed_resp)) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
                     "Failed to parse response address");
     layoutHome();
@@ -371,7 +368,7 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
 
   if (msg->jetton_amount_bytes.size != 0) {
     memset(&parsed_dest, 0, sizeof(TON_PARSED_ADDRESS));
-    if (!ton_parse_addr(msg->jetton_wallet_address, &parsed_dest)) {
+    if (!ton_decode_addr(msg->jetton_wallet_address, &parsed_dest)) {
       fsm_sendFailure(FailureType_Failure_ProcessError,
                       "Failed to parse jetton wallet address");
       layoutHome();
@@ -480,5 +477,297 @@ bool ton_sign_proof(const TonSignProof *msg, const HDNode *node,
 
   resp->signature.size = 64;
   resp->has_signature = true;
+  return true;
+}
+
+static int32_t ton_sign_data_workchain(const TonWorkChain workchain) {
+  return (workchain == TonWorkChain_BASECHAIN) ? 0 : -1;
+}
+
+static bool ton_build_string_ref_tail(const uint8_t *data, size_t len,
+                                      CellRef_t *out) {
+  BitString_t bits;
+  CellRef_t tail = {0};
+
+  bitstring_init(&bits);
+
+  if (len > 127) {
+    if (!ton_build_string_ref_tail(data + 127, len - 127, &tail)) {
+      return false;
+    }
+    bitstring_write_buffer(&bits, (uint8_t *)data, 127);
+    return ton_hash_cell(&bits, &tail, 1, out);
+  }
+
+  if (len > 0) {
+    bitstring_write_buffer(&bits, (uint8_t *)data, (uint8_t)len);
+  }
+
+  return ton_hash_cell(&bits, NULL, 0, out);
+}
+
+static int encode_domain(const uint8_t *domain, size_t domain_len, uint8_t *buf,
+                         size_t buf_len) {
+  size_t label_end = domain_len;
+  size_t encoded_len = 0;
+
+  if (domain_len == 0) {
+    return -1;
+  }
+
+  for (size_t i = domain_len; i > 0; i--) {
+    if (domain[i - 1] != '.') {
+      continue;
+    }
+
+    size_t label_start = i;
+    size_t label_len = label_end - label_start;
+    if (label_len == 0 || buf_len < label_len + 1) {
+      return -1;
+    }
+
+    memcpy(buf, domain + label_start, label_len);
+    buf[label_len] = 0;
+
+    buf += label_len + 1;
+    buf_len -= label_len + 1;
+    encoded_len += label_len + 1;
+    label_end = i - 1;
+  }
+
+  if (label_end == 0 || buf_len < label_end + 1) {
+    return -1;
+  }
+
+  memcpy(buf, domain, label_end);
+  buf[label_end] = 0;
+  encoded_len += label_end + 1;
+
+  return encoded_len;
+}
+
+static bool _build_cell_digest(const TonSignData *msg,
+                               const uint8_t *raw_address, uint8_t digest[32]) {
+  CellRef_t payload = {0};
+  BitString_t payload_bits;
+  CellRef_t payload_ref = {0};
+  const size_t schema_len = strlen(msg->schema);
+  const size_t appdomain_len = strlen(msg->appdomain);
+  CellRef_t appdomain_ref = {0};
+  BitString_t root_bits;
+  CellRef_t root = {0};
+  CellRef_t refs[2] = {0};
+
+  bitstring_init(&payload_bits);
+  if (!ton_parse_boc(msg->payload.bytes, msg->payload.size, &payload,
+                     &payload_bits, &payload_ref)) {
+    return false;
+  }
+  uint8_t encoded_domain[126 + 1];
+  int encoded_len =
+      encode_domain((const uint8_t *)msg->appdomain, appdomain_len,
+                    encoded_domain, sizeof(encoded_domain));
+  if (encoded_len < 0 ||
+      !ton_build_string_ref_tail(encoded_domain, (size_t)encoded_len,
+                                 &appdomain_ref)) {
+    return false;
+  }
+
+  bitstring_init(&root_bits);
+  bitstring_write_uint(&root_bits, 0x75569022u, 32);
+  bitstring_write_uint(
+      &root_bits, legacy_crc32((const uint8_t *)msg->schema, schema_len), 32);
+  bitstring_write_uint(&root_bits, msg->timestamp, 64);
+  bitstring_write_address(&root_bits,
+                          (uint8_t)ton_sign_data_workchain(msg->workchain),
+                          (uint8_t *)raw_address);
+
+  refs[0] = appdomain_ref;
+  refs[1] = payload;
+  if (!ton_hash_cell(&root_bits, refs, 2, &root)) {
+    return false;
+  }
+
+  memcpy(digest, root.hash, sizeof(root.hash));
+  return true;
+}
+
+static void ton_write_u32_be(uint8_t *buffer, uint32_t value) {
+  buffer[0] = (uint8_t)(value >> 24);
+  buffer[1] = (uint8_t)(value >> 16);
+  buffer[2] = (uint8_t)(value >> 8);
+  buffer[3] = (uint8_t)value;
+}
+
+static void ton_write_u64_be(uint8_t *buffer, uint64_t value) {
+  buffer[0] = (uint8_t)(value >> 56);
+  buffer[1] = (uint8_t)(value >> 48);
+  buffer[2] = (uint8_t)(value >> 40);
+  buffer[3] = (uint8_t)(value >> 32);
+  buffer[4] = (uint8_t)(value >> 24);
+  buffer[5] = (uint8_t)(value >> 16);
+  buffer[6] = (uint8_t)(value >> 8);
+  buffer[7] = (uint8_t)value;
+}
+
+static void _build_bytes_digest(const TonSignData *msg,
+                                const uint8_t *raw_address, uint8_t *digest) {
+  SHA256_CTX ctx;
+  int32_t workchain = ton_sign_data_workchain(msg->workchain);
+  uint32_t appdomain_len = (uint32_t)strlen(msg->appdomain);
+  uint32_t payload_len = (uint32_t)msg->payload.size;
+  uint8_t appdomain_len_bytes[4] = {0};
+  uint8_t timestamp_bytes[8] = {0};
+  uint8_t payload_len_bytes[4] = {0};
+  const uint8_t *type_tag = (msg->type == TonSignDataType_TEXT)
+                                ? (const uint8_t *)"txt"
+                                : (const uint8_t *)"bin";
+
+  ton_write_u32_be(appdomain_len_bytes, appdomain_len);
+  ton_write_u64_be(timestamp_bytes, msg->timestamp);
+  ton_write_u32_be(payload_len_bytes, payload_len);
+
+  sha256_Init(&ctx);
+  sha256_Update(&ctx, (const uint8_t *)"\xff\xff", 2);
+  sha256_Update(&ctx, (const uint8_t *)"ton-connect/sign-data/", 22);
+  sha256_Update(&ctx, (const uint8_t *)&workchain, 4);
+  sha256_Update(&ctx, raw_address, 32);
+  sha256_Update(&ctx, appdomain_len_bytes, sizeof(appdomain_len_bytes));
+  sha256_Update(&ctx, (const uint8_t *)msg->appdomain, appdomain_len);
+  sha256_Update(&ctx, timestamp_bytes, sizeof(timestamp_bytes));
+  sha256_Update(&ctx, type_tag, 3);
+  sha256_Update(&ctx, payload_len_bytes, sizeof(payload_len_bytes));
+  sha256_Update(&ctx, msg->payload.bytes, payload_len);
+  sha256_Final(&ctx, digest);
+}
+
+static bool ton_validate_sign_data(const TonSignData *msg,
+                                   const char *user_friendly_address) {
+  if (msg->has_from_address &&
+      strcmp(msg->from_address, user_friendly_address) != 0) {
+    fsm_sendFailure(FailureType_Failure_DataError, "From address mismatch");
+    return false;
+  }
+
+  if (msg->type == TonSignDataType_TEXT ||
+      msg->type == TonSignDataType_BINARY) {
+    if (msg->has_schema) {
+      fsm_sendFailure(FailureType_Failure_DataError,
+                      "Schema is only allowed for CELL payloads");
+      return false;
+    }
+
+    if (msg->type == TonSignDataType_TEXT &&
+        !is_valid_utf8(msg->payload.bytes, msg->payload.size)) {
+      fsm_sendFailure(FailureType_Failure_DataError,
+                      "Invalid UTF-8 text payload");
+      return false;
+    }
+
+    return true;
+  }
+
+  if (msg->type == TonSignDataType_CELL) {
+    CellRef_t payload = {0};
+    BitString_t payload_bits;
+    CellRef_t payload_ref = {0};
+
+    if (!msg->has_schema) {
+      fsm_sendFailure(FailureType_Failure_DataError,
+                      "Schema is required for CELL payloads");
+      return false;
+    }
+
+    bitstring_init(&payload_bits);
+    if (!ton_parse_boc(msg->payload.bytes, msg->payload.size, &payload,
+                       &payload_bits, &payload_ref)) {
+      fsm_sendFailure(FailureType_Failure_DataError, "Invalid BOC payload");
+      return false;
+    }
+
+    return true;
+  }
+
+  fsm_sendFailure(FailureType_Failure_DataError, "Invalid TON sign data type");
+  return false;
+}
+
+bool ton_sign_data(const TonSignData *msg, const HDNode *node,
+                   TonSignedData *resp) {
+  // reject unsupported wallet params explicitly
+  if ((msg->has_wallet_version &&
+       msg->wallet_version != TonWalletVersion_V4R2)) {
+    fsm_sendFailure(FailureType_Failure_DataError,
+                    "Unsupported wallet parameters");
+    return false;
+  }
+
+  // get address
+  char raw_address[32] = {0};
+  char user_friendly_address[49] = {0};
+  ton_get_address_from_public_key(node->public_key + 1, raw_address);
+  ton_to_user_friendly(msg->workchain, (const char *)raw_address,
+                       msg->is_bounceable, msg->is_testnet_only,
+                       user_friendly_address);
+
+  if (!ton_validate_sign_data(msg, (const char *)user_friendly_address)) {
+    return false;
+  }
+
+  // display
+  bool confirmed = false;
+  if (msg->type == TonSignDataType_TEXT) {
+    confirmed = layoutSignMessage("Ton", false, user_friendly_address,
+                                  msg->payload.bytes, msg->payload.size, true,
+                                  "App Domain:", msg->appdomain, false);
+  } else {
+    // BINARY + CELL -> blind sign
+    if (msg->type == TonSignDataType_BINARY) {
+      confirmed = layoutSignMessage("Ton", false, user_friendly_address,
+                                    msg->payload.bytes, msg->payload.size,
+                                    false, "App Domain:", msg->appdomain, true);
+    } else {
+      char ba64_str[1536] = {0};
+      bintob64(ba64_str, msg->payload.bytes, msg->payload.size);
+      confirmed = layoutSignMessage("Ton", false, user_friendly_address,
+                                    (const uint8_t *)ba64_str, strlen(ba64_str),
+                                    true, "App Domain:", msg->appdomain, true);
+    }
+  }
+
+  if (!confirmed) {
+    fsm_sendFailure(FailureType_Failure_ActionCancelled,
+                    "Signing cancelled by user");
+    return false;
+  }
+
+  uint8_t digest[32] = {0};
+
+  if (msg->type == TonSignDataType_TEXT ||
+      msg->type == TonSignDataType_BINARY) {
+    _build_bytes_digest(msg, (const uint8_t *)raw_address, digest);
+  } else {
+    if (!_build_cell_digest(msg, (const uint8_t *)raw_address, digest)) {
+      fsm_sendFailure(FailureType_Failure_DataError,
+                      "Failed to hash CELL sign-data payload");
+      return false;
+    }
+  }
+
+#if EMULATOR
+  ed25519_sign((const unsigned char *)digest, SHA256_SIZE, node->private_key,
+               resp->signature.bytes);
+#else
+  hdnode_sign(node, (const unsigned char *)digest, SHA256_SIZE, 0,
+              resp->signature.bytes, NULL, NULL);
+#endif
+
+  resp->signature.size = 64;
+  resp->has_signature = true;
+
+  // resp->digest.size = 32;
+  // memcpy(resp->digest.bytes, digest, resp->digest.size);
+  // resp->has_digest = true;
+
   return true;
 }

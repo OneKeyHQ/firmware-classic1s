@@ -40,6 +40,8 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
 bool ton_sign_proof(const TonSignProof *msg, const HDNode *node,
                     TonSignedProof *resp);
 
+bool ton_sign_data(const TonSignData *msg, const HDNode *node,
+                   TonSignedData *resp);
 // uint16_t crc16(uint8_t *ptr, size_t count);
 
 // bool base64_decode (char *ctx,

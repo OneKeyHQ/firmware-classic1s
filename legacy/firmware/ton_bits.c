@@ -1,5 +1,4 @@
 #include <stdint.h>
-#include <stdlib.h>
 #include <string.h>  // explicit_bzero
 
 #include "ton_bits.h"

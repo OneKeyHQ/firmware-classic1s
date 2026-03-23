@@ -21,6 +21,8 @@ bool ton_create_jetton_transfer_body(uint8_t dest_workchain, uint8_t* dest_hash,
                                      const char* forward_payload,
                                      uint8_t resp_workchain, uint8_t* resp_hash,
                                      CellRef_t* payload);
+bool ton_hash_cell(BitString_t* bits, CellRef_t* refs, uint8_t refs_count,
+                   CellRef_t* out);
 
 bool ton_create_message_digest(
     uint32_t expire_at, uint32_t seqno, bool is_bounceable,

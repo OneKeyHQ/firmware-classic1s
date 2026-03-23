@@ -13,5 +13,7 @@ bool layoutTonSign(const char *chain_name, bool token_transfer,
                    const uint8_t *data, uint16_t len, const char *memo);
 
 bool confirmFinal(void);
-
+bool layoutTonSignData(const char *signer, const uint8_t *data, uint16_t len);
+bool layoutTonSignDataBlind(const char *signer, const uint8_t *data,
+                            uint16_t len, const char *contract_addr);
 #endif  // __TON_LAYOUT_H__
