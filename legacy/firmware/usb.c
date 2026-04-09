@@ -508,24 +508,25 @@ void usbPoll(void) {
   bool usb_lock_enabled = true;
 
   static uint8_t usb_status_bak = 0;
-  if (sys_usbState() == false) { 
+  if (sys_usbState() == false) {
     usb_connect_status = 0;
   }
 
   ble_update_poll();
-  bool usb_status_changed = usb_connect_status != usb_status_bak; 
+  bool usb_status_changed = usb_connect_status != usb_status_bak;
   if (usb_status_changed) {
     usb_status_bak = usb_connect_status;
-    reset = config_hasPin() && session_isUnlocked(); // usb status changed and unlocked
+    reset = config_hasPin() &&
+            session_isUnlocked();  // usb status changed and unlocked
     if (usb_connect_status == 0 && !reset) {
       // usb disconnected and locked, only need to re-init usb stack
       usbInit();
     }
   }
-  if (reset) { // usb status changed and unlocked
+  if (reset) {  // usb status changed and unlocked
     config_getUsblock(&usb_lock_enabled, false);
     if (usb_lock_enabled) {
-      if (host_channel == CHANNEL_SLAVE) { 
+      if (host_channel == CHANNEL_SLAVE) {
         Failure resp = {
             .has_code = true,
             .code = FailureType_Failure_ActionCancelled,

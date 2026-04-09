@@ -73,9 +73,9 @@ static void stellar_hashupdate_transaction_ext(void) {
 
 static bool stellar_confirmSorobanWarning(void) {
   layoutDialogCenterAdapterV2(
-        NULL, &bmp_icon_warning, &bmp_bottom_left_close,
-        &bmp_bottom_right_arrow, NULL, NULL, NULL, NULL, NULL, NULL,
-        _(C__UNBALE_TO_DECODE_TX_DATA_SIGN_AT_YOUR_OWN_RISK_EXCLAM));
+      NULL, &bmp_icon_warning, &bmp_bottom_left_close, &bmp_bottom_right_arrow,
+      NULL, NULL, NULL, NULL, NULL, NULL,
+      _(C__UNBALE_TO_DECODE_TX_DATA_SIGN_AT_YOUR_OWN_RISK_EXCLAM));
   if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
     stellar_signingFail("User canceled", true);
     return false;

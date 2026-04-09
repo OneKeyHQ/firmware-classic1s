@@ -3975,10 +3975,10 @@ bool layoutEnterSleep(int mode) {
 #if !EMULATOR
   static uint32_t system_millis_logo_refresh = 0;
   if (reset_after_usb_lock) {
-      if (timer_get_sleep_count() >= 30000) {
-        reset_after_usb_lock = false;
-        enter_sleep();
-      }
+    if (timer_get_sleep_count() >= 30000) {
+      reset_after_usb_lock = false;
+      enter_sleep();
+    }
   } else if (config_getSleepDelayMs() > 0) {
     if (timer_get_sleep_count() >= config_getSleepDelayMs()) {
       if (mode) {

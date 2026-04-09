@@ -233,7 +233,8 @@ static void TypedDataEnvelope_init(TypedDataEnvelope *envelope,
   envelope->dependent_types_count = 0;
   envelope->primary_type_len = primary_type_len;
   envelope->entry_types_count = 0;
-  envelope->entry_types_capacity = sizeof(envelope->entry_types) / sizeof(EthereumFieldTypeOneKey);
+  envelope->entry_types_capacity =
+      sizeof(envelope->entry_types) / sizeof(EthereumFieldTypeOneKey);
   envelope->current_name_intent = 0;
   memset(envelope->entry_types, 0, sizeof(envelope->entry_types));
 }
@@ -243,8 +244,7 @@ static const EthereumTypedDataStruct *TypedDataEnvelope_find_dependent_type(
     uint8_t type_name_len) {
   (void)type_name_len;
   for (uint8_t i = 0; i < envelope->dependent_types_count; i++) {
-    if (strcmp(envelope->dependent_types[i].name, type_name) ==
-        0) {
+    if (strcmp(envelope->dependent_types[i].name, type_name) == 0) {
       return &envelope->dependent_types[i];
     }
   }
@@ -254,8 +254,10 @@ static const EthereumTypedDataStruct *TypedDataEnvelope_find_dependent_type(
 static bool resolve_entry_type(TypedDataEnvelope *envelope,
                                EthereumTypedDataStructAckOneKey *dst_type,
                                uint8_t member_index) {
-  const EthereumFieldTypeOneKey *member_type = &dst_type->members[member_index].type;
-  while (member_type->data_type == EthereumDataTypeOneKey_ARRAY && member_type->entry_type != NULL) {
+  const EthereumFieldTypeOneKey *member_type =
+      &dst_type->members[member_index].type;
+  while (member_type->data_type == EthereumDataTypeOneKey_ARRAY &&
+         member_type->entry_type != NULL) {
     member_type = member_type->entry_type;
     if (envelope->entry_types_count >= envelope->entry_types_capacity) {
       return false;
@@ -286,7 +288,8 @@ static bool TypedDataEnvelope_add_dependent_type(
         .name[type_name_len] = '\0';
     envelope->dependent_types[envelope->dependent_types_count].type = *type;
     for (uint8_t i = 0; i < type->members_count; i++) {
-      if (!resolve_entry_type(envelope,
+      if (!resolve_entry_type(
+              envelope,
               &envelope->dependent_types[envelope->dependent_types_count].type,
               i)) {
         return false;
@@ -819,7 +822,8 @@ static void find_typed_dependencies(const TypedDataEnvelope *envelope,
   for (uint8_t i = 0; i < type->type.members_count; i++) {
     const EthereumStructMemberOneKey *member = &type->type.members[i];
     const EthereumFieldTypeOneKey *member_type = &member->type;
-    while (member_type->data_type == EthereumDataTypeOneKey_ARRAY && member_type->entry_type != NULL) {
+    while (member_type->data_type == EthereumDataTypeOneKey_ARRAY &&
+           member_type->entry_type != NULL) {
       member_type = member_type->entry_type;
     }
     if (member_type->data_type == EthereumDataTypeOneKey_STRUCT) {
@@ -834,8 +838,8 @@ static bool encode_type(const TypedDataEnvelope *envelope, BufferWriter *w,
   char deps[12][64] = {0};
   uint8_t deps_count = 0;
 
-  find_typed_dependencies(envelope, type_name, type_name_len, deps,
-                          &deps_count, 12);
+  find_typed_dependencies(envelope, type_name, type_name_len, deps, &deps_count,
+                          12);
   if (deps_count > 1) {
     qsort(deps + 1, deps_count - 1, 64, compare_strings);
   }
@@ -1010,15 +1014,16 @@ static bool _collect_types(TypedDataEnvelope *envelope, const char *type_name,
     if (!validate_field_type(member_type)) {
       return false;
     }
-    while (member_type->data_type == EthereumDataTypeOneKey_ARRAY && member_type->entry_type != NULL) {
+    while (member_type->data_type == EthereumDataTypeOneKey_ARRAY &&
+           member_type->entry_type != NULL) {
       member_type = member_type->entry_type;
     }
     if (member_type->data_type == EthereumDataTypeOneKey_STRUCT &&
         TypedDataEnvelope_find_type(envelope, member_type->struct_name,
                                     strlen(member_type->struct_name)) == NULL) {
-      if(!_collect_types(envelope, member_type->struct_name,
-                     strlen(member_type->struct_name))) {
-                      return false;
+      if (!_collect_types(envelope, member_type->struct_name,
+                          strlen(member_type->struct_name))) {
+        return false;
       }
     }
   }
