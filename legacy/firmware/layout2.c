@@ -2265,7 +2265,7 @@ void layoutCosiSign(const uint32_t *address_n, size_t address_n_count,
   layoutDialogSwipe(&bmp_icon_question, __("Cancel"), __("Confirm"), desc,
                     str[0], str[1], str[2], str[3], NULL, NULL);
 }
-
+extern bool reset_after_usb_lock;
 void layoutHomeInfo(void) {
   uint8_t key = KEY_NULL;
   key = keyScan();
@@ -2296,6 +2296,9 @@ void layoutHomeInfo(void) {
   if (layoutLast == onboarding) {
     onboarding(key);
   } else {
+    if (reset_after_usb_lock && key != KEY_NULL) {
+      reset_after_usb_lock = false;
+    }
     layoutEnterSleep(0);
     if (layoutNeedRefresh()) {
       layoutHome();
@@ -3971,8 +3974,12 @@ refresh_menu:
 bool layoutEnterSleep(int mode) {
 #if !EMULATOR
   static uint32_t system_millis_logo_refresh = 0;
-
-  if (config_getSleepDelayMs() > 0) {
+  if (reset_after_usb_lock) {
+      if (timer_get_sleep_count() >= 30000) {
+        reset_after_usb_lock = false;
+        enter_sleep();
+      }
+  } else if (config_getSleepDelayMs() > 0) {
     if (timer_get_sleep_count() >= config_getSleepDelayMs()) {
       if (mode) {
         return true;
