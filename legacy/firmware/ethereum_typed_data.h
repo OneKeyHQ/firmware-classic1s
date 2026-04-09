@@ -94,15 +94,15 @@ static bool display_item_set_name(DisplayItem *item, const char *name,
                                   int name_intent) {
   if (!item || !name) return false;
 
+  size_t len = strlen(name);
+  char *new_name = malloc(len + 1);
+  if (!new_name) return false;
+
+  strcpy(new_name, name);
   if (item->name) {
     free(item->name);
   }
-
-  size_t len = strlen(name);
-  item->name = malloc(len + 1);
-  if (!item->name) return false;
-
-  strcpy(item->name, name);
+  item->name = new_name;
   item->name_len = len;
   item->name_intent = name_intent;
   return true;
@@ -111,15 +111,15 @@ static bool display_item_set_name(DisplayItem *item, const char *name,
 static bool display_item_set_value(DisplayItem *item, const char *value) {
   if (!item || !value) return false;
 
+  size_t len = strlen(value);
+  char *new_value = malloc(len + 1);
+  if (!new_value) return false;
+
+  strcpy(new_value, value);
   if (item->value) {
     free(item->value);
   }
-
-  size_t len = strlen(value);
-  item->value = malloc(len + 1);
-  if (!item->value) return false;
-
-  strcpy(item->value, value);
+  item->value = new_value;
   item->value_len = len;
   return true;
 }
@@ -162,6 +162,7 @@ static bool display_info_add_item_name(DisplayInfo *info, const char *name,
   if (!info || !name) return false;
 
   if (info->items_count >= info->items_capacity) {
+    if (info->items_capacity > 127) return false;
     uint8_t new_capacity = info->items_capacity * 2;
     DisplayItem *new_items =
         realloc(info->items, sizeof(DisplayItem) * new_capacity);
@@ -207,9 +208,10 @@ typedef struct {
   EthereumTypedDataStruct types[2];
   uint8_t dependent_types_count;
   uint8_t dependent_types_capacity;
-  EthereumTypedDataStruct dependent_types[8];
-  EthereumFieldTypeOneKey entry_types[8];
+  EthereumTypedDataStruct dependent_types[10];
+  EthereumFieldTypeOneKey entry_types[24];
   uint8_t entry_types_count;
+  uint8_t entry_types_capacity;
   uint8_t current_name_intent;
 } TypedDataEnvelope;
 extern void *call(const MessageType req_type, const void *msg_ptr,
@@ -220,13 +222,18 @@ static void TypedDataEnvelope_init(TypedDataEnvelope *envelope,
                                    uint8_t primary_type_len,
                                    bool metamask_v4_compat) {
   memset(envelope, 0, sizeof(TypedDataEnvelope));
+  if (primary_type_len >= sizeof(envelope->primary_type)) {
+    primary_type_len = sizeof(envelope->primary_type) - 1;
+  }
   strncpy(envelope->primary_type, primary_type, primary_type_len);
+  envelope->primary_type[primary_type_len] = '\0';
   envelope->metamask_v4_compat = metamask_v4_compat;
   envelope->dependent_types_capacity =
       sizeof(envelope->dependent_types) / sizeof(EthereumTypedDataStruct);
   envelope->dependent_types_count = 0;
   envelope->primary_type_len = primary_type_len;
   envelope->entry_types_count = 0;
+  envelope->entry_types_capacity = sizeof(envelope->entry_types) / sizeof(EthereumFieldTypeOneKey);
   envelope->current_name_intent = 0;
   memset(envelope->entry_types, 0, sizeof(envelope->entry_types));
 }
@@ -234,8 +241,9 @@ static void TypedDataEnvelope_init(TypedDataEnvelope *envelope,
 static const EthereumTypedDataStruct *TypedDataEnvelope_find_dependent_type(
     const TypedDataEnvelope *envelope, const char *type_name,
     uint8_t type_name_len) {
+  (void)type_name_len;
   for (uint8_t i = 0; i < envelope->dependent_types_count; i++) {
-    if (strncmp(envelope->dependent_types[i].name, type_name, type_name_len) ==
+    if (strcmp(envelope->dependent_types[i].name, type_name) ==
         0) {
       return &envelope->dependent_types[i];
     }
@@ -243,10 +251,30 @@ static const EthereumTypedDataStruct *TypedDataEnvelope_find_dependent_type(
   return NULL;
 }
 
+static bool resolve_entry_type(TypedDataEnvelope *envelope,
+                               EthereumTypedDataStructAckOneKey *dst_type,
+                               uint8_t member_index) {
+  const EthereumFieldTypeOneKey *member_type = &dst_type->members[member_index].type;
+  while (member_type->data_type == EthereumDataTypeOneKey_ARRAY && member_type->entry_type != NULL) {
+    member_type = member_type->entry_type;
+    if (envelope->entry_types_count >= envelope->entry_types_capacity) {
+      return false;
+    }
+    envelope->entry_types[envelope->entry_types_count] = *member_type;
+    envelope->entry_types[envelope->entry_types_count].entry_type = NULL;
+    dst_type->members[member_index].type.entry_type =
+        &envelope->entry_types[envelope->entry_types_count];
+    envelope->entry_types_count++;
+  }
+  return true;
+}
+
 static bool TypedDataEnvelope_add_dependent_type(
     TypedDataEnvelope *envelope, const char *type_name, uint8_t type_name_len,
     const EthereumTypedDataStructAckOneKey *type) {
   if (envelope->dependent_types_count >= envelope->dependent_types_capacity) {
+    return false;
+  } else if (envelope->entry_types_count >= envelope->entry_types_capacity) {
     return false;
   }
   const EthereumTypedDataStruct *dependent_type =
@@ -258,19 +286,10 @@ static bool TypedDataEnvelope_add_dependent_type(
         .name[type_name_len] = '\0';
     envelope->dependent_types[envelope->dependent_types_count].type = *type;
     for (uint8_t i = 0; i < type->members_count; i++) {
-      const EthereumStructMemberOneKey *member = &type->members[i];
-      const EthereumFieldTypeOneKey *member_type = &member->type;
-      while (member_type->data_type == EthereumDataTypeOneKey_ARRAY) {
-        member_type = member_type->entry_type;
-        if (member_type != NULL) {
-          envelope->entry_types[envelope->entry_types_count] = *member_type;
-          envelope->entry_types[envelope->entry_types_count].entry_type = NULL;
-          envelope->dependent_types[envelope->dependent_types_count]
-              .type.members[i]
-              .type.entry_type =
-              &envelope->entry_types[envelope->entry_types_count];
-          envelope->entry_types_count++;
-        }
+      if (!resolve_entry_type(envelope,
+              &envelope->dependent_types[envelope->dependent_types_count].type,
+              i)) {
+        return false;
       }
     }
     envelope->dependent_types_count++;
@@ -285,17 +304,8 @@ static bool TypedDataEnvelope_add_domain_type(
   strncpy(envelope->types[0].name, TYPE_NAME_DOMAIN, strlen(TYPE_NAME_DOMAIN));
   envelope->types[0].name[strlen(TYPE_NAME_DOMAIN)] = '\0';
   for (uint8_t i = 0; i < domain_type->members_count; i++) {
-    const EthereumStructMemberOneKey *member = &domain_type->members[i];
-    const EthereumFieldTypeOneKey *member_type = &member->type;
-    while (member_type->data_type == EthereumDataTypeOneKey_ARRAY) {
-      member_type = member_type->entry_type;
-      if (member_type != NULL) {
-        envelope->entry_types[envelope->entry_types_count] = *member_type;
-        envelope->entry_types[envelope->entry_types_count].entry_type = NULL;
-        envelope->types[0].type.members[i].type.entry_type =
-            &envelope->entry_types[envelope->entry_types_count];
-        envelope->entry_types_count++;
-      }
+    if (!resolve_entry_type(envelope, &envelope->types[0].type, i)) {
+      return false;
     }
   }
   return true;
@@ -309,17 +319,8 @@ static bool TypedDataEnvelope_add_primary_type(
           envelope->primary_type_len);
   envelope->types[1].name[envelope->primary_type_len] = '\0';
   for (uint8_t i = 0; i < primary_type->members_count; i++) {
-    const EthereumStructMemberOneKey *member = &primary_type->members[i];
-    const EthereumFieldTypeOneKey *member_type = &member->type;
-    while (member_type->data_type == EthereumDataTypeOneKey_ARRAY) {
-      member_type = member_type->entry_type;
-      if (member_type != NULL) {
-        envelope->entry_types[envelope->entry_types_count] = *member_type;
-        envelope->entry_types[envelope->entry_types_count].entry_type = NULL;
-        envelope->types[1].type.members[i].type.entry_type =
-            &envelope->entry_types[envelope->entry_types_count];
-        envelope->entry_types_count++;
-      }
+    if (!resolve_entry_type(envelope, &envelope->types[1].type, i)) {
+      return false;
     }
   }
   return true;
@@ -327,10 +328,9 @@ static bool TypedDataEnvelope_add_primary_type(
 static const EthereumTypedDataStruct *TypedDataEnvelope_find_type(
     const TypedDataEnvelope *envelope, const char *type_name,
     uint8_t type_name_len) {
-  if (strncmp(type_name, TYPE_NAME_DOMAIN, strlen(TYPE_NAME_DOMAIN)) == 0) {
+  if (strcmp(type_name, TYPE_NAME_DOMAIN) == 0) {
     return &envelope->types[0];
-  } else if (strncmp(type_name, envelope->primary_type,
-                     envelope->primary_type_len) == 0) {
+  } else if (strcmp(type_name, envelope->primary_type) == 0) {
     return &envelope->types[1];
   }
   return TypedDataEnvelope_find_dependent_type(envelope, type_name,
@@ -339,18 +339,18 @@ static const EthereumTypedDataStruct *TypedDataEnvelope_find_type(
 static bool TypedDataEnvelope_add_type(
     TypedDataEnvelope *envelope, const char *type_name, uint8_t type_name_len,
     const EthereumTypedDataStructAckOneKey *type) {
-  if (strncmp(type_name, TYPE_NAME_DOMAIN, strlen(TYPE_NAME_DOMAIN)) == 0) {
+  if (strcmp(type_name, TYPE_NAME_DOMAIN) == 0) {
     return TypedDataEnvelope_add_domain_type(envelope, type);
-  } else if (strncmp(type_name, envelope->primary_type, type_name_len) == 0) {
+  } else if (strcmp(type_name, envelope->primary_type) == 0) {
     return TypedDataEnvelope_add_primary_type(envelope, type);
   } else {
     return TypedDataEnvelope_add_dependent_type(envelope, type_name,
                                                 type_name_len, type);
   }
-  return false;
 }
 static void write_rightpad32(BufferWriter *w, const uint8_t *value,
                              const uint8_t value_len) {
+  if (value_len > 32) return;
   uint8_t padding[32] = {0};
   memcpy(padding, value, value_len);
   write_bytes(padding, 32, w);
@@ -358,6 +358,7 @@ static void write_rightpad32(BufferWriter *w, const uint8_t *value,
 
 static void write_leftpad32(BufferWriter *w, const uint8_t *value,
                             const uint8_t value_len, bool is_signed) {
+  if (value_len > 32) return;
   uint8_t padding[32];
   if (is_signed && value[0] & 0x80) {
     memset(padding, 0xFF, 32);
@@ -540,7 +541,7 @@ static char *decode_typed_data(const uint8_t *data, uint16_t data_len,
                                const char *type_name) {
   char *result = NULL;
   if (strncmp(type_name, "bytes", 5) == 0) {
-    result = malloc(48);
+    result = malloc(64);
     if (!result) return NULL;
     result[0] = '0';
     result[1] = 'x';
@@ -560,7 +561,7 @@ static char *decode_typed_data(const uint8_t *data, uint16_t data_len,
     strncpy(result, (char *)data, data_len);
     result[data_len] = '\0';
   } else if (strncmp(type_name, "address", 7) == 0) {
-    result = malloc(data_len * 2 + 1);
+    result = malloc(data_len * 2 + 3);
     if (!result) return NULL;
     result[0] = '0';
     result[1] = 'x';
@@ -633,10 +634,10 @@ static bool get_and_encode_data(const TypedDataEnvelope *envelope,
     fsm_sendFailure(FailureType_Failure_DataError, "Failed to find type");
     return false;
   }
-  uint32_t member_value_path[16] = {0};
+  uint32_t member_value_path[6] = {0};
   memcpy(member_value_path, member_path, member_path_len * sizeof(uint32_t));
   member_path_len++;
-  char current_parent_objects[16][64] = {0};
+  char current_parent_objects[6][64] = {0};
   for (uint8_t i = 0; i < parent_objects_len; i++) {
     strncpy(current_parent_objects[i], parent_objects[i],
             strlen(parent_objects[i]));
@@ -645,18 +646,26 @@ static bool get_and_encode_data(const TypedDataEnvelope *envelope,
   for (uint8_t i = 0; i < type->type.members_count; i++) {
     const EthereumStructMemberOneKey *member = &type->type.members[i];
     member_value_path[member_path_len - 1] = i;
+    char temp_field_name[68] = {0};
     char *field_name = (char *)member->name;
     const EthereumFieldTypeOneKey *field_type = &member->type;
     if (name_intent != 0) {
-      char temp_field_name[68] = {0};
       snprintf(temp_field_name, 68, "[%s]", field_name);
       field_name = temp_field_name;
     }
-    display_info_add_item_name(&display_info, field_name, name_intent);
+    if (!display_info_add_item_name(&display_info, field_name, name_intent)) {
+      fsm_sendFailure(FailureType_Failure_ProcessError,
+                      "Failed to allocate display item");
+      return false;
+    }
     if (field_type->data_type == EthereumDataTypeOneKey_STRUCT) {
       strncpy(current_parent_objects[parent_objects_len - 1], field_name,
               strlen(field_name));
-      display_info_set_value(&display_info, field_type->struct_name);
+      if (!display_info_set_value(&display_info, field_type->struct_name)) {
+        fsm_sendFailure(FailureType_Failure_ProcessError,
+                        "Failed to allocate display value");
+        return false;
+      }
       if (!hash_struct(envelope, field_type->struct_name,
                        strlen(field_type->struct_name), member_value_path,
                        member_path_len, name_intent + 4, current_parent_objects,
@@ -681,13 +690,24 @@ static bool get_and_encode_data(const TypedDataEnvelope *envelope,
       if (!get_type_name(field_type, field_type_str, &field_type_str_len)) {
         return false;
       }
-      display_info_set_value(&display_info, field_type_str);
+      if (!display_info_set_value(&display_info, field_type_str)) {
+        fsm_sendFailure(FailureType_Failure_ProcessError,
+                        "Failed to allocate display value");
+        return false;
+      }
       strncpy(current_parent_objects[parent_objects_len - 1], field_name,
               strlen(field_name));
       BufferWriter arr_w = {0};
-      uint8_t arr_buffer[256] = {0};
+      uint8_t arr_buffer[768] = {0};
       init_buffer_writer(&arr_w, arr_buffer, sizeof(arr_buffer));
-      uint32_t el_member_value_path[16] = {0};
+      if ((entry_type->data_type != EthereumDataTypeOneKey_STRUCT ||
+           envelope->metamask_v4_compat) &&
+          array_size > sizeof(arr_buffer) / 32) {
+        fsm_sendFailure(FailureType_Failure_DataError,
+                        "Array too large for typed data");
+        return false;
+      }
+      uint32_t el_member_value_path[6] = {0};
       uint8_t el_member_value_path_len = member_path_len;
       memcpy(el_member_value_path, member_value_path,
              el_member_value_path_len * sizeof(uint32_t));
@@ -726,13 +746,26 @@ static bool get_and_encode_data(const TypedDataEnvelope *envelope,
           }
           char array_item_str[80] = {0};
           snprintf(array_item_str, 80, "%s[%" PRIu32 "]", field_name, j);
-          display_info_add_item_name(&display_info, array_item_str,
-                                     name_intent + 4);
+          if (!display_info_add_item_name(&display_info, array_item_str,
+                                          name_intent + 4)) {
+            fsm_sendFailure(FailureType_Failure_ProcessError,
+                            "Failed to allocate display item");
+            return false;
+          }
           char *array_item_value_str = decode_typed_data(
               value, value_len,
               TYPE_TRANSLATION_DICT[entry_type->data_type - 1]);
-          display_info_set_value(&display_info, array_item_value_str);
-          free(array_item_value_str);
+          if (array_item_value_str == NULL) {
+            return false;
+          } else {
+            if (!display_info_set_value(&display_info, array_item_value_str)) {
+              free(array_item_value_str);
+              fsm_sendFailure(FailureType_Failure_ProcessError,
+                              "Failed to allocate display value");
+              return false;
+            }
+            free(array_item_value_str);
+          }
         }
       }
       keccak_256(arr_w.buffer, arr_w.position, w->buffer + w->position);
@@ -749,8 +782,17 @@ static bool get_and_encode_data(const TypedDataEnvelope *envelope,
       }
       char *field_value_str = decode_typed_data(
           value, value_len, TYPE_TRANSLATION_DICT[field_type->data_type - 1]);
-      display_info_set_value(&display_info, field_value_str);
-      free(field_value_str);
+      if (field_value_str == NULL) {
+        return false;
+      } else {
+        if (!display_info_set_value(&display_info, field_value_str)) {
+          free(field_value_str);
+          fsm_sendFailure(FailureType_Failure_ProcessError,
+                          "Failed to allocate display value");
+          return false;
+        }
+        free(field_value_str);
+      }
     }
   }
   return true;
@@ -758,40 +800,42 @@ static bool get_and_encode_data(const TypedDataEnvelope *envelope,
 static void find_typed_dependencies(const TypedDataEnvelope *envelope,
                                     const char *type_name,
                                     uint8_t type_name_len, char (*results)[64],
-                                    uint8_t *results_count) {
+                                    uint8_t *results_count,
+                                    uint8_t max_results) {
   const EthereumTypedDataStruct *type =
       TypedDataEnvelope_find_type(envelope, type_name, type_name_len);
   if (type == NULL) {
     return;
   }
   for (uint8_t i = 0; i < *results_count; i++) {
-    if (strncmp(results[i], type_name, type_name_len) == 0) {
+    if (strcmp(results[i], type_name) == 0) {
       return;
     }
   }
+  if (*results_count >= max_results) return;
   strncpy(results[*results_count], type_name, type_name_len);
   results[*results_count][type_name_len] = '\0';
   (*results_count)++;
   for (uint8_t i = 0; i < type->type.members_count; i++) {
     const EthereumStructMemberOneKey *member = &type->type.members[i];
     const EthereumFieldTypeOneKey *member_type = &member->type;
-    while (member_type->data_type == EthereumDataTypeOneKey_ARRAY) {
+    while (member_type->data_type == EthereumDataTypeOneKey_ARRAY && member_type->entry_type != NULL) {
       member_type = member_type->entry_type;
     }
     if (member_type->data_type == EthereumDataTypeOneKey_STRUCT) {
       find_typed_dependencies(envelope, member_type->struct_name,
                               strlen(member_type->struct_name), results,
-                              results_count);
+                              results_count, max_results);
     }
   }
 }
 static bool encode_type(const TypedDataEnvelope *envelope, BufferWriter *w,
                         const char *type_name, uint8_t type_name_len) {
-  char deps[16][64] = {0};
+  char deps[12][64] = {0};
   uint8_t deps_count = 0;
 
   find_typed_dependencies(envelope, type_name, type_name_len, deps,
-                          &deps_count);
+                          &deps_count, 12);
   if (deps_count > 1) {
     qsort(deps + 1, deps_count - 1, 64, compare_strings);
   }
@@ -849,7 +893,7 @@ static bool encode_type(const TypedDataEnvelope *envelope, BufferWriter *w,
 static bool hash_type(const TypedDataEnvelope *envelope, BufferWriter *w,
                       const char *type_name, uint8_t type_name_len) {
   BufferWriter type_w = {0};
-  uint8_t buffer[1024] = {0};
+  uint8_t buffer[2048] = {0};
   init_buffer_writer(&type_w, buffer, sizeof(buffer));
   if (!encode_type(envelope, &type_w, type_name, type_name_len)) {
     return false;
@@ -864,7 +908,7 @@ static bool hash_struct(const TypedDataEnvelope *envelope,
                         uint8_t name_intent, const char (*parent_objects)[64],
                         uint8_t parent_objects_len, uint8_t *digest) {
   BufferWriter w = {0};
-  uint8_t struct_buffer[1024] = {0};
+  uint8_t struct_buffer[608] = {0};
   init_buffer_writer(&w, struct_buffer, sizeof(struct_buffer));
   if (!hash_type(envelope, &w, type_name, type_name_len)) {
     return false;
@@ -966,14 +1010,16 @@ static bool _collect_types(TypedDataEnvelope *envelope, const char *type_name,
     if (!validate_field_type(member_type)) {
       return false;
     }
-    while (member_type->data_type == EthereumDataTypeOneKey_ARRAY) {
+    while (member_type->data_type == EthereumDataTypeOneKey_ARRAY && member_type->entry_type != NULL) {
       member_type = member_type->entry_type;
     }
     if (member_type->data_type == EthereumDataTypeOneKey_STRUCT &&
         TypedDataEnvelope_find_type(envelope, member_type->struct_name,
                                     strlen(member_type->struct_name)) == NULL) {
-      _collect_types(envelope, member_type->struct_name,
-                     strlen(member_type->struct_name));
+      if(!_collect_types(envelope, member_type->struct_name,
+                     strlen(member_type->struct_name))) {
+                      return false;
+      }
     }
   }
   return true;
@@ -1139,79 +1185,172 @@ refresh_menu:
   HANDLE_KEY(bubble_key);
   return true;
 }
-static void prepare_domain_items(DisplayInfo *info,
+static bool prepare_domain_items(DisplayInfo *info,
                                  const EthereumGnosisSafeTxAck *ack) {
-  display_info_add_item_name(info, "chainId", 0);
+  if (!display_info_add_item_name(info, "chainId", 0)) {
+    return false;
+  }
   uint8_t chain_id_bytes[8] = {0};
   for (int i = 0; i < 8; i++) {
     chain_id_bytes[7 - i] = (ack->chain_id >> (i * 8)) & 0xFF;
   }
   char *chain_id_str = decode_typed_data(chain_id_bytes, 8, "uint");
-  display_info_set_value(info, chain_id_str);
+  if (chain_id_str == NULL) {
+    return false;
+  }
+  if (!display_info_set_value(info, chain_id_str)) {
+    free(chain_id_str);
+    return false;
+  }
   free(chain_id_str);
-  display_info_add_item_name(info, "verifyingContract", 0);
+  if (!display_info_add_item_name(info, "verifyingContract", 0)) {
+    return false;
+  }
   uint8_t verifying_contract_bytes[20] = {0};
   ethereum_parse_onekey(ack->verifyingContract, verifying_contract_bytes);
   char *verifying_contract_str =
       decode_typed_data(verifying_contract_bytes, 20, "address");
-  display_info_set_value(info, verifying_contract_str);
+  if (verifying_contract_str == NULL) {
+    return false;
+  }
+  if (!display_info_set_value(info, verifying_contract_str)) {
+    free(verifying_contract_str);
+    return false;
+  }
   free(verifying_contract_str);
+  return true;
 }
-static void prepare_safe_items(DisplayInfo *info,
+static bool prepare_safe_items(DisplayInfo *info,
                                const EthereumGnosisSafeTxAck *ack) {
-  display_info_add_item_name(info, "to", 0);
+  if (!display_info_add_item_name(info, "to", 0)) {
+    return false;
+  }
   uint8_t to_bytes[20] = {0};
   ethereum_parse_onekey(ack->to, to_bytes);
   char *to_str = decode_typed_data(to_bytes, 20, "address");
-  display_info_set_value(info, to_str);
+  if (to_str == NULL) {
+    return false;
+  }
+  if (!display_info_set_value(info, to_str)) {
+    free(to_str);
+    return false;
+  }
   free(to_str);
-  display_info_add_item_name(info, "value", 0);
+  if (!display_info_add_item_name(info, "value", 0)) {
+    return false;
+  }
   char *value_str =
       decode_typed_data(ack->value.bytes, ack->value.size, "uint");
-  display_info_set_value(info, value_str);
-  free(value_str);
-  display_info_add_item_name(info, "data", 0);
-  char *data_str = decode_typed_data(ack->data.bytes, ack->data.size, "bytes");
-  display_info_set_value(info, data_str);
-  free(data_str);
-  display_info_add_item_name(info, "operation", 0);
-  if (ack->operation == EthereumGnosisSafeTxOperation_DELEGATE_CALL) {
-    display_info_set_value(info, "1(DELEGATECALL)");
-  } else {
-    display_info_set_value(info, "0(CALL)");
+  if (value_str == NULL) {
+    return false;
   }
-  display_info_add_item_name(info, "safeTxGas", 0);
+  if (!display_info_set_value(info, value_str)) {
+    free(value_str);
+    return false;
+  }
+  free(value_str);
+  if (!display_info_add_item_name(info, "data", 0)) {
+    return false;
+  }
+  char *data_str = decode_typed_data(ack->data.bytes, ack->data.size, "bytes");
+  if (data_str == NULL) {
+    return false;
+  }
+  if (!display_info_set_value(info, data_str)) {
+    free(data_str);
+    return false;
+  }
+  free(data_str);
+  if (!display_info_add_item_name(info, "operation", 0)) {
+    return false;
+  }
+  if (!display_info_set_value(
+          info, ack->operation == EthereumGnosisSafeTxOperation_DELEGATE_CALL
+                    ? "1(DELEGATECALL)"
+                    : "0(CALL)")) {
+    return false;
+  }
+  if (!display_info_add_item_name(info, "safeTxGas", 0)) {
+    return false;
+  }
   char *safeTxGas_str =
       decode_typed_data(ack->safeTxGas.bytes, ack->safeTxGas.size, "uint");
-  display_info_set_value(info, safeTxGas_str);
+  if (safeTxGas_str == NULL) {
+    return false;
+  }
+  if (!display_info_set_value(info, safeTxGas_str)) {
+    free(safeTxGas_str);
+    return false;
+  }
   free(safeTxGas_str);
-  display_info_add_item_name(info, "baseGas", 0);
+  if (!display_info_add_item_name(info, "baseGas", 0)) {
+    return false;
+  }
   char *baseGas_str =
       decode_typed_data(ack->baseGas.bytes, ack->baseGas.size, "uint");
-  display_info_set_value(info, baseGas_str);
+  if (baseGas_str == NULL) {
+    return false;
+  }
+  if (!display_info_set_value(info, baseGas_str)) {
+    free(baseGas_str);
+    return false;
+  }
   free(baseGas_str);
-  display_info_add_item_name(info, "gasPrice", 0);
+  if (!display_info_add_item_name(info, "gasPrice", 0)) {
+    return false;
+  }
   char *gasPrice_str =
       decode_typed_data(ack->gasPrice.bytes, ack->gasPrice.size, "uint");
-  display_info_set_value(info, gasPrice_str);
+  if (gasPrice_str == NULL) {
+    return false;
+  }
+  if (!display_info_set_value(info, gasPrice_str)) {
+    free(gasPrice_str);
+    return false;
+  }
   free(gasPrice_str);
-  display_info_add_item_name(info, "gasToken", 0);
+  if (!display_info_add_item_name(info, "gasToken", 0)) {
+    return false;
+  }
   uint8_t gas_token_bytes[20] = {0};
   ethereum_parse_onekey(ack->gasToken, gas_token_bytes);
   char *gasToken_str = decode_typed_data(gas_token_bytes, 20, "address");
-  display_info_set_value(info, gasToken_str);
+  if (gasToken_str == NULL) {
+    return false;
+  }
+  if (!display_info_set_value(info, gasToken_str)) {
+    free(gasToken_str);
+    return false;
+  }
   free(gasToken_str);
-  display_info_add_item_name(info, "refundReceiver", 0);
+  if (!display_info_add_item_name(info, "refundReceiver", 0)) {
+    return false;
+  }
   uint8_t refund_receiver_bytes[20] = {0};
   ethereum_parse_onekey(ack->refundReceiver, refund_receiver_bytes);
   char *refundReceiver_str =
       decode_typed_data(refund_receiver_bytes, 20, "address");
-  display_info_set_value(info, refundReceiver_str);
+  if (refundReceiver_str == NULL) {
+    return false;
+  }
+  if (!display_info_set_value(info, refundReceiver_str)) {
+    free(refundReceiver_str);
+    return false;
+  }
   free(refundReceiver_str);
-  display_info_add_item_name(info, "nonce", 0);
+  if (!display_info_add_item_name(info, "nonce", 0)) {
+    return false;
+  }
   char *nonce_str =
       decode_typed_data(ack->nonce.bytes, ack->nonce.size, "uint");
-  display_info_set_value(info, nonce_str);
+  if (nonce_str == NULL) {
+    return false;
+  }
+  if (!display_info_set_value(info, nonce_str)) {
+    free(nonce_str);
+    return false;
+  }
   free(nonce_str);
+  return true;
 }
 #endif /* __ETHEREUM_TYPED_DATA_H__ */

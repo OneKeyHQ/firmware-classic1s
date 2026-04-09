@@ -2689,16 +2689,34 @@ static void ethereum_gnosis_safe_tx_sign(
     fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
     return;
   }
-  display_info_init(&display_info, 2);
-  prepare_domain_items(&display_info, ack);
+  if (!display_info_init(&display_info, 2)) {
+    fsm_sendFailure(FailureType_Failure_ProcessError,
+                    "Failed to allocate display items");
+    return;
+  }
+  if (!prepare_domain_items(&display_info, ack)) {
+    display_info_cleanup(&display_info);
+    fsm_sendFailure(FailureType_Failure_ProcessError,
+                    "Failed to prepare display items");
+    return;
+  }
   if (!layoutTypedData(&display_info, TYPE_NAME_DOMAIN)) {
     display_info_cleanup(&display_info);
     fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
     return;
   }
   display_info_cleanup(&display_info);
-  display_info_init(&display_info, 10);
-  prepare_safe_items(&display_info, ack);
+  if (!display_info_init(&display_info, 10)) {
+    fsm_sendFailure(FailureType_Failure_ProcessError,
+                    "Failed to allocate display items");
+    return;
+  }
+  if (!prepare_safe_items(&display_info, ack)) {
+    display_info_cleanup(&display_info);
+    fsm_sendFailure(FailureType_Failure_ProcessError,
+                    "Failed to prepare display items");
+    return;
+  }
   if (!layoutTypedData(&display_info, "SafeTx")) {
     display_info_cleanup(&display_info);
     fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
@@ -2727,7 +2745,7 @@ static void ethereum_gnosis_safe_tx_sign(
 void ethereum_typed_data_sign_onekey(const EthereumSignTypedDataOneKey *msg,
                                      const HDNode *node,
                                      EthereumTypedDataSignatureOneKey *resp) {
-  if (strncmp(msg->primary_type, "SafeTx", strlen("SafeTx")) == 0) {
+  if (strcmp(msg->primary_type, "SafeTx") == 0) {
     EthereumGnosisSafeTxRequest request = {0};
     const EthereumGnosisSafeTxAck *ack =
         call(MessageType_MessageType_EthereumGnosisSafeTxRequest, &request,
@@ -2791,8 +2809,7 @@ void ethereum_typed_data_sign_onekey(const EthereumSignTypedDataOneKey *msg,
   }
   display_info_cleanup(&display_info);
   bool has_message_hash = true;
-  if (strncmp(envelope.primary_type, TYPE_NAME_DOMAIN,
-              strlen(TYPE_NAME_DOMAIN)) == 0) {
+  if (strcmp(envelope.primary_type, TYPE_NAME_DOMAIN) == 0) {
     has_message_hash = false;
   }
   uint8_t message_hash[32] = {0};
