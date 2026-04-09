@@ -685,7 +685,7 @@ static struct menu fido_switch_set_menu = {
     .start = 0,
     .current = 0,
     .counts = COUNT_OF(fido_switch_set_menu_items),
-    .title = "Enable Security Keys",
+    .title = "Security Key",
     .items = (struct menu_item *)fido_switch_set_menu_items,
     .previous = &main_menu,
 };
@@ -905,7 +905,7 @@ static const struct menu_item main_menu_items[] = {
 #if !BITCOIN_ONLY
     {"Security Key", NULL, false, .sub_menu = &fido_switch_set_menu,
      menu_para_fido_switch, false, menu_para_fido_switch_index},
-    {"Management Security Key", NULL, true, menu_fido2_resident_credential,
+    {"Manage Security Key", NULL, true, menu_fido2_resident_credential,
      NULL, false, NULL},
 #endif
 };

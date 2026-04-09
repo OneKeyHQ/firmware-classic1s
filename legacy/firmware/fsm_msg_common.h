@@ -420,16 +420,16 @@ void fsm_msgChangePin(const ChangePin *msg) {
     if (config_hasPin()) {
       layoutDialogCenterAdapterV2(
           NULL, &bmp_icon_warning, &bmp_bottom_left_close,
-          &bmp_bottom_right_confirm, NULL, NULL, __("Do you really want to"),
-          __("change current PIN?"), NULL, NULL, NULL);
+          &bmp_bottom_right_confirm, NULL, NULL, NULL, NULL, NULL, NULL,
+          _(C__DO_YOU_REALLY_WANT_TO_CHANGE_CURRENT_PIN_QUES));
     } else {
       if (g_bIsBixinAPP) {
         button_confirm = false;
       } else {
         layoutDialogCenterAdapterV2(
             NULL, &bmp_icon_warning, &bmp_bottom_left_close,
-            &bmp_bottom_right_confirm, NULL, NULL, __("Do you really want to"),
-            __("set new PIN?"), NULL, NULL, NULL);
+            &bmp_bottom_right_confirm, NULL, NULL, NULL, NULL, NULL, NULL,
+            _(C__DO_YOU_REALLY_WANT_TO_SET_NEW_PIN_QUES));
       }
     }
   }
