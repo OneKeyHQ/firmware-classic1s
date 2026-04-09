@@ -992,33 +992,7 @@ static bool collect_types(TypedDataEnvelope *envelope) {
 
 extern void layout_index_count(int index, int count);
 extern void drawScrollbar(int pages, int index);
-static const char *truncate_text_for_display(const char *text,
-                                             uint8_t max_lines) {
-  if (!text || max_lines == 0) return "";
 
-  size_t text_len = strlen(text);
-  size_t chars_per_line = 21;
-  size_t max_chars = max_lines * chars_per_line;
-
-  static char truncated_value[64];
-  memzero(truncated_value, sizeof(truncated_value));
-
-  if (text_len > max_chars) {
-    size_t full_lines = max_lines - 1;
-    size_t full_chars = full_lines * chars_per_line;
-    strncpy(truncated_value, text, full_chars);
-    truncated_value[full_chars] = '\n';
-    memcpy(truncated_value + full_chars + 1, "...", 3);
-    size_t remaining_chars = chars_per_line - 3;
-    size_t start_pos = text_len - remaining_chars;
-    strncpy(truncated_value + full_chars + 4, text + start_pos,
-            remaining_chars);
-  } else {
-    return text;
-  }
-
-  return truncated_value;
-}
 static bool layoutTypedData(DisplayInfo *display_context,
                             const char *primary_type) {
   bool result = false;

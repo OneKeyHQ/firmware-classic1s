@@ -329,6 +329,9 @@ void msg_read_common(char type, const uint8_t *buf, uint32_t len) {
         case MessageType_MessageType_EthereumGnosisSafeTxAck:
           fields = EthereumGnosisSafeTxAck_fields;
           break;
+        case MessageType_MessageType_StellarSorobanDataAck:
+          fields = StellarSorobanDataAck_fields;
+          break;
 #endif
         default:
           msg_pos = 0;

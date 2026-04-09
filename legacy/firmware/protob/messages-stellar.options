@@ -51,5 +51,12 @@ StellarManageDataOp.value                               max_size:65
 
 StellarBumpSequenceOp.source_account                    max_size:57
 
+StellarInvokeHostFunctionOp.source_account              max_size:57
+StellarInvokeHostFunctionOp.contract_address            max_size:57
+StellarInvokeHostFunctionOp.function_name               max_size:33
+StellarInvokeHostFunctionOp.call_args_xdr_initial_chunk               max_size:1024
+StellarInvokeHostFunctionOp.soroban_auth_xdr_initial_chunk            max_size:1024 
+StellarSorobanDataAck.data_chunk_xdr                   max_size:1024
+
 StellarSignedTx.public_key                              max_size:32
 StellarSignedTx.signature                               max_size:64 # ed25519 signatures are 64 bytes, this does not include the hint
