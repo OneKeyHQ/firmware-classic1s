@@ -48,6 +48,7 @@ typedef struct {
   // Number that have been confirmed by the user
   uint32_t confirmed_operations;
 
+  uint32_t soroban_data_size;
   // sha256 context that will eventually be signed
   SHA256_CTX sha256_ctx;
 } StellarTransaction;
@@ -73,6 +74,8 @@ bool stellar_confirmAllowTrustOp(const StellarAllowTrustOp *msg);
 bool stellar_confirmAccountMergeOp(const StellarAccountMergeOp *msg);
 bool stellar_confirmManageDataOp(const StellarManageDataOp *msg);
 bool stellar_confirmBumpSequenceOp(const StellarBumpSequenceOp *msg);
+bool stellar_confirmInvokeHostFunctionOp(
+    const StellarInvokeHostFunctionOp *msg);
 
 // Layout
 bool stellar_layoutTransactionDialog(size_t n, const char *const keys[n],
@@ -96,6 +99,7 @@ void stellar_hashupdate_uint64(uint64_t value);
 void stellar_hashupdate_bool(bool value);
 void stellar_hashupdate_string(const uint8_t *data, size_t len);
 void stellar_hashupdate_address(const uint8_t *address_bytes);
+void stellar_hashupdate_contract_address(const uint8_t *address_bytes);
 void stellar_hashupdate_asset(const StellarAsset *asset);
 void stellar_hashupdate_bytes(const uint8_t *data, size_t len);
 
@@ -111,8 +115,10 @@ void stellar_format_asset(const StellarAsset *asset, char *str_formatted,
 void stellar_format_price(uint32_t numerator, uint32_t denominator, char *out,
                           size_t outlen);
 
-bool stellar_validateAddress(const char *str_address);
+bool stellar_validateAddress(const char *str_address, uint8_t version);
 bool stellar_getAddressBytes(const char *str_address, uint8_t *out_bytes);
+bool stellar_getContractAddressBytes(const char *str_address,
+                                     uint8_t *out_bytes);
 uint16_t stellar_crc16(uint8_t *bytes, uint32_t length);
 
 bool stellar_path_check(uint32_t address_n_count, const uint32_t *address_n);

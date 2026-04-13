@@ -7,10 +7,10 @@
 #define FIX_VERSION_PATCH 99
 
 #define ONEKEY_VER_MAJOR 3
-#define ONEKEY_VER_MINOR 18
+#define ONEKEY_VER_MINOR 19
 #define ONEKEY_VER_PATCH 0
 
-#define ONEKEY_VERSION "3.18.0"
+#define ONEKEY_VERSION "3.19.0"
 // Deprecated
 #define ONEKEY_VERSION_HEX 0x3F00
 

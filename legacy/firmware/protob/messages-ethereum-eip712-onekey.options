@@ -8,7 +8,7 @@ EthereumStructMemberOneKey.name                 max_size:64
 
 EthereumFieldTypeOneKey.struct_name             max_size:64
 EthereumFieldTypeOneKey.entry_type              type: FT_POINTER
-EthereumTypedDataValueRequestOneKey.member_path max_count:5
+EthereumTypedDataValueRequestOneKey.member_path max_count:6
 
 EthereumTypedDataValueAckOneKey.value           max_size:1536
 

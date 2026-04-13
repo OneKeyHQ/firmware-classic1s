@@ -17,7 +17,6 @@ bool alephium_get_address(const AlephiumGetAddress *msg,
 }
 
 void alephium_sign_tx(const HDNode *node, const AlephiumSignTx *msg) {
-  char log_buffer[1024];
   memcpy(&global_node, node, sizeof(HDNode));
   alephium_data_total_size = msg->data_initial_chunk.size;
   memcpy(alephium_data_buffer, msg->data_initial_chunk.bytes,
@@ -34,9 +33,6 @@ void alephium_sign_tx(const HDNode *node, const AlephiumSignTx *msg) {
     alephium_data_total_size = msg->data_length;
     alephium_data_left =
         alephium_data_total_size - msg->data_initial_chunk.size;
-    snprintf(log_buffer, sizeof(log_buffer),
-             "Requesting more data chunks, total size: %zu, data left: %zu",
-             (size_t)alephium_data_total_size, (size_t)alephium_data_left);
     alephium_send_request_chunk();
   } else {
     if (alephium_data_buffer[2] == 1) {

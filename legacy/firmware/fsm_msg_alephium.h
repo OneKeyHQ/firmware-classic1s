@@ -54,7 +54,6 @@ void fsm_msgAlephiumSignTx(const AlephiumSignTx *msg) {
                                     COIN_TYPE, SECP256K1_NAME, true),
               "Invalid path");
   CHECK_PIN
-  RESP_INIT(AlephiumSignedTx);
   HDNode *node = fsm_getDerivedNode(SECP256K1_NAME, msg->address_n,
                                     msg->address_n_count, NULL);
   if (!node) return;

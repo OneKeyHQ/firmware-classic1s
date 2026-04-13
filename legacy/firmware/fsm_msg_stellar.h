@@ -215,3 +215,11 @@ void fsm_msgStellarBumpSequenceOp(const StellarBumpSequenceOp *msg) {
 
   GO_AHEAD
 }
+
+void fsm_msgStellarInvokeHostFunctionOp(
+    const StellarInvokeHostFunctionOp *msg) {
+  CHECK_UNLOCKED
+  if (!stellar_confirmInvokeHostFunctionOp(msg)) return;
+
+  GO_AHEAD
+}

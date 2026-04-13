@@ -201,7 +201,7 @@ void fsm_msgStellarAllowTrustOp(const StellarAllowTrustOp *msg);
 void fsm_msgStellarAccountMergeOp(const StellarAccountMergeOp *msg);
 void fsm_msgStellarManageDataOp(const StellarManageDataOp *msg);
 void fsm_msgStellarBumpSequenceOp(const StellarBumpSequenceOp *msg);
-
+void fsm_msgStellarInvokeHostFunctionOp(const StellarInvokeHostFunctionOp *msg);
 void fsm_msgRebootToBootloader(void);
 
 bool fsm_layoutSignMessage(const char *chain_name, const char *signer,

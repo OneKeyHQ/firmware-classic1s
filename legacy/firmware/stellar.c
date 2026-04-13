@@ -55,7 +55,34 @@ static bool stellar_signing = false;
 static StellarTransaction stellar_activeTx;
 static bool memo_type_none = false;
 static CONFIDENTIAL HDNode *stellar_node = NULL;
-#define ARRAY_SIZE(arr) sizeof(arr) / sizeof(arr[0])
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
+
+#define STELLAR_OP_TYPE_INVOKE_HOST_FUNCTION 24
+#define STELLAR_HOST_FUNCTION_TYPE_INVOKE_CONTRACT 0
+#define STELLAR_TX_EXT_SOROBAN 1
+extern void *call(const MessageType req_type, const void *msg_ptr,
+                  const MessageType expected_response_type);
+static void stellar_signingFail(const char *reason, bool user_cancel);
+
+static void stellar_hashupdate_transaction_ext(void) {
+  if (stellar_activeTx.soroban_data_size == 0) {
+    stellar_hashupdate_uint32(0);
+    return;
+  }
+}
+
+static bool stellar_confirmSorobanWarning(void) {
+  layoutDialogCenterAdapterV2(
+      NULL, &bmp_icon_warning, &bmp_bottom_left_close, &bmp_bottom_right_arrow,
+      NULL, NULL, NULL, NULL, NULL, NULL,
+      _(C__UNBALE_TO_DECODE_TX_DATA_SIGN_AT_YOUR_OWN_RISK_EXCLAM));
+  if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
+    stellar_signingFail("User canceled", true);
+    return false;
+  }
+  return true;
+}
+
 /*
  * Starts the signing process and parses the transaction header
  */
@@ -76,6 +103,21 @@ bool stellar_signingInit(const StellarSignTx *msg) {
 
   // Copy some data into the active tx
   stellar_activeTx.num_operations = msg->num_operations;
+  bool is_soroban_tx = msg->soroban_data_size > 0;
+  if (is_soroban_tx) {
+    if (msg->num_operations != 1) {
+      fsm_sendFailure(FailureType_Failure_DataError,
+                      "Soroban requires single operation");
+      return false;
+    }
+    if (msg->memo_type != StellarMemoType_NONE) {
+      fsm_sendFailure(FailureType_Failure_DataError,
+                      "Soroban requires MEMO_NONE");
+      return false;
+    }
+
+    stellar_activeTx.soroban_data_size = msg->soroban_data_size;
+  }
 
   // Start building what will be signed:
   // sha256 of:
@@ -1187,6 +1229,12 @@ bool stellar_confirmSetOptionsOp(const StellarSetOptionsOp *msg) {
     //   }
     //   memzero(rows, sizeof(rows));
     //   row_idx = 0;
+    // Hash: signer type
+    stellar_hashupdate_uint32(msg->signer_type);
+    // key
+    stellar_hashupdate_bytes(msg->signer_key.bytes, 32);
+    // weight
+    stellar_hashupdate_uint32(msg->signer_weight);
   }
   const char *const expected_keys[] = {
       msg->has_inflation_destination_account ? "Inflation Account" : NULL,
@@ -1219,12 +1267,6 @@ bool stellar_confirmSetOptionsOp(const StellarSetOptionsOp *msg) {
     stellar_signingFail("User canceled", true);
     return false;
   }
-  // Hash: signer type
-  stellar_hashupdate_uint32(msg->signer_type);
-  // key
-  stellar_hashupdate_bytes(msg->signer_key.bytes, 32);
-  // weight
-  stellar_hashupdate_uint32(msg->signer_weight);
   return true;
 }
 
@@ -1264,8 +1306,7 @@ bool stellar_confirmChangeTrustOp(const StellarChangeTrustOp *msg) {
   // Validate destination account and convert to bytes
   uint8_t asset_issuer_bytes[STELLAR_KEY_SIZE] = {0};
   if (!stellar_getAddressBytes(msg->asset.issuer, asset_issuer_bytes)) {
-    stellar_signingFail("User canceled", true);
-    fsm_sendFailure(FailureType_Failure_ProcessError, "Invalid asset issuer");
+    stellar_signingFail("Invalid asset issuer", false);
     return false;
   }
 
@@ -1547,13 +1588,163 @@ bool stellar_confirmBumpSequenceOp(const StellarBumpSequenceOp *msg) {
   return true;
 }
 
+static bool request_chunk(StellarRequestType type, uint32_t req_len,
+                          StellarSorobanDataAck **ack) {
+  const StellarSorobanDataRequest soroban_data_req = {
+      .type = type,
+      .data_length = req_len,
+  };
+  *ack = call(MessageType_MessageType_StellarSorobanDataRequest,
+              &soroban_data_req, MessageType_MessageType_StellarSorobanDataAck);
+  if (*ack == NULL) {
+    stellar_signingFail("Invalid soroban data", false);
+    return false;
+  }
+  return true;
+}
+
+static bool hash_requested_chunks(StellarRequestType type, uint32_t data_left,
+                                  SHA256_CTX *hex_str_ctx,
+                                  const char *error_message) {
+  StellarSorobanDataAck *ack = NULL;
+
+  while (data_left > 0) {
+    if (!request_chunk(type, data_left >= 1024 ? 1024 : data_left, &ack)) {
+      return false;
+    }
+    if (ack->data_chunk_xdr.size == 0 || ack->data_chunk_xdr.size > data_left) {
+      stellar_signingFail(error_message, false);
+      return false;
+    }
+    stellar_hashupdate_bytes(ack->data_chunk_xdr.bytes,
+                             ack->data_chunk_xdr.size);
+    sha256_Update(hex_str_ctx, ack->data_chunk_xdr.bytes,
+                  ack->data_chunk_xdr.size);
+    data_left -= ack->data_chunk_xdr.size;
+  }
+
+  return true;
+}
+
+bool stellar_confirmInvokeHostFunctionOp(
+    const StellarInvokeHostFunctionOp *msg) {
+  if (!stellar_signing) return false;
+  if (stellar_activeTx.soroban_data_size <= 0) {
+    stellar_signingFail("Missing Soroban tx data", false);
+    return false;
+  }
+
+  if (msg->function_name[0] == '\0' || msg->call_args_xdr_size <= 0 ||
+      msg->soroban_auth_xdr_size <= 0 ||
+      msg->call_args_xdr_initial_chunk.size > msg->call_args_xdr_size ||
+      msg->soroban_auth_xdr_initial_chunk.size > msg->soroban_auth_xdr_size) {
+    stellar_signingFail("Invalid Soroban invoke payload", false);
+    return false;
+  }
+  if (!stellar_confirmSourceAccount(msg->has_source_account,
+                                    msg->source_account)) {
+    stellar_signingFail("Source account error", false);
+    return false;
+  }
+
+  stellar_hashupdate_uint32(STELLAR_OP_TYPE_INVOKE_HOST_FUNCTION);
+  stellar_hashupdate_uint32(STELLAR_HOST_FUNCTION_TYPE_INVOKE_CONTRACT);
+  uint8_t bytes[32] = {0};
+  if (!stellar_getContractAddressBytes(msg->contract_address, bytes)) {
+    stellar_signingFail("Invalid contract address", false);
+    return false;
+  }
+  stellar_hashupdate_contract_address(bytes);
+
+  stellar_hashupdate_string((const uint8_t *)msg->function_name,
+                            strnlen(msg->function_name, 32));
+
+  char source_account[57] = {0};
+  char contract_address[57] = {0};
+  bool has_source_account = msg->has_source_account;
+  char function_name[33] = {0};
+  if (has_source_account) {
+    memcpy(source_account, msg->source_account, sizeof(source_account));
+  }
+  memcpy(function_name, msg->function_name, sizeof(function_name));
+  memcpy(contract_address, msg->contract_address, sizeof(contract_address));
+
+  uint32_t soroban_auth_xdr_size = msg->soroban_auth_xdr_size;
+  uint32_t soroban_auth_xdr_initial_size =
+      msg->soroban_auth_xdr_initial_chunk.size;
+  uint8_t soroban_auth_xdr_initial_chunk[1024] = {0};
+  memcpy(soroban_auth_xdr_initial_chunk,
+         msg->soroban_auth_xdr_initial_chunk.bytes,
+         soroban_auth_xdr_initial_size);
+
+  stellar_hashupdate_bytes(msg->call_args_xdr_initial_chunk.bytes,
+                           msg->call_args_xdr_initial_chunk.size);
+  uint32_t call_args_xdr_left =
+      msg->call_args_xdr_size - msg->call_args_xdr_initial_chunk.size;
+  uint8_t data_hash[32] = {0};
+  char args_hash[65] = {0};
+  SHA256_CTX hex_str_ctx = {0};
+  sha256_Init(&hex_str_ctx);
+  sha256_Update(&hex_str_ctx, msg->call_args_xdr_initial_chunk.bytes,
+                msg->call_args_xdr_initial_chunk.size);
+  if (!hash_requested_chunks(StellarRequestType_CALL, call_args_xdr_left,
+                             &hex_str_ctx, "Invalid soroban call args")) {
+    return false;
+  }
+  sha256_Final(&hex_str_ctx, data_hash);
+  data2hex(data_hash, sizeof(data_hash), args_hash);
+
+  char auth_hash[65] = {0};
+  sha256_Init(&hex_str_ctx);
+  stellar_hashupdate_bytes(soroban_auth_xdr_initial_chunk,
+                           soroban_auth_xdr_initial_size);
+  sha256_Update(&hex_str_ctx, soroban_auth_xdr_initial_chunk,
+                soroban_auth_xdr_initial_size);
+  uint32_t auth_data_xdr_left =
+      soroban_auth_xdr_size - soroban_auth_xdr_initial_size;
+
+  if (!hash_requested_chunks(StellarRequestType_AUTH, auth_data_xdr_left,
+                             &hex_str_ctx, "Invalid soroban auth data")) {
+    return false;
+  }
+  sha256_Final(&hex_str_ctx, data_hash);
+  data2hex(data_hash, sizeof(data_hash), auth_hash);
+
+  char soroban_data_hash[65] = {0};
+  // update soroban transaction ext
+  stellar_hashupdate_uint32(STELLAR_TX_EXT_SOROBAN);
+  uint32_t soroban_data_left = stellar_activeTx.soroban_data_size;
+  sha256_Init(&hex_str_ctx);
+  if (!hash_requested_chunks(StellarRequestType_EXT, soroban_data_left,
+                             &hex_str_ctx, "Invalid soroban data")) {
+    return false;
+  }
+  sha256_Final(&hex_str_ctx, data_hash);
+  data2hex(data_hash, sizeof(data_hash), soroban_data_hash);
+
+  {
+    const char *const expected_keys[] = {
+        "Contract",   "Function", "Args Hash",
+        "Auths Hash", "Ext Hash", has_source_account ? "Source Account" : NULL};
+    const char *const values[] = {contract_address,  function_name,
+                                  args_hash,         auth_hash,
+                                  soroban_data_hash, source_account};
+
+    stellar_activeTx.confirmed_operations++;
+    if (!stellar_layoutTransactionDialog(ARRAY_SIZE(expected_keys),
+                                         expected_keys, values)) {
+      stellar_signingFail("User canceled", true);
+      return false;
+    }
+  }
+  return true;
+}
+
 /**
  * Populates the fields of resp with the signature of the active transaction
  */
 void stellar_fillSignedTx(StellarSignedTx *resp) {
-  // Finalize the transaction by hashing 4 null bytes representing a (currently
-  // unused) empty union
-  stellar_hashupdate_uint32(0);
+  stellar_hashupdate_transaction_ext();
 
   // Add the public key for verification that the right account was used for
   // signing
@@ -1562,14 +1753,12 @@ void stellar_fillSignedTx(StellarSignedTx *resp) {
 
   // Add the signature (note that this does not include the 4-byte hint since it
   // can be calculated from the public key)
-  uint8_t signature[64] = {0};
   // Note: this calls sha256_Final on the hash context
-  stellar_getSignatureForActiveTx(signature);
-  memcpy(resp->signature.bytes, signature, sizeof(signature));
-  resp->signature.size = sizeof(signature);
+  stellar_getSignatureForActiveTx(resp->signature.bytes);
+  resp->signature.size = 64;
 }
 
-bool stellar_allOperationsConfirmed() {
+bool stellar_allOperationsConfirmed(void) {
   return stellar_activeTx.confirmed_operations ==
          stellar_activeTx.num_operations;
 }
@@ -1591,7 +1780,6 @@ void stellar_getSignatureForActiveTx(uint8_t *out_signature) {
   // that have been read so far
   uint8_t to_sign[32] = {0};
   sha256_Final(&(stellar_activeTx.sha256_ctx), to_sign);
-
   uint8_t signature[64] = {0};
 #if EMULATOR
   ed25519_sign(to_sign, sizeof(to_sign), stellar_node->private_key, signature);
@@ -1712,7 +1900,7 @@ void stellar_format_asset(const StellarAsset *asset, char *str_formatted,
 
   // Validate issuer account for non-native assets
   if (asset->type != StellarAssetType_NATIVE &&
-      !stellar_validateAddress(asset->issuer)) {
+      !stellar_validateAddress(asset->issuer, 0x30)) {
     stellar_signingFail("Invalid asset issuer", false);
     return;
   }
@@ -1779,7 +1967,7 @@ size_t stellar_publicAddressAsStr(const uint8_t *bytes, char *out,
  * Note that the stellar "seed" (private key) also uses this format except the
  * version byte is 0xC0 which encodes to "S" in base32
  */
-bool stellar_validateAddress(const char *str_address) {
+bool stellar_validateAddress(const char *str_address, uint8_t version) {
   bool valid = false;
   uint8_t decoded[STELLAR_ADDRESS_SIZE_RAW] = {0};
   memzero(decoded, sizeof(decoded));
@@ -1794,7 +1982,7 @@ bool stellar_validateAddress(const char *str_address) {
   valid = (ret != NULL);
 
   // ... and that version byte is 0x30
-  if (valid && decoded[0] != 0x30) {
+  if (valid && decoded[0] != version) {
     valid = false;
   }
 
@@ -1818,7 +2006,7 @@ bool stellar_getAddressBytes(const char *str_address, uint8_t *out_bytes) {
   memzero(decoded, sizeof(decoded));
 
   // Ensure address is valid
-  if (!stellar_validateAddress(str_address)) return false;
+  if (!stellar_validateAddress(str_address, 0x30)) return false;
 
   base32_decode(str_address, STELLAR_ADDRESS_SIZE, decoded, sizeof(decoded),
                 BASE32_ALPHABET_RFC4648);
@@ -1830,6 +2018,26 @@ bool stellar_getAddressBytes(const char *str_address, uint8_t *out_bytes) {
   return true;
 }
 
+/**
+ * Converts a string address (C...) to the 32-byte raw address
+ */
+bool stellar_getContractAddressBytes(const char *str_address,
+                                     uint8_t *out_bytes) {
+  uint8_t decoded[STELLAR_ADDRESS_SIZE_RAW] = {0};
+  memzero(decoded, sizeof(decoded));
+
+  // Ensure address is valid
+  if (!stellar_validateAddress(str_address, 0x10)) return false;
+
+  base32_decode(str_address, STELLAR_ADDRESS_SIZE, decoded, sizeof(decoded),
+                BASE32_ALPHABET_RFC4648);
+
+  // The 32 bytes with offset 1-33 represent the public key
+  memcpy(out_bytes, &decoded[1], 32);
+
+  memzero(decoded, sizeof(decoded));
+  return true;
+}
 /*
  * CRC16 implementation compatible with the Stellar version
  * Ported from this implementation:
@@ -1938,13 +2146,20 @@ void stellar_hashupdate_string(const uint8_t *data, size_t len) {
 }
 
 void stellar_hashupdate_address(const uint8_t *address_bytes) {
-  // First 4 bytes of an address are the type. There's only one type (0)
+  // First 4 bytes of an address are the type. 0 for KEY_TYPE_ED25519
   stellar_hashupdate_uint32(0);
 
   // Remaining part of the address is 32 bytes
   stellar_hashupdate_bytes(address_bytes, 32);
 }
 
+void stellar_hashupdate_contract_address(const uint8_t *address_bytes) {
+  // First 4 bytes of an address are the type. 1 for SC_ADDRESS_TYPE_CONTRACT
+  stellar_hashupdate_uint32(1);
+
+  // Remaining part of the address is 32 bytes
+  stellar_hashupdate_bytes(address_bytes, 32);
+}
 /*
  * Note about string handling below: this field is an XDR "opaque" field and not
  * a typical string, so if "TEST" is the asset code then the hashed value needs
@@ -2096,14 +2311,21 @@ void stellar_layoutTransactionSummary(const StellarSignTx *msg) {
     // data2hex(msg->memo_hash.bytes + 16, 8, str_lines[3]);
     // data2hex(msg->memo_hash.bytes + 24, 8, str_lines[4]);
   }
+
   const char *const expected_keys[] = {memo_type_none ? NULL : memo_key,
-                                      _(I_TX_SOURCE), _(I_SEQUENCE_NUMBER),
-                                      _(I__FEE_COLON)};
+                                       _(I_TX_SOURCE), _(I_SEQUENCE_NUMBER),
+                                       _(I__FEE_COLON)};
   const char *const values[] = {memo, signer_addr, str_seq_num, str_fee};
+
   if (!stellar_layoutTransactionDialog(ARRAY_SIZE(expected_keys), expected_keys,
                                        values)) {
     stellar_signingFail("User canceled", true);
     return;
+  }
+  if (stellar_activeTx.soroban_data_size > 0) {
+    if (!stellar_confirmSorobanWarning()) {
+      return;
+    }
   }
   // if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
   //   stellar_signingFail("User canceled");
@@ -2187,7 +2409,8 @@ refresh_menu:
   if (index < max_index) {
     layoutHeader(tx_msg[0]);
     oledDrawStringAdapter(0, y, keys[index], FONT_STANDARD);
-    oledDrawStringAdapter(0, y + 10, values[index], FONT_STANDARD);
+    const char *display_value = truncate_text_for_display(values[index], 3);
+    oledDrawStringAdapter(0, y + 10, display_value, FONT_STANDARD);
     layoutButtonNoAdapter(NULL, (index == first_nonull_index)
                                     ? &bmp_bottom_left_close
                                     : &bmp_bottom_left_arrow);

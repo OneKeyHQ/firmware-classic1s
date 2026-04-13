@@ -89,7 +89,7 @@ void init_buffer_writer(BufferWriter *writer, uint8_t *buffer, size_t length);
 int read_bytes(BufferReader *reader, uint8_t *dest, size_t count);
 int write_bytes(const uint8_t *src, size_t count, BufferWriter *writer);
 uint64_t deser_compact_size(BufferReader *s);
-
+const char *truncate_text_for_display(const char *text, uint8_t max_lines);
 // defined in startup.s (or setup.c for emulator)
 extern void __attribute__((noreturn)) shutdown(void);
 
@@ -189,4 +189,4 @@ static inline void reverse_bytes(uint8_t *data, size_t length) {
   }
 }
 
-#endif
+#endif  // __UTIL_H_

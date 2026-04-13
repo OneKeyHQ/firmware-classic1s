@@ -505,56 +505,53 @@ void usbPoll(void) {
   static const uint8_t *data;
 
   volatile bool reset = false;
-  bool lock = true;
+  bool usb_lock_enabled = true;
 
-  static bool usb_status_bak = false;
+  static uint8_t usb_status_bak = 0;
   if (sys_usbState() == false) {
     usb_connect_status = 0;
   }
 
   ble_update_poll();
-  if (usb_connect_status && !usb_status_bak) {
-    usb_status_bak = true;
-    if (config_hasPin() && session_isUnlocked()) {
-      reset = true;
-    }
-  } else if (!usb_connect_status && usb_status_bak) {
-    usb_status_bak = false;
-    if (config_hasPin() && session_isUnlocked()) {
-      reset = true;
-    } else {
-      // FTFixed: 设备重启后，需要usb重新初始化
+  bool usb_status_changed = usb_connect_status != usb_status_bak;
+  if (usb_status_changed) {
+    usb_status_bak = usb_connect_status;
+    reset = config_hasPin() &&
+            session_isUnlocked();  // usb status changed and unlocked
+    if (usb_connect_status == 0 && !reset) {
+      // usb disconnected and locked, only need to re-init usb stack
       usbInit();
     }
   }
-  if (reset) config_getUsblock(&lock, false);
-
-  if (reset && lock) {
-    if (host_channel == CHANNEL_SLAVE) {
-      Failure resp = {
-          .has_code = true,
-          .code = FailureType_Failure_ActionCancelled,
-          .has_message = true,
-          .message = "Disconnected by device",
-      };
-      msg_write(MessageType_MessageType_Failure, &resp);
+  if (reset) {  // usb status changed and unlocked
+    config_getUsblock(&usb_lock_enabled, false);
+    if (usb_lock_enabled) {
+      if (host_channel == CHANNEL_SLAVE) {
+        Failure resp = {
+            .has_code = true,
+            .code = FailureType_Failure_ActionCancelled,
+            .has_message = true,
+            .message = "Disconnected by device",
+        };
+        msg_write(MessageType_MessageType_Failure, &resp);
+      }
+      session_clear(true);
+      uint16_t data2preserved = (config_getSafetyCheckLevel() & 0x03) | 0x04;
+      soft_reset_set_preserved_data(data2preserved);
+      svc_system_privileged();
+      vector_table_t *ivt = (vector_table_t *)FLASH_PTR(FLASH_APP_START);
+      __asm__ volatile("msr msp, %0" ::"r"(ivt->initial_sp_value));
+      if (cpu_mode == UNPRIVILEGED) {
+        mpu_config_firmware();
+      }
+      ble_ctl_disconnect();
+      __asm__ volatile("b reset_handler");
+    } else {
+      clear_msg_out();
+      RCC_AHB2RSTR |= RCC_AHB2RSTR_OTGFSRST;
+      RCC_AHB2RSTR &= ~RCC_AHB2RSTR_OTGFSRST;
+      usbInit();
     }
-    session_clear(true);
-    soft_reset_set_preserved_data((uint16_t)config_getSafetyCheckLevel());
-    svc_system_privileged();
-    vector_table_t *ivt = (vector_table_t *)FLASH_PTR(FLASH_APP_START);
-    __asm__ volatile("msr msp, %0" ::"r"(ivt->initial_sp_value));
-    if (cpu_mode == UNPRIVILEGED) {
-      mpu_config_firmware();
-    }
-    ble_ctl_disconnect();
-    __asm__ volatile("b reset_handler");
-  } else if (reset) {
-    clear_msg_out();
-
-    RCC_AHB2RSTR |= RCC_AHB2RSTR_OTGFSRST;
-    RCC_AHB2RSTR &= ~RCC_AHB2RSTR_OTGFSRST;
-    usbInit();
   }
 
   i2c_slave_poll();

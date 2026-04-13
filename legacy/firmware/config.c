@@ -148,6 +148,7 @@ static const uint8_t TRUE_BYTE = '\x01';
 static bool derive_cardano = 0;
 static bool session_seed_cached_btc = false;
 static bool session_seed_cached_cardano = false;
+bool reset_after_usb_lock = false;
 
 static secbool usb_lock = secfalse;
 
@@ -270,8 +271,10 @@ void config_init(void) {
   se_set_ui_callback(&layoutProgressAdapter);
 
   // Restore safetyCheckLevel from soft reset if preserved
-  uint16_t preserved_level = soft_reset_get_preserved_data();
-  if (preserved_level != PRESERVED_RESET_DATA_INVALID) {
+  uint16_t preserved_data = soft_reset_get_preserved_data();
+  if (preserved_data != PRESERVED_RESET_DATA_INVALID) {
+    uint8_t preserved_level = (uint8_t)(preserved_data & 0x03);
+    reset_after_usb_lock = (bool)(preserved_data & 0x04);
     if (preserved_level == SafetyCheckLevel_PromptTemporarily) {
       safetyCheckLevel = (SafetyCheckLevel)preserved_level;
     }

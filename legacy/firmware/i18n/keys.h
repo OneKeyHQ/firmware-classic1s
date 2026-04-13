@@ -737,8 +737,9 @@
 #define FIDO_2_LIST_CREDENTIALS 351
 // Remove Credentials
 #define FIDO_2_REMOVE_CREDENTIALS 352
-// Security Keys
+// Security Key
 #define FIDO_FIDO_KEYS_LABEL 353
+#define FIDO_DISABLE_PROMPT_TITLE 353
 // Secure accounts with security keys
 #define FIDO_FIDO_KEYS_DESC 354
 // Remove Security Key?
@@ -779,176 +780,174 @@
 #define GLOBAL_UNKNOWN_TOKEN 371
 // Enable Security Keys
 #define FIDO_ENABLE_FIDO_KEYS 372
-// Security Key
-#define FIDO_DISABLE_PROMPT_TITLE 373
 // Credentials will be unavailable when disabled. Proceed?
-#define FIDO_DISABLE_PROMPT_DESC 374
+#define FIDO_DISABLE_PROMPT_DESC 373
 // Vote count
-#define GLOBAL__VOTE_COUNT 375
+#define GLOBAL__VOTE_COUNT 374
 // This transaction contains a non-zero OP_RETURN value. Once confirmed, your f
 // unds will be permanently locked.
-#define TITLE__OP_RETURN_DESC 376
+#define TITLE__OP_RETURN_DESC 375
 // To (Token Account):
-#define LIST_KEY__TO_TOKEN_ACCOUNT__COLON 377
+#define LIST_KEY__TO_TOKEN_ACCOUNT__COLON 376
 // From (Token Account):
-#define LIST_KEY__FROM_TOKEN_ACCOUNT__COLON 378
+#define LIST_KEY__FROM_TOKEN_ACCOUNT__COLON 377
 // Revoking EIP-7702 delegation will disable smart account features.
-#define I_REVOKE_SMART_ACCOUNT_WARNING 379
+#define I_REVOKE_SMART_ACCOUNT_WARNING 378
 // Revoke 7702 Delegation
-#define T_REVOKE_SMART_ACCOUNT_DELEGATION 380
+#define T_REVOKE_SMART_ACCOUNT_DELEGATION 379
 // Revoke on Network:
-#define I_REVOKE_ON_NETWORK 381
+#define I_REVOKE_ON_NETWORK 380
 // 7702 delegation blocked: smart contract not on the whitelist.
-#define I_NOT_IN_SMART_ACCOUNT_WHITELIST 382
+#define I_NOT_IN_SMART_ACCOUNT_WHITELIST 381
 // 7702 Upgrade
-#define T_UPGRADE_SMART_ACCOUNT 383
+#define T_UPGRADE_SMART_ACCOUNT 382
 // {} 7702 upgrade requested. Sign only if you understand the risks.
-#define I_UPGRADING_SMART_ACCOUNT_WARNING 384
+#define I_UPGRADING_SMART_ACCOUNT_WARNING 383
 // Delegate to:
-#define I_DELEGATE_TO 385
+#define I_DELEGATE_TO 384
 // Delegate on Network:
-#define I_DELEGATE_ON_NETWORK 386
+#define I_DELEGATE_ON_NETWORK 385
 // Invalid  phrase! You can edit a single word or start over
-#define C__INVALID_PHRASE_YOU_CAN_EDIT_A_SINGLE_WORD_OR_START_OVER 387
+#define C__INVALID_PHRASE_YOU_CAN_EDIT_A_SINGLE_WORD_OR_START_OVER 386
 // Edit
-#define O__EDIT 388
+#define O__EDIT 387
 // Start Over
-#define O__START_OVER 389
+#define O__START_OVER 388
 // Edit Word #{}
-#define T__EDIT_WORD_STR 390
+#define T__EDIT_WORD_STR 389
 // Attach to PIN
-#define M__ATTACH_TO_PIN 391
-#define T__ATTACH_TO_PIN 391
+#define M__ATTACH_TO_PIN 390
+#define T__ATTACH_TO_PIN 390
 // Disable Passphrase? Hidden wallet PIN won’t unlock your device
-#define C__DISABLE_PASSPHRASE_HIDDEN_WALLET_PIN_WILL_NOT_UNLOCK_YOUR_DEVICE 392
+#define C__DISABLE_PASSPHRASE_HIDDEN_WALLET_PIN_WILL_NOT_UNLOCK_YOUR_DEVICE 391
 // By setting up different PIN codes linked to different Passphrases, you can e
 // asily access different wallets. Just enter a specific PIN, and you’ll open t
 // he wallet that’s tied to it
-#define C__ATTACH_TO_PIN_DESC 393
+#define C__ATTACH_TO_PIN_DESC 392
 // Set Hidden PIN
-#define T__SET_HIDDEN_PIN 394
+#define T__SET_HIDDEN_PIN 393
 // Hit the limit: 3 PINs max! Do you want to remove some hidden wallet PINs?
-#define C__HIT_THE_LIMIT_30_PINS_MAX 395
+#define C__HIT_THE_LIMIT_30_PINS_MAX 394
 // Attach Passphrase
-#define T__ATTACH_PASSPHRASE 396
+#define T__ATTACH_PASSPHRASE 395
 // PIN has attached one Passphrase! You can remove this PIN or set a new Passph
 // rase
-#define C__PIN_HAS_ATTACHED_ONE_PASSPHRASE 397
+#define C__PIN_HAS_ATTACHED_ONE_PASSPHRASE 396
 // Remove this PIN
-#define O__REMOVE_THIS_PIN 398
+#define O__REMOVE_THIS_PIN 397
 // Set a new Passphrase
-#define O__SET_A_NEW_PASSPHRASE 399
+#define O__SET_A_NEW_PASSPHRASE 398
 // You can attach a Passphrase to this PIN
-#define C__YOU_CAN_ATTACH_A_PASSPHRASE_TO_THIS_PIN 400
+#define C__YOU_CAN_ATTACH_A_PASSPHRASE_TO_THIS_PIN 399
 // You understand that the Passphrase PIN is an alternative login for your hidd
 // en wallet
-#define C__PASSPHRASE__ATTACH_ONE_PASSPHRASE_DESC1 401
+#define C__PASSPHRASE__ATTACH_ONE_PASSPHRASE_DESC1 400
 // You know that if you forget the Passphrase, you might lose your assets
-#define C__PASSPHRASE__ATTACH_ONE_PASSPHRASE_DESC2 402
+#define C__PASSPHRASE__ATTACH_ONE_PASSPHRASE_DESC2 401
 // Forget your passphrase word will lose access to funds linked to your hidden
 // wallet
-#define C__PASSPHRASE_SAVE_DESC 403
+#define C__PASSPHRASE_SAVE_DESC 402
 // Passphrase Set and Attached to PIN!
-#define C__PASSPHRASE_SET_AND_ATTACHED_TO_PIN 404
+#define C__PASSPHRASE_SET_AND_ATTACHED_TO_PIN 403
 // Next, please enter the standard wallet PIN
-#define C__NEXT_PLEASE_ENTER_THE_STANDARD_WALLET_PIN 405
+#define C__NEXT_PLEASE_ENTER_THE_STANDARD_WALLET_PIN 404
 // Standard PIN
-#define T__STANDARD_PIN 406
+#define T__STANDARD_PIN 405
 // Next, please enter the hidden wallet PIN you want to remove
-#define C__NEXT_PLEASE_ENTER_THE_HIDDEN_WALLET_PIN_YOU_WANT_TO_REMOVE 407
+#define C__NEXT_PLEASE_ENTER_THE_HIDDEN_WALLET_PIN_YOU_WANT_TO_REMOVE 406
 // Enter Hidden PIN
-#define T__ENTER_HIDDEN_PIN 408
+#define T__ENTER_HIDDEN_PIN 407
 // Remove this PIN? You won’t be able to use it to unlock the device
-#define C__REMOVE_PIN_YOU_WILL_NOT_BE_ABLE_TO_USE_IT_TO_UNLOCK_THE_DEVICE 409
+#define C__REMOVE_PIN_YOU_WILL_NOT_BE_ABLE_TO_USE_IT_TO_UNLOCK_THE_DEVICE 408
 // PIN removed!
-#define C__PIN_REMOVED 410
+#define C__PIN_REMOVED 409
 // You do not have Passphrase turned on
-#define C__YOU_DO_NOT_HAVE_PASSPHRASE_TURNED_ON 411
+#define C__YOU_DO_NOT_HAVE_PASSPHRASE_TURNED_ON 410
 // PIN Already Used! Do you want to overwrite it?
-#define C__PIN_ALREADY_USED_DO_YOU_WANT_TO_OVERWRITE_IT 412
+#define C__PIN_ALREADY_USED_DO_YOU_WANT_TO_OVERWRITE_IT 411
 // PIN already used! Please try a different one
-#define C__PIN_ALREADY_USED_PLEASE_TRY_A_DIFFERENT_ONE 413
+#define C__PIN_ALREADY_USED_PLEASE_TRY_A_DIFFERENT_ONE 412
 // TRON Energy Rental
-#define T_ENERGY_RENTAL 414
+#define T_ENERGY_RENTAL 413
 // Recipient is a known energy rental service provider address.
-#define I_ENERGY_RENTAL 415
+#define I_ENERGY_RENTAL 414
 // Confirm Phrase
-#define T__CONFIRM_PHRASE 416
+#define T__CONFIRM_PHRASE 415
 // Save Passphrase
-#define T__SAVE_PASSPHRASE 417
+#define T__SAVE_PASSPHRASE 416
 // Remove PIN
-#define T__REMOVE_PIN 418
-// Management Security Key
-#define M__MANAGEMENT_SECURITY_KEY 419
+#define T__REMOVE_PIN 417
+// Manage Security Key
+#define M__MANAGEMENT_SECURITY_KEY 418
 // Incorrect PIN! The PIN you entered is incorrect
-#define C__INCORRECT_PIN_THE_PIN_YOU_ENTERED_IS_INCORRECT 420
+#define C__INCORRECT_PIN_THE_PIN_YOU_ENTERED_IS_INCORRECT 419
 // Lock the screen?
-#define C__LOCK_THE_SCREEN 421
+#define C__LOCK_THE_SCREEN 420
 // Confirm Typed Data
-#define T_CONFIRM_TYPED_DATA 422
+#define T_CONFIRM_TYPED_DATA 421
 // {} authorization. Check dApp trust first.
-#define I_TYPED_DATA_AUTHORIZATION_WARNING 423
+#define I_TYPED_DATA_AUTHORIZATION_WARNING 422
 // Review Struct:
-#define I_REVIEW_STRUCT 424
+#define I_REVIEW_STRUCT 423
 // Tips: Press “             ” both at once to switch case, numbers, symbols.
-#define C__TIPS_PRESS_BOTH_AT_ONCE_TO_SWITCH_CASE_NUMBERS_SYMBOLS 425
+#define C__TIPS_PRESS_BOTH_AT_ONCE_TO_SWITCH_CASE_NUMBERS_SYMBOLS 424
 // Safe Transaction
-#define T_CONFIRM_SAFE_TX 426
+#define T_CONFIRM_SAFE_TX 425
 // Delegatecall may let external code affect your wallet.
-#define I_SAFE_DELEGATE_WARNING 427
+#define I_SAFE_DELEGATE_WARNING 426
 // View execTransaction
-#define I_VIEW_EXEC_TRANSACTION 428
+#define I_VIEW_EXEC_TRANSACTION 427
 // Next, enter the PIN you want to change
-#define C__NEXT_ENTER_THE_PIN_YOU_WANT_TO_CHANGE 429
+#define C__NEXT_ENTER_THE_PIN_YOU_WANT_TO_CHANGE 428
 // Request Confirmation
-#define T_CONFIRM_REQUEST 430
+#define T_CONFIRM_REQUEST 429
 // Approve {}
-#define I_APPROVE_TOKEN 431
+#define I_APPROVE_TOKEN 430
 // Revoke {}
-#define I_REVOKE_TOKEN 432
+#define I_REVOKE_TOKEN 431
 // for {}
-#define I_AUTHORIZATION_PROVIDER 433
+#define I_AUTHORIZATION_PROVIDER 432
 // Full access to this asset. Trust the dApp before continuing.
-#define I_UNLIMITED_AUTHORIZATION_BANNER 434
+#define I_UNLIMITED_AUTHORIZATION_BANNER 433
 // Approve to:
-#define I_APPROVE_TO 435
+#define I_APPROVE_TO 434
 // Revoke from:
-#define I_REVOKE_FROM 436
+#define I_REVOKE_FROM 435
 // Token Address:
-#define I_TOKEN_ADDRESS 437
+#define I_TOKEN_ADDRESS 436
 // Approve unlimited {}
-#define I_APPROVE_UNLIMITED_TOKEN 438
+#define I_APPROVE_UNLIMITED_TOKEN 437
 // Revoke unlimited {}
-#define I_REVOKE_UNLIMITED_TOKEN 439
+#define I_REVOKE_UNLIMITED_TOKEN 438
 // Do you want to change language?
-#define C__CHANGE_LANGUAGE 440
+#define C__CHANGE_LANGUAGE 439
 // Do you want to change auto lock time?
-#define C__CHANGE_AUTO_LOCK 441
+#define C__CHANGE_AUTO_LOCK 440
 // Do you want to change auto shutdown time?
-#define C__CHANGE_AUTO_SHUTDOWN 442
+#define C__CHANGE_AUTO_SHUTDOWN 441
 // Confirm Pairing
-#define T__CONFIRM_PAIRING 443
+#define T__CONFIRM_PAIRING 442
 // Pair failed
-#define C__PAIR_FAILED 444
+#define C__PAIR_FAILED 443
 // Device paired
-#define C__DEVICE_PAIRED 445
+#define C__DEVICE_PAIRED 444
 // Memo {}:
-#define I_MEMO_TEXT 446
+#define I_MEMO_TEXT 445
 // Tx Source:
-#define I_TX_SOURCE 447
+#define I_TX_SOURCE 446
 // Asset Issuer:
-#define I_ASSET_ISSUER 448
+#define I_ASSET_ISSUER 447
 // Sequence Number:
-#define I_SEQUENCE_NUMBER 449
+#define I_SEQUENCE_NUMBER 448
 // Missing Memo/Tag during exchange deposits may result in fund loss.
-#define I_MISSING_MEMO_WARNING 450
+#define I_MISSING_MEMO_WARNING 449
 // Add Trust:
-#define I_ADD_TRUST 451
+#define I_ADD_TRUST 450
 // Source Account:
-#define I_SOURCE_ACCOUNT 452
+#define I_SOURCE_ACCOUNT 451
 // Remove Trust:
-#define I_REMOVE_TRUST 453
+#define I_REMOVE_TRUST 452
 // Trust Account:
-#define I_TRUST_ACCOUNT 454
+#define I_TRUST_ACCOUNT 453
 #endif
 // clang-format on
