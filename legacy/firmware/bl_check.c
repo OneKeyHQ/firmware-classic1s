@@ -37,6 +37,14 @@ static int known_bootloader(int r, const uint8_t *hash) {
   // BEGIN AUTO-GENERATED QA BOOTLOADER ENTRIES (bl_check_qa.txt)
   if (0 ==
       memcmp(hash,
+             "\x56\x34\x5a\x66\x45\xb0\x60\x9f\x43\x0e\x5c\x6b\x34\x90\x8f\xd8"
+             "\xa4\x12\x04\x9c\x2b\x30\x8c\x91\xc5\xac\x07\x26\x5a\x04\x45\xe5",
+             32)) {
+    memcpy(bootloader_version, "2.1.2", strlen("2.1.2"));
+    return 1;  // 2.1.2 shipped with fw 3.18.0
+  }
+  if (0 ==
+      memcmp(hash,
              "\x92\x2a\xcb\x7f\xb9\x3a\xa3\x6e\x1d\xb4\xb5\x89\x2a\xdc\x4e\xed"
              "\x55\x7e\x83\x05\x78\x2e\x74\xcd\x08\xaa\x47\x12\x10\x6e\xdc\xb4",
              32)) {
@@ -85,6 +93,14 @@ static int known_bootloader(int r, const uint8_t *hash) {
 static int known_bootloader(int r, const uint8_t *hash) {
   if (r != 32) return 0;
   // BEGIN AUTO-GENERATED BOOTLOADER ENTRIES (bl_check.txt)
+  if (0 ==
+      memcmp(hash,
+             "\xc9\xbe\x0f\xdf\x3f\x44\x13\xca\xb9\xf1\x84\xd3\xab\x1a\x27\x90"
+             "\xa3\x55\x31\x10\x72\xcd\xbc\xef\x1d\x10\xf4\x1d\xd9\x35\xbb\x8d",
+             32)) {
+    memcpy(bootloader_version, "2.1.2", strlen("2.1.2"));
+    return 1;  // 2.1.2 shipped with fw 3.18.0
+  }
   if (0 ==
       memcmp(hash,
              "\x7f\xc0\xaf\x68\xa4\x27\x5d\xbe\xf6\xd4\x42\x53\x63\xef\x3a\xe5"

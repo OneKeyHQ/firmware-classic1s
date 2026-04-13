@@ -196,7 +196,9 @@ static void handle_error(usbd_device *dev, uint8_t error_code,
                          const char *line1, const char *line2);
 static void get_current_mcu_info(uint32_t *version, uint32_t *purpose);
 static secbool check_mcu_downgrade(usbd_device *dev, uint32_t new_version,
-                                   uint32_t current_version);
+                                   uint32_t current_version,
+                                   uint32_t new_purpose,
+                                   uint32_t current_purpose);
 static secbool check_se_minimum_version(usbd_device *dev,
                                         uint32_t se_minimum_version,
                                         uint32_t latest_se_version);
@@ -279,10 +281,18 @@ static void get_current_mcu_info(uint32_t *version, uint32_t *purpose) {
 
 // Helper: Check MCU downgrade
 static secbool check_mcu_downgrade(usbd_device *dev, uint32_t new_version,
-                                   uint32_t current_version) {
+                                   uint32_t current_version,
+                                   uint32_t new_purpose,
+                                   uint32_t current_purpose) {
   if (current_version > 0) {
     int version_diff = version_compare(new_version, current_version);
     if (version_diff < 0) {
+      // Only allow MCU downgrade when switching General -> BTC-only.
+      if (current_purpose == FIRMWARE_PURPOSE_GENERAL &&
+          new_purpose == FIRMWARE_PURPOSE_BTC_ONLY) {
+        return sectrue;
+      }
+
       handle_error(dev, FAILURE_PROCESS_ERROR, "Firmware downgrade",
                    "not allowed.");
       return secfalse;
@@ -724,7 +734,8 @@ static secbool process_new_format_upgrade_header(usbd_device *dev) {
   if (upgrade_hdr->flags & UPGRADE_FLAG_MCU_PRESENT) {
     // Check downgrade
     if (check_mcu_downgrade(dev, upgrade_hdr->mcu_info.version,
-                            current_mcu_version) != sectrue) {
+                            current_mcu_version, upgrade_hdr->mcu_info.purpose,
+                            current_mcu_purpose) != sectrue) {
       return secfalse;
     }
 
@@ -781,7 +792,8 @@ static secbool process_old_format_upgrade_header(usbd_device *dev) {
 
     // Check downgrade
     if (check_mcu_downgrade(dev, firmware_hdr->onekey_version,
-                            current_mcu_version) != sectrue) {
+                            current_mcu_version, firmware_hdr->purpose,
+                            current_mcu_purpose) != sectrue) {
       return secfalse;
     }
 
