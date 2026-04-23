@@ -68,7 +68,7 @@ static uint32_t ton_boc_crc32c(const uint8_t* data, size_t len) {
   return crc ^ 0xffffffff;
 }
 
-bool ton_hash_cell(BitString_t* bits, CellRef_t* refs, uint8_t refs_count,
+bool ton_hash_cell(BitString_t* bits, const CellRef_t* refs, uint8_t refs_count,
                    CellRef_t* out) {
   SHA256_CTX ctx;
   sha256_Init(&ctx);
@@ -78,10 +78,12 @@ bool ton_hash_cell(BitString_t* bits, CellRef_t* refs, uint8_t refs_count,
   uint8_t d1 = refs_count;                     // refs descriptor
   uint8_t d2 = (len >> 3) + ((len + 7) >> 3);  // bits descriptor
   uint8_t d[2] = {d1, d2};
-  bitstring_final(bits);
+  BitString_t bits_finalized = *bits;
+  bitstring_final(&bits_finalized);
 
   sha256_Update(&ctx, d, 2);
-  sha256_Update(&ctx, bits->data, (bits->data_cursor + 7) / 8);
+  sha256_Update(&ctx, bits_finalized.data,
+                (bits_finalized.data_cursor + 7) / 8);
 
   // Hash ref depths
   for (int i = 0; i < refs_count; i++) {
@@ -164,8 +166,9 @@ bool ton_create_jetton_transfer_body(uint8_t dest_workchain, uint8_t* dest_hash,
 bool build_message_ref(bool is_bounceable, uint8_t dest_workchain,
                        uint8_t* dest_hash, uint64_t value, CellRef_t* payload,
                        bool is_jetton, const char* payload_str,
-                       BitString_t* payload_bits, CellRef_t* payload_ref,
-                       CellRef_t* out_message_ref) {
+                       const BitString_t* payload_bits,
+                       const CellRef_t* payload_refs,
+                       uint8_t payload_refs_count, CellRef_t* out_message_ref) {
   BitString_t bits;
   bitstring_init(&bits);
 
@@ -193,9 +196,8 @@ bool build_message_ref(bool is_bounceable, uint8_t dest_workchain,
     return ton_hash_cell(&bits, NULL, 0, out_message_ref);
 
   } else if (payload != NULL) {
-    // check if raw data inline
-    // if (false) {
-    if (bits.data_cursor + payload_bits->data_cursor <= 1023 && !is_jetton) {
+    if (payload_bits != NULL && !is_jetton &&
+        bits.data_cursor + 2 + payload_bits->data_cursor <= 1023) {
       bitstring_write_bit(&bits, 0);  // no state-init
       bitstring_write_bit(&bits, 0);  // body in line
 
@@ -206,22 +208,15 @@ bool build_message_ref(bool is_bounceable, uint8_t dest_workchain,
         bitstring_write_bit(&bits, src_value);
       }
 
-      // append payload ref in message ref
-      if (payload->max_depth > 0) {
-        struct CellRef_t refs[1] = {*payload_ref};
-        return ton_hash_cell(&bits, refs, 1, out_message_ref);
-
-      } else {
-        return ton_hash_cell(&bits, NULL, 0, out_message_ref);
-      }
-
-    } else {
-      bitstring_write_bit(&bits, 0);  // no state-init
-      bitstring_write_bit(&bits, 1);  // body in ref
-
-      struct CellRef_t refs[1] = {*payload};
-      return ton_hash_cell(&bits, refs, 1, out_message_ref);
+      return ton_hash_cell(&bits, payload_refs, payload_refs_count,
+                           out_message_ref);
     }
+
+    bitstring_write_bit(&bits, 0);  // no state-init
+    bitstring_write_bit(&bits, 1);  // body in ref
+
+    struct CellRef_t refs[1] = {*payload};
+    return ton_hash_cell(&bits, refs, 1, out_message_ref);
   } else {
     bitstring_write_bit(&bits, 0);  // no state-init
     bitstring_write_bit(&bits, 0);  // body inline
@@ -234,14 +229,16 @@ bool ton_create_message_digest(
     uint32_t expire_at, uint32_t seqno, bool is_bounceable,
     uint8_t dest_workchain, uint8_t* dest_hash, uint64_t value, uint8_t mode,
     CellRef_t* payload, bool is_jetton, const char* payload_str,
-    BitString_t* payload_bits, CellRef_t* payload_ref, const char** ext_dest,
+    const BitString_t* payload_bits, const CellRef_t* payload_refs,
+    uint8_t payload_refs_count, const char** ext_dest,
     const uint64_t* ext_ton_amount, const char** ext_payload,
     uint8_t ext_dest_count, uint8_t* digest) {
   // Build Internal Message
   struct CellRef_t internalMessageRef;
   if (!build_message_ref(is_bounceable, dest_workchain, dest_hash, value,
                          payload, is_jetton, payload_str, payload_bits,
-                         payload_ref, &internalMessageRef)) {
+                         payload_refs, payload_refs_count,
+                         &internalMessageRef)) {
     return false;
   }
 
@@ -256,34 +253,41 @@ bool ton_create_message_digest(
       return false;
     }
 
-    CellRef_t ext_payload_ref;
+    CellRef_t ext_payload_ref = {0};
+    TonParsedBoc_t ext_payload_boc;
+    const BitString_t* ext_payload_bits = NULL;
+    const CellRef_t* ext_payload_refs = NULL;
+    uint8_t ext_payload_refs_count = 0;
+
     if (ext_payload && ext_payload[i] && strlen(ext_payload[i]) > 0) {
       if (strlen(ext_payload[i]) >= 8 &&
           memcmp(ext_payload[i], "b5ee9c72", 8) == 0) {
         unsigned int data_len = strlen(ext_payload[i]) / 2;
         uint8_t raw_data[data_len];
         hex2data(ext_payload[i], raw_data, &data_len);
-        if (!ton_parse_boc(raw_data, data_len, &ext_payload_ref, NULL, NULL)) {
+        if (!ton_parse_boc_full(raw_data, data_len, &ext_payload_boc)) {
           return false;
         }
+        ext_payload_ref = ext_payload_boc.root;
+        ext_payload_bits = &ext_payload_boc.root_bits;
+        ext_payload_refs = ext_payload_boc.root_refs;
+        ext_payload_refs_count = ext_payload_boc.root_refs_count;
       } else {
         if (!ton_create_transfer_body(ext_payload[i], &ext_payload_ref)) {
           return false;
         }
       }
-      char payload_ref_hash_hex[HASH_LEN * 2 + 1];
-      data2hexaddr(ext_payload_ref.hash, HASH_LEN, payload_ref_hash_hex);
-    } else {
-      memset(&ext_payload_ref, 0, sizeof(CellRef_t));
     }
 
     if (!build_message_ref(
             parsed_addr.is_bounceable, (uint8_t)parsed_addr.workchain,
             parsed_addr.hash, ext_ton_amount[i],
-            ext_payload[i] ? &ext_payload_ref : NULL, false, NULL, NULL, NULL,
+            ext_payload[i] ? &ext_payload_ref : NULL, false, NULL,
+            ext_payload_bits, ext_payload_refs, ext_payload_refs_count,
             &extMessageRefs[ext_message_count])) {
       return false;
     }
+
     ext_message_count++;
   }
 
@@ -346,15 +350,17 @@ static bool ton_boc_strip_top_upped_array(uint8_t* array, size_t array_len,
   return false;
 }
 
-bool ton_parse_boc(const uint8_t* input_boc, size_t input_boc_len,
-                   CellRef_t* payload, BitString_t* payload_bits,
-                   CellRef_t* payload_ref) {
+bool ton_parse_boc_full(const uint8_t* input_boc, size_t input_boc_len,
+                        TonParsedBoc_t* parsed_boc) {
   bool ok = false;
   CellData_t* cell_data = NULL;
 
-  if (payload == NULL || input_boc_len < 6) {
+  if (parsed_boc == NULL || input_boc_len < 6) {
     goto cleanup;
   }
+
+  memset(parsed_boc, 0, sizeof(TonParsedBoc_t));
+  bitstring_init(&parsed_boc->root_bits);
 
   if (memcmp(input_boc, REACH_BOC_MAGIC_PREFIX, 4) != 0) {
     goto cleanup;
@@ -518,22 +524,19 @@ bool ton_parse_boc(const uint8_t* input_boc, size_t input_boc_len,
     }
   }
 
-  if (payload_bits != NULL) {
-    uint16_t root_bytes = (cell_data[root_cell_index].bits.data_cursor + 7) / 8;
-    memcpy(payload_bits->data, cell_data[root_cell_index].bits.data,
-           root_bytes);
-    payload_bits->data_cursor = cell_data[root_cell_index].bits.data_cursor;
+  uint16_t root_bytes = (cell_data[root_cell_index].bits.data_cursor + 7) / 8;
+  memcpy(parsed_boc->root_bits.data, cell_data[root_cell_index].bits.data,
+         root_bytes);
+  parsed_boc->root_bits.data_cursor =
+      cell_data[root_cell_index].bits.data_cursor;
+
+  parsed_boc->root_refs_count = cell_data[root_cell_index].refs_count;
+  for (uint8_t j = 0; j < parsed_boc->root_refs_count; j++) {
+    parsed_boc->root_refs[j] =
+        cell_data[cell_data[root_cell_index].ref_indices[j]].cell_ref;
   }
 
-  if (payload_ref != NULL) {
-    memset(payload_ref, 0, sizeof(CellRef_t));
-    if (cell_data[root_cell_index].refs_count > 0) {
-      *payload_ref =
-          cell_data[cell_data[root_cell_index].ref_indices[0]].cell_ref;
-    }
-  }
-
-  *payload = cell_data[root_cell_index].cell_ref;
+  parsed_boc->root = cell_data[root_cell_index].cell_ref;
   ok = true;
 
 cleanup:
@@ -541,4 +544,33 @@ cleanup:
     free(cell_data);
   }
   return ok;
+}
+
+bool ton_parse_boc(const uint8_t* input_boc, size_t input_boc_len,
+                   CellRef_t* payload, BitString_t* payload_bits,
+                   CellRef_t* payload_ref) {
+  TonParsedBoc_t parsed_boc;
+
+  if (payload == NULL) {
+    return false;
+  }
+
+  if (!ton_parse_boc_full(input_boc, input_boc_len, &parsed_boc)) {
+    return false;
+  }
+
+  *payload = parsed_boc.root;
+
+  if (payload_bits != NULL) {
+    *payload_bits = parsed_boc.root_bits;
+  }
+
+  if (payload_ref != NULL) {
+    memset(payload_ref, 0, sizeof(CellRef_t));
+    if (parsed_boc.root_refs_count > 0) {
+      *payload_ref = parsed_boc.root_refs[0];
+    }
+  }
+
+  return true;
 }

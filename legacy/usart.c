@@ -187,14 +187,16 @@ void ble_usart_disable_dma(void) {
 
 void ble_usart_sendByte(uint8_t data) {
   usart_send_blocking(BLE_UART, data);
-  while (!usart_get_flag(BLE_UART, USART_SR_TXE));
+  while (!usart_get_flag(BLE_UART, USART_SR_TXE))
+    ;
 }
 
 void ble_usart_send(uint8_t *buf, uint32_t len) {
   uint32_t i;
   for (i = 0; i < len; i++) {
     usart_send_blocking(BLE_UART, buf[i]);
-    while (!usart_get_flag(BLE_UART, USART_SR_TXE));
+    while (!usart_get_flag(BLE_UART, USART_SR_TXE))
+      ;
   }
 }
 

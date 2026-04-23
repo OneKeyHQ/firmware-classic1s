@@ -148,12 +148,10 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
   CellRef_t payload_data;
   CellRef_t *payload = &payload_data;
 
-  BitString_t payload_bits_data;
-  bitstring_init(&payload_bits_data);
-  BitString_t *payload_bits = &payload_bits_data;
-
-  CellRef_t payload_ref_data;
-  CellRef_t *payload_ref = &payload_ref_data;
+  BitString_t *payload_bits = NULL;
+  CellRef_t *payload_refs = NULL;
+  uint8_t payload_refs_count = 0;
+  TonParsedBoc_t payload_boc;
 
   unsigned char raw_data[1024];
   bool is_raw_data = false;
@@ -211,12 +209,6 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
           memcmp(msg->comment, "b5ee9c72", 8) == 0) {
         is_raw_data = true;
         data_len = strlen(msg->comment) / 2;
-        if (data_len > sizeof(raw_data)) {
-          fsm_sendFailure(FailureType_Failure_ProcessError,
-                          "Raw data too large");
-          layoutHome();
-          return false;
-        }
         hex2data(msg->comment, raw_data, &data_len);
 
         if (!layoutTonSign("Ton", false, amount_str, msg->destination,
@@ -249,12 +241,15 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
 
     // create payload
     if (is_raw_data) {
-      if (!ton_parse_boc(raw_data, data_len, payload, payload_bits,
-                         payload_ref)) {
+      if (!ton_parse_boc_full(raw_data, data_len, &payload_boc)) {
         fsm_sendFailure(FailureType_Failure_ProcessError,
                         "Failed to create raw data body");
         return false;
       }
+      payload = &payload_boc.root;
+      payload_bits = &payload_boc.root_bits;
+      payload_refs = payload_boc.root_refs;
+      payload_refs_count = payload_boc.root_refs_count;
     } else {
       if (!ton_create_transfer_body(msg->comment, payload)) {
         payload = NULL;
@@ -274,37 +269,24 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
       return false;
     }
 
-    if (msg->has_comment) {
-      if (!layoutTonSign("Ton", true, amount_str, msg->jetton_master_address,
-                         usr_friendly_address, msg->destination, NULL, NULL, 0,
-                         msg->comment)) {
-        fsm_sendFailure(FailureType_Failure_ActionCancelled,
-                        "Signing cancelled");
-        layoutHome();
-        return false;
-      }
-    } else {
-      if (!layoutTonSign("Ton", true, amount_str, msg->jetton_master_address,
-                         usr_friendly_address, msg->destination, NULL, NULL, 0,
-                         NULL)) {
-        fsm_sendFailure(FailureType_Failure_ActionCancelled,
-                        "Signing cancelled");
-        layoutHome();
-        return false;
-      }
+    if (!layoutTonSign("Ton", true, amount_str, msg->jetton_master_address,
+                       usr_friendly_address, msg->destination, NULL, NULL, 0,
+                       msg->has_comment ? msg->comment : NULL)) {
+      fsm_sendFailure(FailureType_Failure_ActionCancelled, "Signing cancelled");
+      layoutHome();
+      return false;
     }
 
-    if (!msg->has_comment) {
-      ton_create_jetton_transfer_body(
-          parsed_dest.workchain, parsed_dest.hash,
-          msg->jetton_amount_bytes.bytes, msg->jetton_amount_bytes.size, 0,
-          NULL, parsed_resp.workchain, parsed_resp.hash, payload);
-    } else {
-      ton_create_jetton_transfer_body(
-          parsed_dest.workchain, parsed_dest.hash,
-          msg->jetton_amount_bytes.bytes, msg->jetton_amount_bytes.size,
-          msg->fwd_fee, msg->comment, parsed_resp.workchain, parsed_resp.hash,
-          payload);
+    if (!ton_create_jetton_transfer_body(
+            parsed_dest.workchain, parsed_dest.hash,
+            msg->jetton_amount_bytes.bytes, msg->jetton_amount_bytes.size,
+            msg->has_comment ? msg->fwd_fee : 0,
+            msg->has_comment ? msg->comment : NULL, parsed_resp.workchain,
+            parsed_resp.hash, payload)) {
+      fsm_sendFailure(FailureType_Failure_ProcessError,
+                      "Failed to create jetton transfer body");
+      layoutHome();
+      return false;
     }
   }
 
@@ -313,8 +295,7 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
   uint8_t ext_dest_count = 0;
 
   if (msg->ext_destination_count > 0) {
-    ext_dest_count =
-        (msg->ext_destination_count <= 3) ? msg->ext_destination_count : 3;
+    ext_dest_count = msg->ext_destination_count;
 
     for (int i = 0; i < ext_dest_count; i++) {
       ext_destination_ptrs[i] = msg->ext_destination[i];
@@ -324,9 +305,9 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
       ton_format_toncoin_amount(msg->ext_ton_amount[i], amount_str,
                                 sizeof(amount_str));
 
-      if (msg->has_comment) {
-        if (strlen(msg->comment) >= 8 &&
-            memcmp(msg->comment, "b5ee9c72", 8) == 0) {  // raw data
+      if (ext_payload_ptrs[i] != NULL && strlen(ext_payload_ptrs[i]) > 0) {
+        if (strlen(ext_payload_ptrs[i]) > 8 &&
+            memcmp(ext_payload_ptrs[i], "b5ee9c72", 8) == 0) {
           data_len = strlen(ext_payload_ptrs[i]) / 2;
           if (!layoutTonSign("Ton", false, amount_str, ext_destination_ptrs[i],
                              usr_friendly_address, NULL, NULL,
@@ -337,7 +318,7 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
             layoutHome();
             return false;
           }
-        } else {  // memo
+        } else {
           if (!layoutTonSign("Ton", false, amount_str, ext_destination_ptrs[i],
                              usr_friendly_address, NULL, NULL, NULL, 0,
                              ext_payload_ptrs[i])) {
@@ -347,7 +328,7 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
             return false;
           }
         }
-      } else {  // no comment
+      } else {
         if (!layoutTonSign("Ton", false, amount_str, ext_destination_ptrs[i],
                            usr_friendly_address, NULL, NULL, NULL, 0, NULL)) {
           fsm_sendFailure(FailureType_Failure_ActionCancelled,
@@ -382,9 +363,9 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
       msg->expire_at, msg->seqno, parsed_dest.is_bounceable,
       parsed_dest.workchain, parsed_dest.hash, msg->ton_amount, msg->mode,
       !comment_inline ? payload : NULL, is_jetton,
-      comment_inline ? msg->comment : NULL, payload_bits, payload_ref,
-      ext_destination_ptrs, msg->ext_ton_amount, ext_payload_ptrs,
-      ext_dest_count, digest);
+      comment_inline ? msg->comment : NULL, payload_bits, payload_refs,
+      payload_refs_count, ext_destination_ptrs, msg->ext_ton_amount,
+      ext_payload_ptrs, ext_dest_count, digest);
 
   if (!create_digest) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
