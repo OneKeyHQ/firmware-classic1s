@@ -176,6 +176,44 @@ static void recovery_request(void) {
 
 extern bool generate_seed_steps(void);
 
+static void build_recovery_mnemonic(char *mnemonic, size_t mnemonic_size) {
+  strlcpy(mnemonic, words[0], mnemonic_size);
+  for (uint32_t i = 1; i < word_count; i++) {
+    strlcat(mnemonic, " ", mnemonic_size);
+    strlcat(mnemonic, words[i], mnemonic_size);
+  }
+}
+
+static bool recovery_mnemonic_is_valid(void) {
+  char mnemonic[MAX_MNEMONIC_LEN + 1] = {0};
+
+  build_recovery_mnemonic(mnemonic, sizeof(mnemonic));
+  return mnemonic_check(mnemonic);
+}
+
+static void restore_reentered_word(uint32_t *index, const char *word) {
+  strlcpy(words[*index], word, sizeof(words[*index]));
+  *index = word_count;
+}
+
+static void move_to_next_input_word(uint32_t *prefix_len, int *index) {
+  *prefix_len = 0;
+  *index = 0;
+  memzero(words[word_index], sizeof(words[word_index]));
+}
+
+static bool move_to_previous_input_word(uint32_t *prefix_len, int *index) {
+  if (word_index == 0) {
+    return false;
+  }
+
+  word_index--;
+  *prefix_len = 0;
+  *index = 0;
+  memzero(words[word_index], sizeof(words[word_index]));
+  return true;
+}
+
 /* Called when the last word was entered.
  * Check mnemonic and send success/failure.
  */
@@ -184,11 +222,7 @@ static bool recovery_done(bool gohome) {
   uint8_t key;
   char new_mnemonic[MAX_MNEMONIC_LEN + 1] = {0};
 
-  strlcpy(new_mnemonic, words[0], sizeof(new_mnemonic));
-  for (uint32_t i = 1; i < word_count; i++) {
-    strlcat(new_mnemonic, " ", sizeof(new_mnemonic));
-    strlcat(new_mnemonic, words[i], sizeof(new_mnemonic));
-  }
+  build_recovery_mnemonic(new_mnemonic, sizeof(new_mnemonic));
 
   if (!enforce_wordlist || mnemonic_check(new_mnemonic)) {
     // New mnemonic is valid.
@@ -751,14 +785,7 @@ refresh_menu:
         index++;
         goto refresh_menu;
       } else {
-        char new_mnemonic[MAX_MNEMONIC_LEN + 1] = {0};
-
-        strlcpy(new_mnemonic, words[0], sizeof(new_mnemonic));
-        for (uint32_t i = 1; i < word_count; i++) {
-          strlcat(new_mnemonic, " ", sizeof(new_mnemonic));
-          strlcat(new_mnemonic, words[i], sizeof(new_mnemonic));
-        }
-        if (!mnemonic_check(new_mnemonic)) return 1;
+        if (!recovery_mnemonic_is_valid()) return 1;
       }
       return 0;
     default:
@@ -842,37 +869,31 @@ refresh_menu:
       if (letter_count > CANDIDATE_MAX_LEN) {
         index = 0;
         goto refresh_menu;
-      } else {
-        uint32_t candidate_location =
-            mnemonic_word_index_with_prefix(words[word_index], prefix_len);
-        memset(title, 0, 13);
-        strcat(title, words[word_index]);
-        strcat(title, "_");
-        ret = select_complete_word(title, candidate_location, letter_count);
-        if (re_enter) {
-          if (ret) {
-            word_index = word_count;
-            ret = true;
-            goto __ret;
-          } else {
-            strlcpy(words[word_index], word_bak, sizeof(words[word_index]));
-            word_index = word_count;
-            break;
-          }
-        } else {
-          if (word_index == word_count) {
-            ret = true;
-            goto __ret;
-          } else {  // next word
-            prefix_len = 0;
-            index = 0;
-            memzero(words[word_index], sizeof(words[word_index]));
-            goto refresh_menu;
-          }
-        }
       }
-    case KEY_CANCEL:
 
+      uint32_t candidate_location =
+          mnemonic_word_index_with_prefix(words[word_index], prefix_len);
+      snprintf(title, sizeof(title), "%s_", words[word_index]);
+      ret = select_complete_word(title, candidate_location, letter_count);
+      if (re_enter) {
+        if (!ret) {
+          restore_reentered_word(&word_index, word_bak);
+          break;
+        }
+        word_index = word_count;
+        ret = true;
+        goto __ret;
+      }
+
+      if (word_index == word_count) {
+        ret = true;
+        goto __ret;
+      }
+
+      ret = false;
+      move_to_next_input_word(&prefix_len, &index);
+      goto refresh_menu;
+    case KEY_CANCEL:
       if (prefix_len > 0) {
         prefix_len--;
         last_letter = words[word_index][prefix_len];
@@ -887,21 +908,16 @@ refresh_menu:
             break;
           }
         }
-      } else {
-        if (re_enter) {
-          strlcpy(words[word_index], word_bak, sizeof(words[word_index]));
-          word_index = word_count;
-          break;
-        } else {
-          if (word_index > 0) {
-            word_index--;
-            prefix_len = 0;
-            index = 0;
-            memzero(words[word_index], sizeof(words[word_index]));
-          } else {
-            break;
-          }
-        }
+        goto refresh_menu;
+      }
+
+      if (re_enter) {
+        restore_reentered_word(&word_index, word_bak);
+        break;
+      }
+
+      if (!move_to_previous_input_word(&prefix_len, &index)) {
+        break;
       }
       goto refresh_menu;
     default:
@@ -1065,7 +1081,6 @@ bool recovery_on_device(void) {
   char desc[128] = "";
   char num_str[8] = "";
   uint8_t ret, key = KEY_NULL;
-  char new_mnemonic[MAX_MNEMONIC_LEN + 1] = {0};
 
   if (config_hasPin()) {
     uint8_t ui_language_bak = ui_language;
@@ -1157,15 +1172,7 @@ bool recovery_on_device(void) {
         }
         break;
       case RECOVERY_STATE_VERIFY_MNEMONIC:
-
-        memzero(new_mnemonic, sizeof(new_mnemonic));
-
-        strlcpy(new_mnemonic, words[0], sizeof(new_mnemonic));
-        for (uint32_t i = 1; i < word_count; i++) {
-          strlcat(new_mnemonic, " ", sizeof(new_mnemonic));
-          strlcat(new_mnemonic, words[i], sizeof(new_mnemonic));
-        }
-        if (!mnemonic_check(new_mnemonic)) {
+        if (!recovery_mnemonic_is_valid()) {
           state = RECOVERY_STATE_REENTER_WORDS;
         } else {
           state = RECOVERY_STATE_SUCCESS;

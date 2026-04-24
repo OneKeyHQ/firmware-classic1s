@@ -500,7 +500,7 @@ static void i2c_slave_poll(void) {
     }
   }
 }
-
+extern bool reset_after_usb_lock;
 void usbPoll(void) {
   static const uint8_t *data;
 
@@ -523,8 +523,8 @@ void usbPoll(void) {
       usbInit();
     }
   }
+  config_getUsblock(&usb_lock_enabled, false);
   if (reset) {  // usb status changed and unlocked
-    config_getUsblock(&usb_lock_enabled, false);
     if (usb_lock_enabled) {
       if (host_channel == CHANNEL_SLAVE) {
         Failure resp = {
@@ -552,6 +552,8 @@ void usbPoll(void) {
       RCC_AHB2RSTR &= ~RCC_AHB2RSTR_OTGFSRST;
       usbInit();
     }
+  } else if (usb_status_changed && usb_lock_enabled) {
+    reset_after_usb_lock = true;
   }
 
   i2c_slave_poll();
