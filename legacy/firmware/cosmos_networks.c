@@ -4,6 +4,7 @@
 const CosmosNetworkType cosmos_networks[COSMOS_NETWORK_COUNT] = {
     {"cosmoshub-4", "cosmos", "Cosmos Hub", "ATOM", "uatom", 6},
     {"osmosis-1", "osmo", "Osmosis", "OSMO", "uosmo", 6},
+    {"columbus-5", "terra", "Terra Classic", "LUNC", "uluna", 6},
     {"secret-4", "secret", "Secret Network", "SCRT", "uscrt", 6},
     {"akashnet-2", "akash", "Akash", "AKT", "uakt", 6},
     {"crypto-org-chain-mainnet-1", "cro", "Cronos POS Chain", "CRO", "basecro",
