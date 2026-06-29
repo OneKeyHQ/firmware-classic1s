@@ -109,6 +109,7 @@ typedef enum {
 } TRANSPORT_TYPE;
 static uint8_t transport_type = 0;
 static uint8_t poll_nest = 0;
+static volatile bool ctap_hid_cancel_requested = false;
 
 typedef struct {
   uint8_t reserved;
@@ -133,6 +134,10 @@ typedef struct {
 
 static DIALOG_MANAGER dialog_manager = {
     .dialog_timer_start = 0, .is_busy = false, .last_req_state = INIT};
+
+static void ctap_hid_cancel_clear(void) { ctap_hid_cancel_requested = false; }
+
+bool ctap_hid_cancel_is_requested(void) { return ctap_hid_cancel_requested; }
 
 uint32_t next_cid(void) {
   // extremely unlikely but hey
@@ -178,19 +183,37 @@ void dialog_update_state(bool busy, uint32_t timer_start) {
   dialog_manager.dialog_timer_start = timer_start;
 }
 
+static void ctap_hid_cancel_cmd(const U2FHID_FRAME *f) {
+  if (reader == 0 || cid != f->cid || !dialog_is_busy() ||
+      reader->cmd != U2FHID_CBOR) {
+    return;
+  }
+
+  ctap_hid_cancel_requested = true;
+  reader->cmd = 0;
+  reader->len = 0;
+  reader->seq = 255;
+}
+
 void u2fhid_read(char tiny, const U2FHID_FRAME *f) {
   (void)tiny;
   // Always handle init packets directly
-  if (f->init.cmd == U2FHID_INIT) {
-    u2f_init_command = true;
-    u2fhid_init(f);
-    if (usb_hid_tiny && reader && f->cid == cid) {
-      // abort current channel
-      reader->cmd = 0;
-      reader->len = 0;
-      reader->seq = 255;
-    }
-    return;
+  switch (f->init.cmd) {
+    case U2FHID_INIT:
+      u2f_init_command = true;
+      u2fhid_init(f);
+      if (usb_hid_tiny && reader && f->cid == cid) {
+        // abort current channel
+        reader->cmd = 0;
+        reader->len = 0;
+        reader->seq = 255;
+      }
+      return;
+    case CTAPHID_CANCEL:
+      ctap_hid_cancel_cmd(f);
+      return;
+    default:
+      break;
   }
 
   if (usb_hid_tiny || dialog_is_busy()) {
@@ -423,7 +446,7 @@ void u2fhid_init(const U2FHID_FRAME *in) {
   resp.versionMajor = VERSION_MAJOR;
   resp.versionMinor = VERSION_MINOR;
   resp.versionBuild = VERSION_PATCH;
-  resp.capFlags = CAPFLAG_WINK;
+  resp.capFlags = CAPFLAG_WINK | CAPFLAG_CBOR;
   memcpy(&f.init.data, &resp, sizeof(resp));
 
   queue_u2f_pkt(&f);
@@ -1214,6 +1237,7 @@ uint8_t ctap_cbor_cmd(const uint8_t *data, const uint32_t len) {
     return 0;
   }
 
+  ctap_hid_cancel_clear();
   dialog_manager.is_busy = true;
 
   switch (cmd) {
@@ -1236,7 +1260,11 @@ uint8_t ctap_cbor_cmd(const uint8_t *data, const uint32_t len) {
       ctap_hid_keepalive_register();
       status = ctap_make_credential(&encoder, (uint8_t *)(data + 1), len - 1);
       ctap_hid_keepalive_unregister();
-      ctap_hid_keepalive_process();
+      if (ctap_hid_cancel_is_requested()) {
+        status = CTAP2_ERR_KEEPALIVE_CANCEL;
+      } else {
+        ctap_hid_keepalive_process();
+      }
       if (status == CTAP1_ERR_SUCCESS) {
         *ctap_status = CTAP1_ERR_SUCCESS;
         resp.length = cbor_encoder_get_buffer_size(&encoder, ctap_data) + 1;
@@ -1249,7 +1277,11 @@ uint8_t ctap_cbor_cmd(const uint8_t *data, const uint32_t len) {
       ctap_hid_keepalive_register();
       status = ctap_get_assertion(&encoder, (uint8_t *)(data + 1), len - 1);
       ctap_hid_keepalive_unregister();
-      ctap_hid_keepalive_process();
+      if (ctap_hid_cancel_is_requested()) {
+        status = CTAP2_ERR_KEEPALIVE_CANCEL;
+      } else {
+        ctap_hid_keepalive_process();
+      }
       if (status == CTAP1_ERR_SUCCESS) {
         *ctap_status = CTAP1_ERR_SUCCESS;
         resp.length = cbor_encoder_get_buffer_size(&encoder, ctap_data) + 1;
@@ -1291,6 +1323,7 @@ uint8_t ctap_cbor_cmd(const uint8_t *data, const uint32_t len) {
     ctap_printf("hid send response\n");
     send_u2fhid_msg(U2FHID_CBOR, resp.data, resp.length);
   }
+  ctap_hid_cancel_clear();
   return 0;
 }
 

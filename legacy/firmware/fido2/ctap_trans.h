@@ -67,6 +67,7 @@ void send_u2fhid_error(uint32_t fcid, uint8_t err);
 
 // FIDO2
 uint8_t ctap_cbor_cmd(const uint8_t *data, const uint32_t len);
+bool ctap_hid_cancel_is_requested(void);
 
 // ble
 void ctap_ble_cmd(void);

@@ -76,7 +76,7 @@ const uint8_t CTAP_AAGUID[16] =
     "\x70\xe7\xc3\x6f\xf2\xf6\x9e\x0d\x07\xa6\xbc\xc2\x43\x26\x2e\x6b";
 
 const uint8_t device_cert[] =
-    "\x30\x82\x02\x65\x30\x82\x02\x0C\xA0\x03\x02\x01\x02\x02\x08\x2F\x1F\xAB"
+    "\x30\x82\x02\x7C\x30\x82\x02\x21\xA0\x03\x02\x01\x02\x02\x08\x2F\x1F\xAB"
     "\x58\x0B\xEB\xE5\xF0\x30\x0A\x06\x08\x2A\x86\x48\xCE\x3D\x04\x03\x02\x30"
     "\x81\x97\x31\x0B\x30\x09\x06\x03\x55\x04\x06\x13\x02\x43\x4E\x31\x10\x30"
     "\x0E\x06\x03\x55\x04\x08\x13\x07\x42\x45\x49\x4A\x49\x4E\x47\x31\x10\x30"
@@ -87,7 +87,7 @@ const uint8_t device_cert[] =
     "\x04\x03\x13\x0B\x4F\x4E\x45\x4B\x45\x59\x20\x52\x4F\x4F\x54\x31\x1C\x30"
     "\x1A\x06\x09\x2A\x86\x48\x86\xF7\x0D\x01\x09\x01\x16\x0D\x64\x65\x76\x40"
     "\x6F\x6E\x65\x6B\x65\x79\x2E\x73\x6F\x30\x1E\x17\x0D\x32\x34\x31\x30\x31"
-    "\x38\x30\x32\x30\x37\x30\x30\x5A\x17\x0D\x32\x39\x31\x30\x31\x38\x30\x32"
+    "\x38\x30\x32\x30\x37\x30\x30\x5A\x17\x0D\x34\x34\x31\x30\x31\x38\x30\x32"
     "\x30\x37\x30\x30\x5A\x30\x81\xAA\x31\x0B\x30\x09\x06\x03\x55\x04\x06\x13"
     "\x02\x43\x4E\x31\x10\x30\x0E\x06\x03\x55\x04\x08\x13\x07\x42\x45\x49\x4A"
     "\x49\x4E\x47\x31\x10\x30\x0E\x06\x03\x55\x04\x07\x13\x07\x48\x41\x49\x44"
@@ -103,14 +103,15 @@ const uint8_t device_cert[] =
     "\x25\xB7\x2C\x5F\xC3\xAC\xFE\xB4\x9C\x64\xB0\x27\xC1\x84\xA3\xEA\x10\xE8"
     "\xD0\x3D\x48\xA4\xA4\x12\x6C\x3D\xBC\xC6\x1F\x9F\x54\xDA\xB5\xDE\x30\x85"
     "\xB7\x30\x9F\x28\x2A\xC7\x63\xAF\x6C\x0B\xF2\xFA\xA2\x33\x88\x0F\x75\xA3"
-    "\x2D\x30\x2B\x30\x09\x06\x03\x55\x1D\x13\x04\x02\x30\x00\x30\x1E\x06\x09"
-    "\x60\x86\x48\x01\x86\xF8\x42\x01\x0D\x04\x11\x16\x0F\x78\x63\x61\x20\x63"
-    "\x65\x72\x74\x69\x66\x69\x63\x61\x74\x65\x30\x0A\x06\x08\x2A\x86\x48\xCE"
-    "\x3D\x04\x03\x02\x03\x47\x00\x30\x44\x02\x20\x2F\x73\x6A\x80\xBC\x4F\x38"
-    "\x0D\xDE\x21\xC1\x35\x40\x59\x09\x8E\x4C\x81\x9D\x3E\xA9\x6A\x51\x2F\xB3"
-    "\x54\xEE\xEF\x5B\x84\xA5\xF9\x02\x20\x04\xD8\x37\x35\x88\x76\xED\x71\x02"
-    "\x84\x82\x6E\x26\x3A\xB8\x8F\x82\xA4\xF8\xD4\x2E\x15\x94\xB6\xE2\x7E\xDD"
-    "\xC3\x7D\xE1\xA5\x63";
+    "\x42\x30\x40\x30\x09\x06\x03\x55\x1D\x13\x04\x02\x30\x00\x30\x13\x06\x0B"
+    "\x2B\x06\x01\x04\x01\x82\xE5\x1C\x02\x01\x01\x04\x04\x03\x02\x05\x60\x30"
+    "\x1E\x06\x09\x60\x86\x48\x01\x86\xF8\x42\x01\x0D\x04\x11\x16\x0F\x78\x63"
+    "\x61\x20\x63\x65\x72\x74\x69\x66\x69\x63\x61\x74\x65\x30\x0A\x06\x08\x2A"
+    "\x86\x48\xCE\x3D\x04\x03\x02\x03\x49\x00\x30\x46\x02\x21\x00\xF8\xCD\xE4"
+    "\x2F\x83\xBB\x8A\x97\xF4\x58\x64\x8F\x49\x46\x08\x31\x0F\x09\xBB\xB3\xBF"
+    "\x54\x83\xFF\x27\x07\x25\xEB\x3D\xC4\x01\x08\x02\x21\x00\xF9\xA2\x7C\x63"
+    "\x94\x2B\xB6\x66\x46\xC6\x8A\x87\x5E\x39\x23\x11\xEC\x39\x83\x10\xDD\x6F"
+    "\x06\x74\x22\x9F\x26\x9D\x11\x04\x3B\x17";
 #endif
 
 uint8_t PIN_TOKEN[PIN_TOKEN_SIZE];
@@ -680,7 +681,7 @@ static int ctap_make_auth_data(CTAP_makeCredential mc, uint32_t counter,
       ((counter & 0xFF) << 24) | ((counter & 0xFF00) << 8) |
       ((counter & 0xFF0000) >> 8) | ((counter & 0xFF000000) >> 24);
 
-  memcpy(authData->attest.aaguid, CTAP_AAGUID, sizeof(CTAP_AAGUID) - 1);
+  memcpy(authData->attest.aaguid, CTAP_AAGUID, sizeof(CTAP_AAGUID));
   authData->attest.credLenL = cred_id_len & 0x00FF;
   authData->attest.credLenH = (cred_id_len & 0xFF00) >> 8;
   memcpy(auth_data_buf + sizeof(CTAP_authData), cred_id, cred_id_len);
@@ -1048,6 +1049,10 @@ refresh:
   bool yes_up = false;
   while (1) {
     usbPoll();
+    if (ctap_hid_cancel_is_requested()) {
+      layoutHome();
+      return CTAP2_ERR_KEEPALIVE_CANCEL;
+    }
     buttonUpdate();
     if (button.YesUp) {
       yes_up = true;
@@ -1278,6 +1283,73 @@ static int8_t save_credential_list(uint8_t *clientDataHash,
   getAssertionState.index = 0;
   ctap_printf("saved %d credentials\n", count);
   return 0;
+}
+
+#define FIDO_ASSERTION_LIST_WINDOW_SIZE 3
+
+static void ctap_get_assertion_layout_credential_list(CTAP_getAssertion *GA) {
+  int start_index = 0;
+  int end_index = 0;
+  layout_item_t items[FIDO_ASSERTION_LIST_WINDOW_SIZE] = {0};
+
+  if (getAssertionState.count <= FIDO_ASSERTION_LIST_WINDOW_SIZE) {
+    start_index = 0;
+    end_index = getAssertionState.count - 1;
+  } else {
+    start_index = getAssertionState.index - 1;
+    if (start_index < 0) {
+      start_index = 0;
+    }
+    end_index = start_index + FIDO_ASSERTION_LIST_WINDOW_SIZE - 1;
+    if (end_index >= (int)getAssertionState.count) {
+      end_index = getAssertionState.count - 1;
+      start_index = end_index - FIDO_ASSERTION_LIST_WINDOW_SIZE + 1;
+    }
+  }
+
+  for (int i = start_index; i <= end_index; i++) {
+    CTAP_credentialDescriptor *cred = &GA->creds[i];
+    items[i - start_index].label = get_account_name(&cred->credential.user);
+    items[i - start_index].center = false;
+  }
+
+  layout_screen_t screen = {
+      .bmp_up = &bmp_bottom_middle_arrow_up,
+      .bmp_down = &bmp_bottom_middle_arrow_down,
+      .bmp_no = &bmp_bottom_left_close,
+      .bmp_yes = &bmp_bottom_right_confirm,
+      .title = GA->rp.id,
+      .items = items,
+      .item_count = getAssertionState.count,
+      .item_index = getAssertionState.index,
+      .item_offset = start_index,
+      .show_index = true,
+      .loop = true,
+  };
+  layout_screen(screen);
+}
+
+static void ctap_get_assertion_select_credential(CTAP_getAssertion *GA,
+                                                 bool next) {
+  if (getAssertionState.count == 0) {
+    return;
+  }
+
+  if (next) {
+    if (getAssertionState.index < getAssertionState.count - 1) {
+      getAssertionState.index++;
+    } else {
+      getAssertionState.index = 0;
+    }
+  } else {
+    if (getAssertionState.index > 0) {
+      getAssertionState.index--;
+    } else {
+      getAssertionState.index = getAssertionState.count - 1;
+    }
+  }
+
+  ctap_get_assertion_layout_credential_list(GA);
 }
 
 // static CTAP_credentialDescriptor *pop_credential() {
@@ -1847,7 +1919,9 @@ uint8_t ctap_get_assertion(CborEncoder *encoder, uint8_t *request, int length) {
     ctap_printf("CRED ID (# %d)\n", GA.creds[j].credential.creation_time);
   }
 
-  CTAP_credentialDescriptor *cred = &GA.creds[0];
+  getAssertionState.index = 0;
+  getAssertionState.count = validCredCount;
+  CTAP_credentialDescriptor *cred = &GA.creds[getAssertionState.index];
 
   if (GA.up || GA.uv) {
     const char *appname = NULL;
@@ -1862,11 +1936,13 @@ uint8_t ctap_get_assertion(CborEncoder *encoder, uint8_t *request, int length) {
     int current_position = 0;
     char *account_name = NULL;
 
+    cred = &GA.creds[getAssertionState.index];
     if (cred->type == PUB_KEY_CRED_PUB_KEY) {
       account_name = get_account_name(&cred->credential.user);
     }
 
   refresh:
+    cred = &GA.creds[getAssertionState.index];
     if (cred->type == PUB_KEY_CRED_CTAP1) {
       sha256_Raw((uint8_t *)GA.rp.id, GA.rp.size, rp_id_hash);
       getReadableAppId(rp_id_hash, &appname);
@@ -1874,21 +1950,27 @@ uint8_t ctap_get_assertion(CborEncoder *encoder, uint8_t *request, int length) {
                             NULL, &bmp_bottom_right_confirm, NULL, NULL,
                             _(I__APP_NAME_COLON), appname, NULL, NULL);
     } else {
-      truncate_pos =
-          get_truncate_position(account_name + current_position, &is_end);
-      strncpy(account_name_buf, account_name + current_position, truncate_pos);
-      account_name_buf[truncate_pos] = '\0';
-      layoutDialogAdapterEx(_(FIDO_2_AUTHENTICATE), &bmp_bottom_left_close,
-                            NULL, &bmp_bottom_right_confirm, NULL, NULL,
-                            _(GLOBAL_APP_NAME), cred->credential.rp.id,
-                            _(GLOBAL_ACCOUNT), account_name_buf);
-      if (!is_end) {
-        oledDrawBitmap(3 * OLED_WIDTH / 4, OLED_HEIGHT - 8,
-                       &bmp_bottom_middle_arrow_down);
-      }
-      if (history_index > 0) {
-        oledDrawBitmap(OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8,
-                       &bmp_bottom_middle_arrow_up);
+      account_name = get_account_name(&cred->credential.user);
+      if (validCredCount > 1) {
+        ctap_get_assertion_layout_credential_list(&GA);
+      } else {
+        truncate_pos =
+            get_truncate_position(account_name + current_position, &is_end);
+        strncpy(account_name_buf, account_name + current_position,
+                truncate_pos);
+        account_name_buf[truncate_pos] = '\0';
+        layoutDialogAdapterEx(_(FIDO_2_AUTHENTICATE), &bmp_bottom_left_close,
+                              NULL, &bmp_bottom_right_confirm, NULL, NULL,
+                              _(GLOBAL_APP_NAME), cred->credential.rp.id,
+                              _(GLOBAL_ACCOUNT), account_name_buf);
+        if (!is_end) {
+          oledDrawBitmap(3 * OLED_WIDTH / 4, OLED_HEIGHT - 8,
+                         &bmp_bottom_middle_arrow_down);
+        }
+        if (history_index > 0) {
+          oledDrawBitmap(OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8,
+                         &bmp_bottom_middle_arrow_up);
+        }
       }
       oledRefresh();
     }
@@ -1896,6 +1978,10 @@ uint8_t ctap_get_assertion(CborEncoder *encoder, uint8_t *request, int length) {
     bool yes_up = false;
     while (1) {
       usbPoll();
+      if (ctap_hid_cancel_is_requested()) {
+        layoutHome();
+        return CTAP2_ERR_KEEPALIVE_CANCEL;
+      }
       buttonUpdate();
       if (button.YesUp) {
         getAssertionState.user_verified = true;
@@ -1904,13 +1990,23 @@ uint8_t ctap_get_assertion(CborEncoder *encoder, uint8_t *request, int length) {
       } else if (button.NoUp) {
         break;
       } else if (button.UpUp) {
-        if (history_index > 0) {
+        if (validCredCount > 1 && cred->type == PUB_KEY_CRED_PUB_KEY) {
+          ctap_get_assertion_select_credential(&GA, false);
+          current_position = 0;
+          history_index = 0;
+          continue;
+        } else if (history_index > 0) {
           history_index--;
           current_position -= position_history[history_index];
           goto refresh;
         }
       } else if (button.DownUp) {
-        if (!is_end) {
+        if (validCredCount > 1 && cred->type == PUB_KEY_CRED_PUB_KEY) {
+          ctap_get_assertion_select_credential(&GA, true);
+          current_position = 0;
+          history_index = 0;
+          continue;
+        } else if (!is_end) {
           if (history_index < 10 - 1) {
             position_history[history_index++] = truncate_pos;
           }
@@ -1929,6 +2025,7 @@ uint8_t ctap_get_assertion(CborEncoder *encoder, uint8_t *request, int length) {
     }
   }
 
+  cred = &GA.creds[getAssertionState.index];
   uint32_t auth_data_buf_sz = sizeof(CTAP_authDataHeader);
 
   uint32_t counter = config_nextU2FCounter();
@@ -1955,16 +2052,14 @@ uint8_t ctap_get_assertion(CborEncoder *encoder, uint8_t *request, int length) {
   if (validCredCount > 1) {
     ret = cbor_encode_int(&map, RESP_numberOfCredentials);  // 5
     check_ret(ret);
-    ret = cbor_encode_int(&map, validCredCount);
+    ret = cbor_encode_int(&map, 1);
     check_ret(ret);
   }
 
   ret = cbor_encoder_close_container(encoder, &map);
   check_ret(ret);
 
-  ret = save_credential_list(GA.clientDataHash,
-                             GA.creds + 1 /* skip first credential*/,
-                             validCredCount - 1, &GA.extensions);
+  ret = save_credential_list(GA.clientDataHash, NULL, 0, &GA.extensions);
   check_retr(ret);
 
   return 0;
