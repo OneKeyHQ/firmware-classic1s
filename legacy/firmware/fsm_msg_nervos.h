@@ -39,9 +39,8 @@ void fsm_msgNervosGetAddress(const NervosGetAddress *msg) {
                                      msg->network);
 
   if (msg->has_show_display && msg->show_display) {
-    char desc[16] = {0};
-    strcat(desc, "Nervos");
-    strcat(desc, _(I__ADDRESS_COLON));
+    char desc[64] = {0};
+    snprintf(desc, sizeof(desc), "Nervos%s", _(I__ADDRESS_COLON));
     if (!fsm_layoutAddress(resp->address, NULL, desc, false, 0, msg->address_n,
                            msg->address_n_count, false, NULL, 0, 0, NULL)) {
       return;

@@ -581,12 +581,18 @@ static bool layout_vote(const Transaction *transaction,
   int index = 0;
   int y = 0;
   uint8_t max_index = 1;
-  char network_name[20] = "Neo ";
+  char network_name[64] = {0};
   if (transaction->is_remove_vote) {
-    strcat(network_name, _(TITLE_REMOVE_VOTE));
+    snprintf(network_name, sizeof(network_name), "Neo %s",
+             _(TITLE_REMOVE_VOTE));
   } else {
-    char *vote = _(I__VOTE_COLON);
-    strncat(network_name, vote, strlen(vote) - 1);
+    const char *vote = _(I__VOTE_COLON);
+    size_t vote_len = strlen(vote);
+    if (vote_len > 0) {
+      vote_len--;
+    }
+    snprintf(network_name, sizeof(network_name), "Neo %.*s", (int)vote_len,
+             vote);
     max_index++;
   }
   if (is_unknown_network(network_magic)) {

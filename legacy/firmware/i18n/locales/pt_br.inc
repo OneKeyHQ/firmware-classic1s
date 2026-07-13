@@ -10,7 +10,7 @@ const char *const languages_pt_br[] = {
     "12 Palavras",
     "18 Palavras",
     "24 Palavras",
-    "Backup da frase de recuperação",
+    "Frase de backup",
     "A próxima tela mostrará {} palavras da frase de recuperação. Anote-as na ordem.",
     "Palavra #{}",
     "Verifique Novamente",

@@ -11,6 +11,7 @@ const char *const i18n_lang_keys[] = {
     "pt",
     "de",
     "ko_KR",
+    "ru",
 };
 
 const char *const i18n_langs[] = {
@@ -22,6 +23,7 @@ const char *const i18n_langs[] = {
     "Português",
     "Deutsch",
     "한국어",
+    "Russian",
 };
 
 #include "locales/de.inc"
@@ -30,6 +32,7 @@ const char *const i18n_langs[] = {
 #include "locales/ja.inc"
 #include "locales/ko_kr.inc"
 #include "locales/pt_br.inc"
+#include "locales/ru.inc"
 #include "locales/zh_cn.inc"
 #include "locales/zh_tw.inc"
 
@@ -42,6 +45,7 @@ const char *const *const languages_table[] = {
     languages_pt_br,
     languages_de,
     languages_ko_kr,
+    languages_ru,
 };
 
 // clang-format on

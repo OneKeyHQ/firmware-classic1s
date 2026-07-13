@@ -982,11 +982,11 @@ int word_edit_operation_select(void) {
 }
 
 bool edit_recovery_word(void) {
-  char title[32] = "";
+  char title[64] = "";
   char num_str[4] = "";
   uint32_t index = 0;
   uint8_t key = KEY_NULL;
-  char confirm[32] = {0};
+  char confirm[64] = {0};
 
   layout_item_t items[24 + 1] = {0};
   for (uint32_t i = 0; i < word_count; i++) {
@@ -995,8 +995,7 @@ bool edit_recovery_word(void) {
     items[i].center = true;
   }
 
-  strcat(confirm, "✓ ");
-  strcat(confirm, _(T__CONFIRM_PHRASE));
+  snprintf(confirm, sizeof(confirm), "✓ %s", _(T__CONFIRM_PHRASE));
   items[word_count].label = confirm;
   items[word_count].value = NULL;
   items[word_count].center = true;
@@ -1005,11 +1004,11 @@ bool edit_recovery_word(void) {
     memzero(title, sizeof(title));
     if (index < word_count) {
       memzero(num_str, sizeof(num_str));
-      strcat(title, _(T__EDIT_WORD_STR));
+      strlcpy(title, _(T__EDIT_WORD_STR), sizeof(title));
       uint2str(index + 1, num_str);
       bracket_replace(title, num_str);
     } else {
-      strcat(title, _(T__CONFIRM_PHRASE));
+      strlcpy(title, _(T__CONFIRM_PHRASE), sizeof(title));
     }
 
     layout_screen_t screen = {

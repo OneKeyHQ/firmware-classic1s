@@ -474,6 +474,7 @@ void layout_language_set(uint8_t key) {
       {.label = i18n_langs[5], .value = NULL, .center = true},
       {.label = i18n_langs[6], .value = NULL, .center = true},
       {.label = i18n_langs[7], .value = NULL, .center = true},
+      {.label = i18n_langs[8], .value = NULL, .center = true},
   };
 
   layout_screen_t screen = {
@@ -3724,6 +3725,14 @@ bool layoutInputDirection(int direction) {
     case I18N_LANG_KO_KR:
       oledDrawBitmap(83, 16, &bmp_icon_up);
       oledDrawBitmap(105, 26, &bmp_icon_down);
+      break;
+    case I18N_LANG_RU:
+      oledDrawBitmap(46, 23, &bmp_icon_up);
+      if (direction) {
+        oledDrawBitmap(84, 33, &bmp_icon_down);
+      } else {
+        oledDrawBitmap(19, 43, &bmp_icon_down);
+      }
       break;
     default:
       break;

@@ -4,7 +4,7 @@ import lokalise
 
 LOKALISE_PROJECT_ID = "372193756406ee669eacc1.76289155"
 BASE_PATH = os.path.join(os.path.dirname(__file__), "..", "firmware/i18n/")
-SUPPORTED_LANGS = ("en", "zh_CN", "zh_TW", "ja", "es", "pt_BR", "de", "ko_KR")
+SUPPORTED_LANGS = ("en", "zh_CN", "zh_TW", "ja", "es", "pt_BR", "de", "ko_KR", "ru")
 CHARS_NORMAL = set()
 CHARS_TITLE = set()
 CHARS_SUBTITLE = set()
@@ -107,6 +107,7 @@ def write_i18n_source(languages_map):
         "pt_BR": "Português",
         "de": "Deutsch",
         "ko_KR": "한국어",
+        "ru": "Russian",
     }
 
     LANG_KEY_DISPLAY = {
