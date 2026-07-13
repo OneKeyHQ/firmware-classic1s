@@ -310,7 +310,9 @@ void fsm_msgCardanoSignMessage(CardanoSignMessage *msg);
 void fsm_msgKaspaGetAddress(const KaspaGetAddress *msg);
 void fsm_msgKaspaSignTx(const KaspaSignTx *msg);
 void fsm_msgKaspaTxInputAck(const KaspaTxInputAck *msg);
-
+void fsm_msgKaspaTxAckInput(const KaspaTxAckInput *msg);
+void fsm_msgKaspaTxAckOutput(const KaspaTxAckOutput *msg);
+void fsm_msgKaspaTxAckPayloadChunk(const KaspaTxAckPayloadChunk *msg);
 // Nexa
 void fsm_msgNexaGetAddress(const NexaGetAddress *msg);
 void fsm_msgNexaSignTx(const NexaSignTx *msg);

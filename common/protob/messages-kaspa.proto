@@ -24,7 +24,7 @@ message KaspaGetAddress {
  * @end
  */
 message KaspaAddress {
-    required string address = 1;    // Coin address in Base58 encoding
+    required string address = 1;    // Coin address in cashaddr encoding
 }
 
 /**
@@ -32,15 +32,22 @@ message KaspaAddress {
  * @start
  * @next KaspaSignedTx
  * @next KaspaTxInputRequest
+ * @next KaspaTxRequest
  * @next Failure
  */
 message KaspaSignTx {
     repeated uint32 address_n = 1;                                      // BIP-32 path to derive the key from master node
-    required bytes raw_message = 2;                                     // the bip143-like pre-hashed message to be signed
+    optional bytes raw_message = 2;                                     // present for legacy blind signing; omit for streaming signing
     optional string scheme = 3 [default="schnorr"];                     // signature scheme
     optional string prefix = 4 [default="kaspa"];                       // prefix for address
     optional uint32 input_count = 5 [default=1];                        // number of inputs in the transaction
     optional bool use_tweak = 6 [default=true];                         // use bip340 tweak
+    optional uint32 output_count = 7;                                   // number of outputs in the transaction
+    optional uint32 version = 8 [default=0];                            // transaction version
+    optional uint64 lock_time = 9 [default=0];                          // transaction lock time
+    optional bytes subnetwork_id = 10;                                  // transaction subnetwork id
+    optional uint64 gas = 11 [default=0];                               // transaction gas
+    optional uint32 payload_length = 12 [default=0];                    // transaction payload length
 }
 
 /**
@@ -62,6 +69,93 @@ message KaspaTxInputAck {
     repeated uint32 address_n = 1;                                               // BIP-32 path to derive the key from master node
     required bytes raw_message = 2;                                              // the bip143-like pre-hashed message to be signed
 }
+
+message KaspaOutpoint {
+    required bytes tx_id = 1;
+    required uint32 index = 2;
+}
+
+enum KaspaInputScriptType {
+    KASPA_SPEND_P2PK_SCHNORR = 0;
+    KASPA_SPEND_P2PK_ECDSA = 1;
+    // KASPA_SPEND_P2SH = 2;
+    // KASPA_SPEND_EXTERNAL = 3;
+}
+
+enum KaspaOutputScriptType {
+    KASPA_PAYTOADDRESS = 0;
+    KASPA_PAYTOCHANGE = 1;
+    // KASPA_PAYTOP2SH = 2;
+    // KASPA_PAYTOOPRETURN = 3;
+}
+
+enum KaspaRequestType {
+    KASPA_TX_INPUT = 0;
+    KASPA_TX_OUTPUT = 1;
+    KASPA_TX_PAYLOAD = 2;
+    KASPA_TX_FINISHED = 3;
+}
+
+message KaspaTxRequestSignature {
+    optional uint32 signature_index = 1;
+    optional bytes signature = 2;
+}
+
+/**
+ * Response: Contains request for input, output or payload
+ * @next KaspaTxInputAck
+ * @next KaspaTxOutputAck
+ * @next KaspaTxPayloadAck
+ */
+message KaspaTxRequest {
+    optional KaspaRequestType request_type = 1;
+    optional uint32 request_index = 2;
+    optional KaspaTxRequestSignature signature = 3;
+    optional uint32 request_payload_length = 4;
+}
+
+/**
+ * Response: Contains input to be signed
+ * @next KaspaTxRequest
+ * @next Failure
+ */
+message KaspaTxAckInput {
+    repeated uint32 address_n = 1;                                      // BIP-32 path to derive the key from master node
+    required KaspaOutpoint previous_outpoint = 2;
+    required uint64 amount = 3;
+    required uint64 sequence = 4;
+    required uint32 sig_op_count = 5;
+    optional KaspaInputScriptType script_type = 6 [default=KASPA_SPEND_P2PK_SCHNORR];
+    // optional bytes script_public_key = 7;
+    // optional string address = 8;
+    optional bool use_tweak = 9 [default=true];
+}
+
+/**
+ * Response: Contains output to be signed
+ * @next KaspaTxRequest
+ * @next Failure
+ */
+message KaspaTxAckOutput {
+    optional KaspaOutputScriptType script_type = 1 [default=KASPA_PAYTOADDRESS];
+    required uint64 amount = 2;
+    repeated uint32 address_n = 3;                                      // BIP-32 path to derive the key from master node
+    optional string address = 4;
+    // optional bytes script_public_key = 5;
+    // optional bytes op_return_data = 6;
+    optional string scheme = 7 [default="schnorr"];
+    optional bool use_tweak = 8 [default=true];
+}
+
+/**
+ * Response: Contains payload chunk to be signed
+ * @next KaspaTxRequest
+ * @next Failure
+ */
+message KaspaTxAckPayloadChunk {
+    optional bytes payload_chunk = 1;
+}
+
 /**
  * Response: transaction signature
  * @end

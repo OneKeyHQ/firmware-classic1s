@@ -7,11 +7,45 @@
 
 void kaspa_get_address(const uint8_t *pubkey, const uint8_t pubkey_len,
                        const char *prefix, char *addr, bool use_tweak);
-void kaspa_sign_sighash(HDNode *node, const uint8_t *raw_message,
+bool kaspa_sign_sighash(HDNode *node, const uint8_t *raw_message,
                         uint32_t raw_message_len, uint8_t *signature,
                         pb_size_t *signature_len);
+bool kaspa_valid_prefix(const char *addr_prefix);
+bool kaspa_valid_scheme(const char *scheme);
+
+typedef enum {
+  KASPA_SIGNING_MODE_NONE = 0,
+  KASPA_SIGNING_MODE_LEGACY = 1,
+  KASPA_SIGNING_MODE_STREAMING = 2,
+} KaspaSigningMode;
+
+typedef enum {
+  KASPA_PHASE_NONE = 0,
+  KASPA_PHASE_COLLECT_INPUTS = 1,
+  KASPA_PHASE_COLLECT_OUTPUTS = 2,
+  KASPA_PHASE_CONFIRM_TOTAL = 3,
+  KASPA_PHASE_COLLECT_PAYLOAD = 4,
+  KASPA_PHASE_SIGN_INPUTS = 5,
+  KASPA_PHASE_FINISHED = 6,
+} KaspaSigningPhase;
+
+#define KASPA_MAX_SCRIPT_PUBLIC_KEY_LEN 35
+
 void kaspa_signing_init(const KaspaSignTx *msg);
 void kaspa_signing_abort(void);
+bool kaspa_is_legacy_signing(const KaspaSignTx *msg);
+bool kaspa_is_streaming_signing(const KaspaSignTx *msg);
+KaspaSigningMode kaspa_signing_mode(void);
+
+bool kaspa_streaming_signing_init(const KaspaSignTx *msg);
+bool kaspa_process_input(const KaspaTxAckInput *input);
+bool kaspa_process_output(const KaspaTxAckOutput *output, HDNode *node);
+bool kaspa_send_request(KaspaTxRequest *resp);
+bool kaspa_receive_payload(const KaspaTxAckPayloadChunk *payload);
+bool kaspa_confirm_total(void);
+bool kaspa_sign_input(const KaspaTxAckInput *input, HDNode *node,
+                      uint8_t *signature, pb_size_t *signature_len);
+KaspaSigningPhase kaspa_signing_phase(void);
 
 extern uint16_t input_count;
 extern uint16_t input_index;

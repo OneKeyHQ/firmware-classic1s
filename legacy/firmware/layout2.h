@@ -89,6 +89,9 @@ void layoutHome(void);
 void layoutHomeEx(void);
 bool layoutConfirmOutput(const CoinInfo *coin, AmountUnit amount_unit,
                          const TxOutputType *out);
+bool layoutConfirmOutputSimple(const char *chain_name, const char *amount,
+                               const char *address, const uint32_t *address_n,
+                               uint32_t address_n_count);
 void layoutConfirmOmni(const uint8_t *data, uint32_t size);
 uint8_t layoutConfirmOpReturn(const CoinInfo *coin, uint8_t *data,
                               uint32_t size, int64_t amount);
@@ -96,6 +99,8 @@ bool layoutConfirmTx(const CoinInfo *coin, AmountUnit amount_unit,
                      uint64_t total_in, uint64_t external_in,
                      uint64_t total_out, uint64_t change_out,
                      uint64_t tx_weight);
+bool layoutConfirmTxSimple(const char *chain_name, const char *total_amount,
+                           const char *fee_amount);
 void layoutConfirmReplacement(const char *description, uint8_t txid[32]);
 void layoutConfirmModifyOutput(const CoinInfo *coin, AmountUnit amount_unit,
                                TxOutputType *out, TxOutputType *orig_out,

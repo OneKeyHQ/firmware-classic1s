@@ -1031,63 +1031,46 @@ static size_t format_coin_amount(uint64_t amount, const char *prefix,
   return bn_format_amount(amount, prefix, suffix, decimals, output, output_len);
 }
 
-bool layoutConfirmOutput(const CoinInfo *coin, AmountUnit amount_unit,
-                         const TxOutputType *out) {
+bool layoutConfirmOutputSimple(const char *chain_name, const char *amount,
+                               const char *address, const uint32_t *address_n,
+                               uint32_t address_n_count) {
   int index = 0;
   uint8_t key = KEY_NULL;
   uint8_t pages = 2;
   char title[65] = {0};
-  char str_out[32 + 3] = {0};
   char desc[32] = {0};
-
-  ButtonRequest resp = {0};
-  memzero(&resp, sizeof(ButtonRequest));
-  resp.has_code = true;
-  resp.code = ButtonRequestType_ButtonRequest_SignTx;
-  msg_write(MessageType_MessageType_ButtonRequest, &resp);
-
-  snprintf(title, 65, "%s", _(T__STR_CHAIN_TRANSACTION));
-  bracket_replace(title, coin->coin_name);
-  strcat(desc, _(I__AMOUNT_COLON));
-
-  format_coin_amount(out->amount, NULL, coin, amount_unit, str_out,
-                     sizeof(str_out) - 3);
-  const char *address = out->address;
   const char *extra_line =
-      (out->address_n_count > 0)
-          ? address_n_str(out->address_n, out->address_n_count, false)
-          : 0;
-  if (coin && coin->cashaddr_prefix) {
-    /* If this is a cashaddr address, remove the prefix from the
-     * string presented to the user
-     */
-    int prefix_len = strlen(coin->cashaddr_prefix);
-    if (strncmp(address, coin->cashaddr_prefix, prefix_len) == 0 &&
-        address[prefix_len] == ':') {
-      address += prefix_len + 1;
-    }
-  }
+      (address_n_count > 0) ? address_n_str(address_n, address_n_count, false)
+                            : 0;
   if (extra_line) pages++;
+
+  snprintf(title, sizeof(title), "%s", _(T__STR_CHAIN_TRANSACTION));
+  bracket_replace(title, chain_name);
+  strcat(desc, _(I__AMOUNT_COLON));
 
 refresh_menu:
   oledClear();
+  key = KEY_NULL;
   layoutHeader(title);
   if (((bool)extra_line ? 2 : 1) == index) {
     oledDrawStringAdapter(0, 13, desc, FONT_STANDARD);
-    oledDrawStringAdapter(0, 13 + 10, str_out, FONT_STANDARD);
+    oledDrawStringAdapter(0, 23, amount, FONT_STANDARD);
   } else if (0 == index) {
     oledDrawStringAdapter(0, 13, _(I__SEND_TO_COLON), FONT_STANDARD);
-    oledDrawStringAdapter(0, 13 + 10, address, FONT_STANDARD);
+    key = oledDrawPageableStringAdapter(0, 23, address, FONT_STANDARD,
+                                        &bmp_bottom_left_close,
+                                        &bmp_bottom_right_arrow);
   } else if (1 == index && (bool)extra_line) {
-    oledDrawStringAdapter(0, 13, _(I__SEND_TO_COLON), FONT_STANDARD);
-    oledDrawStringAdapter(0, 13 + 10, extra_line, FONT_STANDARD);
+    oledDrawStringAdapter(0, 13, _(I__PATH_COLON), FONT_STANDARD);
+    oledDrawStringAdapter(0, 23, extra_line, FONT_STANDARD);
   }
 
   layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
   layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
   oledRefresh();
-
-  WAIT_KEY_OR_ABORT(0, 0, key);
+  if (key == KEY_NULL) {
+    WAIT_KEY_OR_ABORT(0, 0, key);
+  }
   switch (key) {
     case KEY_UP:
       goto refresh_menu;
@@ -1108,6 +1091,34 @@ refresh_menu:
   }
 
   return true;
+}
+
+bool layoutConfirmOutput(const CoinInfo *coin, AmountUnit amount_unit,
+                         const TxOutputType *out) {
+  char str_out[32 + 3] = {0};
+
+  ButtonRequest resp = {0};
+  memzero(&resp, sizeof(ButtonRequest));
+  resp.has_code = true;
+  resp.code = ButtonRequestType_ButtonRequest_SignTx;
+  msg_write(MessageType_MessageType_ButtonRequest, &resp);
+
+  format_coin_amount(out->amount, NULL, coin, amount_unit, str_out,
+                     sizeof(str_out) - 3);
+  const char *address = out->address;
+  if (coin && coin->cashaddr_prefix) {
+    /* If this is a cashaddr address, remove the prefix from the
+     * string presented to the user
+     */
+    int prefix_len = strlen(coin->cashaddr_prefix);
+    if (strncmp(address, coin->cashaddr_prefix, prefix_len) == 0 &&
+        address[prefix_len] == ':') {
+      address += prefix_len + 1;
+    }
+  }
+
+  return layoutConfirmOutputSimple(coin->coin_name, str_out, address,
+                                   out->address_n, out->address_n_count);
 }
 
 void layoutConfirmOmni(const uint8_t *data, uint32_t size) {
@@ -1244,21 +1255,10 @@ static bool formatFeeRate(uint64_t fee_per_kvbyte, char *output,
                                segwit, false);
 }
 
-bool layoutConfirmTx(const CoinInfo *coin, AmountUnit amount_unit,
-                     uint64_t total_in, uint64_t external_in,
-                     uint64_t total_out, uint64_t change_out,
-                     uint64_t tx_weight) {
-  (void)tx_weight;
-  (void)external_in;
+bool layoutConfirmTxSimple(const char *chain_name, const char *total_amount,
+                           const char *fee_amount) {
   uint8_t key = KEY_NULL;
-  char str_out[32] = {0};
-  char str_fee[32] = {0};
-  const char **tx_msg = format_tx_message(coin->coin_name);
-
-  formatAmountDifference(coin, amount_unit, total_in, change_out, str_out,
-                         sizeof(str_out));
-  formatAmountDifference(coin, amount_unit, total_in, total_out, str_fee,
-                         sizeof(str_fee));
+  const char **tx_msg = format_tx_message(chain_name);
   int total_index = 2;
   int current_index = 0;
   while (1) {
@@ -1276,12 +1276,12 @@ bool layoutConfirmTx(const CoinInfo *coin, AmountUnit amount_unit,
 
     if (current_index == 0) {  // total amount
       oledDrawStringAdapter(0, 13, _(I__TOTAL_AMOUNT_COLON), FONT_STANDARD);
-      oledDrawStringAdapter(0, 13 + 10, str_out, FONT_STANDARD);
+      oledDrawStringAdapter(0, 23, total_amount, FONT_STANDARD);
       oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 7,
                      &bmp_bottom_middle_arrow_down);
     } else if (current_index == total_index - 1) {  // fee
       oledDrawStringAdapter(0, 13, _(I__FEE_COLON), FONT_STANDARD);
-      oledDrawStringAdapter(0, 13 + 10, str_fee, FONT_STANDARD);
+      oledDrawStringAdapter(0, 23, fee_amount, FONT_STANDARD);
       oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 7,
                      &bmp_bottom_middle_arrow_up);
     }
@@ -1291,7 +1291,7 @@ bool layoutConfirmTx(const CoinInfo *coin, AmountUnit amount_unit,
     while (1) {
       WAIT_KEY_OR_ABORT(0, 0, key);
       if (key == KEY_CONFIRM) {
-        return true;
+        break;
       } else if (key == KEY_CANCEL || key == KEY_NULL) {
         return false;
       } else if (key == KEY_DOWN) {
@@ -1306,6 +1306,9 @@ bool layoutConfirmTx(const CoinInfo *coin, AmountUnit amount_unit,
         }
       }
       delay_ms(10);
+    }
+    if (key == KEY_CONFIRM) {
+      break;
     }
   }
   oledClear();
@@ -1325,6 +1328,23 @@ bool layoutConfirmTx(const CoinInfo *coin, AmountUnit amount_unit,
     delay_ms(10);
   }
   return true;
+}
+
+bool layoutConfirmTx(const CoinInfo *coin, AmountUnit amount_unit,
+                     uint64_t total_in, uint64_t external_in,
+                     uint64_t total_out, uint64_t change_out,
+                     uint64_t tx_weight) {
+  (void)tx_weight;
+  (void)external_in;
+  char str_out[32] = {0};
+  char str_fee[32] = {0};
+
+  formatAmountDifference(coin, amount_unit, total_in, change_out, str_out,
+                         sizeof(str_out));
+  formatAmountDifference(coin, amount_unit, total_in, total_out, str_fee,
+                         sizeof(str_fee));
+
+  return layoutConfirmTxSimple(coin->coin_name, str_out, str_fee);
 }
 
 void layoutConfirmReplacement(const char *description, uint8_t txid[32]) {

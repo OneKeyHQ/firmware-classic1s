@@ -612,6 +612,7 @@ class Capability(IntEnum):
     Shamir = 15
     ShamirGroups = 16
     PassphraseEntry = 17
+    KaspaStreamingSigning = 1001
 
 
 class OneKeyDeviceType(IntEnum):

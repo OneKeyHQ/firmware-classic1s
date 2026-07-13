@@ -124,7 +124,7 @@ bool get_features(Features *resp) {
   resp->capabilities[1] = Capability_Capability_Crypto;
   resp->capabilities[2] = Capability_Capability_AttachToPin;
 #else
-  resp->capabilities_count = 9;
+  resp->capabilities_count = 10;
   resp->capabilities[0] = Capability_Capability_Bitcoin;
   resp->capabilities[1] = Capability_Capability_Bitcoin_like;
   resp->capabilities[2] = Capability_Capability_Crypto;
@@ -134,6 +134,7 @@ bool get_features(Features *resp) {
   resp->capabilities[6] = Capability_Capability_U2F;
   resp->capabilities[7] = Capability_Capability_AttachToPin;
   resp->capabilities[8] = Capability_Capability_EthereumTypedData;
+  resp->capabilities[9] = Capability_Capability_KaspaStreamingSigning;
 #endif
   if (ble_name_state()) {
     char *ble_name = ble_get_name();

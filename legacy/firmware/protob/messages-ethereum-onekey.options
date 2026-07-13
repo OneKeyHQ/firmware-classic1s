@@ -66,7 +66,3 @@ EthereumGetPublicKeyOneKey.address_n          max_count:8
 EthereumAddressOneKey._old_address            max_size:20
 EthereumAddressOneKey.address                 max_size:43
 EthereumPublicKeyOneKey.xpub                  max_size:113
-
-EthereumSignMessageEIP712.address_n     max_count:8
-EthereumSignMessageEIP712.domain_hash   max_size:32
-EthereumSignMessageEIP712.message_hash  max_size:32

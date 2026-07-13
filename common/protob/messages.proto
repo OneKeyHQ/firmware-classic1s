@@ -120,7 +120,7 @@ enum MessageType {
     MessageType_FirmwareHash = 89 [(bitcoin_only) = true, (wire_out) = true];
     reserved 90 to 92;
     MessageType_UnlockPath = 93 [(bitcoin_only) = true, (wire_in) = true];
-    MessageType_UnlockedPathRequest = 94 [(bitcoin_only) = true, (wire_out) = true];   
+    MessageType_UnlockedPathRequest = 94 [(bitcoin_only) = true, (wire_out) = true];
     MessageType_GetPassphraseState = 10028 [(bitcoin_only) = true,(wire_in) = true];
     MessageType_PassphraseState = 10029 [(bitcoin_only) = true,(wire_out) = true];
 
@@ -502,7 +502,12 @@ enum MessageType {
     MessageType_KaspaSignedTx = 11303 [(wire_out) = true];
     MessageType_KaspaTxInputRequest = 11304 [(wire_out) = true];
     MessageType_KaspaTxInputAck = 11305 [(wire_in) = true];
-   // Nexa
+    MessageType_KaspaTxRequest = 11306 [(wire_out) = true];
+    MessageType_KaspaTxAckInput = 11307 [(wire_in) = true];
+    MessageType_KaspaTxAckOutput = 11308 [(wire_in) = true];
+    MessageType_KaspaTxAckPayloadChunk = 11309 [(wire_in) = true];
+
+    // Nexa
     MessageType_NexaGetAddress = 11400 [(wire_in) = true];
     MessageType_NexaAddress = 11401 [(wire_out) = true];
     MessageType_NexaSignTx = 11402 [(wire_in) = true];
