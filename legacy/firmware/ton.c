@@ -40,6 +40,59 @@
 #define SIZE_PUBKEY 32
 #define USER_FRIENDLY_LEN 36
 #define USER_FRIENDLY_B64_LEN 48
+#define TON_SUPPORTED_WALLET_ID 698983191u
+
+static const char *ton_boc_error_message(TonBocError error) {
+  switch (error) {
+    case TON_BOC_ERROR_INVALID_ARGUMENT:
+      return "Invalid BOC parser argument";
+    case TON_BOC_ERROR_INVALID_FORMAT:
+      return "Invalid BOC format";
+    case TON_BOC_ERROR_UNSUPPORTED_FORMAT:
+      return "Unsupported BOC format";
+    case TON_BOC_ERROR_INVALID_CRC:
+      return "Invalid BOC CRC32C";
+    case TON_BOC_ERROR_INVALID_CELL_COUNT:
+      return "Invalid BOC cell count";
+    case TON_BOC_ERROR_INVALID_ROOT_COUNT:
+      return "Invalid BOC root count";
+    case TON_BOC_ERROR_UNSUPPORTED_ABSENT_CELLS:
+      return "Unsupported absent BOC cells";
+    case TON_BOC_ERROR_INVALID_ROOT:
+      return "Invalid BOC root";
+    case TON_BOC_ERROR_INVALID_INDEX:
+      return "Invalid BOC index";
+    case TON_BOC_ERROR_INVALID_SIZE:
+      return "Invalid BOC size";
+    case TON_BOC_ERROR_OUT_OF_MEMORY:
+      return "Out of memory while parsing BOC";
+    case TON_BOC_ERROR_UNSUPPORTED_CELL_DESCRIPTOR:
+      return "Unsupported BOC cell descriptor";
+    case TON_BOC_ERROR_INVALID_CELL:
+      return "Invalid BOC cell";
+    case TON_BOC_ERROR_INVALID_TOP_UPPED_ARRAY:
+      return "Invalid BOC top-upped array";
+    case TON_BOC_ERROR_INVALID_REFERENCE:
+      return "Invalid BOC reference";
+    case TON_BOC_ERROR_UNREACHABLE_CELL:
+      return "Unreachable BOC cell";
+    case TON_BOC_ERROR_HASH_FAILED:
+      return "Failed to hash BOC cell";
+    case TON_BOC_OK:
+    default:
+      return "Invalid BOC payload";
+  }
+}
+
+static void ton_send_boc_failure(TonBocError error) {
+  FailureType failure_type = FailureType_Failure_DataError;
+  if (error == TON_BOC_ERROR_INVALID_ARGUMENT ||
+      error == TON_BOC_ERROR_OUT_OF_MEMORY ||
+      error == TON_BOC_ERROR_HASH_FAILED) {
+    failure_type = FailureType_Failure_ProcessError;
+  }
+  fsm_sendFailure(failure_type, ton_boc_error_message(error));
+}
 
 static const uint8_t TON_WALLET_CODE_HASH_V4R2[V4R2_SIZE] = {
     0x02, 0x01, 0x34, 0x00, 0x07, 0x00, 0x00, 0xfe, 0xb5, 0xff,
@@ -241,9 +294,10 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
 
     // create payload
     if (is_raw_data) {
-      if (!ton_parse_boc_full(raw_data, data_len, &payload_boc)) {
-        fsm_sendFailure(FailureType_Failure_ProcessError,
-                        "Failed to create raw data body");
+      TonBocError boc_error =
+          ton_parse_boc_full(raw_data, data_len, &payload_boc);
+      if (boc_error != TON_BOC_OK) {
+        ton_send_boc_failure(boc_error);
         return false;
       }
       payload = &payload_boc.root;
@@ -299,43 +353,41 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
 
     for (int i = 0; i < ext_dest_count; i++) {
       ext_destination_ptrs[i] = msg->ext_destination[i];
-      ext_payload_ptrs[i] = msg->ext_payload[i];
+      ext_payload_ptrs[i] =
+          (pb_size_t)i < msg->ext_payload_count ? msg->ext_payload[i] : NULL;
 
       char amount_str[60];
       ton_format_toncoin_amount(msg->ext_ton_amount[i], amount_str,
                                 sizeof(amount_str));
 
-      if (ext_payload_ptrs[i] != NULL && strlen(ext_payload_ptrs[i]) > 0) {
-        if (strlen(ext_payload_ptrs[i]) > 8 &&
+      const uint8_t *display_data = NULL;
+      uint16_t display_data_len = 0;
+      const char *display_memo = NULL;
+      if (ext_payload_ptrs[i] != NULL) {
+        size_t ext_payload_len = strlen(ext_payload_ptrs[i]);
+        if (ext_payload_len >= 8 &&
             memcmp(ext_payload_ptrs[i], "b5ee9c72", 8) == 0) {
-          data_len = strlen(ext_payload_ptrs[i]) / 2;
-          if (!layoutTonSign("Ton", false, amount_str, ext_destination_ptrs[i],
-                             usr_friendly_address, NULL, NULL,
-                             (const uint8_t *)ext_payload_ptrs[i], data_len,
-                             NULL)) {
-            fsm_sendFailure(FailureType_Failure_ActionCancelled,
-                            "Signing cancelled");
+          unsigned int decoded_len = ext_payload_len / 2;
+          if (hex2data(ext_payload_ptrs[i], raw_data, &decoded_len) != 0) {
+            fsm_sendFailure(FailureType_Failure_DataError,
+                            "Invalid extended BOC payload");
             layoutHome();
             return false;
           }
-        } else {
-          if (!layoutTonSign("Ton", false, amount_str, ext_destination_ptrs[i],
-                             usr_friendly_address, NULL, NULL, NULL, 0,
-                             ext_payload_ptrs[i])) {
-            fsm_sendFailure(FailureType_Failure_ActionCancelled,
-                            "Signing cancelled");
-            layoutHome();
-            return false;
-          }
+          display_data = raw_data;
+          display_data_len = decoded_len;
+        } else if (ext_payload_len > 0) {
+          display_memo = ext_payload_ptrs[i];
         }
-      } else {
-        if (!layoutTonSign("Ton", false, amount_str, ext_destination_ptrs[i],
-                           usr_friendly_address, NULL, NULL, NULL, 0, NULL)) {
-          fsm_sendFailure(FailureType_Failure_ActionCancelled,
-                          "Signing cancelled");
-          layoutHome();
-          return false;
-        }
+      }
+
+      if (!layoutTonSign("Ton", false, amount_str, ext_destination_ptrs[i],
+                         usr_friendly_address, NULL, NULL, display_data,
+                         display_data_len, display_memo)) {
+        fsm_sendFailure(FailureType_Failure_ActionCancelled,
+                        "Signing cancelled");
+        layoutHome();
+        return false;
       }
     }
   }
@@ -359,17 +411,22 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
   bool comment_inline = (msg->jetton_amount_bytes.size == 0) && (!is_raw_data);
   bool is_jetton = msg->jetton_amount_bytes.size != 0;
 
+  TonBocError boc_error = TON_BOC_OK;
   bool create_digest = ton_create_message_digest(
       msg->expire_at, msg->seqno, parsed_dest.is_bounceable,
       parsed_dest.workchain, parsed_dest.hash, msg->ton_amount, msg->mode,
       !comment_inline ? payload : NULL, is_jetton,
       comment_inline ? msg->comment : NULL, payload_bits, payload_refs,
       payload_refs_count, ext_destination_ptrs, msg->ext_ton_amount,
-      ext_payload_ptrs, ext_dest_count, digest);
+      ext_payload_ptrs, ext_dest_count, &boc_error, digest);
 
   if (!create_digest) {
-    fsm_sendFailure(FailureType_Failure_ProcessError,
-                    "Failed to create message digest");
+    if (boc_error != TON_BOC_OK) {
+      ton_send_boc_failure(boc_error);
+    } else {
+      fsm_sendFailure(FailureType_Failure_ProcessError,
+                      "Failed to create message digest");
+    }
     layoutHome();
     return false;
   }
@@ -528,10 +585,8 @@ static int encode_domain(const uint8_t *domain, size_t domain_len, uint8_t *buf,
 }
 
 static bool _build_cell_digest(const TonSignData *msg,
-                               const uint8_t *raw_address, uint8_t digest[32]) {
-  CellRef_t payload = {0};
-  BitString_t payload_bits;
-  CellRef_t payload_ref = {0};
+                               const uint8_t *raw_address,
+                               const CellRef_t *payload, uint8_t digest[32]) {
   const size_t schema_len = strlen(msg->schema);
   const size_t appdomain_len = strlen(msg->appdomain);
   CellRef_t appdomain_ref = {0};
@@ -539,11 +594,6 @@ static bool _build_cell_digest(const TonSignData *msg,
   CellRef_t root = {0};
   CellRef_t refs[2] = {0};
 
-  bitstring_init(&payload_bits);
-  if (!ton_parse_boc(msg->payload.bytes, msg->payload.size, &payload,
-                     &payload_bits, &payload_ref)) {
-    return false;
-  }
   uint8_t encoded_domain[126 + 1];
   int encoded_len =
       encode_domain((const uint8_t *)msg->appdomain, appdomain_len,
@@ -564,7 +614,7 @@ static bool _build_cell_digest(const TonSignData *msg,
                           (uint8_t *)raw_address);
 
   refs[0] = appdomain_ref;
-  refs[1] = payload;
+  refs[1] = *payload;
   if (!ton_hash_cell(&root_bits, refs, 2, &root)) {
     return false;
   }
@@ -623,7 +673,8 @@ static void _build_bytes_digest(const TonSignData *msg,
 }
 
 static bool ton_validate_sign_data(const TonSignData *msg,
-                                   const char *user_friendly_address) {
+                                   const char *user_friendly_address,
+                                   CellRef_t *cell_payload) {
   if (msg->has_from_address &&
       strcmp(msg->from_address, user_friendly_address) != 0) {
     fsm_sendFailure(FailureType_Failure_DataError, "From address mismatch");
@@ -649,9 +700,7 @@ static bool ton_validate_sign_data(const TonSignData *msg,
   }
 
   if (msg->type == TonSignDataType_CELL) {
-    CellRef_t payload = {0};
-    BitString_t payload_bits;
-    CellRef_t payload_ref = {0};
+    TonParsedBoc_t parsed_boc;
 
     if (!msg->has_schema) {
       fsm_sendFailure(FailureType_Failure_DataError,
@@ -659,12 +708,13 @@ static bool ton_validate_sign_data(const TonSignData *msg,
       return false;
     }
 
-    bitstring_init(&payload_bits);
-    if (!ton_parse_boc(msg->payload.bytes, msg->payload.size, &payload,
-                       &payload_bits, &payload_ref)) {
-      fsm_sendFailure(FailureType_Failure_DataError, "Invalid BOC payload");
+    TonBocError boc_error =
+        ton_parse_boc_full(msg->payload.bytes, msg->payload.size, &parsed_boc);
+    if (boc_error != TON_BOC_OK) {
+      ton_send_boc_failure(boc_error);
       return false;
     }
+    *cell_payload = parsed_boc.root;
 
     return true;
   }
@@ -676,8 +726,8 @@ static bool ton_validate_sign_data(const TonSignData *msg,
 bool ton_sign_data(const TonSignData *msg, const HDNode *node,
                    TonSignedData *resp) {
   // reject unsupported wallet params explicitly
-  if ((msg->has_wallet_version &&
-       msg->wallet_version != TonWalletVersion_V4R2)) {
+  if (msg->wallet_version != TonWalletVersion_V4R2 ||
+      msg->wallet_id != TON_SUPPORTED_WALLET_ID) {
     fsm_sendFailure(FailureType_Failure_DataError,
                     "Unsupported wallet parameters");
     return false;
@@ -691,7 +741,9 @@ bool ton_sign_data(const TonSignData *msg, const HDNode *node,
                        msg->is_bounceable, msg->is_testnet_only,
                        user_friendly_address);
 
-  if (!ton_validate_sign_data(msg, (const char *)user_friendly_address)) {
+  CellRef_t cell_payload = {0};
+  if (!ton_validate_sign_data(msg, (const char *)user_friendly_address,
+                              &cell_payload)) {
     return false;
   }
 
@@ -728,7 +780,8 @@ bool ton_sign_data(const TonSignData *msg, const HDNode *node,
       msg->type == TonSignDataType_BINARY) {
     _build_bytes_digest(msg, (const uint8_t *)raw_address, digest);
   } else {
-    if (!_build_cell_digest(msg, (const uint8_t *)raw_address, digest)) {
+    if (!_build_cell_digest(msg, (const uint8_t *)raw_address, &cell_payload,
+                            digest)) {
       fsm_sendFailure(FailureType_Failure_DataError,
                       "Failed to hash CELL sign-data payload");
       return false;

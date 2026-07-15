@@ -80,8 +80,6 @@ void fsm_msgTonSignMessage(const TonSignMessage *msg) {
 
   if (ton_sign_message(msg, node, resp)) {
     msg_write(MessageType_MessageType_TonSignedMessage, resp);
-  } else {
-    fsm_sendFailure(FailureType_Failure_DataError, "Signing failed");
   }
 
   layoutHome();
@@ -102,8 +100,6 @@ void fsm_msgTonSignProof(const TonSignProof *msg) {
 
   if (ton_sign_proof(msg, node, resp)) {
     msg_write(MessageType_MessageType_TonSignedProof, resp);
-  } else {
-    fsm_sendFailure(FailureType_Failure_DataError, "Signing Proof failed");
   }
 
   layoutHome();
@@ -125,8 +121,6 @@ void fsm_msgTonSignData(const TonSignData *msg) {
 
   if (ton_sign_data(msg, node, resp)) {
     msg_write(MessageType_MessageType_TonSignedData, resp);
-  } else {
-    fsm_sendFailure(FailureType_Failure_DataError, "Signing Data failed");
   }
 
   layoutHome();

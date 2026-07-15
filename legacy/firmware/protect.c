@@ -1939,6 +1939,9 @@ static bool _inputPassphraseOnDevice(char *passphrase, bool allow_empty) {
                           input_type);
 
     WAIT_KEY_OR_ABORT(0, 0, key);
+    if (protectAbortedBySleep || key == KEY_NULL) {
+      goto cleanup;
+    }
 
 #if !EMULATOR
     if (key == KEY_COMBO_UP_DOWN) {
@@ -2062,6 +2065,9 @@ static bool layoutInputPassphraseTips(void) {
       up_x = 50;
       up_y = down_y = 28;
       break;
+    case I18N_LANG_RU:
+      up_x = 89;
+      break;
     default:
       break;
   }
@@ -2071,21 +2077,24 @@ static bool layoutInputPassphraseTips(void) {
 
   oledRefresh();
   uint8_t key;
-  WAIT_KEY_OR_ABORT(0, 0, key);
+  while (true) {
+    WAIT_KEY_OR_ABORT(0, 0, key);
+    if (protectAbortedBySleep || key == KEY_NULL) {
+      return false;
+    }
+    if (key == KEY_CONFIRM || key == KEY_CANCEL) {
+      break;
+    }
+  }
   return key == KEY_CONFIRM;
 }
 bool inputPassphraseOnDevice(char *passphrase, bool allow_empty) {
-  while (true) {
-    if (layoutInputPassphraseTips()) {
-      if (_inputPassphraseOnDevice(passphrase, allow_empty)) {
-        return true;
-      } else {
-        if (protectAbortedByInitialize || protectAbortedByCancel) {
-          return false;
-        }
-        continue;
-      }
-    } else {
+  while (layoutInputPassphraseTips()) {
+    if (_inputPassphraseOnDevice(passphrase, allow_empty)) {
+      return true;
+    }
+    if (protectAbortedByInitialize || protectAbortedByCancel ||
+        protectAbortedBySleep) {
       return false;
     }
   }
