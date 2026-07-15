@@ -37,12 +37,12 @@ message KaspaAddress {
  */
 message KaspaSignTx {
     repeated uint32 address_n = 1;                                      // BIP-32 path to derive the key from master node
-    optional bytes raw_message = 2;                                     // present for legacy blind signing; omit for streaming signing
+    optional bytes raw_message = 2;                                     // legacy blind-signing payload; used only when output_count is absent
     optional string scheme = 3 [default="schnorr"];                     // signature scheme
     optional string prefix = 4 [default="kaspa"];                       // prefix for address
     optional uint32 input_count = 5 [default=1];                        // number of inputs in the transaction
     optional bool use_tweak = 6 [default=true];                         // use bip340 tweak
-    optional uint32 output_count = 7;                                   // number of outputs in the transaction
+    optional uint32 output_count = 7;                                   // number of outputs; presence selects streaming signing
     optional uint32 version = 8 [default=0];                            // transaction version
     optional uint64 lock_time = 9 [default=0];                          // transaction lock time
     optional bytes subnetwork_id = 10;                                  // transaction subnetwork id
@@ -90,32 +90,42 @@ enum KaspaOutputScriptType {
 }
 
 enum KaspaRequestType {
-    KASPA_TX_INPUT = 0;
-    KASPA_TX_OUTPUT = 1;
-    KASPA_TX_PAYLOAD = 2;
+    KASPA_TX_INPUT = 0;                       // request a current or previous transaction input
+    KASPA_TX_OUTPUT = 1;                      // request a current or previous transaction output
+    KASPA_TX_PAYLOAD = 2;                     // request a current or previous transaction payload chunk
     KASPA_TX_FINISHED = 3;
+    KASPA_TX_PREV_META = 4;                   // request metadata of a previous transaction
 }
 
 message KaspaTxRequestSignature {
-    optional uint32 signature_index = 1;
-    optional bytes signature = 2;
+    required uint32 signature_index = 1;
+    required bytes signature = 2;
 }
 
 /**
- * Response: Contains request for input, output or payload
- * @next KaspaTxInputAck
- * @next KaspaTxOutputAck
- * @next KaspaTxPayloadAck
+ * Response: Requests the next item required by streaming transaction signing
+ * @next KaspaTxAckInput
+ * @next KaspaTxAckOutput
+ * @next KaspaTxAckPayloadChunk
+ * @next KaspaTxAckPrevMeta
+ * @next KaspaTxAckPrevInput
+ * @next KaspaTxAckPrevOutput
+ *
+ * prev_tx_id is present on every previous-transaction request. For INPUT and
+ * OUTPUT requests, its presence selects KaspaTxAckPrevInput and
+ * KaspaTxAckPrevOutput respectively. Payload requests always use
+ * KaspaTxAckPayloadChunk.
  */
 message KaspaTxRequest {
-    optional KaspaRequestType request_type = 1;
-    optional uint32 request_index = 2;
+    required KaspaRequestType request_type = 1;
+    optional uint32 request_index = 2;         // current input/output index, or previous transaction input/output index
     optional KaspaTxRequestSignature signature = 3;
-    optional uint32 request_payload_length = 4;
+    optional uint32 request_payload_length = 4; // requested byte count for payload chunks
+    optional bytes prev_tx_id = 5;             // previous transaction being requested
 }
 
 /**
- * Response: Contains input to be signed
+ * Response: Contains an input of the transaction being signed
  * @next KaspaTxRequest
  * @next Failure
  */
@@ -132,7 +142,7 @@ message KaspaTxAckInput {
 }
 
 /**
- * Response: Contains output to be signed
+ * Response: Contains an output of the transaction being signed
  * @next KaspaTxRequest
  * @next Failure
  */
@@ -148,18 +158,54 @@ message KaspaTxAckOutput {
 }
 
 /**
- * Response: Contains payload chunk to be signed
+ * Response: Contains a requested current or previous transaction payload chunk
  * @next KaspaTxRequest
  * @next Failure
  */
 message KaspaTxAckPayloadChunk {
-    optional bytes payload_chunk = 1;
+    required bytes payload_chunk = 1;
+}
+
+/**
+ * Response: Contains metadata of a previous transaction.
+ * @next KaspaTxRequest
+ * @next Failure
+ */
+message KaspaTxAckPrevMeta {
+    required uint32 version = 1;
+    required uint32 input_count = 2;
+    required uint32 output_count = 3;
+    required uint64 lock_time = 4;
+    required bytes subnetwork_id = 5;
+    required uint64 gas = 6;
+    required uint32 payload_length = 7;
+}
+
+/**
+ * Response: Contains an input of a previous transaction.
+ * @next KaspaTxRequest
+ * @next Failure
+ */
+message KaspaTxAckPrevInput {
+    required KaspaOutpoint previous_outpoint = 1;
+    required uint64 sequence = 2;
+}
+
+/**
+ * Response: Contains an output of a previous transaction.
+ * @next KaspaTxRequest
+ * @next Failure
+ */
+message KaspaTxAckPrevOutput {
+    required uint64 amount = 1;
+    required uint32 script_version = 2;
+    required bytes script_public_key = 3;
 }
 
 /**
  * Response: transaction signature
  * @end
  */
- message KaspaSignedTx {
+message KaspaSignedTx {
     required bytes signature = 2;   // signature of the message
 }

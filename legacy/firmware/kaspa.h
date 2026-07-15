@@ -25,8 +25,13 @@ typedef enum {
   KASPA_PHASE_COLLECT_OUTPUTS = 2,
   KASPA_PHASE_CONFIRM_TOTAL = 3,
   KASPA_PHASE_COLLECT_PAYLOAD = 4,
-  KASPA_PHASE_SIGN_INPUTS = 5,
-  KASPA_PHASE_FINISHED = 6,
+  KASPA_PHASE_REPLAY_INPUT = 5,
+  KASPA_PHASE_VERIFY_PREV_META = 6,
+  KASPA_PHASE_VERIFY_PREV_INPUTS = 7,
+  KASPA_PHASE_VERIFY_PREV_OUTPUTS = 8,
+  KASPA_PHASE_VERIFY_PREV_PAYLOAD = 9,
+  KASPA_PHASE_SIGN_INPUTS = 10,
+  KASPA_PHASE_FINISHED = 11,
 } KaspaSigningPhase;
 
 #define KASPA_MAX_SCRIPT_PUBLIC_KEY_LEN 35
@@ -39,7 +44,12 @@ KaspaSigningMode kaspa_signing_mode(void);
 
 bool kaspa_streaming_signing_init(const KaspaSignTx *msg);
 bool kaspa_process_input(const KaspaTxAckInput *input);
+bool kaspa_prepare_prev_tx_verification(const KaspaTxAckInput *input,
+                                        HDNode *node);
 bool kaspa_process_output(const KaspaTxAckOutput *output, HDNode *node);
+bool kaspa_process_prev_meta(const KaspaTxAckPrevMeta *meta);
+bool kaspa_process_prev_input(const KaspaTxAckPrevInput *input);
+bool kaspa_process_prev_output(const KaspaTxAckPrevOutput *output);
 bool kaspa_send_request(KaspaTxRequest *resp);
 bool kaspa_receive_payload(const KaspaTxAckPayloadChunk *payload);
 bool kaspa_confirm_total(void);
@@ -47,6 +57,6 @@ bool kaspa_sign_input(const KaspaTxAckInput *input, HDNode *node,
                       uint8_t *signature, pb_size_t *signature_len);
 KaspaSigningPhase kaspa_signing_phase(void);
 
-extern uint16_t input_count;
-extern uint16_t input_index;
+extern uint32_t input_count;
+extern uint32_t input_index;
 #endif  // __KASPA_H__

@@ -5006,9 +5006,8 @@ refresh_menu:
       }
     }
   } else if (index == max_index - 1) {
-    char message_colon[16] = {0};
-    strcat(message_colon, _(MESSAGE));
-    strcat(message_colon, ":");
+    char message_colon[64] = {0};
+    snprintf(message_colon, sizeof(message_colon), "%s:", _(MESSAGE));
     oledDrawStringAdapter(0, y, message_colon, FONT_STANDARD);
     size_t message_len = (is_printable ? len : len * 2) + 1;
     char message[message_len];

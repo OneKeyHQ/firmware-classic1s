@@ -10,6 +10,7 @@ KaspaSignTx.subnetwork_id                                   max_size:20
 KaspaTxInputRequest.signature                               max_size:72
 KaspaTxInputAck.raw_message                                 max_size:512
 KaspaTxRequestSignature.signature                           max_size:72
+KaspaTxRequest.prev_tx_id                                   max_size:32
 KaspaTxInputAck.address_n                                   max_count:8
 KaspaOutpoint.tx_id                                         max_size:32
 KaspaTxAckInput.address_n                                   max_count:8
@@ -17,4 +18,6 @@ KaspaTxAckOutput.address_n                                  max_count:8
 KaspaTxAckOutput.address                                    max_size:72
 KaspaTxAckOutput.scheme                                     max_size:8
 KaspaTxAckPayloadChunk.payload_chunk                        max_size:1024
+KaspaTxAckPrevMeta.subnetwork_id                            max_size:20
+KaspaTxAckPrevOutput.script_public_key                      max_size:512
 KaspaSignedTx.signature                                     max_size:72

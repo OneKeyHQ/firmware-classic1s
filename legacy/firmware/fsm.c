@@ -660,6 +660,7 @@ void fsm_abortWorkflows(void) {
   unlock_path = 0;
 #if !BITCOIN_ONLY
   ethereum_signing_abort();
+  kaspa_signing_abort();
   stellar_signingAbort();
 #endif
 }

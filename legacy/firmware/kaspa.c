@@ -39,8 +39,15 @@
 #define KASPA_SCRIPT_P2PK_ECDSA_LEN 35
 #define KASPA_SCRIPT_P2SH_LEN 35
 #define KASPA_SIG_HASH_ALL 0x01
-#define KASPA_MAX_INPUTS_COUNT 1000
-#define KASPA_MAX_OUTPUTS_COUNT 1000
+#define KASPA_HASH_SIZE 32
+#define KASPA_TX_ID_LEN 32
+#define KASPA_PAYLOAD_CHUNK_SIZE 1024
+#define KASPA_PROGRESS_MAX 1000
+#define KASPA_PROGRESS_VERIFY_END 500
+// Avoid flashing a progress page for short transactions. Once enabled, update
+// only after a visible percentage change to bound OLED refreshes.
+#define KASPA_PROGRESS_MIN_INPUT_COUNT 10
+#define KASPA_PROGRESS_UPDATE_PERCENT 5
 // Signer-side guard derived from the pre-Toccata standard relay mass cap.
 #define KASPA_MAX_PAYLOAD_LENGTH 25000
 #define KASPA_ACCOUNT_ROOT_LEN 3
@@ -58,12 +65,14 @@
 #define KASPA_SUFFIX_SIMNET "SKAS"
 #define KASPA_SUFFIX_DEVNET "DKAS"
 static const char *TRANSACTION_SIGNING_DOMAIN = "TransactionSigningHash";
+static const char *TRANSACTION_ID_DOMAIN = "TransactionID";
+static const char *INPUT_CHECKSUM_DOMAIN = "KaspaInputChecksum";
 static const uint8_t TRANSACTION_SIGNING_ECDSA_DOMAIN_HASH[32] = {
     164, 242, 236, 228, 90, 40, 108, 177, 236, 10, 78,  77, 56,  52,  104, 208,
     0,   247, 23,  87,  5,  43, 21,  4,   170, 52, 149, 50, 141, 245, 244, 234};
 
-uint16_t input_count;
-uint16_t input_index;
+uint32_t input_count;
+uint32_t input_index;
 static bool kaspa_signing = false;
 static KaspaSigningMode signing_mode = KASPA_SIGNING_MODE_NONE;
 static bool use_tweak_g = true;
@@ -75,7 +84,7 @@ typedef struct {
   BLAKE2B_CTX previous_outputs_hasher;
   BLAKE2B_CTX sequences_hasher;
   BLAKE2B_CTX sig_op_counts_hasher;
-  BLAKE2B_CTX inputs_commitment_hasher;
+  BLAKE2B_CTX input_checksum_hasher;
 } KaspaCollectInputState;
 
 typedef struct {
@@ -87,9 +96,33 @@ typedef struct {
   uint32_t pending_payload_length;
 } KaspaCollectPayloadState;
 
+typedef enum {
+  KASPA_PROGRESS_STAGE_NONE = 0,
+  KASPA_PROGRESS_STAGE_LOADING_INPUTS,
+  KASPA_PROGRESS_STAGE_LOADING_PAYLOAD,
+  KASPA_PROGRESS_STAGE_VERIFYING,
+  KASPA_PROGRESS_STAGE_SIGNING,
+} KaspaProgressStage;
+
 typedef struct {
-  BLAKE2B_CTX signing_inputs_commitment_hasher;
-} KaspaSignInputState;
+  BLAKE2B_CTX input_checksum_hasher;
+  BLAKE2B_CTX prev_tx_hasher;
+  uint64_t active_amount;
+  uint64_t prev_lock_time;
+  uint64_t prev_gas;
+  uint32_t current_input_index;
+  uint32_t active_prev_output_index;
+  uint32_t active_script_public_key_len;
+  uint32_t prev_input_count;
+  uint32_t prev_output_count;
+  uint32_t prev_payload_length;
+  uint32_t prev_payload_left;
+  uint32_t pending_payload_length;
+  uint8_t active_prev_tx_id[KASPA_TX_ID_LEN];
+  uint8_t active_script_public_key[KASPA_MAX_SCRIPT_PUBLIC_KEY_LEN];
+  uint8_t prev_subnetwork_id[KASPA_SUBNETWORK_ID_LEN];
+  bool selected_output_verified;
+} KaspaVerifyState;
 
 typedef struct {
   uint64_t lock_time;
@@ -103,22 +136,25 @@ typedef struct {
   uint32_t request_index;
   uint32_t sign_index;
   uint32_t version;
+  uint32_t payload_length;
   uint32_t payload_left;
   KaspaSigningPhase phase;
+  KaspaProgressStage progress_stage;
   uint8_t previous_outputs_hash[32];
   uint8_t sequences_hash[32];
   uint8_t sig_op_counts_hash[32];
   uint8_t outputs_hash[32];
-  uint8_t inputs_commitment_hash[32];
   uint8_t payload_hash[32];
+  uint8_t input_checksum[KASPA_HASH_SIZE];
   uint8_t subnetwork_id[20];
+  uint8_t displayed_progress_percent;
   bool has_shared_account_root;
   bool all_inputs_same_account_root;
   union {
     KaspaCollectInputState collect_inputs;
     KaspaCollectOutputState collect_outputs;
     KaspaCollectPayloadState collect_payload;
-    KaspaSignInputState sign_inputs;
+    KaspaVerifyState verify;
   } phase_state;
 } KaspaSigningContext;
 
@@ -170,6 +206,16 @@ static void kaspa_blake2b_init(BLAKE2B_CTX *ctx) {
                   strlen(TRANSACTION_SIGNING_DOMAIN));
 }
 
+static void kaspa_transaction_id_init(BLAKE2B_CTX *ctx) {
+  blake2b_InitKey(ctx, KASPA_HASH_SIZE, (uint8_t *)TRANSACTION_ID_DOMAIN,
+                  strlen(TRANSACTION_ID_DOMAIN));
+}
+
+static void kaspa_input_checksum_init(BLAKE2B_CTX *ctx) {
+  blake2b_InitKey(ctx, KASPA_HASH_SIZE, (uint8_t *)INPUT_CHECKSUM_DOMAIN,
+                  strlen(INPUT_CHECKSUM_DOMAIN));
+}
+
 static void kaspa_hash_update_u8(BLAKE2B_CTX *ctx, uint8_t value) {
   blake2b_Update(ctx, &value, sizeof(value));
 }
@@ -218,8 +264,23 @@ static void kaspa_hash_input_sig_op_count(BLAKE2B_CTX *ctx,
   kaspa_hash_update_u8(ctx, sig_op_count);
 }
 
-static void kaspa_hash_input_commitment(BLAKE2B_CTX *ctx,
-                                        const KaspaTxAckInput *input) {
+static KaspaInputScriptType kaspa_input_script_type(
+    const KaspaTxAckInput *input) {
+  return input->has_script_type ? input->script_type
+                                : KaspaInputScriptType_KASPA_SPEND_P2PK_SCHNORR;
+}
+
+static bool kaspa_input_is_schnorr(const KaspaTxAckInput *input) {
+  return kaspa_input_script_type(input) ==
+         KaspaInputScriptType_KASPA_SPEND_P2PK_SCHNORR;
+}
+
+static bool kaspa_input_use_tweak(const KaspaTxAckInput *input) {
+  return !input->has_use_tweak || input->use_tweak;
+}
+
+static void kaspa_hash_input_checksum(BLAKE2B_CTX *ctx,
+                                      const KaspaTxAckInput *input) {
   blake2b_Update(ctx, input->previous_outpoint.tx_id.bytes,
                  input->previous_outpoint.tx_id.size);
   kaspa_hash_update_u32(ctx, input->previous_outpoint.index);
@@ -230,9 +291,8 @@ static void kaspa_hash_input_commitment(BLAKE2B_CTX *ctx,
   for (uint32_t i = 0; i < input->address_n_count; i++) {
     kaspa_hash_update_u32(ctx, input->address_n[i]);
   }
-  kaspa_hash_update_u8(ctx, (uint8_t)input->script_type);
-  kaspa_hash_update_u8(ctx,
-                       (uint8_t)(!input->has_use_tweak || input->use_tweak));
+  kaspa_hash_update_u8(ctx, (uint8_t)kaspa_input_script_type(input));
+  kaspa_hash_update_u8(ctx, (uint8_t)kaspa_input_use_tweak(input));
 }
 
 static void kaspa_hash_output(BLAKE2B_CTX *ctx, uint64_t amount,
@@ -341,8 +401,8 @@ static void kaspa_streaming_init_input_hashers(void) {
   kaspa_blake2b_init(&signing_ctx.phase_state.collect_inputs.sequences_hasher);
   kaspa_blake2b_init(
       &signing_ctx.phase_state.collect_inputs.sig_op_counts_hasher);
-  kaspa_blake2b_init(
-      &signing_ctx.phase_state.collect_inputs.inputs_commitment_hasher);
+  kaspa_input_checksum_init(
+      &signing_ctx.phase_state.collect_inputs.input_checksum_hasher);
 }
 
 static void kaspa_streaming_init_output_hasher(void) {
@@ -358,11 +418,6 @@ static void kaspa_streaming_init_payload_hasher(void) {
   signing_ctx.phase_state.collect_payload.pending_payload_length = 0;
 }
 
-static void kaspa_streaming_init_signing_input_hasher(void) {
-  kaspa_blake2b_init(
-      &signing_ctx.phase_state.sign_inputs.signing_inputs_commitment_hasher);
-}
-
 static void kaspa_streaming_finalize_input_hashes(void) {
   kaspa_blake2b_finalize_into(
       &signing_ctx.phase_state.collect_inputs.previous_outputs_hasher,
@@ -374,8 +429,17 @@ static void kaspa_streaming_finalize_input_hashes(void) {
       &signing_ctx.phase_state.collect_inputs.sig_op_counts_hasher,
       signing_ctx.sig_op_counts_hash);
   kaspa_blake2b_finalize_into(
-      &signing_ctx.phase_state.collect_inputs.inputs_commitment_hasher,
-      signing_ctx.inputs_commitment_hash);
+      &signing_ctx.phase_state.collect_inputs.input_checksum_hasher,
+      signing_ctx.input_checksum);
+}
+
+static void kaspa_streaming_begin_verification(void) {
+  memzero(&signing_ctx.phase_state, sizeof(signing_ctx.phase_state));
+  kaspa_input_checksum_init(
+      &signing_ctx.phase_state.verify.input_checksum_hasher);
+  signing_ctx.request_index = 0;
+  signing_ctx.phase_state.verify.current_input_index = 0;
+  signing_ctx.phase = KASPA_PHASE_REPLAY_INPUT;
 }
 
 static void kaspa_streaming_finalize_output_hashes(void) {
@@ -384,7 +448,7 @@ static void kaspa_streaming_finalize_output_hashes(void) {
       signing_ctx.outputs_hash);
 }
 
-static bool kaspa_calculate_schnorr_digest(const KaspaTxAckInput *input,
+static void kaspa_calculate_schnorr_digest(const KaspaTxAckInput *input,
                                            const uint8_t *script_public_key,
                                            uint32_t script_public_key_len,
                                            uint8_t *digest) {
@@ -415,7 +479,6 @@ static bool kaspa_calculate_schnorr_digest(const KaspaTxAckInput *input,
                  sizeof(signing_ctx.payload_hash));
   kaspa_hash_update_u8(&ctx, KASPA_SIG_HASH_ALL);
   kaspa_blake2b_finalize_into(&ctx, digest);
-  return true;
 }
 
 static uint32_t kaspa_build_standard_script(HDNode *node, bool schnorr,
@@ -540,9 +603,7 @@ void kaspa_signing_abort(void) {
 }
 
 bool kaspa_streaming_signing_init(const KaspaSignTx *msg) {
-  if (!msg->has_input_count || msg->input_count < 1 ||
-      msg->input_count > KASPA_MAX_INPUTS_COUNT || !msg->has_output_count ||
-      msg->output_count < 1 || msg->output_count > KASPA_MAX_OUTPUTS_COUNT) {
+  if (msg->input_count < 1 || !msg->has_output_count || msg->output_count < 1) {
     fsm_sendFailure(FailureType_Failure_DataError,
                     "Invalid transaction counts");
     return false;
@@ -556,7 +617,7 @@ bool kaspa_streaming_signing_init(const KaspaSignTx *msg) {
                     "Invalid transaction version");
     return false;
   }
-  if (!msg->has_prefix || strlen(msg->prefix) >= sizeof(prefix) ||
+  if (strlen(msg->prefix) >= sizeof(prefix) ||
       !kaspa_valid_prefix(msg->prefix)) {
     fsm_sendFailure(FailureType_Failure_DataError, "Invalid prefix");
     return false;
@@ -603,7 +664,9 @@ bool kaspa_streaming_signing_init(const KaspaSignTx *msg) {
   signing_ctx.lock_time = msg->has_lock_time ? msg->lock_time : 0;
   signing_ctx.gas = msg->has_gas ? msg->gas : 0;
   signing_ctx.phase = KASPA_PHASE_COLLECT_INPUTS;
-  signing_ctx.payload_left = msg->has_payload_length ? msg->payload_length : 0;
+  signing_ctx.payload_length =
+      msg->has_payload_length ? msg->payload_length : 0;
+  signing_ctx.payload_left = signing_ctx.payload_length;
   return true;
 }
 
@@ -646,7 +709,9 @@ static bool kaspa_script_from_address(const char *address, uint8_t *script,
 }
 
 static bool kaspa_validate_standard_input(const KaspaTxAckInput *input) {
-  if (input->previous_outpoint.tx_id.size != 32) {
+  KaspaInputScriptType script_type = kaspa_input_script_type(input);
+
+  if (input->previous_outpoint.tx_id.size != KASPA_TX_ID_LEN) {
     fsm_sendFailure(FailureType_Failure_DataError,
                     "Invalid Kaspa outpoint tx id");
     return false;
@@ -654,6 +719,12 @@ static bool kaspa_validate_standard_input(const KaspaTxAckInput *input) {
   if (input->sig_op_count != 1) {
     fsm_sendFailure(FailureType_Failure_DataError,
                     "Invalid Kaspa sig op count");
+    return false;
+  }
+  if (script_type != KaspaInputScriptType_KASPA_SPEND_P2PK_SCHNORR &&
+      script_type != KaspaInputScriptType_KASPA_SPEND_P2PK_ECDSA) {
+    fsm_sendFailure(FailureType_Failure_DataError,
+                    "Unsupported Kaspa input script type");
     return false;
   }
 
@@ -687,6 +758,10 @@ bool kaspa_process_input(const KaspaTxAckInput *input) {
                                         current_account_root)) {
     signing_ctx.all_inputs_same_account_root = false;
   }
+  if (UINT64_MAX - signing_ctx.total_input < input->amount) {
+    fsm_sendFailure(FailureType_Failure_DataError, "Input amount overflow");
+    return false;
+  }
 
   kaspa_hash_input_outpoint(
       &signing_ctx.phase_state.collect_inputs.previous_outputs_hasher,
@@ -697,8 +772,8 @@ bool kaspa_process_input(const KaspaTxAckInput *input) {
   kaspa_hash_input_sig_op_count(
       &signing_ctx.phase_state.collect_inputs.sig_op_counts_hasher,
       input->sig_op_count);
-  kaspa_hash_input_commitment(
-      &signing_ctx.phase_state.collect_inputs.inputs_commitment_hasher, input);
+  kaspa_hash_input_checksum(
+      &signing_ctx.phase_state.collect_inputs.input_checksum_hasher, input);
 
   signing_ctx.total_input += input->amount;
   signing_ctx.request_index++;
@@ -709,6 +784,215 @@ bool kaspa_process_input(const KaspaTxAckInput *input) {
     kaspa_streaming_init_output_hasher();
   }
   return true;
+}
+
+bool kaspa_prepare_prev_tx_verification(const KaspaTxAckInput *input,
+                                        HDNode *node) {
+  KaspaVerifyState *verify = &signing_ctx.phase_state.verify;
+
+  if (signing_mode != KASPA_SIGNING_MODE_STREAMING ||
+      signing_ctx.phase != KASPA_PHASE_REPLAY_INPUT ||
+      signing_ctx.request_index >= signing_ctx.input_count ||
+      signing_ctx.request_index != verify->current_input_index) {
+    fsm_sendFailure(FailureType_Failure_UnexpectedMessage,
+                    "Unexpected Kaspa verification input");
+    return false;
+  }
+  if (!kaspa_validate_standard_input(input)) {
+    return false;
+  }
+
+  kaspa_hash_input_checksum(&verify->input_checksum_hasher, input);
+  verify->active_script_public_key_len = kaspa_build_standard_script(
+      node, kaspa_input_is_schnorr(input), kaspa_input_use_tweak(input),
+      verify->active_script_public_key);
+  memcpy(verify->active_prev_tx_id, input->previous_outpoint.tx_id.bytes,
+         KASPA_TX_ID_LEN);
+  verify->active_prev_output_index = input->previous_outpoint.index;
+  verify->active_amount = input->amount;
+  verify->selected_output_verified = false;
+  signing_ctx.request_index = 0;
+  signing_ctx.phase = KASPA_PHASE_VERIFY_PREV_META;
+  return true;
+}
+
+static void kaspa_prev_tx_begin_outputs(KaspaVerifyState *verify) {
+  kaspa_hash_update_u64(&verify->prev_tx_hasher, verify->prev_output_count);
+  signing_ctx.request_index = 0;
+  signing_ctx.phase = KASPA_PHASE_VERIFY_PREV_OUTPUTS;
+}
+
+static bool kaspa_finish_verified_prev_tx(void) {
+  KaspaVerifyState *verify = &signing_ctx.phase_state.verify;
+  uint8_t calculated_tx_id[KASPA_TX_ID_LEN] = {0};
+
+  kaspa_blake2b_finalize_into(&verify->prev_tx_hasher, calculated_tx_id);
+  if (memcmp(calculated_tx_id, verify->active_prev_tx_id,
+             sizeof(calculated_tx_id)) != 0) {
+    fsm_sendFailure(FailureType_Failure_DataError,
+                    "Kaspa previous transaction id mismatch");
+    return false;
+  }
+
+  verify->current_input_index++;
+  if (verify->current_input_index < signing_ctx.input_count) {
+    signing_ctx.request_index = verify->current_input_index;
+    signing_ctx.phase = KASPA_PHASE_REPLAY_INPUT;
+    return true;
+  }
+
+  uint8_t verification_checksum[KASPA_HASH_SIZE] = {0};
+  kaspa_blake2b_finalize_into(&verify->input_checksum_hasher,
+                              verification_checksum);
+  if (memcmp(verification_checksum, signing_ctx.input_checksum,
+             sizeof(verification_checksum)) != 0) {
+    fsm_sendFailure(FailureType_Failure_DataError,
+                    "Kaspa inputs changed during verification");
+    return false;
+  }
+
+  signing_ctx.request_index = 0;
+  signing_ctx.sign_index = 0;
+  signing_ctx.phase = KASPA_PHASE_CONFIRM_TOTAL;
+  if (!kaspa_confirm_total()) {
+    return false;
+  }
+  signing_ctx.phase = KASPA_PHASE_SIGN_INPUTS;
+  return true;
+}
+
+bool kaspa_process_prev_meta(const KaspaTxAckPrevMeta *meta) {
+  KaspaVerifyState *verify = &signing_ctx.phase_state.verify;
+
+  if (signing_mode != KASPA_SIGNING_MODE_STREAMING ||
+      signing_ctx.phase != KASPA_PHASE_VERIFY_PREV_META) {
+    fsm_sendFailure(FailureType_Failure_UnexpectedMessage,
+                    "Unexpected Kaspa previous transaction metadata");
+    return false;
+  }
+  if (meta->version != 0) {
+    fsm_sendFailure(FailureType_Failure_DataError,
+                    "Unsupported Kaspa previous transaction version");
+    return false;
+  }
+  if (meta->subnetwork_id.size != KASPA_SUBNETWORK_ID_LEN) {
+    fsm_sendFailure(FailureType_Failure_DataError,
+                    "Invalid Kaspa previous subnetwork id");
+    return false;
+  }
+  if (verify->active_prev_output_index >= meta->output_count) {
+    fsm_sendFailure(FailureType_Failure_DataError,
+                    "Invalid Kaspa previous output index");
+    return false;
+  }
+
+  verify->prev_input_count = meta->input_count;
+  verify->prev_output_count = meta->output_count;
+  verify->prev_lock_time = meta->lock_time;
+  verify->prev_gas = meta->gas;
+  verify->prev_payload_length = meta->payload_length;
+  verify->prev_payload_left = verify->prev_payload_length;
+  verify->pending_payload_length = 0;
+  memcpy(verify->prev_subnetwork_id, meta->subnetwork_id.bytes,
+         KASPA_SUBNETWORK_ID_LEN);
+
+  kaspa_transaction_id_init(&verify->prev_tx_hasher);
+  kaspa_hash_update_u16(&verify->prev_tx_hasher, 0);
+  kaspa_hash_update_u64(&verify->prev_tx_hasher, verify->prev_input_count);
+  signing_ctx.request_index = 0;
+  if (verify->prev_input_count > 0) {
+    signing_ctx.phase = KASPA_PHASE_VERIFY_PREV_INPUTS;
+  } else {
+    kaspa_prev_tx_begin_outputs(verify);
+  }
+  return true;
+}
+
+bool kaspa_process_prev_input(const KaspaTxAckPrevInput *input) {
+  KaspaVerifyState *verify = &signing_ctx.phase_state.verify;
+
+  if (signing_mode != KASPA_SIGNING_MODE_STREAMING ||
+      signing_ctx.phase != KASPA_PHASE_VERIFY_PREV_INPUTS ||
+      signing_ctx.request_index >= verify->prev_input_count) {
+    fsm_sendFailure(FailureType_Failure_UnexpectedMessage,
+                    "Unexpected Kaspa previous input");
+    return false;
+  }
+  if (input->previous_outpoint.tx_id.size != KASPA_TX_ID_LEN) {
+    fsm_sendFailure(FailureType_Failure_DataError,
+                    "Invalid Kaspa previous input tx id");
+    return false;
+  }
+
+  kaspa_hash_input_outpoint(&verify->prev_tx_hasher,
+                            input->previous_outpoint.tx_id.bytes,
+                            input->previous_outpoint.index);
+  kaspa_hash_update_u64(&verify->prev_tx_hasher, 0);
+  kaspa_hash_input_sequence(&verify->prev_tx_hasher, input->sequence);
+
+  signing_ctx.request_index++;
+  if (signing_ctx.request_index == verify->prev_input_count) {
+    kaspa_prev_tx_begin_outputs(verify);
+  }
+  return true;
+}
+
+bool kaspa_process_prev_output(const KaspaTxAckPrevOutput *output) {
+  KaspaVerifyState *verify = &signing_ctx.phase_state.verify;
+
+  if (signing_mode != KASPA_SIGNING_MODE_STREAMING ||
+      signing_ctx.phase != KASPA_PHASE_VERIFY_PREV_OUTPUTS ||
+      signing_ctx.request_index >= verify->prev_output_count) {
+    fsm_sendFailure(FailureType_Failure_UnexpectedMessage,
+                    "Unexpected Kaspa previous output");
+    return false;
+  }
+  if (output->script_version > UINT16_MAX) {
+    fsm_sendFailure(FailureType_Failure_DataError,
+                    "Invalid Kaspa previous script version");
+    return false;
+  }
+  kaspa_hash_output(
+      &verify->prev_tx_hasher, output->amount, (uint16_t)output->script_version,
+      output->script_public_key.bytes, output->script_public_key.size);
+
+  if (signing_ctx.request_index == verify->active_prev_output_index) {
+    if (output->amount != verify->active_amount ||
+        output->script_version != 0 ||
+        output->script_public_key.size !=
+            verify->active_script_public_key_len ||
+        memcmp(output->script_public_key.bytes,
+               verify->active_script_public_key,
+               verify->active_script_public_key_len) != 0) {
+      fsm_sendFailure(FailureType_Failure_DataError,
+                      "Kaspa previous output does not match input");
+      return false;
+    }
+    verify->selected_output_verified = true;
+  }
+
+  signing_ctx.request_index++;
+  if (signing_ctx.request_index < verify->prev_output_count) {
+    return true;
+  }
+  if (!verify->selected_output_verified) {
+    fsm_sendFailure(FailureType_Failure_DataError,
+                    "Kaspa previous output was not verified");
+    return false;
+  }
+
+  kaspa_hash_update_u64(&verify->prev_tx_hasher, verify->prev_lock_time);
+  blake2b_Update(&verify->prev_tx_hasher, verify->prev_subnetwork_id,
+                 sizeof(verify->prev_subnetwork_id));
+  kaspa_hash_update_u64(&verify->prev_tx_hasher, verify->prev_gas);
+  kaspa_hash_update_u64(&verify->prev_tx_hasher, verify->prev_payload_left);
+  signing_ctx.request_index = 0;
+  if (verify->prev_payload_left > 0) {
+    verify->pending_payload_length = 0;
+    signing_ctx.phase = KASPA_PHASE_VERIFY_PREV_PAYLOAD;
+    return true;
+  }
+  return kaspa_finish_verified_prev_tx();
 }
 
 static bool kaspa_output_is_schnorr(const KaspaTxAckOutput *output) {
@@ -785,6 +1069,10 @@ bool kaspa_process_output(const KaspaTxAckOutput *output, HDNode *node) {
                     "Unexpected Kaspa output collect state");
     return false;
   }
+  if (UINT64_MAX - signing_ctx.total_output < output->amount) {
+    fsm_sendFailure(FailureType_Failure_DataError, "Output amount overflow");
+    return false;
+  }
 
   bool declared_change =
       output->script_type == KaspaOutputScriptType_KASPA_PAYTOCHANGE;
@@ -794,13 +1082,17 @@ bool kaspa_process_output(const KaspaTxAckOutput *output, HDNode *node) {
     return false;
   }
   bool trusted_change =
-      declared_change ? kaspa_output_is_trusted_hidden_change(output) : false;
+      declared_change && kaspa_output_is_trusted_hidden_change(output);
   uint8_t script_public_key[KASPA_MAX_SCRIPT_PUBLIC_KEY_LEN] = {0};
   uint32_t script_public_key_len = 0;
 
   if (trusted_change) {
     if (!kaspa_retrieve_derived_output_script(output, node, script_public_key,
                                               &script_public_key_len)) {
+      return false;
+    }
+    if (UINT64_MAX - signing_ctx.total_change < output->amount) {
+      fsm_sendFailure(FailureType_Failure_DataError, "Change amount overflow");
       return false;
     }
     signing_ctx.total_change += output->amount;
@@ -831,10 +1123,6 @@ bool kaspa_process_output(const KaspaTxAckOutput *output, HDNode *node) {
                     output->amount, 0, script_public_key,
                     script_public_key_len);
   signing_ctx.total_output += output->amount;
-  if (output->amount > signing_ctx.total_output) {
-    fsm_sendFailure(FailureType_Failure_DataError, "Output amount overflow");
-    return false;
-  }
   signing_ctx.request_index++;
   if (signing_ctx.request_index == signing_ctx.output_count) {
     kaspa_streaming_finalize_output_hashes();
@@ -844,12 +1132,7 @@ bool kaspa_process_output(const KaspaTxAckOutput *output, HDNode *node) {
       signing_ctx.phase = KASPA_PHASE_COLLECT_PAYLOAD;
       kaspa_streaming_init_payload_hasher();
     } else {
-      signing_ctx.phase = KASPA_PHASE_CONFIRM_TOTAL;
-      if (!kaspa_confirm_total()) {
-        return false;
-      }
-      signing_ctx.phase = KASPA_PHASE_SIGN_INPUTS;
-      kaspa_streaming_init_signing_input_hasher();
+      kaspa_streaming_begin_verification();
     }
   }
   return true;
@@ -882,14 +1165,150 @@ bool kaspa_confirm_total(void) {
   return true;
 }
 
+static void kaspa_set_prev_tx_request(KaspaTxRequest *resp) {
+  KaspaVerifyState *verify = &signing_ctx.phase_state.verify;
+  resp->has_prev_tx_id = true;
+  resp->prev_tx_id.size = KASPA_TX_ID_LEN;
+  memcpy(resp->prev_tx_id.bytes, verify->active_prev_tx_id, KASPA_TX_ID_LEN);
+}
+
+static uint32_t kaspa_payload_chunk_size(uint32_t remaining) {
+  return remaining > KASPA_PAYLOAD_CHUNK_SIZE ? KASPA_PAYLOAD_CHUNK_SIZE
+                                              : remaining;
+}
+
+static uint64_t kaspa_payload_chunk_count(uint32_t length) {
+  return length / KASPA_PAYLOAD_CHUNK_SIZE +
+         (length % KASPA_PAYLOAD_CHUNK_SIZE != 0);
+}
+
+static uint32_t kaspa_scale_progress(uint64_t completed, uint64_t total,
+                                     uint32_t start, uint32_t span) {
+  if (total == 0) {
+    return start + span;
+  }
+  if (completed > total) {
+    completed = total;
+  }
+  return start + (uint32_t)(completed * span / total);
+}
+
+static uint32_t kaspa_loading_progress(void) {
+  uint64_t payload_chunks =
+      kaspa_payload_chunk_count(signing_ctx.payload_length);
+  // Current outputs have their own confirmation screens and are intentionally
+  // excluded from loading progress.
+  uint64_t total = (uint64_t)signing_ctx.input_count + payload_chunks;
+  uint64_t completed = 0;
+
+  if (signing_ctx.phase == KASPA_PHASE_COLLECT_INPUTS) {
+    completed = signing_ctx.request_index;
+  } else if (signing_ctx.phase == KASPA_PHASE_COLLECT_PAYLOAD) {
+    completed = (uint64_t)signing_ctx.input_count + payload_chunks -
+                kaspa_payload_chunk_count(signing_ctx.payload_left);
+  }
+
+  return kaspa_scale_progress(completed, total, 0, KASPA_PROGRESS_MAX);
+}
+
+static uint32_t kaspa_prev_tx_progress(void) {
+  const KaspaVerifyState *verify = &signing_ctx.phase_state.verify;
+  uint64_t payload_chunks =
+      kaspa_payload_chunk_count(verify->prev_payload_length);
+  uint64_t total =
+      (uint64_t)verify->prev_input_count + verify->prev_output_count +
+      payload_chunks;
+  uint64_t completed = 0;
+
+  if (signing_ctx.phase == KASPA_PHASE_VERIFY_PREV_INPUTS) {
+    completed = signing_ctx.request_index;
+  } else if (signing_ctx.phase == KASPA_PHASE_VERIFY_PREV_OUTPUTS) {
+    completed =
+        (uint64_t)verify->prev_input_count + signing_ctx.request_index;
+  } else if (signing_ctx.phase == KASPA_PHASE_VERIFY_PREV_PAYLOAD) {
+    completed = (uint64_t)verify->prev_input_count + verify->prev_output_count +
+                payload_chunks -
+                kaspa_payload_chunk_count(verify->prev_payload_left);
+  }
+
+  return kaspa_scale_progress(completed, total, 0, KASPA_PROGRESS_MAX);
+}
+
+static uint32_t kaspa_verification_progress(void) {
+  const KaspaVerifyState *verify = &signing_ctx.phase_state.verify;
+  uint32_t prev_tx_progress = 0;
+
+  if (signing_ctx.phase == KASPA_PHASE_VERIFY_PREV_INPUTS ||
+      signing_ctx.phase == KASPA_PHASE_VERIFY_PREV_OUTPUTS ||
+      signing_ctx.phase == KASPA_PHASE_VERIFY_PREV_PAYLOAD) {
+    prev_tx_progress = kaspa_prev_tx_progress();
+  }
+
+  uint64_t completed =
+      (uint64_t)verify->current_input_index * KASPA_PROGRESS_MAX +
+      prev_tx_progress;
+  uint64_t total = (uint64_t)signing_ctx.input_count * KASPA_PROGRESS_MAX;
+  return kaspa_scale_progress(completed, total, 0,
+                              KASPA_PROGRESS_VERIFY_END);
+}
+
+static void kaspa_report_progress(void) {
+  if (signing_ctx.input_count < KASPA_PROGRESS_MIN_INPUT_COUNT) {
+    return;
+  }
+
+  KaspaProgressStage stage = KASPA_PROGRESS_STAGE_NONE;
+  const char *label = NULL;
+  uint32_t progress = 0;
+
+  if (signing_ctx.phase == KASPA_PHASE_COLLECT_INPUTS) {
+    stage = KASPA_PROGRESS_STAGE_LOADING_INPUTS;
+    label = _(T__LOADING_TRANSACTION);
+    progress = kaspa_loading_progress();
+  } else if (signing_ctx.phase == KASPA_PHASE_COLLECT_PAYLOAD) {
+    stage = KASPA_PROGRESS_STAGE_LOADING_PAYLOAD;
+    label = _(T__LOADING_TRANSACTION);
+    progress = kaspa_loading_progress();
+  } else if (signing_ctx.phase == KASPA_PHASE_REPLAY_INPUT ||
+             signing_ctx.phase == KASPA_PHASE_VERIFY_PREV_META ||
+             signing_ctx.phase == KASPA_PHASE_VERIFY_PREV_INPUTS ||
+             signing_ctx.phase == KASPA_PHASE_VERIFY_PREV_OUTPUTS ||
+             signing_ctx.phase == KASPA_PHASE_VERIFY_PREV_PAYLOAD) {
+    stage = KASPA_PROGRESS_STAGE_VERIFYING;
+    label = _(T__SIGNING_TRANSACTION);
+    progress = kaspa_verification_progress();
+  } else if (signing_ctx.phase == KASPA_PHASE_SIGN_INPUTS) {
+    stage = KASPA_PROGRESS_STAGE_SIGNING;
+    label = _(T__SIGNING_TRANSACTION);
+    progress = kaspa_scale_progress(
+        signing_ctx.sign_index, signing_ctx.input_count,
+        KASPA_PROGRESS_VERIFY_END,
+        KASPA_PROGRESS_MAX - KASPA_PROGRESS_VERIFY_END);
+  } else {
+    return;
+  }
+
+  uint8_t progress_percent = progress / 10;
+  bool force = signing_ctx.progress_stage != stage;
+  if (!force &&
+      progress_percent < signing_ctx.displayed_progress_percent +
+                             KASPA_PROGRESS_UPDATE_PERCENT) {
+    return;
+  }
+
+  layoutProgressAdapter(label, progress);
+  signing_ctx.progress_stage = stage;
+  signing_ctx.displayed_progress_percent = progress_percent;
+}
+
 bool kaspa_send_request(KaspaTxRequest *resp) {
   if (signing_mode != KASPA_SIGNING_MODE_STREAMING) {
     fsm_sendFailure(FailureType_Failure_UnexpectedMessage,
                     "Not in Kaspa signing mode");
     return false;
   }
-  resp->has_request_type = true;
   if (signing_ctx.phase == KASPA_PHASE_COLLECT_INPUTS ||
+      signing_ctx.phase == KASPA_PHASE_REPLAY_INPUT ||
       signing_ctx.phase == KASPA_PHASE_SIGN_INPUTS) {
     resp->request_type = KaspaRequestType_KASPA_TX_INPUT;
     resp->has_request_index = true;
@@ -897,9 +1316,7 @@ bool kaspa_send_request(KaspaTxRequest *resp) {
     if (signing_ctx.phase == KASPA_PHASE_SIGN_INPUTS &&
         signing_ctx.sign_index > 0) {
       resp->has_signature = true;
-      resp->signature.has_signature_index = true;
       resp->signature.signature_index = signing_ctx.sign_index - 1;
-      resp->signature.has_signature = true;
     }
   } else if (signing_ctx.phase == KASPA_PHASE_COLLECT_OUTPUTS) {
     resp->request_type = KaspaRequestType_KASPA_TX_OUTPUT;
@@ -914,16 +1331,40 @@ bool kaspa_send_request(KaspaTxRequest *resp) {
     resp->request_type = KaspaRequestType_KASPA_TX_PAYLOAD;
     resp->has_request_payload_length = true;
     signing_ctx.phase_state.collect_payload.pending_payload_length =
-        signing_ctx.payload_left > 1024 ? 1024 : signing_ctx.payload_left;
+        kaspa_payload_chunk_size(signing_ctx.payload_left);
     resp->request_payload_length =
         signing_ctx.phase_state.collect_payload.pending_payload_length;
+  } else if (signing_ctx.phase == KASPA_PHASE_VERIFY_PREV_META) {
+    resp->request_type = KaspaRequestType_KASPA_TX_PREV_META;
+    kaspa_set_prev_tx_request(resp);
+  } else if (signing_ctx.phase == KASPA_PHASE_VERIFY_PREV_INPUTS) {
+    resp->request_type = KaspaRequestType_KASPA_TX_INPUT;
+    resp->has_request_index = true;
+    resp->request_index = signing_ctx.request_index;
+    kaspa_set_prev_tx_request(resp);
+  } else if (signing_ctx.phase == KASPA_PHASE_VERIFY_PREV_OUTPUTS) {
+    resp->request_type = KaspaRequestType_KASPA_TX_OUTPUT;
+    resp->has_request_index = true;
+    resp->request_index = signing_ctx.request_index;
+    kaspa_set_prev_tx_request(resp);
+  } else if (signing_ctx.phase == KASPA_PHASE_VERIFY_PREV_PAYLOAD) {
+    KaspaVerifyState *verify = &signing_ctx.phase_state.verify;
+    if (verify->prev_payload_left == 0) {
+      fsm_sendFailure(FailureType_Failure_UnexpectedMessage,
+                      "No Kaspa previous payload pending");
+      return false;
+    }
+    resp->request_type = KaspaRequestType_KASPA_TX_PAYLOAD;
+    resp->has_request_payload_length = true;
+    verify->pending_payload_length =
+        kaspa_payload_chunk_size(verify->prev_payload_left);
+    resp->request_payload_length = verify->pending_payload_length;
+    kaspa_set_prev_tx_request(resp);
   } else if (signing_ctx.phase == KASPA_PHASE_FINISHED) {
     resp->request_type = KaspaRequestType_KASPA_TX_FINISHED;
     if (signing_ctx.sign_index > 0) {
       resp->has_signature = true;
-      resp->signature.has_signature_index = true;
       resp->signature.signature_index = signing_ctx.sign_index - 1;
-      resp->signature.has_signature = true;
     }
     kaspa_signing_abort();
   } else {
@@ -931,64 +1372,75 @@ bool kaspa_send_request(KaspaTxRequest *resp) {
                     "No Kaspa request pending");
     return false;
   }
+  kaspa_report_progress();
   msg_write(MessageType_MessageType_KaspaTxRequest, resp);
   return true;
 }
 
 bool kaspa_receive_payload(const KaspaTxAckPayloadChunk *payload) {
-  if (signing_mode != KASPA_SIGNING_MODE_STREAMING ||
-      signing_ctx.phase != KASPA_PHASE_COLLECT_PAYLOAD ||
-      signing_ctx.payload_left == 0 ||
-      signing_ctx.phase_state.collect_payload.pending_payload_length == 0) {
+  if (signing_mode != KASPA_SIGNING_MODE_STREAMING) {
     fsm_sendFailure(FailureType_Failure_UnexpectedMessage,
                     "Unexpected Kaspa payload");
     return false;
   }
-  if (payload->payload_chunk.size !=
-      signing_ctx.phase_state.collect_payload.pending_payload_length) {
-    fsm_sendFailure(FailureType_Failure_DataError,
-                    "Invalid Kaspa payload chunk length");
-    return false;
-  }
 
-  blake2b_Update(&signing_ctx.phase_state.collect_payload.payload_hasher,
-                 payload->payload_chunk.bytes, payload->payload_chunk.size);
-  signing_ctx.payload_left -= payload->payload_chunk.size;
-  signing_ctx.phase_state.collect_payload.pending_payload_length = 0;
-  if (signing_ctx.payload_left == 0) {
-    kaspa_blake2b_finalize_into(
-        &signing_ctx.phase_state.collect_payload.payload_hasher,
-        signing_ctx.payload_hash);
-    if (!kaspa_confirm_payload_hash()) {
-      fsm_sendFailure(FailureType_Failure_ActionCancelled,
-                      "Signing cancelled by user");
+  if (signing_ctx.phase == KASPA_PHASE_COLLECT_PAYLOAD) {
+    KaspaCollectPayloadState *collect =
+        &signing_ctx.phase_state.collect_payload;
+    if (signing_ctx.payload_left == 0 || collect->pending_payload_length == 0) {
+      fsm_sendFailure(FailureType_Failure_UnexpectedMessage,
+                      "Unexpected Kaspa payload");
       return false;
     }
-    signing_ctx.phase = KASPA_PHASE_CONFIRM_TOTAL;
-    if (!kaspa_confirm_total()) {
+    if (payload->payload_chunk.size != collect->pending_payload_length) {
+      fsm_sendFailure(FailureType_Failure_DataError,
+                      "Invalid Kaspa payload chunk length");
       return false;
     }
-    signing_ctx.phase = KASPA_PHASE_SIGN_INPUTS;
-    kaspa_streaming_init_signing_input_hasher();
-  }
-  return true;
-}
 
-static bool kaspa_streaming_validate_signing_input(
-    const KaspaTxAckInput *input) {
-  kaspa_hash_input_commitment(
-      &signing_ctx.phase_state.sign_inputs.signing_inputs_commitment_hasher,
-      input);
-  if (signing_ctx.request_index + 1 == signing_ctx.input_count) {
-    uint8_t signing_inputs_commitment_hash[32] = {0};
-    kaspa_blake2b_finalize_into(
-        &signing_ctx.phase_state.sign_inputs.signing_inputs_commitment_hasher,
-        signing_inputs_commitment_hash);
-    return memcmp(signing_inputs_commitment_hash,
-                  signing_ctx.inputs_commitment_hash,
-                  sizeof(signing_ctx.inputs_commitment_hash)) == 0;
+    blake2b_Update(&collect->payload_hasher, payload->payload_chunk.bytes,
+                   payload->payload_chunk.size);
+    signing_ctx.payload_left -= payload->payload_chunk.size;
+    collect->pending_payload_length = 0;
+    if (signing_ctx.payload_left == 0) {
+      kaspa_blake2b_finalize_into(&collect->payload_hasher,
+                                  signing_ctx.payload_hash);
+      if (!kaspa_confirm_payload_hash()) {
+        fsm_sendFailure(FailureType_Failure_ActionCancelled,
+                        "Signing cancelled by user");
+        return false;
+      }
+      kaspa_streaming_begin_verification();
+    }
+    return true;
   }
-  return true;
+
+  if (signing_ctx.phase == KASPA_PHASE_VERIFY_PREV_PAYLOAD) {
+    KaspaVerifyState *verify = &signing_ctx.phase_state.verify;
+    if (verify->prev_payload_left == 0 || verify->pending_payload_length == 0) {
+      fsm_sendFailure(FailureType_Failure_UnexpectedMessage,
+                      "Unexpected Kaspa previous payload");
+      return false;
+    }
+    if (payload->payload_chunk.size != verify->pending_payload_length) {
+      fsm_sendFailure(FailureType_Failure_DataError,
+                      "Invalid Kaspa previous payload chunk length");
+      return false;
+    }
+
+    blake2b_Update(&verify->prev_tx_hasher, payload->payload_chunk.bytes,
+                   payload->payload_chunk.size);
+    verify->prev_payload_left -= payload->payload_chunk.size;
+    verify->pending_payload_length = 0;
+    if (verify->prev_payload_left == 0) {
+      return kaspa_finish_verified_prev_tx();
+    }
+    return true;
+  }
+
+  fsm_sendFailure(FailureType_Failure_UnexpectedMessage,
+                  "Unexpected Kaspa payload");
+  return false;
 }
 
 bool kaspa_sign_input(const KaspaTxAckInput *input, HDNode *node,
@@ -1007,27 +1459,17 @@ bool kaspa_sign_input(const KaspaTxAckInput *input, HDNode *node,
   if (!kaspa_validate_standard_input(input)) {
     return false;
   }
-  if (!kaspa_streaming_validate_signing_input(input)) {
-    fsm_sendFailure(FailureType_Failure_DataError,
-                    "Kaspa input changed between passes");
-    kaspa_signing_abort();
-    return false;
-  }
+  // All prevouts and the ordered input replay are authenticated before this
+  // phase. A changed signing-pass input cannot match both the collected shared
+  // hashes and the chain's amount/script for its outpoint.
   signing_script_public_key_len = kaspa_build_standard_script(
-      node,
-      !input->has_script_type ||
-          input->script_type == KaspaInputScriptType_KASPA_SPEND_P2PK_SCHNORR,
-      !input->has_use_tweak || input->use_tweak, signing_script_public_key);
-  if (!kaspa_calculate_schnorr_digest(input, signing_script_public_key,
-                                      signing_script_public_key_len,
-                                      schnorr_digest)) {
-    kaspa_signing_abort();
-    return false;
-  }
+      node, kaspa_input_is_schnorr(input), kaspa_input_use_tweak(input),
+      signing_script_public_key);
+  kaspa_calculate_schnorr_digest(input, signing_script_public_key,
+                                 signing_script_public_key_len, schnorr_digest);
 
-  if (input->script_type == KaspaInputScriptType_KASPA_SPEND_P2PK_SCHNORR) {
-    if (!kaspa_sign_bip340_digest(node,
-                                  !input->has_use_tweak || input->use_tweak,
+  if (kaspa_input_is_schnorr(input)) {
+    if (!kaspa_sign_bip340_digest(node, kaspa_input_use_tweak(input),
                                   schnorr_digest, signature, signature_len)) {
       return false;
     }

@@ -313,6 +313,9 @@ void fsm_msgKaspaTxInputAck(const KaspaTxInputAck *msg);
 void fsm_msgKaspaTxAckInput(const KaspaTxAckInput *msg);
 void fsm_msgKaspaTxAckOutput(const KaspaTxAckOutput *msg);
 void fsm_msgKaspaTxAckPayloadChunk(const KaspaTxAckPayloadChunk *msg);
+void fsm_msgKaspaTxAckPrevMeta(const KaspaTxAckPrevMeta *msg);
+void fsm_msgKaspaTxAckPrevInput(const KaspaTxAckPrevInput *msg);
+void fsm_msgKaspaTxAckPrevOutput(const KaspaTxAckPrevOutput *msg);
 // Nexa
 void fsm_msgNexaGetAddress(const NexaGetAddress *msg);
 void fsm_msgNexaSignTx(const NexaSignTx *msg);

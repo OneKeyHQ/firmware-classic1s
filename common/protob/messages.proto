@@ -506,6 +506,9 @@ enum MessageType {
     MessageType_KaspaTxAckInput = 11307 [(wire_in) = true];
     MessageType_KaspaTxAckOutput = 11308 [(wire_in) = true];
     MessageType_KaspaTxAckPayloadChunk = 11309 [(wire_in) = true];
+    MessageType_KaspaTxAckPrevMeta = 11310 [(wire_in) = true];
+    MessageType_KaspaTxAckPrevInput = 11311 [(wire_in) = true];
+    MessageType_KaspaTxAckPrevOutput = 11312 [(wire_in) = true];
 
     // Nexa
     MessageType_NexaGetAddress = 11400 [(wire_in) = true];

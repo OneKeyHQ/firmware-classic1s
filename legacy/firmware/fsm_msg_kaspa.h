@@ -111,10 +111,8 @@ void fsm_msgKaspaSignTx(const KaspaSignTx *msg) {
   }
 
   if (kaspa_is_legacy_signing(msg)) {
-    CHECK_PARAM(msg->has_input_count && msg->input_count >= 1,
-                "Invalid input count");
-    CHECK_PARAM(msg->has_scheme && kaspa_valid_scheme(msg->scheme),
-                "Invalid scheme");
+    CHECK_PARAM(msg->input_count >= 1, "Invalid input count");
+    CHECK_PARAM(kaspa_valid_scheme(msg->scheme), "Invalid scheme");
     CHECK_PARAM(kaspa_valid_prefix(msg->prefix), "Invalid prefix");
 
     kaspa_signing_init(msg);
@@ -139,6 +137,15 @@ void fsm_msgKaspaTxAckInput(const KaspaTxAckInput *msg) {
   RESP_INIT(KaspaTxRequest);
   if (kaspa_signing_phase() == KASPA_PHASE_COLLECT_INPUTS) {
     if (!kaspa_process_input(msg)) {
+      kaspa_signing_abort();
+      return;
+    }
+  } else if (kaspa_signing_phase() == KASPA_PHASE_REPLAY_INPUT) {
+    node = fsm_getDerivedNode(SECP256K1_NAME, msg->address_n,
+                              msg->address_n_count, NULL);
+    KASPA_CHECK_OR_ABORT(node, FailureType_Failure_ProcessError,
+                         "Failed to get derived node");
+    if (!kaspa_prepare_prev_tx_verification(msg, node)) {
       kaspa_signing_abort();
       return;
     }
@@ -200,15 +207,77 @@ void fsm_msgKaspaTxAckPayloadChunk(const KaspaTxAckPayloadChunk *msg) {
   KASPA_CHECK_OR_ABORT(kaspa_signing_mode() == KASPA_SIGNING_MODE_STREAMING,
                        FailureType_Failure_UnexpectedMessage,
                        "Not in Kaspa signing mode");
-  KASPA_CHECK_OR_ABORT(kaspa_signing_phase() == KASPA_PHASE_COLLECT_PAYLOAD,
-                       FailureType_Failure_UnexpectedMessage,
-                       "Unexpected kaspa payload chunk ack received");
+  KASPA_CHECK_OR_ABORT(
+      kaspa_signing_phase() == KASPA_PHASE_COLLECT_PAYLOAD ||
+          kaspa_signing_phase() == KASPA_PHASE_VERIFY_PREV_PAYLOAD,
+      FailureType_Failure_UnexpectedMessage,
+      "Unexpected kaspa payload chunk ack received");
 
   RESP_INIT(KaspaTxRequest);
   if (!kaspa_receive_payload(msg)) {
     kaspa_signing_abort();
     return;
   }
+  if (!kaspa_send_request(resp)) {
+    kaspa_signing_abort();
+    return;
+  }
+}
+
+void fsm_msgKaspaTxAckPrevMeta(const KaspaTxAckPrevMeta *msg) {
+  KASPA_CHECK_OR_ABORT(kaspa_signing_mode() == KASPA_SIGNING_MODE_STREAMING,
+                       FailureType_Failure_UnexpectedMessage,
+                       "Not in Kaspa signing mode");
+  KASPA_CHECK_OR_ABORT(kaspa_signing_phase() == KASPA_PHASE_VERIFY_PREV_META,
+                       FailureType_Failure_UnexpectedMessage,
+                       "Unexpected Kaspa previous metadata ack");
+
+  if (!kaspa_process_prev_meta(msg)) {
+    kaspa_signing_abort();
+    return;
+  }
+
+  RESP_INIT(KaspaTxRequest);
+  if (!kaspa_send_request(resp)) {
+    kaspa_signing_abort();
+    return;
+  }
+}
+
+void fsm_msgKaspaTxAckPrevInput(const KaspaTxAckPrevInput *msg) {
+  KASPA_CHECK_OR_ABORT(kaspa_signing_mode() == KASPA_SIGNING_MODE_STREAMING,
+                       FailureType_Failure_UnexpectedMessage,
+                       "Not in Kaspa signing mode");
+  KASPA_CHECK_OR_ABORT(kaspa_signing_phase() == KASPA_PHASE_VERIFY_PREV_INPUTS,
+                       FailureType_Failure_UnexpectedMessage,
+                       "Unexpected Kaspa previous input ack");
+
+  if (!kaspa_process_prev_input(msg)) {
+    kaspa_signing_abort();
+    return;
+  }
+
+  RESP_INIT(KaspaTxRequest);
+  if (!kaspa_send_request(resp)) {
+    kaspa_signing_abort();
+    return;
+  }
+}
+
+void fsm_msgKaspaTxAckPrevOutput(const KaspaTxAckPrevOutput *msg) {
+  KASPA_CHECK_OR_ABORT(kaspa_signing_mode() == KASPA_SIGNING_MODE_STREAMING,
+                       FailureType_Failure_UnexpectedMessage,
+                       "Not in Kaspa signing mode");
+  KASPA_CHECK_OR_ABORT(kaspa_signing_phase() == KASPA_PHASE_VERIFY_PREV_OUTPUTS,
+                       FailureType_Failure_UnexpectedMessage,
+                       "Unexpected Kaspa previous output ack");
+
+  if (!kaspa_process_prev_output(msg)) {
+    kaspa_signing_abort();
+    return;
+  }
+
+  RESP_INIT(KaspaTxRequest);
   if (!kaspa_send_request(resp)) {
     kaspa_signing_abort();
     return;
