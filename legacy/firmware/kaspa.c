@@ -1215,16 +1215,14 @@ static uint32_t kaspa_prev_tx_progress(void) {
   const KaspaVerifyState *verify = &signing_ctx.phase_state.verify;
   uint64_t payload_chunks =
       kaspa_payload_chunk_count(verify->prev_payload_length);
-  uint64_t total =
-      (uint64_t)verify->prev_input_count + verify->prev_output_count +
-      payload_chunks;
+  uint64_t total = (uint64_t)verify->prev_input_count +
+                   verify->prev_output_count + payload_chunks;
   uint64_t completed = 0;
 
   if (signing_ctx.phase == KASPA_PHASE_VERIFY_PREV_INPUTS) {
     completed = signing_ctx.request_index;
   } else if (signing_ctx.phase == KASPA_PHASE_VERIFY_PREV_OUTPUTS) {
-    completed =
-        (uint64_t)verify->prev_input_count + signing_ctx.request_index;
+    completed = (uint64_t)verify->prev_input_count + signing_ctx.request_index;
   } else if (signing_ctx.phase == KASPA_PHASE_VERIFY_PREV_PAYLOAD) {
     completed = (uint64_t)verify->prev_input_count + verify->prev_output_count +
                 payload_chunks -
@@ -1248,8 +1246,7 @@ static uint32_t kaspa_verification_progress(void) {
       (uint64_t)verify->current_input_index * KASPA_PROGRESS_MAX +
       prev_tx_progress;
   uint64_t total = (uint64_t)signing_ctx.input_count * KASPA_PROGRESS_MAX;
-  return kaspa_scale_progress(completed, total, 0,
-                              KASPA_PROGRESS_VERIFY_END);
+  return kaspa_scale_progress(completed, total, 0, KASPA_PROGRESS_VERIFY_END);
 }
 
 static void kaspa_report_progress(void) {
@@ -1280,19 +1277,18 @@ static void kaspa_report_progress(void) {
   } else if (signing_ctx.phase == KASPA_PHASE_SIGN_INPUTS) {
     stage = KASPA_PROGRESS_STAGE_SIGNING;
     label = _(T__SIGNING_TRANSACTION);
-    progress = kaspa_scale_progress(
-        signing_ctx.sign_index, signing_ctx.input_count,
-        KASPA_PROGRESS_VERIFY_END,
-        KASPA_PROGRESS_MAX - KASPA_PROGRESS_VERIFY_END);
+    progress =
+        kaspa_scale_progress(signing_ctx.sign_index, signing_ctx.input_count,
+                             KASPA_PROGRESS_VERIFY_END,
+                             KASPA_PROGRESS_MAX - KASPA_PROGRESS_VERIFY_END);
   } else {
     return;
   }
 
   uint8_t progress_percent = progress / 10;
   bool force = signing_ctx.progress_stage != stage;
-  if (!force &&
-      progress_percent < signing_ctx.displayed_progress_percent +
-                             KASPA_PROGRESS_UPDATE_PERCENT) {
+  if (!force && progress_percent < signing_ctx.displayed_progress_percent +
+                                       KASPA_PROGRESS_UPDATE_PERCENT) {
     return;
   }
 

@@ -1939,7 +1939,7 @@ static bool _inputPassphraseOnDevice(char *passphrase, bool allow_empty) {
                           input_type);
 
     WAIT_KEY_OR_ABORT(0, 0, key);
-    if (protectAbortedBySleep || key == KEY_NULL) {
+    if (protectAbortedBySleep) {
       goto cleanup;
     }
 
@@ -1974,6 +1974,12 @@ static bool _inputPassphraseOnDevice(char *passphrase, bool allow_empty) {
       }
     }
 #endif
+
+    // Long presses are resolved above on hardware. Any remaining KEY_NULL
+    // means the wait ended without a usable key event.
+    if (key == KEY_NULL) {
+      goto cleanup;
+    }
 
     switch (key) {
       case KEY_UP:

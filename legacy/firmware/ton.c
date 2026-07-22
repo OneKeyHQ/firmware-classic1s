@@ -143,7 +143,7 @@ void ton_format_toncoin_amount(const uint64_t amount, char *buf, int buflen) {
   char str_amount[40] = {0};
   bn_format_uint64(amount, NULL, NULL, 9, 0, false, 0, str_amount,
                    sizeof(str_amount));
-  snprintf(buf, buflen, "%s TON", str_amount);
+  snprintf(buf, buflen, "%s GRAM", str_amount);
 }
 
 static bool ton_format_jetton_amount(const uint8_t *value, uint8_t value_len,
