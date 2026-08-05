@@ -18,11 +18,13 @@
  */
 
 #include <stdint.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "usb.h"
 
 #include "debug.h"
+#include "fido2/ctap_trans.h"
 #include "messages.h"
 #include "timer.h"
 
@@ -42,13 +44,20 @@ void waitAndProcessUSBRequests(uint32_t millis) {
   static uint8_t buffer[USB_PACKET_SIZE];
 
   int iface = 0;
-  if (emulatorSocketRead(&iface, buffer, sizeof(buffer), millis) > 0) {
-    if (!tiny) {
-      do {
-        msg_read_common(_ISDBG, buffer, sizeof(buffer));
-      } while (emulatorSocketRead(&iface, buffer, sizeof(buffer), 0) > 0);
+  size_t received =
+      emulatorSocketRead(&iface, buffer, sizeof(buffer), millis);
+  if (received > 0) {
+    if (iface == 2) {
+      if (received == sizeof(U2FHID_FRAME)) {
+        U2FHID_FRAME frame;
+        memcpy(&frame, buffer, sizeof(frame));
+        u2fhid_read(tiny, &frame);
+        usb_u2f_data_send();
+      }
+    } else if (!tiny) {
+      msg_read_common(_ISDBG, buffer, received);
     } else {
-      msg_read_tiny(buffer, sizeof(buffer));
+      msg_read_tiny(buffer, received);
     }
   }
 
@@ -65,6 +74,17 @@ void waitAndProcessUSBRequests(uint32_t millis) {
 }
 
 void usbPoll(void) { waitAndProcessUSBRequests(0); }
+
+void usb_u2f_data_send(void) {
+  const uint8_t *data;
+  while ((data = u2f_out_data()) != NULL) {
+    emulatorSocketWrite(2, data, USB_PACKET_SIZE);
+  }
+}
+
+void usbDisconnect(void) {}
+
+void usbReconnect(void) {}
 
 char usbTiny(char set) {
   char old = tiny;

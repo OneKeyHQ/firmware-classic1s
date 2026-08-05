@@ -1015,7 +1015,7 @@ refresh_menu:
     layoutHeader(tx_msg[0]);
     oledDrawStringAdapter(0, y, _(GLOBAL__VOTE_COUNT), FONT_STANDARD);
     char vote_count_str[64] = {0};
-    snprintf(vote_count_str, sizeof(vote_count_str), "%ld",
+    snprintf(vote_count_str, sizeof(vote_count_str), "%" PRIu32,
              (contract->votes[(index - 3) / 2].vote_count));
     oledDrawStringAdapter(0, y + 10, vote_count_str, FONT_STANDARD);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);

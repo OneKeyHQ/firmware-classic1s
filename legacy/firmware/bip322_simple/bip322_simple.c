@@ -201,7 +201,11 @@ bool sign_bip322_simple_segwit(const HDNode *node, const CoinInfo *coin,
                  script_pub + 2, coin->curve->hasher_sign == HASHER_SHA2D,
                  sig_hash);
 
-  if (hdnode_sign_digest(node, sig_hash, signature, NULL, NULL) != 0) {
+  HDNode signing_node = *node;
+  int sign_result =
+      hdnode_sign_digest(&signing_node, sig_hash, signature, NULL, NULL);
+  memset(&signing_node, 0, sizeof(signing_node));
+  if (sign_result != 0) {
     return false;
   }
 

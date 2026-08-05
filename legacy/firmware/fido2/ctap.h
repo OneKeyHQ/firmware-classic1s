@@ -46,6 +46,7 @@
 #define CRED_ID_SIGN_COUNT          0x08
 #define CRED_ID_ALGORITHM           0x09
 #define CRED_ID_CURVE               0x0A
+#define CRED_ID_CRED_PROTECT        0x0B
 
 #define CRED_ID_MAX_LEN             512
 
@@ -269,6 +270,7 @@ typedef struct{
     CTAP_userEntity user;
     uint32_t creation_time;
     bool hmac_secret;
+    uint8_t cred_protect;
 }Credential_ID_Info;
 
 typedef struct

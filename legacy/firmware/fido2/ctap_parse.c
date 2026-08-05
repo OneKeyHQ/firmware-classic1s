@@ -607,8 +607,15 @@ uint8_t ctap_parse_extensions(CborValue *val, CTAP_extensions *ext) {
       }
     } else if (strncmp(key, "credProtect", 11) == 0) {
       if (cbor_value_get_type(&map) == CborIntegerType) {
-        ret = cbor_value_get_int(&map, (int *)&ext->cred_protect);
+        int cred_protect = EXT_CRED_PROTECT_INVALID;
+        ret = cbor_value_get_int_checked(&map, &cred_protect);
         check_ret(ret);
+        if (cred_protect >= EXT_CRED_PROTECT_OPTIONAL &&
+            cred_protect <= EXT_CRED_PROTECT_REQUIRED) {
+          ext->cred_protect = cred_protect;
+        } else {
+          ctap_printf("warning: invalid credProtect value ignored\r\n");
+        }
       } else {
         ctap_printf(
             "warning: credProtect request ignored for being wrong type\r\n");
@@ -1096,6 +1103,8 @@ uint8_t ctap_parse_get_assertion(CTAP_getAssertion *GA, uint8_t *request,
         ctap_printf("GA_extensions\n");
         ret = ctap_parse_extensions(&map, &GA->extensions);
         check_retr(ret);
+        // credProtect is a MakeCredential-only extension.
+        GA->extensions.cred_protect = EXT_CRED_PROTECT_INVALID;
         break;
 
       case GA_options:
@@ -1377,6 +1386,7 @@ uint8_t ctap_parse_credential_id(Credential_ID_Info *credential_id_info,
   CborValue it, map;
 
   memset(credential_id_info, 0, sizeof(Credential_ID_Info));
+  credential_id_info->cred_protect = EXT_CRED_PROTECT_OPTIONAL;
 
   ret = cbor_parser_init(request, length, CborValidateCanonicalFormat, &parser,
                          &it);
@@ -1488,6 +1498,18 @@ uint8_t ctap_parse_credential_id(Credential_ID_Info *credential_id_info,
         ret = cbor_value_get_boolean(&map, &credential_id_info->hmac_secret);
         check_ret(ret);
         break;
+
+      case CRED_ID_CRED_PROTECT: {
+        int cred_protect = EXT_CRED_PROTECT_INVALID;
+        ctap_printf("CRED_ID_CRED_PROTECT\n");
+        ret = cbor_value_get_int_checked(&map, &cred_protect);
+        check_ret(ret);
+        if (cred_protect >= EXT_CRED_PROTECT_OPTIONAL &&
+            cred_protect <= EXT_CRED_PROTECT_REQUIRED) {
+          credential_id_info->cred_protect = cred_protect;
+        }
+        break;
+      }
 
       default:
         ctap_printf("skip key %d\n", key);

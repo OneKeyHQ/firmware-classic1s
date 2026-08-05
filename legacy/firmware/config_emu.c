@@ -52,11 +52,13 @@
 #include "supervise.h"
 #include "timer.h"
 #include "trezor.h"
-#include "u2f.h"
+#include "fido2/ctap_trans.h"
 #include "usb.h"
 #include "util.h"
 
 bool g_bSelectSEFlag = false;
+
+char *config_get_device_model(void) { return "OneKey Classic 1S"; }
 
 /* Magic constants to check validity of storage block for storage versions 1
  * to 10. */
@@ -194,6 +196,8 @@ static Session *activeSessionCache;
 
 static uint32_t sessionUseCounter = 0;
 
+bool reset_after_usb_lock = false;
+
 #if !EMULATOR
 #define autoLockDelayMsDefault (5 * 60 * 1000U)  // 5 minutes
 #else
@@ -216,6 +220,7 @@ static const uint8_t FALSE_BYTE = '\x00';
 static const uint8_t TRUE_BYTE = '\x01';
 
 static bool derive_cardano = 0;
+static bool fido_switch_enabled = true;
 
 static uint32_t pin_to_int(const char *pin) {
   uint32_t val = 1;
@@ -1109,6 +1114,7 @@ bool config_containsMnemonic(const char *mnemonic) {
  * a null-terminated string with at most 9 characters.
  */
 bool config_unlock(const char *pin, pin_type_t pin_type) {
+  (void)pin_type;
   if (g_bSelectSEFlag) {
     if (se_verifyPin((pin_to_int(pin)))) {
       se_unlocked = sectrue;
@@ -1131,6 +1137,10 @@ bool config_unlock(const char *pin, pin_type_t pin_type) {
     usbTiny(oldTiny);
     return sectrue == ret;
   }
+}
+
+bool config_verifyPin(const char *pin, pin_type_t pin_type) {
+  return config_unlock(pin, pin_type);
 }
 
 bool config_hasPin(void) {
@@ -1578,6 +1588,15 @@ uint32_t config_getPinFails(void) {
 bool config_getCoinSwitch(CoinSwitch loc) {
   (void)loc;
   return true;
+}
+
+bool config_getFidoSwitch(bool *fido_switch) {
+  *fido_switch = fido_switch_enabled;
+  return true;
+}
+
+void config_setFidoSwitch(bool fido_switch) {
+  fido_switch_enabled = fido_switch;
 }
 
 void config_setCoinSwitch(CoinSwitch loc, bool flag) {

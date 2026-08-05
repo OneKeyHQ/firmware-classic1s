@@ -1656,7 +1656,9 @@ void ctap_ble_u2f_send(uint8_t cmd, uint8_t *data, uint16_t len) {
   memcpy(ble_response_buffer + 3, data, len);
   ctap_printf("ctap_ble_u2f_send cmd: %d\n", cmd);
   dump_hex1(NULL, ble_response_buffer, len + 3);
+#if !EMULATOR
   i2c_slave_send_fido(ble_response_buffer, len + 3);
+#endif
 }
 
 void ctap_ble_ping(uint8_t *data, uint16_t len) {

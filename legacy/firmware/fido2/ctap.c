@@ -31,7 +31,7 @@
 #include "rand.h"
 #include "util.h"
 
-#define OTHER_KEY_INFO 0
+#define OTHER_KEY_INFO EMULATOR
 
 #if OTHER_KEY_INFO
 const uint8_t CTAP_AAGUID[16] =
@@ -150,10 +150,12 @@ uint8_t ctap_get_info(CborEncoder *cbor_encoder) {
     ret = cbor_encode_uint(&map, RESP_extensions);
     check_ret(ret);
     {
-      ret = cbor_encoder_create_array(&map, &array, 1);
+      ret = cbor_encoder_create_array(&map, &array, 2);
       check_ret(ret);
       {
         ret = cbor_encode_text_stringz(&array, "hmac-secret");
+        check_ret(ret);
+        ret = cbor_encode_text_stringz(&array, "credProtect");
         check_ret(ret);
       }
       ret = cbor_encoder_close_container(&map, &array);
@@ -314,6 +316,12 @@ static void ctap_reset_key_agreement(void) {
   initialized = true;
 }
 
+static bool ctap_cred_protect_is_valid(uint32_t cred_protect) {
+  return cred_protect == EXT_CRED_PROTECT_OPTIONAL ||
+         cred_protect == EXT_CRED_PROTECT_OPTIONAL_WITH_CREDID ||
+         cred_protect == EXT_CRED_PROTECT_REQUIRED;
+}
+
 static int ctap_make_extensions(CTAP_extensions *ext, uint8_t *cred_id,
                                 uint32_t cred_id_len, uint8_t *ext_encoder_buf,
                                 unsigned int *ext_encoder_buf_size) {
@@ -391,13 +399,9 @@ static int ctap_make_extensions(CTAP_extensions *ext, uint8_t *cred_id,
     extensions_used += 1;
     hmac_secret_requested_is_valid = 1;
   }
-  if (ext->cred_protect != EXT_CRED_PROTECT_INVALID) {
-    if (ext->cred_protect == EXT_CRED_PROTECT_OPTIONAL ||
-        ext->cred_protect == EXT_CRED_PROTECT_OPTIONAL_WITH_CREDID ||
-        ext->cred_protect == EXT_CRED_PROTECT_REQUIRED) {
-      extensions_used += 1;
-      cred_protect_is_valid = 1;
-    }
+  if (ctap_cred_protect_is_valid(ext->cred_protect)) {
+    extensions_used += 1;
+    cred_protect_is_valid = 1;
   }
 
   if (extensions_used > 0) {
@@ -456,6 +460,11 @@ static int ctap_generate_credential_id(CTAP_makeCredential mc, uint32_t counter,
                                        uint16_t *cred_id_len) {
   CborEncoder credential_id;
   uint8_t credential_id_buf[CRED_ID_MAX_LEN];
+  uint32_t cred_protect = mc.extensions.cred_protect;
+
+  if (!ctap_cred_protect_is_valid(cred_protect)) {
+    cred_protect = EXT_CRED_PROTECT_OPTIONAL;
+  }
 
   uint8_t element_count = 0;
 
@@ -485,6 +494,10 @@ static int ctap_generate_credential_id(CTAP_makeCredential mc, uint32_t counter,
   if (mc.extensions.hmac_secret_present == EXT_HMAC_SECRET_REQUESTED) {
     element_count++;
   }
+
+  // credProtect is always persisted. Credentials created before credProtect
+  // support are interpreted as userVerificationOptional while parsing.
+  element_count++;
 
   // use sign count
   element_count++;
@@ -550,6 +563,11 @@ static int ctap_generate_credential_id(CTAP_makeCredential mc, uint32_t counter,
     ret = cbor_encode_uint(&map, CRED_ID_SIGN_COUNT);
     check_ret(ret);
     ret = cbor_encode_boolean(&map, 1);
+    check_ret(ret);
+
+    ret = cbor_encode_uint(&map, CRED_ID_CRED_PROTECT);
+    check_ret(ret);
+    ret = cbor_encode_uint(&map, cred_protect);
     check_ret(ret);
 
     ret = cbor_encoder_close_container(&credential_id, &map);
@@ -1234,30 +1252,69 @@ static int cred_cmp_func(const void *_a, const void *_b) {
 
 // @return the number of valid credentials
 // sorts the credentials.  Most recent creds will be first, invalid ones last.
+static bool ctap_credential_is_allowed(const CTAP_getAssertion *GA,
+                                       const CTAP_credentialDescriptor *cred) {
+  if (cred->type != PUB_KEY_CRED_PUB_KEY) {
+    return true;
+  }
+
+  if (cred->credential.cred_protect == EXT_CRED_PROTECT_REQUIRED) {
+    return GA->uv;
+  }
+
+  if (cred->credential.cred_protect ==
+      EXT_CRED_PROTECT_OPTIONAL_WITH_CREDID) {
+    return GA->allowListPresent || GA->uv;
+  }
+
+  return true;
+}
+
 int ctap_filter_invalid_credentials(CTAP_getAssertion *GA) {
   unsigned int i;
   int count = 0;
+  int credential_count = GA->credLen;
 
-  if (GA->credLen) {
-    for (i = 0; i < (unsigned int)GA->credLen; i++) {
+  if (GA->allowListPresent) {
+    for (i = 0; i < (unsigned int)credential_count; i++) {
       if (!ctap_authenticate_credential(&GA->rp, &GA->creds[i])) {
         ctap_printf("CRED is invalid\n");
-        // invalidate the credential, sort it to the end
-        GA->creds[i].credential.creation_time = 0;
-
-      } else {
-        count++;
+        continue;
       }
+
+      if (!ctap_credential_is_allowed(GA, &GA->creds[i])) {
+        ctap_printf("CRED is not allowed by credProtect\n");
+        continue;
+      }
+
+      if ((int)i != count) {
+        memmove(&GA->creds[count], &GA->creds[i],
+                sizeof(CTAP_credentialDescriptor));
+      }
+      count++;
     }
-    GA->credLen = count;
   } else {
     uint8_t rp_id_hash[32];
     sha256_Raw((uint8_t *)GA->rp.id, GA->rp.size, rp_id_hash);
-    count = resident_credential_find_by_rp_id_hash(rp_id_hash, GA->creds,
-                                                   ALLOW_LIST_MAX_SIZE);
-    ctap_printf("find %d resident credentials\n", count);
-    GA->credLen = count;
+    credential_count = resident_credential_find_by_rp_id_hash(
+        rp_id_hash, GA->creds, ALLOW_LIST_MAX_SIZE);
+    ctap_printf("find %d resident credentials\n", credential_count);
+
+    for (i = 0; i < (unsigned int)credential_count; i++) {
+      if (!ctap_credential_is_allowed(GA, &GA->creds[i])) {
+        ctap_printf("CRED is not allowed by credProtect\n");
+        continue;
+      }
+
+      if ((int)i != count) {
+        memmove(&GA->creds[count], &GA->creds[i],
+                sizeof(CTAP_credentialDescriptor));
+      }
+      count++;
+    }
   }
+
+  GA->credLen = count;
   ctap_printf("qsort length: %d\n", GA->credLen);
   qsort(GA->creds, GA->credLen, sizeof(CTAP_credentialDescriptor),
         cred_cmp_func);
@@ -1888,7 +1945,7 @@ uint8_t ctap_get_assertion(CborEncoder *encoder, uint8_t *request, int length) {
   int map_size = 3;
 
   ctap_printf("ALLOW_LIST has %d creds\n", GA.credLen);
-  if (GA.credLen == 0) {
+  if (!GA.allowListPresent) {
     is_resident_credential = true;
   }
   int validCredCount = ctap_filter_invalid_credentials(&GA);

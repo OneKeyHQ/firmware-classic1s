@@ -208,7 +208,7 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
 
   unsigned char raw_data[1024];
   bool is_raw_data = false;
-  size_t data_len = 0;
+  unsigned int data_len = 0;
 
   if (msg->has_init_data_initial_chunk) {
     if (!msg->has_signing_message_repr) {

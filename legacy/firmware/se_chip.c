@@ -2141,4 +2141,204 @@ secbool se_change_pin_passphrase(const char *old_pin, const char *new_pin) {
 }
 
 #endif
+
+#else
+
+#include <string.h>
+
+#include "config.h"
+#include "crypto.h"
+#include "fido2/resident_credential.h"
+#include "se_chip.h"
+
+typedef struct {
+  uint16_t len;
+  uint8_t data[FIDO2_RESIDENT_CREDENTIALS_SIZE -
+               FIDO2_RESIDENT_CREDENTIALS_HEADER_LEN];
+} emulator_fido2_slot;
+
+static emulator_fido2_slot
+    emulator_fido2_slots[FIDO2_RESIDENT_CREDENTIALS_COUNT];
+static HDNode emulator_fido_node;
+static bool emulator_fido_node_initialized;
+
+static void emulator_ui_wait(const char *message, int progress) {
+  (void)message;
+  (void)progress;
+}
+
+static UI_WAIT_CALLBACK emulator_ui_callback = emulator_ui_wait;
+
+void se_set_ui_callback(UI_WAIT_CALLBACK callback) {
+  emulator_ui_callback = callback ? callback : emulator_ui_wait;
+}
+
+UI_WAIT_CALLBACK se_get_ui_callback(void) { return emulator_ui_callback; }
+
+secbool se_get_session_seed_state(uint8_t *state) {
+  if (state) *state = 0x80;
+  return sectrue;
+}
+
+secbool se_session_is_open(void) { return sectrue; }
+
+secbool se_sessionClose(void) { return sectrue; }
+
+secbool se_sessionClear(void) { return sectrue; }
+
+uint8_t *se_session_startSession(const uint8_t *received_session_id) {
+  static uint8_t session_id[32];
+  if (received_session_id) {
+    memcpy(session_id, received_session_id, sizeof(session_id));
+  }
+  return session_id;
+}
+
+void se_clearPinStateCache(void) {}
+
+secbool se_clearSecsta(void) { return sectrue; }
+
+secbool se_getRetryTimes(uint8_t *ptimes) {
+  if (ptimes) *ptimes = 10;
+  return sectrue;
+}
+
+secbool se_gen_root_node(uint8_t *percent) {
+  if (percent) *percent = 100;
+  return config_getSeed() ? sectrue : secfalse;
+}
+
+bool check_se_fido_seed(void (*callback)(void)) {
+  if (callback) callback();
+  return config_getSeed() != NULL;
+}
+
+int se_slip21_fido_node(uint8_t *data) {
+  const uint8_t *seed = config_getSeed();
+  if (!seed) return -1;
+
+  Slip21Node node;
+  slip21_from_seed(seed, 64, &node);
+  memcpy(data, node.data, sizeof(node.data));
+  memset(&node, 0, sizeof(node));
+  return 0;
+}
+
+secbool se_derive_fido_keys(HDNode *out, const char *curve,
+                            const uint32_t *address_n,
+                            size_t address_n_count, uint32_t *fingerprint) {
+  if (!config_getRootNode(&emulator_fido_node, curve)) return secfalse;
+
+  if (fingerprint) {
+    *fingerprint = hdnode_fingerprint(&emulator_fido_node);
+  }
+  for (size_t i = 0; i < address_n_count; i++) {
+    if (!hdnode_private_ckd(&emulator_fido_node, address_n[i])) {
+      emulator_fido_node_initialized = false;
+      return secfalse;
+    }
+  }
+  if (hdnode_fill_public_key(&emulator_fido_node) != 0) {
+    emulator_fido_node_initialized = false;
+    return secfalse;
+  }
+
+  emulator_fido_node_initialized = true;
+  *out = emulator_fido_node;
+  return sectrue;
+}
+
+secbool se_fido_hdnode_sign_digest(const uint8_t *hash, uint8_t *sig) {
+  uint8_t recovery_id = 0;
+  if (!emulator_fido_node_initialized) return secfalse;
+  return hdnode_sign_digest(&emulator_fido_node, hash, sig, &recovery_id,
+                            NULL) == 0
+             ? sectrue
+             : secfalse;
+}
+
+int hdnode_bip340_sign_digest_internal(const HDNode *node,
+                                       const uint8_t *digest,
+                                       uint8_t sig[64]) {
+  return hdnode_bip340_sign_digest(node, digest, sig);
+}
+
+secbool se_u2f_register(const uint8_t app_id[32], const uint8_t challenge[32],
+                        uint8_t key_handle[64], uint8_t pub_key[65],
+                        uint8_t sign[64]) {
+  (void)app_id;
+  (void)challenge;
+  (void)key_handle;
+  (void)pub_key;
+  (void)sign;
+  return secfalse;
+}
+
+secbool se_u2f_validate_handle(const uint8_t app_id[32],
+                               const uint8_t key_handle[64]) {
+  (void)app_id;
+  (void)key_handle;
+  return secfalse;
+}
+
+secbool se_u2f_authenticate(const uint8_t app_id[32],
+                            const uint8_t key_handle[64],
+                            const uint8_t challenge[32], uint8_t *u2f_counter,
+                            uint8_t sign[64]) {
+  (void)app_id;
+  (void)key_handle;
+  (void)challenge;
+  (void)u2f_counter;
+  (void)sign;
+  return secfalse;
+}
+
+int se_get_fido2_resident_credentials(uint32_t index, uint8_t *dest,
+                                       uint16_t *dst_len) {
+  if (index >= FIDO2_RESIDENT_CREDENTIALS_COUNT || !dst_len) {
+    return SE_FIDO2_SLOT_DATA_INVALID;
+  }
+
+  emulator_fido2_slot *slot = &emulator_fido2_slots[index];
+  if (slot->len == 0) return SE_FIDO2_SLOT_DATA_NULL;
+  if (*dst_len < slot->len) return SE_FIDO2_SLOT_DATA_BUFFER_TOO_SMALL;
+
+  memcpy(dest, slot->data, slot->len);
+  *dst_len = slot->len;
+  return SE_FIDO2_SLOT_DATA_OK;
+}
+
+int se_check_fido2_resident_credential_simple(uint32_t index) {
+  if (index >= FIDO2_RESIDENT_CREDENTIALS_COUNT) {
+    return SE_FIDO2_SLOT_DATA_INVALID;
+  }
+  return emulator_fido2_slots[index].len ? SE_FIDO2_SLOT_DATA_OK
+                                          : SE_FIDO2_SLOT_DATA_NULL;
+}
+
+secbool se_set_fido2_resident_credentials(uint32_t index, const uint8_t *src,
+                                           uint16_t len) {
+  if (index >= FIDO2_RESIDENT_CREDENTIALS_COUNT ||
+      len > sizeof(emulator_fido2_slots[index].data)) {
+    return secfalse;
+  }
+
+  emulator_fido2_slot *slot = &emulator_fido2_slots[index];
+  memcpy(slot->data, src, len);
+  slot->len = len;
+  return sectrue;
+}
+
+secbool se_delete_fido2_resident_credentials(uint32_t index) {
+  if (index >= FIDO2_RESIDENT_CREDENTIALS_COUNT) return secfalse;
+  memset(&emulator_fido2_slots[index], 0,
+         sizeof(emulator_fido2_slots[index]));
+  return sectrue;
+}
+
+secbool se_delete_all_fido2_credentials(void) {
+  memset(emulator_fido2_slots, 0, sizeof(emulator_fido2_slots));
+  return sectrue;
+}
+
 #endif

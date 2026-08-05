@@ -91,6 +91,9 @@ void ble_passkey_cancel(void);
 #define ble_set_switch(...)
 #define ble_get_switch(...) false
 #define change_ble_sta(...)
+#define ble_passkey_confirm(...)
+#define ble_passkey_cancel(...)
+#define ble_hw_ver_is_pure(...) false
 
 #define ble_get_build_id(void) "1234567"
 #define ble_get_hash(void) "6551e797240051925b8a62615f4c8baa"

@@ -18,10 +18,28 @@
  */
 
 #include <time.h>
+#include <string.h>
 
 #include "timer.h"
 
-void timer_init(void) {}
+#define EMULATOR_TIMER_COUNT 8
+
+typedef struct {
+  char name[32];
+  uint32_t last;
+  uint32_t cycle;
+  timer_func callback;
+} EmulatorTimer;
+
+static EmulatorTimer emulator_timers[EMULATOR_TIMER_COUNT];
+static timer_func emulator_loop_callback;
+static uint32_t emulator_loop_last;
+static uint32_t emulator_loop_interval;
+
+void timer_init(void) {
+  memset(emulator_timers, 0, sizeof(emulator_timers));
+  emulator_loop_callback = NULL;
+}
 
 static uint32_t timer_out_array[timer_out_null];
 static void timer_out_decrease(void) {
@@ -48,3 +66,74 @@ uint32_t timer_ms(void) {
 }
 
 void delay_ms(uint32_t uiDelay_Ms) { (void)uiDelay_Ms; }
+
+void delay_us(uint32_t uiDelay_us) { (void)uiDelay_us; }
+
+uint32_t svc_timer_ms(void) { return timer_ms(); }
+
+void svc_system_reset(void) {}
+
+void register_timer(char *name, uint32_t cycle, timer_func callback) {
+  EmulatorTimer *free_slot = NULL;
+
+  for (size_t i = 0; i < EMULATOR_TIMER_COUNT; i++) {
+    if (emulator_timers[i].callback != NULL &&
+        strcmp(emulator_timers[i].name, name) == 0) {
+      free_slot = &emulator_timers[i];
+      break;
+    }
+    if (free_slot == NULL && emulator_timers[i].callback == NULL) {
+      free_slot = &emulator_timers[i];
+    }
+  }
+
+  if (free_slot == NULL) return;
+  strncpy(free_slot->name, name, sizeof(free_slot->name) - 1);
+  free_slot->name[sizeof(free_slot->name) - 1] = '\0';
+  free_slot->last = timer_ms();
+  free_slot->cycle = cycle;
+  free_slot->callback = callback;
+}
+
+void unregister_timer(char *name) {
+  for (size_t i = 0; i < EMULATOR_TIMER_COUNT; i++) {
+    if (emulator_timers[i].callback != NULL &&
+        strcmp(emulator_timers[i].name, name) == 0) {
+      memset(&emulator_timers[i], 0, sizeof(emulator_timers[i]));
+      return;
+    }
+  }
+}
+
+void register_loop_callback(timer_func callback, uint32_t start,
+                            uint32_t interval) {
+  emulator_loop_callback = callback;
+  emulator_loop_last = start;
+  emulator_loop_interval = interval;
+}
+
+void unregister_loop_callback(void) { emulator_loop_callback = NULL; }
+
+void loop_callback_handler(void) {
+  uint32_t now = timer_ms();
+
+  for (size_t i = 0; i < EMULATOR_TIMER_COUNT; i++) {
+    EmulatorTimer *timer = &emulator_timers[i];
+    if (timer->callback != NULL && now - timer->last >= timer->cycle) {
+      timer_func callback = timer->callback;
+      timer->last = now;
+      callback();
+    }
+  }
+
+  if (emulator_loop_callback != NULL &&
+      now - emulator_loop_last >= emulator_loop_interval) {
+    timer_func callback = emulator_loop_callback;
+    emulator_loop_last = now;
+    callback();
+  }
+}
+
+void timer_sleep_start_reset(void) {}
+
+uint32_t timer_get_sleep_count(void) { return 0; }

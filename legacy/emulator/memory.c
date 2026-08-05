@@ -136,3 +136,5 @@ uint32_t svc_flash_lock(void) {
   sync();
   return 0;
 }
+
+uint8_t memory_protect_state(void) { return 0; }

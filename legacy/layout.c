@@ -39,6 +39,7 @@
 static bool refresh_home = true;
 void *layoutLast = NULL, *layoutLastBackup = NULL;
 
+#if !EMULATOR
 void pair_cancel_timeout_callback(void) {
   if (layoutLast == layoutBlePasskey) {
     unregister_timer(TIMER_NAME_PAIR_RESULT);
@@ -68,6 +69,7 @@ void layoutBlePairResultDismiss(void) {
     oledRefresh();
   }
 }
+#endif
 
 bool layoutNeedRefresh(void) {
   if (refresh_home) {
@@ -515,6 +517,15 @@ void layoutBlePasskeyDismiss(void) {
   layoutLastBackup = NULL;
   oledRefresh();
 }
+
+#else
+
+void layoutBlePasskey(uint8_t *passkey) { (void)passkey; }
+void layoutBlePairSuccess(void) {}
+void layoutBlePairFailed(void) {}
+bool layoutBlePairResultShowing(void) { return false; }
+void layoutBlePairResultDismiss(void) {}
+void layoutBlePasskeyDismiss(void) {}
 
 #endif
 

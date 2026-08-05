@@ -2158,8 +2158,8 @@ bool ada_sign_messages(const CardanoSignMessage *msg,
     return false;
   }
 #if EMULATOR
-  ed25519_sign_ext(sig_structure, sig_structure_index, node->private_key,
-                   node->private_key_extension, sig);
+  ed25519_sign_ext(sig_structure, sig_structure_index, node.private_key,
+                   node.private_key_extension, sig);
 #else
   if (hdnode_sign(&node, sig_structure, sig_structure_index, 0, sig, NULL,
                   NULL) != 0) {
