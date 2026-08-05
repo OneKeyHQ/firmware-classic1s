@@ -46,6 +46,7 @@
 #define CRED_ID_SIGN_COUNT          0x08
 #define CRED_ID_ALGORITHM           0x09
 #define CRED_ID_CURVE               0x0A
+#define CRED_ID_CRED_PROTECT        0x0B
 
 #define CRED_ID_MAX_LEN             512
 
@@ -269,6 +270,7 @@ typedef struct{
     CTAP_userEntity user;
     uint32_t creation_time;
     bool hmac_secret;
+    uint8_t cred_protect;
 }Credential_ID_Info;
 
 typedef struct
@@ -486,8 +488,9 @@ void ctap_load_external_keys(uint8_t * keybytes);
 char *get_account_name(CTAP_userEntity *user);
 uint8_t ctap_get_info(CborEncoder *cbor_encoder);
 uint8_t ctap_make_credential(CborEncoder *encoder, uint8_t *request,
-                             int length);
-uint8_t ctap_get_assertion(CborEncoder *encoder, uint8_t *request, int length);
+                             bool device_user_verified, int length);
+uint8_t ctap_get_assertion(CborEncoder *encoder, uint8_t *request,
+                           bool device_user_verified, int length);
 
 uint8_t ctap_client_pin(CborEncoder *encoder, uint8_t *request, int length);
 

@@ -1178,11 +1178,15 @@ void ctap_hid_keepalive_unregister(void) {
   }
 }
 
-uint8_t ctap_check_device_status(void) {
+uint8_t ctap_check_device_status(bool *user_verified) {
   uint8_t status = CTAP1_ERR_SUCCESS;
+  if (user_verified) {
+    *user_verified = false;
+  }
   if (!config_isInitialized()) {
     return CTAP1_ERR_OTHER;
   }
+  bool user_verification_configured = config_hasPin();
   if (!session_isUnlocked()) {
     // Keepalive should be sent every 100ms
     ctap_hid_keepalive_register();
@@ -1197,6 +1201,10 @@ uint8_t ctap_check_device_status(void) {
   if (status == CTAP1_ERR_SUCCESS) {
     if (check_se_fido_seed(ctap_hid_keepalive_status)) {
       status = CTAP1_ERR_SUCCESS;
+      if (user_verified && user_verification_configured &&
+          session_isUnlocked()) {
+        *user_verified = true;
+      }
     } else {
       status = CTAP2_ERR_OPERATION_DENIED;
     }
@@ -1231,6 +1239,7 @@ uint8_t ctap_cbor_cmd(const uint8_t *data, const uint32_t len) {
 
   uint8_t cmd = data[0];
   uint8_t status = CTAP1_ERR_SUCCESS;
+  bool device_user_verified = false;
 
   if (dialog_manager.is_busy) {
     ctap_error(CTAP1_ERR_CHANNEL_BUSY);
@@ -1243,7 +1252,7 @@ uint8_t ctap_cbor_cmd(const uint8_t *data, const uint32_t len) {
   switch (cmd) {
     case CTAP_MAKE_CREDENTIAL:
     case CTAP_GET_ASSERTION:
-      status = ctap_check_device_status();
+      status = ctap_check_device_status(&device_user_verified);
       break;
     default:
       break;
@@ -1258,7 +1267,8 @@ uint8_t ctap_cbor_cmd(const uint8_t *data, const uint32_t len) {
   switch (cmd) {
     case CTAP_MAKE_CREDENTIAL:
       ctap_hid_keepalive_register();
-      status = ctap_make_credential(&encoder, (uint8_t *)(data + 1), len - 1);
+      status = ctap_make_credential(&encoder, (uint8_t *)(data + 1),
+                                    device_user_verified, len - 1);
       ctap_hid_keepalive_unregister();
       if (ctap_hid_cancel_is_requested()) {
         status = CTAP2_ERR_KEEPALIVE_CANCEL;
@@ -1275,7 +1285,8 @@ uint8_t ctap_cbor_cmd(const uint8_t *data, const uint32_t len) {
       break;
     case CTAP_GET_ASSERTION:
       ctap_hid_keepalive_register();
-      status = ctap_get_assertion(&encoder, (uint8_t *)(data + 1), len - 1);
+      status = ctap_get_assertion(&encoder, (uint8_t *)(data + 1),
+                                  device_user_verified, len - 1);
       ctap_hid_keepalive_unregister();
       if (ctap_hid_cancel_is_requested()) {
         status = CTAP2_ERR_KEEPALIVE_CANCEL;
@@ -1656,7 +1667,9 @@ void ctap_ble_u2f_send(uint8_t cmd, uint8_t *data, uint16_t len) {
   memcpy(ble_response_buffer + 3, data, len);
   ctap_printf("ctap_ble_u2f_send cmd: %d\n", cmd);
   dump_hex1(NULL, ble_response_buffer, len + 3);
+#if !EMULATOR
   i2c_slave_send_fido(ble_response_buffer, len + 3);
+#endif
 }
 
 void ctap_ble_ping(uint8_t *data, uint16_t len) {

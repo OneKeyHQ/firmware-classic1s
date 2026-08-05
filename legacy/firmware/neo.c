@@ -1,4 +1,5 @@
 #include "neo.h"
+#include <inttypes.h>
 #include <stdio.h>
 #include "base58.h"
 #include "buttons.h"
@@ -565,7 +566,7 @@ refresh_menu:
     layoutHeader(tx_msg[0]);
     oledDrawStringAdapter(0, y, _(GLOBAL_TARGET_NETWORK), FONT_STANDARD);
     char network_magic_str[11] = {0};
-    snprintf(network_magic_str, sizeof(network_magic_str), "%lu",
+    snprintf(network_magic_str, sizeof(network_magic_str), "%" PRIu32,
              network_magic);
     oledDrawStringAdapter(0, y + 10, network_magic_str, FONT_STANDARD);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
@@ -635,7 +636,7 @@ refresh_menu:
     } else if (is_unknown_network(network_magic)) {
       oledDrawStringAdapter(0, y, _(GLOBAL_TARGET_NETWORK), FONT_STANDARD);
       char network_magic_str[11] = {0};
-      snprintf(network_magic_str, sizeof(network_magic_str), "%lu",
+      snprintf(network_magic_str, sizeof(network_magic_str), "%" PRIu32,
                network_magic);
       oledDrawStringAdapter(0, y + 10, network_magic_str, FONT_STANDARD);
     }
@@ -646,7 +647,7 @@ refresh_menu:
     if (is_unknown_network(network_magic)) {
       oledDrawStringAdapter(0, y, _(GLOBAL_TARGET_NETWORK), FONT_STANDARD);
       char network_magic_str[11] = {0};
-      snprintf(network_magic_str, sizeof(network_magic_str), "%lu",
+      snprintf(network_magic_str, sizeof(network_magic_str), "%" PRIu32,
                network_magic);
       oledDrawStringAdapter(0, y + 10, network_magic_str, FONT_STANDARD);
       layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);

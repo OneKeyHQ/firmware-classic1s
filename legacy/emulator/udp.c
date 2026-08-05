@@ -26,6 +26,7 @@
 #include <sys/socket.h>
 
 #define TREZOR_UDP_PORT 54935
+#define TREZOR_FIDO2_UDP_PORT 21326
 
 struct usb_socket {
   int fd;
@@ -35,8 +36,9 @@ struct usb_socket {
 
 static struct usb_socket usb_main;
 static struct usb_socket usb_debug;
+static struct usb_socket usb_fido;
 
-static struct pollfd usb_fds[2];
+static struct pollfd usb_fds[3];
 
 static int socket_setup(int port) {
   int fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -106,17 +108,25 @@ void emulatorSocketInit(void) {
   usb_debug.fromlen = 0;
   usb_fds[1].fd = usb_debug.fd;
   usb_fds[1].events = POLLIN;
+
+  usb_fido.fd = socket_setup(TREZOR_FIDO2_UDP_PORT);
+  usb_fido.fromlen = 0;
+  usb_fds[2].fd = usb_fido.fd;
+  usb_fds[2].events = POLLIN;
 }
 
 size_t emulatorSocketRead(int *iface, void *buffer, size_t size,
                           int timeout_ms) {
-  if (poll(usb_fds, 2, timeout_ms) > 0) {
+  if (poll(usb_fds, 3, timeout_ms) > 0) {
     if (usb_fds[0].revents & POLLIN) {
       *iface = 0;
       return socket_read(&usb_main, buffer, size);
     } else if (usb_fds[1].revents & POLLIN) {
       *iface = 1;
       return socket_read(&usb_debug, buffer, size);
+    } else if (usb_fds[2].revents & POLLIN) {
+      *iface = 2;
+      return socket_read(&usb_fido, buffer, size);
     }
   }
   return 0;
@@ -128,6 +138,9 @@ size_t emulatorSocketWrite(int iface, const void *buffer, size_t size) {
   }
   if (iface == 1) {
     return socket_write(&usb_debug, buffer, size);
+  }
+  if (iface == 2) {
+    return socket_write(&usb_fido, buffer, size);
   }
   return 0;
 }

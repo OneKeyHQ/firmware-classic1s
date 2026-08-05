@@ -496,7 +496,11 @@ bool alephium_sign_message(const HDNode *node, const AlephiumSignMessage *msg,
 
   uint8_t signature[64];
   uint8_t pby;
-  if (hdnode_sign_digest(node, hash, signature, &pby, NULL) != 0) {
+  HDNode signing_node = *node;
+  int sign_result =
+      hdnode_sign_digest(&signing_node, hash, signature, &pby, NULL);
+  memset(&signing_node, 0, sizeof(signing_node));
+  if (sign_result != 0) {
     return false;
   }
   resp->has_address = true;

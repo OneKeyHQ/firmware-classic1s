@@ -109,11 +109,13 @@ void config_init(void);
 void session_clear(bool lock);
 void session_endCurrentSession(void);
 void config_lockDevice(void);
+char *config_get_device_model(void);
 
 void config_loadDevice(const LoadDevice *msg);
 void config_loadDevice_ex(const BixinLoadDevice *msg);
 
 const uint8_t *config_getSeed(void);
+const uint8_t *config_getFidoSeed(void);
 
 bool config_setCoinJoinAuthorization(const AuthorizeCoinJoin *authorization);
 MessageType config_getAuthorizationType(void);
@@ -157,6 +159,7 @@ bool config_getPin(char *dest, uint16_t dest_size);
 #endif
 
 bool config_unlock(const char *pin, pin_type_t pin_type);
+bool config_verifyPin(const char *pin, pin_type_t pin_type);
 bool config_hasPin(void);
 bool config_changePin(const char *old_pin, const char *new_pin);
 bool session_isUnlocked(void);
@@ -228,6 +231,8 @@ bool config_STSeedRestore(void *cipher_data, uint16_t cipher_len,
 uint32_t config_getPinFails(void);
 
 bool config_getCoinSwitch(CoinSwitch loc);
+bool config_getFidoSwitch(bool *fido_switch);
+void config_setFidoSwitch(bool fido_switch);
 void config_setCoinSwitch(CoinSwitch loc, bool flag);
 
 bool config_hasTrezorCompMode(void);

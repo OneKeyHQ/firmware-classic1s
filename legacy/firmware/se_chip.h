@@ -1,30 +1,12 @@
 #ifndef __SE_CHIP_H__
 #define __SE_CHIP_H__
-#if !EMULATOR
 #include <stdbool.h>
 #include <stdint.h>
 
 #include "bip32.h"
 #include "secbool.h"
 
-#define SESSION_KEYLEN (16)
-
-#define PUBLIC_REGION_SIZE (0x800)   // 2KB
-#define PRIVATE_REGION_SIZE (0x800)  // 2KB
-
-#define MAX_AUTHORIZATION_LEN 128
-
-enum {
-  CANONICAL_SIG_ETHEREUM = 1,
-  CANONICAL_SIG_EOS = 2,
-};
-
-#define SE_FIDO2_SLOT_DATA_OK 0
-#define SE_FIDO2_SLOT_DATA_NULL 1
-#define SE_FIDO2_SLOT_DATA_BUFFER_TOO_SMALL 2
-#define SE_FIDO2_SLOT_DATA_INVALID 3
-
-// PIN types
+// PIN types are shared by the hardware and emulator configuration APIs.
 typedef enum {
   PIN_TYPE_USER = 0,
   PIN_TYPE_USER_CHECK,
@@ -52,6 +34,26 @@ typedef enum {
   PIN_FAILED
 } pin_result_t;
 
+#define SE_FIDO2_SLOT_DATA_OK 0
+#define SE_FIDO2_SLOT_DATA_NULL 1
+#define SE_FIDO2_SLOT_DATA_BUFFER_TOO_SMALL 2
+#define SE_FIDO2_SLOT_DATA_INVALID 3
+
+typedef void (*UI_WAIT_CALLBACK)(const char *message, int progress);
+
+#if !EMULATOR
+#define SESSION_KEYLEN (16)
+
+#define PUBLIC_REGION_SIZE (0x800)   // 2KB
+#define PRIVATE_REGION_SIZE (0x800)  // 2KB
+
+#define MAX_AUTHORIZATION_LEN 128
+
+enum {
+  CANONICAL_SIG_ETHEREUM = 1,
+  CANONICAL_SIG_EOS = 2,
+};
+
 // PIN passphrase management functions
 pin_result_t se_get_pin_result_type(void);
 secbool se_set_pin_passphrase(const char *pin, const char *passphrase_pin,
@@ -62,7 +64,6 @@ secbool se_get_pin_passphrase_space(uint8_t *space);
 secbool se_check_passphrase_btc_test_address(const char *address);
 secbool se_change_pin_passphrase(const char *old_pin, const char *new_pin);
 
-typedef void (*UI_WAIT_CALLBACK)(const char *message, int progress);
 void se_set_ui_callback(UI_WAIT_CALLBACK callback);
 UI_WAIT_CALLBACK se_get_ui_callback(void);
 
@@ -209,7 +210,7 @@ secbool se_delete_all_fido2_credentials(void);
 #else
 #define se_transmit(...) 0
 #define se_get_sn(...) false
-#define se_get_version(...) "1.1.0.0"
+#define se_get_version(...) "1.1.5"
 #define se_get_build_id(...) "xxxxxxx"
 #define se_get_hash(...) "00000000000000000000000000000000"
 #define se_backup(...) false
@@ -228,6 +229,41 @@ secbool se_delete_all_fido2_credentials(void);
 #define se_verifyPin(...) false
 #define se_changePin(...) false
 #define se_pinFailedCounter(...) 0
+#define se_get_pin_result_type(...) PIN_FAILED
+#define se_get_pin_passphrase_ret(...) PIN_FAILED
+static inline secbool se_get_pin_passphrase_space(uint8_t *space) {
+  if (space) *space = 0;
+  return secfalse;
+}
+static inline secbool se_set_pin_passphrase(const char *pin,
+                                             const char *passphrase_pin,
+                                             const char *passphrase,
+                                             bool *override) {
+  (void)pin;
+  (void)passphrase_pin;
+  (void)passphrase;
+  (void)override;
+  return secfalse;
+}
+static inline secbool se_delete_pin_passphrase(const char *passphrase_pin,
+                                                bool *current) {
+  (void)passphrase_pin;
+  if (current) *current = false;
+  return secfalse;
+}
+static inline secbool se_check_passphrase_btc_test_address(
+    const char *address) {
+  (void)address;
+  return secfalse;
+}
+static inline secbool se_change_pin_passphrase(const char *old_pin,
+                                                const char *new_pin) {
+  (void)old_pin;
+  (void)new_pin;
+  return secfalse;
+}
+static inline secbool se_getSecsta(void) { return secfalse; }
+static inline uint16_t se_lasterror(void) { return 0; }
 #define se_setSeedStrength(...) false
 #define se_getSeedStrength(...) false
 #define se_getNeedsBackup(...) false
@@ -235,5 +271,39 @@ secbool se_delete_all_fido2_credentials(void);
 #define se_export_seed(...) false
 #define se_importSeed(...) false
 #define se_isFactoryMode(...) false
+
+void se_set_ui_callback(UI_WAIT_CALLBACK callback);
+UI_WAIT_CALLBACK se_get_ui_callback(void);
+secbool se_get_session_seed_state(uint8_t *state);
+secbool se_session_is_open(void);
+secbool se_sessionClose(void);
+secbool se_sessionClear(void);
+uint8_t *se_session_startSession(const uint8_t *received_session_id);
+void se_clearPinStateCache(void);
+secbool se_clearSecsta(void);
+secbool se_getRetryTimes(uint8_t *ptimes);
+secbool se_gen_root_node(uint8_t *percent);
+secbool se_u2f_register(const uint8_t app_id[32], const uint8_t challenge[32],
+                        uint8_t key_handle[64], uint8_t pub_key[65],
+                        uint8_t sign[64]);
+secbool se_u2f_validate_handle(const uint8_t app_id[32],
+                               const uint8_t key_handle[64]);
+secbool se_u2f_authenticate(const uint8_t app_id[32],
+                            const uint8_t key_handle[64],
+                            const uint8_t challenge[32], uint8_t *u2f_counter,
+                            uint8_t sign[64]);
+bool check_se_fido_seed(void (*callback)(void));
+int se_slip21_fido_node(uint8_t *data);
+secbool se_derive_fido_keys(HDNode *out, const char *curve,
+                            const uint32_t *address_n,
+                            size_t address_n_count, uint32_t *fingerprint);
+secbool se_fido_hdnode_sign_digest(const uint8_t *hash, uint8_t *sig);
+int se_get_fido2_resident_credentials(uint32_t index, uint8_t *dest,
+                                       uint16_t *dst_len);
+int se_check_fido2_resident_credential_simple(uint32_t index);
+secbool se_set_fido2_resident_credentials(uint32_t index, const uint8_t *src,
+                                           uint16_t len);
+secbool se_delete_fido2_resident_credentials(uint32_t index);
+secbool se_delete_all_fido2_credentials(void);
 #endif
 #endif

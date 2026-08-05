@@ -424,6 +424,10 @@ void layoutStatusLogoEx(bool fresh) {
 
 #endif
 
+#if EMULATOR
+void layoutStatusLogoEx(bool fresh) { (void)fresh; }
+#endif
+
 void drawScrollbar(int pages, int index) {
   int i, bar_start = 12, bar_end = 52;
   int bar_heght = MAX((40 - 2 * (pages - 1)), 6);
