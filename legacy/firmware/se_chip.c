@@ -2205,16 +2205,16 @@ secbool se_getRetryTimes(uint8_t *ptimes) {
 
 secbool se_gen_root_node(uint8_t *percent) {
   if (percent) *percent = 100;
-  return config_getSeed() ? sectrue : secfalse;
+  return config_getFidoSeed() ? sectrue : secfalse;
 }
 
 bool check_se_fido_seed(void (*callback)(void)) {
   if (callback) callback();
-  return config_getSeed() != NULL;
+  return config_getFidoSeed() != NULL;
 }
 
 int se_slip21_fido_node(uint8_t *data) {
-  const uint8_t *seed = config_getSeed();
+  const uint8_t *seed = config_getFidoSeed();
   if (!seed) return -1;
 
   Slip21Node node;
@@ -2227,7 +2227,10 @@ int se_slip21_fido_node(uint8_t *data) {
 secbool se_derive_fido_keys(HDNode *out, const char *curve,
                             const uint32_t *address_n,
                             size_t address_n_count, uint32_t *fingerprint) {
-  if (!config_getRootNode(&emulator_fido_node, curve)) return secfalse;
+  const uint8_t *seed = config_getFidoSeed();
+  if (!seed || hdnode_from_seed(seed, 64, curve, &emulator_fido_node) == 0) {
+    return secfalse;
+  }
 
   if (fingerprint) {
     *fingerprint = hdnode_fingerprint(&emulator_fido_node);

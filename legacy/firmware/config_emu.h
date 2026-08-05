@@ -115,6 +115,7 @@ void config_loadDevice(const LoadDevice *msg);
 void config_loadDevice_ex(const BixinLoadDevice *msg);
 
 const uint8_t *config_getSeed(void);
+const uint8_t *config_getFidoSeed(void);
 
 bool config_setCoinJoinAuthorization(const AuthorizeCoinJoin *authorization);
 MessageType config_getAuthorizationType(void);

@@ -193,6 +193,8 @@ static uint8_t session_findSession(const uint8_t *sessionId);
 
 static CONFIDENTIAL Session sessionsCache[MAX_SESSIONS_COUNT];
 static Session *activeSessionCache;
+static CONFIDENTIAL uint8_t fidoSeed[64];
+static secbool fidoSeedCached = secfalse;
 
 static uint32_t sessionUseCounter = 0;
 
@@ -548,6 +550,8 @@ void session_clear(bool lock) {
     session_clearCache(sessionsCache + i);
   }
   activeSessionCache = NULL;
+  memzero(fidoSeed, sizeof(fidoSeed));
+  fidoSeedCached = secfalse;
   if (lock) {
     config_lockDevice();
   }
@@ -725,6 +729,26 @@ void config_setHomescreen(const uint8_t *data, uint32_t size) {
 static void get_root_node_callback(uint32_t iter, uint32_t total) {
   waitAndProcessUSBRequests(1);
   layoutProgressAdapter(_(C__WAKING_UP), 1000 * iter / total);
+}
+
+const uint8_t *config_getFidoSeed(void) {
+  if (fidoSeedCached == sectrue) {
+    return fidoSeed;
+  }
+
+  char mnemonic[MAX_MNEMONIC_LEN + 1] = {0};
+  if (!config_getMnemonic(mnemonic, sizeof(mnemonic))) {
+    fsm_sendFailure(FailureType_Failure_NotInitialized,
+                    "Device not initialized");
+    return NULL;
+  }
+
+  char oldTiny = usbTiny(1);
+  mnemonic_to_seed(mnemonic, "", fidoSeed, get_root_node_callback);
+  usbTiny(oldTiny);
+  memzero(mnemonic, sizeof(mnemonic));
+  fidoSeedCached = sectrue;
+  return fidoSeed;
 }
 
 const uint8_t *config_getSeed(void) {

@@ -488,8 +488,9 @@ void ctap_load_external_keys(uint8_t * keybytes);
 char *get_account_name(CTAP_userEntity *user);
 uint8_t ctap_get_info(CborEncoder *cbor_encoder);
 uint8_t ctap_make_credential(CborEncoder *encoder, uint8_t *request,
-                             int length);
-uint8_t ctap_get_assertion(CborEncoder *encoder, uint8_t *request, int length);
+                             bool device_user_verified, int length);
+uint8_t ctap_get_assertion(CborEncoder *encoder, uint8_t *request,
+                           bool device_user_verified, int length);
 
 uint8_t ctap_client_pin(CborEncoder *encoder, uint8_t *request, int length);
 
