@@ -9,6 +9,8 @@ static const uint8_t PSBT_MAGIC_BYTES[5] = {'p', 's', 'b', 't', 0xff};
 
 static const uint8_t PSBT_SEPARATOR = 0x00;
 
+#define MAX_PSBT_VALUE_SIZE 1024
+
 // PSBT Global Types
 const uint8_t PSBT_GLOBAL_UNSIGNED_TX = 0x00;
 const uint8_t PSBT_GLOBAL_XPUB = 0x01;
@@ -111,13 +113,14 @@ int ser_string(const uint8_t* src, size_t count, BufferWriter* writer) {
 }
 
 int deser_string_to_buffer_reader(BufferReader* f, BufferReader* out_reader) {
-  uint8_t buffer[1024];
-  size_t length;
-  if (!deser_string(f, buffer, sizeof(buffer), &length)) {
+  uint64_t length = deser_compact_size(f);
+  if (length == 0 || length > MAX_PSBT_VALUE_SIZE ||
+      length > f->length - f->position) {
     return 0;
   }
 
-  init_buffer_reader(out_reader, buffer, length);
+  init_buffer_reader(out_reader, f->buffer + f->position, (size_t)length);
+  f->position += (size_t)length;
   return 1;
 }
 
@@ -192,14 +195,17 @@ bool deser_transaction(BufferReader* reader, CTransaction* tx) {
 
 bool deser_hd_keypath(BufferReader* key_origin_info_reader,
                       KeyOriginInfo* key_origin) {
-  size_t key_origin_info_reader_len =
+  size_t key_origin_len =
       key_origin_info_reader->length - key_origin_info_reader->position;
-  if (key_origin_info_reader_len % 4 != 0) return false;
+  if (key_origin_len % 4 != 0) return false;
   if (!read_bytes(key_origin_info_reader, (uint8_t*)&key_origin->fingerprint,
                   4)) {
     return false;
   }
-  key_origin->path_len = key_origin_info_reader_len / 4 - 1;
+  key_origin->path_len = key_origin_len / 4 - 1;
+  if (key_origin->path_len >
+      sizeof(key_origin->path) / sizeof(key_origin->path[0]))
+    return false;
   for (size_t i = 0; i < key_origin->path_len; i++) {
     if (!read_bytes(key_origin_info_reader, (uint8_t*)&key_origin->path[i],
                     4)) {
@@ -208,6 +214,13 @@ bool deser_hd_keypath(BufferReader* key_origin_info_reader,
   }
   return true;
 }
+
+static bool deser_key_origin(BufferReader* reader, KeyOriginInfo* key_origin) {
+  BufferReader key_origin_reader = {0};
+  return deser_string_to_buffer_reader(reader, &key_origin_reader) &&
+         deser_hd_keypath(&key_origin_reader, key_origin);
+}
+
 bool deser_tap_bip32_derivation(BufferReader* reader,
                                 TAP_BIP32_DERIVATION* tap_bip32_derivation) {
   BufferReader value_reader = {0};
@@ -271,7 +284,8 @@ bool deser_tap_leaf_script(BufferReader* reader, BufferReader* key_reader,
     return false;
   tap_leaf_script->control_block_len = control_block_len;
   uint64_t script_len = deser_compact_size(reader);
-  if (script_len > sizeof(tap_leaf_script->script)) return false;
+  if (script_len == 0 || script_len > sizeof(tap_leaf_script->script))
+    return false;
   if (!read_bytes(reader, tap_leaf_script->script, script_len - 1))
     return false;
   tap_leaf_script->script_len = script_len - 1;
@@ -368,7 +382,7 @@ bool deser_psbt_input(BufferReader* reader, PartiallySignedInput* input) {
                         key_len - 1))
           return false;
         input->bip32_path.pubkey_len = key_len - 1;
-        if (!deser_hd_keypath(reader, &input->bip32_path.key_origin))
+        if (!deser_key_origin(reader, &input->bip32_path.key_origin))
           return false;
         input->bip32_path_lookuped = true;
         break;
@@ -522,7 +536,7 @@ bool deser_psbt_output(BufferReader* reader, PartiallySignedOutput* output) {
                         key_len - 1))
           return false;
         output->bip32_path.pubkey_len = key_len - 1;
-        if (!deser_hd_keypath(reader, &output->bip32_path.key_origin))
+        if (!deser_key_origin(reader, &output->bip32_path.key_origin))
           return false;
         output->bip32_path_lookuped = true;
         break;
