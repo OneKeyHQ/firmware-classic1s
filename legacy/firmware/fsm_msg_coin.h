@@ -931,6 +931,41 @@ void fsm_msgGetPublicKeyMultiple(const GetPublicKeyMultiple *msg) {
   layoutHome();
 }
 
+static bool parse_op_return_data(const uint8_t *script, size_t script_len,
+                                 const uint8_t **payload, size_t *payload_len) {
+  size_t payload_offset = 2;
+  size_t push_len;
+
+  if (script[1] < 0x4C) {
+    push_len = script[1];
+  } else if (script[1] == 0x4C) {
+    payload_offset = 3;
+    push_len = script[2];
+    // Reject non-minimal OP_PUSHDATA1 encodings.
+    if (push_len < 0x4C) return false;
+  } else {
+    return false;
+  }
+
+  if (script_len != payload_offset + push_len) return false;
+
+  *payload = script + payload_offset;
+  *payload_len = push_len;
+  return true;
+}
+
+static bool _validate_change_output_script(
+    const CoinInfo *coin, HDNode *node, InputScriptType script_type,
+    const PartiallySignedOutput *output) {
+  uint8_t expected_script[sizeof(output->script)] = {0};
+  pb_size_t expected_script_len = 0;
+
+  return get_script_pubkey(coin, node, false, NULL, script_type,
+                           expected_script, &expected_script_len) &&
+         expected_script_len == output->script_len &&
+         memcmp(expected_script, output->script, expected_script_len) == 0;
+}
+
 void fsm_msgSignPsbt(const SignPsbt *msg) {
   CHECK_INITIALIZED
   CHECK_PIN
@@ -938,6 +973,12 @@ void fsm_msgSignPsbt(const SignPsbt *msg) {
 
   const CoinInfo *coin = fsm_getCoin(msg->has_coin_name, msg->coin_name);
   if (!coin) return;
+  if (!coin->has_taproot) {
+    fsm_sendFailure(FailureType_Failure_DataError,
+                    "Taproot is not supported for this coin");
+    layoutHome();
+    return;
+  }
   PSBT psbt = {0};
 
   if (!psbt_deserialize(msg->psbt.bytes, msg->psbt.size, &psbt)) {
@@ -954,9 +995,9 @@ void fsm_msgSignPsbt(const SignPsbt *msg) {
   }
   BitcoinSigHasher hasher = {0};
   sig_hasher_init(&hasher);
-  int64_t total_in = 0;
-  int64_t total_out = 0;
-  int64_t change_out = 0;
+  uint64_t total_in = 0;
+  uint64_t total_out = 0;
+  uint64_t change_out = 0;
   bool contains_script_path_spending = false;
   for (int i = 0; i < psbt.inputs_len; i++) {
     PartiallySignedInput *input = &psbt.inputs[i];
@@ -978,7 +1019,8 @@ void fsm_msgSignPsbt(const SignPsbt *msg) {
     uint8_t script_pub[34] = {0};
     uint8_t script_pub_len = input->witness_utxo.scriptPubKey_len;
     int64_t amount = input->witness_utxo.nValue;
-    CHECK_PARAM(script_pub_len <= 34, "invalid psbt, input script overflow")
+    CHECK_PARAM(script_pub_len <= sizeof(script_pub),
+                "invalid psbt, input script overflow")
     memcpy(script_pub, input->witness_utxo.scriptPubKey, script_pub_len);
 
     uint8_t witness_version = 0;
@@ -986,10 +1028,9 @@ void fsm_msgSignPsbt(const SignPsbt *msg) {
     CHECK_PARAM(is_wit && witness_version == 1,
                 "invalid psbt, only taproot is supported")
 
-    uint8_t mfp[4] = {0};
-    memcpy(mfp, input->tap_bip32_path.key_origin.fingerprint, 4);
-    uint32_t mfp_u32 = mfp[0] << 24 | mfp[1] << 16 | mfp[2] << 8 | mfp[3];
-    CHECK_PARAM(mfp_u32 == root_fingerprint, "invalid psbt, wallet mismatch")
+    CHECK_PARAM(read_be(input->tap_bip32_path.key_origin.fingerprint) ==
+                    root_fingerprint,
+                "invalid psbt, wallet mismatch")
     if (!fsm_checkCoinPath(coin, InputScriptType_SPENDTAPROOT,
                            input->tap_bip32_path.key_origin.path_len,
                            input->tap_bip32_path.key_origin.path, false,
@@ -1019,12 +1060,22 @@ void fsm_msgSignPsbt(const SignPsbt *msg) {
         contains_script_path_spending = true;
       }
     }
-    total_in += amount;
+
+    CHECK_PARAM(amount >= 0 && (uint64_t)amount <= UINT64_MAX - total_in,
+                "invalid psbt, input amount")
+    total_in += (uint64_t)amount;
     sig_hasher_add_input(&hasher, input);
   }
   for (int i = 0; i < psbt.outputs_len; i++) {
     bool is_change = false;
     PartiallySignedOutput *output = &psbt.outputs[i];
+    CHECK_PARAM(
+        !(output->bip32_path_lookuped && output->tap_bip32_path_lookuped),
+        "invalid psbt, multiple derivation paths")
+    CHECK_PARAM(output->amount >= 0 &&
+                    (uint64_t)output->amount <= UINT64_MAX - total_out,
+                "invalid psbt, output amount")
+    total_out += (uint64_t)output->amount;
     uint8_t witness_version = 0;
     bool is_wit =
         is_witness(output->script, output->script_len, &witness_version);
@@ -1053,35 +1104,55 @@ void fsm_msgSignPsbt(const SignPsbt *msg) {
         CHECK_PARAM(contains_script_path_spending && psbt.inputs_len == 1,
                     "OpReturn output should have 0 value");
       }
-      op_return_data_len = output->script_len - 2;
-      memcpy(op_return_data, output->script + 2, op_return_data_len);
+      const uint8_t *payload = NULL;
+      size_t payload_len = 0;
+      CHECK_PARAM(parse_op_return_data(output->script, output->script_len,
+                                       &payload, &payload_len) &&
+                      payload_len <= sizeof(op_return_data),
+                  "invalid op_return data");
+      memcpy(op_return_data, payload, payload_len);
+      op_return_data_len = (uint8_t)payload_len;
     } else {
       fsm_sendFailure(FailureType_Failure_DataError, "invalid output type");
       layoutHome();
       return;
     }
-    if (!is_wit || (is_wit && witness_version == 0)) {
+    const KeyOriginInfo *change_key_origin = NULL;
+    InputScriptType change_script_type = InputScriptType_SPENDADDRESS;
+    if (!is_wit || witness_version == 0) {
       if (output->bip32_path_lookuped) {
-        uint8_t mfp[4] = {0};
-        memcpy(mfp, output->bip32_path.key_origin.fingerprint, 4);
-        uint32_t mfp_u32 = mfp[0] << 24 | mfp[1] << 16 | mfp[2] << 8 | mfp[3];
-        CHECK_PARAM(mfp_u32 == root_fingerprint,
+        change_key_origin = &output->bip32_path.key_origin;
+        CHECK_PARAM(read_be(change_key_origin->fingerprint) == root_fingerprint,
                     "invalid psbt, fingerprint mismatch");
-        change_out += output->amount;
-        is_change = true;
+        if (is_wit) {
+          change_script_type = InputScriptType_SPENDWITNESS;
+        } else if (is_p2sh(output->script, output->script_len)) {
+          change_script_type = InputScriptType_SPENDP2SHWITNESS;
+        }
       }
     } else if (is_wit && witness_version == 1) {
       if (output->tap_bip32_path_lookuped) {
-        uint8_t mfp[4] = {0};
-        memcpy(mfp, output->tap_bip32_path.key_origin.fingerprint, 4);
-        uint32_t mfp_u32 = mfp[0] << 24 | mfp[1] << 16 | mfp[2] << 8 | mfp[3];
-        CHECK_PARAM((mfp_u32 == root_fingerprint &&
-                     memcmp(output->tap_bip32_path.x_only_pubkey,
-                            output->tap_internal_key, 32) == 0),
-                    "invalid parameters, only key path change is allowed");
-        change_out += output->amount;
-        is_change = true;
+        change_key_origin = &output->tap_bip32_path.key_origin;
+        CHECK_PARAM(
+            read_be(change_key_origin->fingerprint) == root_fingerprint &&
+                memcmp(output->tap_bip32_path.x_only_pubkey,
+                       output->tap_internal_key, 32) == 0,
+            "invalid parameters, only key path change is allowed");
+        change_script_type = InputScriptType_SPENDTAPROOT;
       }
+    }
+
+    if (change_key_origin) {
+      HDNode *change_node =
+          fsm_getDerivedNode(coin->curve_name, change_key_origin->path,
+                             change_key_origin->path_len, NULL);
+      if (!change_node) return;
+
+      CHECK_PARAM(_validate_change_output_script(coin, change_node,
+                                                 change_script_type, output),
+                  "invalid output script");
+      change_out += (uint64_t)output->amount;
+      is_change = true;
     }
 
     if (!is_change) {
@@ -1111,9 +1182,8 @@ void fsm_msgSignPsbt(const SignPsbt *msg) {
       }
     }
     sig_hasher_add_output(&hasher, output);
-    total_out += output->amount;
   }
-  CHECK_PARAM(total_in > total_out, "Insufficient funds");
+  CHECK_PARAM(total_in >= total_out, "Insufficient funds");
   uint32_t locktime = 0;
   if (!compute_locktime(&psbt, &locktime)) {
     fsm_sendFailure(FailureType_Failure_DataError, "invalid psbt, locktime ");
