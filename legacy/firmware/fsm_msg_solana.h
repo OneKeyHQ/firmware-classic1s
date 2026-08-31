@@ -104,6 +104,9 @@ void fsm_msgSolanaSignUnsafeMessage(const SolanaSignUnsafeMessage *msg) {
   CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,
                                     COIN_TYPE, ED25519_NAME, true),
               "Invalid path");
+  CHECK_PARAM(
+      !solana_is_offchain_message(msg->message.bytes, msg->message.size),
+      "Solana off-chain messages are not allowed");
   Parser parser = {msg->message.bytes, msg->message.size};
   MessageHeader header;
   if (parse_message_header(&parser, &header) == 0) {

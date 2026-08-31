@@ -459,4 +459,5 @@ const char *const languages_pt_br[] = {
     "Caminho da conta:",
     "Contexto:",
     "Permitir que este app derive um segredo específico do app?",
+    "Outros signatários",
 };

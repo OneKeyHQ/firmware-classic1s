@@ -9,6 +9,7 @@ SolanaSignedTx.signature                                     max_size:64
 SolanaSignOffChainMessage.address_n                         max_count:8
 SolanaSignOffChainMessage.application_domain                max_size:32
 SolanaSignOffChainMessage.message                             max_size:1212
+SolanaSignOffChainMessage.required_signers                  max_count:10 max_size:32
 
 SolanaMessageSignature.public_key                            max_size:32
 SolanaMessageSignature.signature                             max_size:64

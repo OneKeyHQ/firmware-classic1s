@@ -961,5 +961,7 @@
 #define I__CONTEXT_COLON 458
 // Allow this app to derive an app-specific secret?
 #define C__ALLOW_THIS_APP_TO_DERIVE_AN_APP_SPECIFIC_SECRET_QUES 459
+// Additional signers
+#define I__ADDITIONAL_SIGNERS 460
 #endif
 // clang-format on

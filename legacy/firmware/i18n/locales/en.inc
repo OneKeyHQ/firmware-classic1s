@@ -459,4 +459,5 @@ const char *const languages_en[] = {
     "Account Path:",
     "Context:",
     "Allow this app to derive an app-specific secret?",
+    "Additional signers",
 };

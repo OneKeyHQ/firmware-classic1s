@@ -459,4 +459,5 @@ const char *const languages_de[] = {
     "Kontopfad:",
     "Kontext:",
     "Darf diese App ein app-spezifisches Geheimnis ableiten?",
+    "Weitere Unterzeichner",
 };

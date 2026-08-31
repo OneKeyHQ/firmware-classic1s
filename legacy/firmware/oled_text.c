@@ -372,13 +372,11 @@ uint8_t oledDrawPageableStringAdapter(int x, int y, const char *text,
   refresh_text:
     memzero(visible_rows, sizeof(visible_rows));
     p = text;
-    for (size_t row = 0;
-         row < index + PAGEABLE_STRING_VISIBLE_ROWS && *p;
+    for (size_t row = 0; row < index + PAGEABLE_STRING_VISIBLE_ROWS && *p;
          row++) {
       const size_t chunk_len = strnlen(p, PAGEABLE_STRING_ROW_LEN);
       const char *newline = memchr(p, '\n', chunk_len);
-      const size_t line_len =
-          newline ? (size_t)(newline - p) : chunk_len;
+      const size_t line_len = newline ? (size_t)(newline - p) : chunk_len;
 
       if (row >= index) {
         memcpy(visible_rows[row - index], p, line_len);

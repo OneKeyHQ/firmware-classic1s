@@ -459,4 +459,5 @@ const char *const languages_es[] = {
     "Ruta de la cuenta:",
     "Contexto:",
     "¿Permitir que esta aplicación derive su propio secreto?",
+    "Otros firmantes",
 };

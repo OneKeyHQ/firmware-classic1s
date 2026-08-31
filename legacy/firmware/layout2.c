@@ -4989,7 +4989,8 @@ refresh_menu:
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
   } else if (index == 3) {
     oledDrawStringAdapter(0, 13, _(I__ACCOUNT_PATH_COLON), FONT_STANDARD);
-    oledDrawStringAdapter(0, 23, address_n_str(address_n, address_n_count, false), FONT_STANDARD);
+    oledDrawStringAdapter(
+        0, 23, address_n_str(address_n, address_n_count, false), FONT_STANDARD);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
   } else if (index == 4) {
@@ -5001,9 +5002,13 @@ refresh_menu:
     oledDrawStringAdapter(0, 13, _(I__CONTEXT_COLON), FONT_STANDARD);
     char context_str[context_len * 2 + 1];
     data2hex(context, context_len, context_str);
-    bubble_key = oledDrawPageableStringAdapter(0, 23, context_str, FONT_STANDARD, &bmp_bottom_left_arrow, &bmp_bottom_right_arrow);
+    bubble_key = oledDrawPageableStringAdapter(
+        0, 23, context_str, FONT_STANDARD, &bmp_bottom_left_arrow,
+        &bmp_bottom_right_arrow);
   } else {
-    oledDrawStringAdapter(0, 13, _(C__ALLOW_THIS_APP_TO_DERIVE_AN_APP_SPECIFIC_SECRET_QUES), FONT_STANDARD);
+    oledDrawStringAdapter(
+        0, 13, _(C__ALLOW_THIS_APP_TO_DERIVE_AN_APP_SPECIFIC_SECRET_QUES),
+        FONT_STANDARD);
     layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
     layoutButtonYesAdapter(NULL, &bmp_bottom_right_confirm);
   }
@@ -5012,16 +5017,16 @@ refresh_menu:
   HANDLE_KEY(bubble_key);
 }
 
-bool layoutSignMessage(const char *chain_name, bool verify, const char *signer,
-                       const uint8_t *data, uint16_t len, bool is_printable,
-                       const char *item_name, const char *item_value,
-                       bool is_unsafe) {
+static bool layout_sign_message(const char *chain_name, bool verify,
+                                const char *signer, const uint8_t *data,
+                                uint16_t len, bool is_printable,
+                                const char *item_name,
+                                const char *const *item_values,
+                                uint8_t item_count, bool show_item_index,
+                                bool is_unsafe) {
   bool result = false;
   int index = 0;
-  uint8_t max_index = 2;
-  if (item_name != NULL) {
-    max_index++;
-  }
+  int max_index = (int)item_count + 2;
   uint8_t bubble_key;
   char title[64] = {0};
   char warning_content[64] = {0};
@@ -5108,7 +5113,9 @@ refresh_menu:
       layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
       layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
     }
-  } else if (index == max_index - 2 && item_name != NULL) {
+  } else if (index > 0 && index <= item_count) {
+    const int item_index = index - 1;
+    const char *item_value = item_values[item_index];
     oledDrawStringAdapter(0, y, item_name, FONT_STANDARD);
     if (strlen(item_value) > 63) {
       bubble_key = oledDrawPageableStringAdapter(
@@ -5118,6 +5125,9 @@ refresh_menu:
       oledDrawStringAdapter(0, y + 10, item_value, FONT_STANDARD);
       layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
       layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
+      if (show_item_index) {
+        layout_index_count(item_index + 1, item_count);
+      }
     }
   } else {
     oledDrawStringAdapter(0, y, warning_content, FONT_STANDARD);
@@ -5126,6 +5136,36 @@ refresh_menu:
   }
   oledRefresh();
   HANDLE_KEY(bubble_key);
+}
+
+bool layoutSignMessage(const char *chain_name, bool verify, const char *signer,
+                       const uint8_t *data, uint16_t len, bool is_printable,
+                       const char *item_name, const char *item_value,
+                       bool is_unsafe) {
+  const char *item_values[] = {item_value};
+  const uint8_t item_count = item_name != NULL ? 1 : 0;
+  return layout_sign_message(chain_name, verify, signer, data, len,
+                             is_printable, item_name, item_values, item_count,
+                             false, is_unsafe);
+}
+
+bool layoutSignMessageWithItemPages(const char *chain_name, bool verify,
+                                    const char *signer, const uint8_t *data,
+                                    uint16_t len, bool is_printable,
+                                    const char *item_name,
+                                    const char *const *item_values,
+                                    uint8_t item_count, bool is_unsafe) {
+  if (item_name == NULL || item_values == NULL || item_count == 0) {
+    return false;
+  }
+  for (uint8_t i = 0; i < item_count; i++) {
+    if (item_values[i] == NULL || strlen(item_values[i]) > 63) {
+      return false;
+    }
+  }
+  return layout_sign_message(chain_name, verify, signer, data, len,
+                             is_printable, item_name, item_values, item_count,
+                             true, is_unsafe);
 }
 
 bool layoutNostrEncryptMessage(const char *chain_name, bool en,

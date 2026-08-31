@@ -386,8 +386,7 @@ void fsm_msgBabylonDeriveContextHash(const BabylonDeriveContextHash *msg) {
   char app_name[sizeof(msg->app_name.bytes) + 1] = {0};
 
   if (msg->context.size == 0 ||
-      !fsm_babylon_app_name_is_valid(msg->app_name.bytes,
-                                     msg->app_name.size)) {
+      !fsm_babylon_app_name_is_valid(msg->app_name.bytes, msg->app_name.size)) {
     fsm_sendFailure(FailureType_Failure_DataError,
                     "Invalid Babylon derive request");
     layoutHome();
@@ -396,8 +395,7 @@ void fsm_msgBabylonDeriveContextHash(const BabylonDeriveContextHash *msg) {
 
   const CoinInfo *coin = fsm_babylon_network_coin(msg->network, &network_name);
   if (coin == NULL || network_name == NULL) {
-    fsm_sendFailure(FailureType_Failure_DataError,
-                    "Unsupported network");
+    fsm_sendFailure(FailureType_Failure_DataError, "Unsupported network");
     layoutHome();
     return;
   }
@@ -432,8 +430,8 @@ void fsm_msgBabylonDeriveContextHash(const BabylonDeriveContextHash *msg) {
   memcpy(app_name, msg->app_name.bytes, msg->app_name.size);
 
   if (!layoutConfirmBabylonDeriveContextHash(
-          app_name, network_name, address, msg->address_n,
-          msg->address_n_count, msg->context.bytes, msg->context.size)) {
+          app_name, network_name, address, msg->address_n, msg->address_n_count,
+          msg->context.bytes, msg->context.size)) {
     fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
     layoutHome();
     return;
