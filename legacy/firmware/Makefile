@@ -94,6 +94,9 @@ OBJS += coin_signing_state.o
 OBJS += coin_state.o
 OBJS += coin_parser_state.o
 OBJS += crypto.o
+ifeq ($(EMULATOR),1)
+OBJS += babylon_emu.o
+endif
 OBJS += se_chip.o
 OBJS += se_thd89_v2.o
 OBJS += se_version.o

@@ -318,9 +318,10 @@ void oledDrawStringRightAdapter(int x, int y, const char *text, uint8_t font) {
 uint8_t oledDrawPageableStringAdapter(int x, int y, const char *text,
                                       uint8_t font, const BITMAP *btn_no_icon,
                                       const BITMAP *btn_yes_icon) {
-  // NOTE: 21 is the max width of a line. CAUTION: This function uses VLA
-  // (Variable Length Array). Be aware of potential stack overflow risks.
-  size_t rowlen = 21;
+  enum {
+    PAGEABLE_STRING_ROW_LEN = 21,
+    PAGEABLE_STRING_VISIBLE_ROWS = 3,
+  };
   size_t rowcount = 0, index = 0;
 
   uint8_t key = KEY_NULL;
@@ -350,7 +351,8 @@ uint8_t oledDrawPageableStringAdapter(int x, int y, const char *text,
       p++;
     }
 
-    if (*p == '\n' || cjk_count >= 13 || ascii_count >= rowlen) {
+    if (*p == '\n' || cjk_count >= 13 ||
+        ascii_count >= PAGEABLE_STRING_ROW_LEN) {
       rowcount++;
       ascii_count = 0;
       cjk_count = 0;
@@ -359,51 +361,59 @@ uint8_t oledDrawPageableStringAdapter(int x, int y, const char *text,
   }
   if (ascii_count > 0) rowcount++;
 
-  if (rowcount > 3) {
-    char str[rowcount][rowlen + 1];
-    memzero(str, sizeof(str));
-    p = text;
-    for (size_t i = 0; i < rowcount && *p; i++) {
-      const char *next = memchr(p, '\n', MIN(rowlen, strlen(p)));
-      size_t line_len = next ? (size_t)(next - p) : MIN(rowlen, strlen(p));
-      memcpy(str[i], p, line_len);
-      str[i][line_len] = '\0';
-      p = next ? (next + 1) : (p + line_len);
-    }
+  if (rowcount > PAGEABLE_STRING_VISIBLE_ROWS) {
+    // Cache only the visible rows so stack usage does not grow with input.
+    char visible_rows[PAGEABLE_STRING_VISIBLE_ROWS]
+                     [PAGEABLE_STRING_ROW_LEN + 1];
+    const size_t last_page_index = rowcount - PAGEABLE_STRING_VISIBLE_ROWS;
 #if !EMULATOR
     enableLongPress(true);
 #endif
   refresh_text:
+    memzero(visible_rows, sizeof(visible_rows));
+    p = text;
+    for (size_t row = 0;
+         row < index + PAGEABLE_STRING_VISIBLE_ROWS && *p;
+         row++) {
+      const size_t chunk_len = strnlen(p, PAGEABLE_STRING_ROW_LEN);
+      const char *newline = memchr(p, '\n', chunk_len);
+      const size_t line_len =
+          newline ? (size_t)(newline - p) : chunk_len;
+
+      if (row >= index) {
+        memcpy(visible_rows[row - index], p, line_len);
+      }
+
+      p = newline ? newline + 1 : p + line_len;
+    }
+
     oledClear_ext(x, y);
-    int y1 = y;
-    y1++;
-    if (0 == index) {
-      oledDrawStringAdapter(x, y1, str[0], font);
-      oledDrawStringAdapter(x, y1 + 1 * 10, str[1], font);
-      oledDrawStringAdapter(x, y1 + 2 * 10, str[2], font);
+    const int y1 = y + 1;
+    for (size_t row = 0; row < PAGEABLE_STRING_VISIBLE_ROWS; row++) {
+      oledDrawStringAdapter(x, y1 + row * 10, visible_rows[row], font);
+    }
+    if (index > 0) {
+      oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8,
+                     &bmp_bottom_middle_arrow_up);
+    }
+    if (index < last_page_index) {
       oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8,
                      &bmp_bottom_middle_arrow_down);
-    } else {
-      oledDrawStringAdapter(x, y1, str[index], font);
-      oledDrawStringAdapter(x, y1 + 1 * 10, str[index + 1], font);
-      oledDrawStringAdapter(x, y1 + 2 * 10, str[index + 2], font);
-      if (index == rowcount - 3) {
-        oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8,
-                       &bmp_bottom_middle_arrow_up);
-      } else {
-        oledDrawBitmap(OLED_WIDTH / 4, OLED_HEIGHT - 8,
-                       &bmp_bottom_middle_arrow_up);
-        oledDrawBitmap(3 * OLED_WIDTH / 4 - 8, OLED_HEIGHT - 8,
-                       &bmp_bottom_middle_arrow_down);
-      }
     }
     // scrollbar
-    drawScrollbar_ext(rowcount - 2, index, y1);
+    drawScrollbar_ext(last_page_index + 1, index, y1);
     // bottom button
     layoutButtonNoAdapter(NULL, btn_no_icon);
     layoutButtonYesAdapter(NULL, btn_yes_icon);
     oledRefresh();
     key = protectWaitKey(0, 0);
+
+    if (protectAbortedByInitialize || protectAbortedByCancel) {
+#if !EMULATOR
+      enableLongPress(false);
+#endif
+      return KEY_CANCEL;
+    }
 
 #if !EMULATOR
     if (isLongPress(KEY_UP_OR_DOWN) && getLongPressStatus()) {
@@ -422,7 +432,7 @@ uint8_t oledDrawPageableStringAdapter(int x, int y, const char *text,
         }
         goto refresh_text;
       case KEY_DOWN:
-        if (index < rowcount - 3) {
+        if (index < last_page_index) {
           index++;
         }
         goto refresh_text;
@@ -433,12 +443,15 @@ uint8_t oledDrawPageableStringAdapter(int x, int y, const char *text,
         return key;
     }
   } else {
-    oledDrawStringAdapter(0, y, text, FONT_STANDARD);
+    oledDrawStringAdapter(0, y, text, font);
     layoutButtonNoAdapter(NULL, btn_no_icon);
     layoutButtonYesAdapter(NULL, btn_yes_icon);
     oledRefresh();
     while (1) {
       key = protectWaitKey(0, 0);
+      if (protectAbortedByInitialize || protectAbortedByCancel) {
+        return KEY_CANCEL;
+      }
       if (key == KEY_CONFIRM || key == KEY_CANCEL) {
         break;
       }

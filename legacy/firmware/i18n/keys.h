@@ -949,5 +949,17 @@
 #define I_REMOVE_TRUST 452
 // Trust Account:
 #define I_TRUST_ACCOUNT 453
+// Bitcoin Request
+#define T__BITCOIN_REQUEST 454
+// Generate App Secret
+#define C__GENERATE_APP_SECRET 455
+// Network:
+#define I__NETWORK_COLON 456
+// Account Path:
+#define I__ACCOUNT_PATH_COLON 457
+// Context:
+#define I__CONTEXT_COLON 458
+// Allow this app to derive an app-specific secret?
+#define C__ALLOW_THIS_APP_TO_DERIVE_AN_APP_SPECIFIC_SECRET_QUES 459
 #endif
 // clang-format on

@@ -334,6 +334,10 @@ bool layoutSignMessage(const char *chain_name, bool verify, const char *signer,
                        const uint8_t *data, uint16_t len, bool is_printable,
                        const char *item_name, const char *item_value,
                        bool is_unsafe);
+bool layoutConfirmBabylonDeriveContextHash(
+    const char *app_name, const char *network, const char *address,
+    const uint32_t *address_n, size_t address_n_count, const uint8_t *context,
+    size_t context_len);
 bool layoutNostrEncryptMessage(const char *chain_name, bool verify,
                                const char *signer, const uint8_t *data,
                                uint16_t len, bool is_ascii);

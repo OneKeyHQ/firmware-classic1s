@@ -343,6 +343,121 @@ void fsm_msgGetAddress(const GetAddress *msg) {
   layoutHome();
 }
 
+static bool fsm_babylon_app_name_is_valid(const uint8_t *app_name, size_t len) {
+  if (len == 0) {
+    return false;
+  }
+  for (size_t i = 0; i < len; i++) {
+    if (!((app_name[i] >= 'a' && app_name[i] <= 'z') ||
+          (app_name[i] >= '0' && app_name[i] <= '9') || app_name[i] == '-')) {
+      return false;
+    }
+  }
+  return true;
+}
+
+static const CoinInfo *fsm_babylon_network_coin(CanonicalBitcoinNetwork network,
+                                                const char **network_name) {
+  switch (network) {
+    case CanonicalBitcoinNetwork_BITCOIN_MAINNET:
+      *network_name = "Mainnet";
+      return fsm_getCoin(true, "Bitcoin");
+    case CanonicalBitcoinNetwork_BITCOIN_TESTNET:
+      *network_name = "Testnet";
+      return fsm_getCoin(true, "Testnet");
+    case CanonicalBitcoinNetwork_BITCOIN_SIGNET:
+      *network_name = "Signet";
+      return fsm_getCoin(true, "Testnet");
+    case CanonicalBitcoinNetwork_BITCOIN_REGTEST:
+      *network_name = "Regtest";
+      return fsm_getCoin(true, "Regtest");
+    default:
+      *network_name = NULL;
+      return NULL;
+  }
+}
+
+void fsm_msgBabylonDeriveContextHash(const BabylonDeriveContextHash *msg) {
+  CHECK_INITIALIZED
+  CHECK_PIN
+  RESP_INIT(BabylonDerivedContextHash);
+
+  const char *network_name = NULL;
+  char app_name[sizeof(msg->app_name.bytes) + 1] = {0};
+
+  if (msg->context.size == 0 ||
+      !fsm_babylon_app_name_is_valid(msg->app_name.bytes,
+                                     msg->app_name.size)) {
+    fsm_sendFailure(FailureType_Failure_DataError,
+                    "Invalid Babylon derive request");
+    layoutHome();
+    return;
+  }
+
+  const CoinInfo *coin = fsm_babylon_network_coin(msg->network, &network_name);
+  if (coin == NULL || network_name == NULL) {
+    fsm_sendFailure(FailureType_Failure_DataError,
+                    "Unsupported network");
+    layoutHome();
+    return;
+  }
+
+  if (!coin_path_check(coin, msg->script_type, msg->address_n_count,
+                       msg->address_n, false, SCHEMA_NONE, true)) {
+    fsm_sendFailure(FailureType_Failure_DataError, "Forbidden key path");
+    layoutHome();
+    return;
+  }
+
+  HDNode *node = fsm_getDerivedNode(coin->curve_name, msg->address_n,
+                                    msg->address_n_count, NULL);
+  if (node == NULL) {
+    return;
+  }
+  if (hdnode_fill_public_key(node) != 0) {
+    fsm_sendFailure(FailureType_Failure_ProcessError,
+                    "Failed to derive public key");
+    layoutHome();
+    return;
+  }
+
+  char address[MAX_ADDR_SIZE] = {0};
+  // P2TR address encoding tweaks the key, but DCH binds the original SEC1 key.
+  if (!compute_address(coin, msg->script_type, node, false, NULL, address)) {
+    fsm_sendFailure(FailureType_Failure_DataError, "Failed to compute address");
+    layoutHome();
+    return;
+  }
+
+  memcpy(app_name, msg->app_name.bytes, msg->app_name.size);
+
+  if (!layoutConfirmBabylonDeriveContextHash(
+          app_name, network_name, address, msg->address_n,
+          msg->address_n_count, msg->context.bytes, msg->context.size)) {
+    fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
+    layoutHome();
+    return;
+  }
+
+  const bool success = babylon_derive_context_hash(
+      node->public_key, msg->app_name.bytes, msg->app_name.size,
+      (uint8_t)msg->network, msg->context.bytes, msg->context.size,
+      resp->secret.bytes);
+
+  if (!success) {
+    memzero(resp, sizeof(*resp));
+    fsm_sendFailure(FailureType_Failure_ProcessError,
+                    "Babylon derivation failed");
+    layoutHome();
+    return;
+  }
+
+  resp->secret.size = BABYLON_CONTEXT_HASH_LEN;
+  msg_write(MessageType_MessageType_BabylonDerivedContextHash, resp);
+  memzero(resp, sizeof(*resp));
+  layoutHome();
+}
+
 void fsm_msgSignMessage(const SignMessage *msg) {
   // CHECK_PARAM(is_ascii_only(msg->message.bytes, msg->message.size), _("Cannot
   // sign non-ASCII strings"));

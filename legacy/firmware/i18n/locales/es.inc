@@ -453,4 +453,10 @@ const char *const languages_es[] = {
     "Cuenta de origen:",
     "Eliminar confianza:",
     "Cuenta de confianza:",
+    "Solicitud de Bitcoin",
+    "Generar secreto específico de la aplicación",
+    "Red:",
+    "Ruta de la cuenta:",
+    "Contexto:",
+    "¿Permitir que esta aplicación derive su propio secreto?",
 };

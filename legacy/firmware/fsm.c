@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include "address.h"
 #include "aes/aes.h"
+#include "babylon.h"
 #include "base58.h"
 #include "bip32.h"
 #include "bip39.h"

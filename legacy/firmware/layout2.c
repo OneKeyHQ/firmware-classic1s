@@ -438,23 +438,38 @@ void drawScrollbar(int pages, int index) {
 }
 
 void drawScrollbar_ext(int pages, int index, int bar_start) {
-  int i, bar_end = 52;
-  int bar_heght = MAX((40 - 2 * (pages - 1)), 6);
-  for (i = bar_start; i < bar_end; i += 2) {  // 40 pixel
+  // Keep the scrollbar above the 12-pixel bottom button area.
+  const int bar_end = OLED_HEIGHT - 12;
+  if (pages <= 0 || bar_start < 0 || bar_start >= bar_end) {
+    return;
+  }
+
+  if (index < 0) {
+    index = 0;
+  } else if (index >= pages) {
+    index = pages - 1;
+  }
+
+  const int track_height = bar_end - bar_start;
+  int thumb_height = track_height / pages;
+  if (thumb_height < 6) {
+    thumb_height = 6;
+  }
+  if (thumb_height > track_height) {
+    thumb_height = track_height;
+  }
+  const int travel = track_height - thumb_height;
+  const int thumb_top =
+      bar_start +
+      (pages > 1 ? (int)(((int64_t)index * travel) / (pages - 1)) : 0);
+
+  for (int i = bar_start; i < bar_end; i += 2) {
     oledDrawPixel(OLED_WIDTH - 1, i);
   }
-  if (index <= 12) {
-    for (i = bar_start + 2 * ((int)index);
-         i < (bar_start + bar_heght + 2 * ((int)index)) - 1; i++) {
-      oledDrawPixel(OLED_WIDTH - 1, i);
-      oledDrawPixel(OLED_WIDTH - 2, i);
-    }
-  } else {
-    for (i = bar_start + 2 * 12; i < (bar_start + bar_heght + 2 * (12 - 1)) - 1;
-         i++) {
-      oledDrawPixel(OLED_WIDTH - 1, i);
-      oledDrawPixel(OLED_WIDTH - 2, i);
-    }
+
+  for (int i = thumb_top; i < thumb_top + thumb_height; i++) {
+    oledDrawPixel(OLED_WIDTH - 1, i);
+    oledDrawPixel(OLED_WIDTH - 2, i);
   }
 }
 
@@ -4932,6 +4947,69 @@ refresh_layout:
   enableLongPress(false);
 #endif
   return result;
+}
+
+bool layoutConfirmBabylonDeriveContextHash(
+    const char *app_name, const char *network, const char *address,
+    const uint32_t *address_n, size_t address_n_count, const uint8_t *context,
+    size_t context_len) {
+  bool result = false;
+  int index = 0;
+  const int max_index = 6;
+  uint8_t bubble_key = KEY_NULL;
+
+  if (app_name == NULL || network == NULL || address == NULL ||
+      address_n == NULL || context == NULL || context_len == 0) {
+    return false;
+  }
+
+  if (!button_request(ButtonRequestType_ButtonRequest_ProtectCall)) {
+    return false;
+  }
+
+refresh_menu:
+  layoutSwipe();
+  oledClear();
+  bubble_key = KEY_NULL;
+  layoutHeader(_(T__BITCOIN_REQUEST));
+
+  if (index == 0) {
+    oledDrawStringAdapter(0, 13, _(C__GENERATE_APP_SECRET), FONT_STANDARD);
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
+    layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
+  } else if (index == 1) {
+    oledDrawStringAdapter(0, 13, _(I__APP_NAME_COLON), FONT_STANDARD);
+    bubble_key = oledDrawPageableStringAdapter(0, 23, app_name, FONT_STANDARD,
+                                               &bmp_bottom_left_arrow,
+                                               &bmp_bottom_right_arrow);
+  } else if (index == 2) {
+    oledDrawStringAdapter(0, 13, _(I__NETWORK_COLON), FONT_STANDARD);
+    oledDrawStringAdapter(0, 23, network, FONT_STANDARD);
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
+    layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
+  } else if (index == 3) {
+    oledDrawStringAdapter(0, 13, _(I__ACCOUNT_PATH_COLON), FONT_STANDARD);
+    oledDrawStringAdapter(0, 23, address_n_str(address_n, address_n_count, false), FONT_STANDARD);
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_arrow);
+    layoutButtonYesAdapter(NULL, &bmp_bottom_right_arrow);
+  } else if (index == 4) {
+    oledDrawStringAdapter(0, 13, _(I__ACCOUNT_COLON), FONT_STANDARD);
+    bubble_key = oledDrawPageableStringAdapter(0, 23, address, FONT_STANDARD,
+                                               &bmp_bottom_left_arrow,
+                                               &bmp_bottom_right_arrow);
+  } else if (index == 5) {
+    oledDrawStringAdapter(0, 13, _(I__CONTEXT_COLON), FONT_STANDARD);
+    char context_str[context_len * 2 + 1];
+    data2hex(context, context_len, context_str);
+    bubble_key = oledDrawPageableStringAdapter(0, 23, context_str, FONT_STANDARD, &bmp_bottom_left_arrow, &bmp_bottom_right_arrow);
+  } else {
+    oledDrawStringAdapter(0, 13, _(C__ALLOW_THIS_APP_TO_DERIVE_AN_APP_SPECIFIC_SECRET_QUES), FONT_STANDARD);
+    layoutButtonNoAdapter(NULL, &bmp_bottom_left_close);
+    layoutButtonYesAdapter(NULL, &bmp_bottom_right_confirm);
+  }
+
+  oledRefresh();
+  HANDLE_KEY(bubble_key);
 }
 
 bool layoutSignMessage(const char *chain_name, bool verify, const char *signer,
