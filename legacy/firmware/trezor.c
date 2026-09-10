@@ -196,7 +196,7 @@ static void enforce_se_minimum_version(void) {
       !se_version_is_at_least(version, SE_MINIMUM_VERSION_MAJOR,
                               SE_MINIMUM_VERSION_MINOR,
                               SE_MINIMUM_VERSION_PATCH)) {
-    error_shutdown("SE firmware error", "Version 1.3.0", "is required.",
+    error_shutdown("SE firmware error", "Version 1.3.2", "is required.",
                    "Please restart.");
   }
 }

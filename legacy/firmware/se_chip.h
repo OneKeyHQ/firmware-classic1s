@@ -27,6 +27,14 @@ enum {
 #define SE_FIDO_CREDENTIAL_ID_MIN_LEN 33U
 #define SE_FIDO_CREDENTIAL_ID_MAX_LEN 512U
 #define SE_FIDO_CREDENTIAL_PLAINTEXT_MAX_LEN 480U
+#define SE_FIDO_RESIDENT_SLOT_COUNT 60U
+#define SE_FIDO_RESIDENT_CREDENTIAL_ID_MAX_LEN 474U
+#define SE_FIDO_RESIDENT_CREDENTIAL_PLAINTEXT_MAX_LEN 442U
+#define SE_FIDO_RESIDENT_SLOT_NONE 0xffU
+
+#define SE_FIDO_CREDENTIAL_ACTION_NOT_STORED 0U
+#define SE_FIDO_CREDENTIAL_ACTION_CREATED 1U
+#define SE_FIDO_CREDENTIAL_ACTION_REPLACED 2U
 
 // PIN types
 typedef enum {
@@ -209,28 +217,28 @@ secbool se_derive_fido_keys(HDNode *out, const char *curve,
                             uint32_t *fingerprint);
 secbool se_fido_hdnode_sign_digest(const uint8_t *hash, uint8_t *sig);
 secbool se_fido_att_sign_digest(const uint8_t *hash, uint8_t *sig);
-secbool se_fido_credential_encrypt(const uint8_t rp_id_hash[32],
-                                   const uint8_t *plaintext,
-                                   uint16_t plaintext_len,
-                                   uint8_t *credential_id,
-                                   uint16_t *credential_id_len);
-secbool se_fido_credential_peek(const uint8_t *credential_id,
-                                uint16_t credential_id_len, uint8_t *plaintext,
-                                uint16_t *plaintext_len);
-secbool se_fido_credential_decrypt(const uint8_t rp_id_hash[32],
-                                   const uint8_t *credential_id,
-                                   uint16_t credential_id_len,
-                                   uint8_t *plaintext, uint16_t *plaintext_len);
+secbool se_fido_resident_list(uint8_t *indexes, uint8_t *index_count);
+secbool se_fido_resident_read(uint8_t index, uint8_t *credential_id,
+                              uint16_t *credential_id_len, uint8_t *plaintext,
+                              uint16_t *plaintext_len);
+secbool se_fido_credential_create(bool resident, const uint8_t *plaintext,
+                                  uint16_t plaintext_len,
+                                  uint8_t *credential_id,
+                                  uint16_t *credential_id_len,
+                                  uint8_t *slot_index, uint8_t *action);
+secbool se_fido_credential_validate(const uint8_t *rp_id_hash,
+                                    const uint8_t *credential_id,
+                                    uint16_t credential_id_len,
+                                    uint8_t *plaintext,
+                                    uint16_t *plaintext_len);
+secbool se_fido_resident_delete(uint8_t index);
+secbool se_fido_resident_clear(void);
+secbool se_fido_resident_import(const uint8_t *credential_id,
+                                uint16_t credential_id_len,
+                                uint8_t *slot_index, uint8_t *action);
 secbool se_fido_hmac_secret(const uint8_t *credential_id,
                             uint16_t credential_id_len, const uint8_t *salt,
                             uint16_t salt_len, uint8_t *output);
-int se_get_fido2_resident_credentials(uint32_t index, uint8_t *dest,
-                                      uint16_t *dst_len);
-int se_check_fido2_resident_credential_simple(uint32_t index);
-secbool se_set_fido2_resident_credentials(uint32_t index, const uint8_t *src,
-                                          uint16_t len);
-secbool se_delete_fido2_resident_credentials(uint32_t index);
-secbool se_delete_all_fido2_credentials(void);
 #else
 #define se_transmit(...) 0
 #define se_get_sn(...) false

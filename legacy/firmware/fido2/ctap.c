@@ -522,13 +522,13 @@ static int ctap_generate_credential_id(CTAP_makeCredential mc, uint32_t counter,
   CborEncoder credential_id = {0};
   CborEncoder map = {0};
   uint8_t credential_id_buf[CRED_ID_MAX_LEN] = {0};
-  uint8_t rp_id_hash[32] = {0};
   size_t plaintext_len = 0;
   uint16_t output_capacity = 0;
   uint8_t element_count = 0;
   CborError ret = CborNoError;
   int result = CTAP1_ERR_OTHER;
 #if EMULATOR
+  uint8_t rp_id_hash[32] = {0};
   Slip21Node node = {0};
   uint8_t key[32] = {0};
   uint8_t iv[12] = {0};
@@ -683,19 +683,24 @@ static int ctap_generate_credential_id(CTAP_makeCredential mc, uint32_t counter,
   *cred_id_len = (uint16_t)plaintext_len + 16U + 16U;
   result = CTAP1_ERR_SUCCESS;
 #else
-  sha256_Raw((uint8_t *)mc.rp.id, mc.rp.size, rp_id_hash);
   *cred_id_len = output_capacity;
-  if (se_fido_credential_encrypt(rp_id_hash, credential_id_buf,
-                                 (uint16_t)plaintext_len, cred_id,
-                                 cred_id_len) == sectrue) {
+  uint8_t slot_index = 0;
+  uint8_t action = 0;
+  if (se_fido_credential_create(false, credential_id_buf,
+                                (uint16_t)plaintext_len, cred_id,
+                                cred_id_len, &slot_index, &action) == sectrue &&
+      action == SE_FIDO_CREDENTIAL_ACTION_NOT_STORED &&
+      slot_index == SE_FIDO_RESIDENT_SLOT_NONE) {
     result = CTAP1_ERR_SUCCESS;
   }
+  memzero(&slot_index, sizeof(slot_index));
+  memzero(&action, sizeof(action));
 #endif
 
 cleanup:
   memzero(credential_id_buf, sizeof(credential_id_buf));
-  memzero(rp_id_hash, sizeof(rp_id_hash));
 #if EMULATOR
+  memzero(rp_id_hash, sizeof(rp_id_hash));
   memzero(&node, sizeof(node));
   memzero(key, sizeof(key));
   memzero(iv, sizeof(iv));
@@ -960,12 +965,8 @@ uint8_t ctap_add_attest_statement(CborEncoder *map, uint8_t *sigder, int len) {
 int ctap_authenticate_credential_data(const uint8_t *rp_id_hash,
                                       CTAP_credentialDescriptor *desc) {
 #if !EMULATOR
-  uint8_t candidate_plaintext[SE_FIDO_CREDENTIAL_PLAINTEXT_MAX_LEN] = {0};
   uint8_t authenticated_plaintext[SE_FIDO_CREDENTIAL_PLAINTEXT_MAX_LEN] = {0};
-  uint8_t rp_id_hash_buf[32] = {0};
-  uint16_t candidate_len = sizeof(candidate_plaintext);
   uint16_t authenticated_len = sizeof(authenticated_plaintext);
-  Credential_ID_Info candidate = {0};
   int authenticated = 0;
 #else
   uint8_t key[32], iv[12], tag[16], id_tag[16], rp_id_hash_buf[32];
@@ -983,24 +984,10 @@ int ctap_authenticate_credential_data(const uint8_t *rp_id_hash,
   if ((desc->cred_id_len > CTAP_CREDENTIAL_ID_MIN_SIZE) &&
       (memcmp(desc->cred_id, CRED_ID_VERSION, CRED_ID_VERSION_SIZE) == 0)) {
 #if !EMULATOR
-    if (rp_id_hash != NULL) {
-      memcpy(rp_id_hash_buf, rp_id_hash, sizeof(rp_id_hash_buf));
-    } else {
-      if (!se_fido_credential_peek(desc->cred_id, desc->cred_id_len,
-                                   candidate_plaintext, &candidate_len) ||
-          ctap_parse_credential_id(&candidate, candidate_plaintext,
-                                   candidate_len) != CTAP1_ERR_SUCCESS ||
-          candidate.rp.size == 0) {
-        goto device_cleanup;
-      }
-      sha256_Raw((uint8_t *)candidate.rp.id, candidate.rp.size, rp_id_hash_buf);
-      memzero(&candidate, sizeof(candidate));
-      memzero(candidate_plaintext, sizeof(candidate_plaintext));
-      candidate_len = 0;
-    }
-    if (!se_fido_credential_decrypt(rp_id_hash_buf, desc->cred_id,
-                                    desc->cred_id_len, authenticated_plaintext,
-                                    &authenticated_len) ||
+    if (!se_fido_credential_validate(rp_id_hash, desc->cred_id,
+                                     desc->cred_id_len,
+                                     authenticated_plaintext,
+                                     &authenticated_len) ||
         ctap_parse_credential_id(&desc->credential, authenticated_plaintext,
                                  authenticated_len) != CTAP1_ERR_SUCCESS) {
       memzero(&desc->credential, sizeof(desc->credential));
@@ -1010,10 +997,7 @@ int ctap_authenticate_credential_data(const uint8_t *rp_id_hash,
     authenticated = 1;
 
   device_cleanup:
-    memzero(&candidate, sizeof(candidate));
-    memzero(candidate_plaintext, sizeof(candidate_plaintext));
     memzero(authenticated_plaintext, sizeof(authenticated_plaintext));
-    memzero(rp_id_hash_buf, sizeof(rp_id_hash_buf));
     return authenticated;
 #else
     if (!node_initialized) {

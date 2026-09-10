@@ -9,20 +9,7 @@
 #define MAX_RESIDENT_CREDENTIALS 60
 #define RP_ID_HASH_LENGTH 32
 
-#define FIDO2_RESIDENT_CREDENTIALS_SIZE (512)
 #define FIDO2_RESIDENT_CREDENTIALS_COUNT 60
-#define FIDO2_RESIDENT_CREDENTIALS_HEADER_LEN (6)
-#define FIDO2_RESIDENT_CREDENTIALS_FLAGS "\x66\x69\x64\x6F"  // "fido"
-
-typedef struct {
-  uint8_t credential_id_flag[4];
-  uint16_t credential_length;
-  uint8_t rp_id_hash[32];
-  uint8_t credential_id[474];
-} __attribute__((packed)) CTAP_credential_id_storage;
-_Static_assert(sizeof(CTAP_credential_id_storage) ==
-                   FIDO2_RESIDENT_CREDENTIALS_SIZE,
-               "CTAP_credential_id_storage size must be flash page size");
 
 uint32_t resident_credential_find_by_rp_id_hash(
     const uint8_t *rp_id_hash, CTAP_credentialDescriptor *cred_desc,
