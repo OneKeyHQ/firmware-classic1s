@@ -89,12 +89,16 @@ OBJS += layout2.o
 OBJS += recovery.o
 OBJS += reset.o
 OBJS += signing.o
+OBJS += coin_signing_state.o
+OBJS += coin_state.o
+OBJS += coin_parser_state.o
 OBJS += crypto.o
 OBJS += se_chip.o
 OBJS += se_thd89_v2.o
 OBJS += se_version.o
 OBJS += psbt/psbt.o
 OBJS += bip322_simple/bip322_simple.o
+OBJS += signing_workspace.o
 
 # FIDO2 support (always compiled for factory mode)
 OBJS += fido2/ctap_trans.o

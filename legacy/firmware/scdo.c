@@ -16,6 +16,8 @@
 #include "messages.h"
 #include "messages.pb.h"
 #include "protect.h"
+#include "coin_signing_state.h"
+#include "coin_state.h"
 #include "scdo_tokens.h"
 #include "secp256k1.h"
 #include "sha3.h"
@@ -28,7 +30,7 @@ static bool scdo_signing = false;
 static uint32_t data_total, data_left;
 static ScdoSignedTx msg_tx_request;
 static CONFIDENTIAL HDNode *_node = NULL;
-struct SHA3_CTX keccak_ctx_scdo = {0};
+#define keccak_ctx_scdo (coin_signing_state.scdo.keccak_ctx)
 
 void scdo_eth_2_address(const uint8_t *pubkey, char *scdo_address,
                         size_t scdo_address_size) {
@@ -258,6 +260,7 @@ static bool layoutScdoConfirmTx(char *to_str, const char *signer,
 
 void scdo_sign_tx(ScdoSignTx *msg, const HDNode *node, char *from_str) {
   scdo_signing = true;
+  coin_state_retain(COIN_STATE_OWNER_SCDO);
   sha3_256_Init(&keccak_ctx_scdo);
 
   memzero(&msg_tx_request, sizeof(ScdoSignedTx));
@@ -413,12 +416,16 @@ void scdo_signing_txack(const ScdoTxAck *tx) {
   }
 }
 
+void scdo_signing_clear_runtime_state(void) {
+  _node = NULL;
+  scdo_signing = false;
+  coin_state_abort(COIN_STATE_OWNER_SCDO);
+}
+
 void scdo_signing_abort(void) {
-  if (scdo_signing) {
-    _node = NULL;
-    layoutHome();
-    scdo_signing = false;
-  }
+  bool was_active = scdo_signing;
+  scdo_signing_clear_runtime_state();
+  if (was_active) layoutHome();
 }
 
 static void scdo_message_hash(const uint8_t *message, size_t message_len,

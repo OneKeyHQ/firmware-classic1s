@@ -244,7 +244,8 @@ typedef struct {
   char str2[50];
 } key_subst_t;
 
-extern parser_tx_t parser_tx_obj;
+#include "../coin_parser_state.h"
+#define parser_tx_obj (*(parser_tx_t *)coin_parser_state_cosmos())
 
 parser_error_t cosmos_parser_init(parser_context_t *ctx, const uint8_t *buffer,
                                   size_t bufferSize);

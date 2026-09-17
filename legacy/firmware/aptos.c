@@ -7,6 +7,7 @@
 #include "messages.h"
 #include "messages.pb.h"
 #include "protect.h"
+#include "signing_workspace.h"
 #include "stdint.h"
 #include "util.h"
 
@@ -51,15 +52,24 @@ void aptos_sign_tx(const AptosSignTx *msg, const HDNode *node,
   char address[67] = {0};
   aptos_get_address_from_public_key(node->public_key + 1, address);
 
+  if (!signing_workspace_acquire(SigningWorkspaceOwner_APTOS)) {
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Signing is busy");
+    return;
+  }
+  uint8_t *buf = signing_workspace_aptos_raw_tx();
+  if (buf == NULL) {
+    signing_workspace_release(SigningWorkspaceOwner_APTOS);
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Signing is busy");
+    return;
+  }
+
   if (!layoutBlindSign("Aptos", false, NULL, address, msg->raw_tx.bytes,
                        msg->raw_tx.size, NULL, NULL, NULL, NULL, NULL, NULL)) {
     fsm_sendFailure(FailureType_Failure_ActionCancelled,
                     "Signing cancelled by user");
     layoutHome();
-    return;
+    goto cleanup;
   }
-
-  uint8_t buf[sizeof(AptosSignTx_raw_tx_t) + 32];
   memcpy(buf,
          msg->tx_type == AptosTransactionType_WITH_DATA
              ? APTOS_RAW_TX_WITH_DATA_PREFIX
@@ -77,6 +87,8 @@ void aptos_sign_tx(const AptosSignTx *msg, const HDNode *node,
   resp->signature.size = 64;
   resp->public_key.size = 32;
   msg_write(MessageType_MessageType_AptosSignedTx, resp);
+cleanup:
+  signing_workspace_release(SigningWorkspaceOwner_APTOS);
 }
 
 void aptos_sign_message(const AptosSignMessage *msg, const HDNode *node,

@@ -4,7 +4,8 @@
 #include "common_defs.h"
 #include "parser_txdef.h"
 
-extern parser_tx_t fil_parser_tx_obj;
+#include "../coin_parser_state.h"
+#define fil_parser_tx_obj (*(parser_tx_t *)coin_parser_state_filecoin())
 
 parser_error_t fil_parser_init(parser_context_t *ctx, const uint8_t *buffer,
                                uint16_t bufferSize);

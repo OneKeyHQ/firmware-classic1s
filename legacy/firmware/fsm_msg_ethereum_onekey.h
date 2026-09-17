@@ -157,7 +157,12 @@ void fsm_msgEthereumSignTxEIP7702OneKey(
   ethereum_signing_init_eip7702_onekey(msg, node);
 }
 void fsm_msgEthereumTxAckOneKey(const EthereumTxAckOneKey *msg) {
-  CHECK_UNLOCKED
+  if (!session_isUnlocked()) {
+    ethereum_signing_abort_onekey();
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Locked");
+    layoutHome();
+    return;
+  }
 
   ethereum_signing_txack_onekey(msg);
 }

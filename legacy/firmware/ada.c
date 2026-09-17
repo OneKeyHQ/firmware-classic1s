@@ -23,6 +23,8 @@
 #include "buttons.h"
 #include "cardano.h"
 #include "cbor.h"
+#include "coin_signing_state.h"
+#include "coin_state.h"
 #include "config.h"
 #include "curves.h"
 #include "fsm.h"
@@ -37,6 +39,8 @@
 #include "util.h"
 
 #define DIV_ROUND_UP(n, d) (((n)-1) / (d) + 1)
+
+#define ada_signer (coin_signing_state.cardano.signer)
 
 #define BUILDER_APPEND_CBOR(type, value)                           \
   do {                                                             \
@@ -62,7 +66,6 @@ blake2b_256_append_cbor_tx_body(BLAKE2B_CTX *ctx, uint8_t type,
   blake2b_Update(ctx, buffer, size);
 }
 
-struct AdaSigner ada_signer;
 static CardanoTxItemAck ada_msg_item_ack;
 static CardanoSignTxFinished ada_msg_sign_tx_finished;
 extern int convert_bits(uint8_t *out, size_t *outlen, int outbits,
@@ -1653,6 +1656,7 @@ void state_transmute(void) {
         if (!txHashBuilder_enterOutputs()) {
           fsm_sendFailure(FailureType_Failure_ProcessError,
                           "Invalid tx signing state for outputs");
+          ada_signing_clear_runtime_state();
           return;
         };
       }
@@ -1680,6 +1684,7 @@ void state_transmute(void) {
           !txHashBuilder_enterCertificate()) {
         fsm_sendFailure(FailureType_Failure_ProcessError,
                         "Invalid tx signing state for certificates");
+        ada_signing_clear_runtime_state();
         return;
       }
       __attribute__((fallthrough));
@@ -1693,6 +1698,7 @@ void state_transmute(void) {
             !txHashBuilder_enterWithdrawals()) {
           fsm_sendFailure(FailureType_Failure_ProcessError,
                           "Invalid tx signing state for withdrawals");
+          ada_signing_clear_runtime_state();
           return;
         }
       }
@@ -1719,6 +1725,7 @@ void state_transmute(void) {
           fsm_sendFailure(
               FailureType_Failure_ProcessError,
               "Invalid tx signing state for validity interval start");
+          ada_signing_clear_runtime_state();
           return;
         }
       }
@@ -1727,6 +1734,7 @@ void state_transmute(void) {
           !txHashBuilder_enterMint()) {
         fsm_sendFailure(FailureType_Failure_ProcessError,
                         "Invalid tx signing state for mint");
+        ada_signing_clear_runtime_state();
         return;
       }
       __attribute__((fallthrough));
@@ -1743,6 +1751,7 @@ void state_transmute(void) {
         if (!txHashBuilder_addScriptDataHash()) {
           fsm_sendFailure(FailureType_Failure_ProcessError,
                           "Invalid tx signing state for script data hash");
+          ada_signing_clear_runtime_state();
           return;
         }
       }
@@ -1751,6 +1760,7 @@ void state_transmute(void) {
           !txHashBuilder_enterRequiredSigners()) {
         fsm_sendFailure(FailureType_Failure_ProcessError,
                         "Invalid tx signing state for required signers");
+        ada_signing_clear_runtime_state();
         return;
       }
       __attribute__((fallthrough));
@@ -1776,6 +1786,7 @@ void state_transmute(void) {
         if (!txHashBuilder_addNetworkId()) {
           fsm_sendFailure(FailureType_Failure_ProcessError,
                           "Invalid tx signing state for network id");
+          ada_signing_clear_runtime_state();
           return;
         }
       }
@@ -1812,6 +1823,7 @@ void state_transmute(void) {
       if (ada_signer.tx_dict_items_count > 0) {
         fsm_sendFailure(FailureType_Failure_ProcessError,
                         "Invalid tx signing state, left unfinished items");
+        ada_signing_clear_runtime_state();
         return;
       }
       msg_write(MessageType_MessageType_CardanoTxItemAck, &ada_msg_item_ack);
@@ -1909,6 +1921,7 @@ bool _processs_tx_init(const CardanoSignTxInit *msg) {
     return false;
   }
   msg_write(MessageType_MessageType_CardanoTxItemAck, &ada_msg_item_ack);
+  coin_state_retain(COIN_STATE_OWNER_CARDANO);
   return true;
 }
 
@@ -1926,8 +1939,13 @@ bool cardano_txack(void) {
   } else {
     msg_write(MessageType_MessageType_CardanoSignTxFinished,
               &ada_msg_sign_tx_finished);
+    ada_signing_clear_runtime_state();
   }
   return true;
+}
+
+void ada_signing_clear_runtime_state(void) {
+  coin_state_abort(COIN_STATE_OWNER_CARDANO);
 }
 
 bool cardano_txwitness(const CardanoTxWitnessRequest *msg,

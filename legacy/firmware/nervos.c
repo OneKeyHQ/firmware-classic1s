@@ -22,6 +22,8 @@
 #include "blake2b.h"
 #include "buttons.h"
 #include "config.h"
+#include "coin_signing_state.h"
+#include "coin_state.h"
 #include "fsm.h"
 #include "gettext.h"
 #include "layout2.h"
@@ -37,7 +39,7 @@
 #define FORMAT_TYPE_SHORT 0x01
 
 #define MAX_WITNESS_BUFFER_SIZE 1024
-static uint8_t global_witness_buffer[MAX_WITNESS_BUFFER_SIZE];
+#define global_witness_buffer (coin_signing_state.nervos.witness)
 const char CHARSET[] = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 static NervosTxRequest msg_tx_request;
 static uint32_t data_total, data_left, witness_buffer_len_nervos;
@@ -243,6 +245,7 @@ void nervos_sign_sighash(HDNode *node, const NervosSignTx *msg,
   int ret = hdnode_sign_digest(node, output, sig, &v1, NULL);
   if (ret != 0) {
     fsm_sendFailure(FailureType_Failure_ProcessError, "nervos Signing failed");
+    nervos_signing_abort();
     return;
   }
 #endif
@@ -270,6 +273,7 @@ void nervos_sign_sighash_init(HDNode *node, const NervosSignTx *msg,
   }
 
   nervos_signing = true;
+  coin_state_retain(COIN_STATE_OWNER_NERVOS);
   memcpy(&global_node, node, sizeof(HDNode));
 
   if (msg->witness_buffer.size > MAX_WITNESS_BUFFER_SIZE) {
@@ -333,16 +337,19 @@ void send_signature(void) {
   uint8_t sig[64];
 
 #if EMULATOR
-  if (ecdsa_sign_digest(&secp256k1, globalNode->private_key, output, sig, &v1,
+  if (ecdsa_sign_digest(&secp256k1, global_node.private_key, output, sig, &v1,
                         NULL) != 0) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
                     __("nervos Signing failed"));
+    nervos_signing_abort();
+    return;
   }
 
 #else
   int ret = hdnode_sign_digest(&global_node, output, sig, &v1, NULL);
   if (ret != 0) {
     fsm_sendFailure(FailureType_Failure_ProcessError, "nervos Signing failed");
+    nervos_signing_abort();
     return;
   }
 #endif
@@ -351,11 +358,11 @@ void send_signature(void) {
   tx_resp.signature.size = 65;
   msg_write(MessageType_MessageType_NervosSignedTx, &tx_resp);
   layoutHome();
+  nervos_signing_abort();
 }
 
-void nervos_signing_abort(void) {
+void nervos_signing_clear_runtime_state(void) {
   memset(&global_node, 0, sizeof(HDNode));
-  memset(global_witness_buffer, 0, MAX_WITNESS_BUFFER_SIZE);
   data_total = 0;
   data_left = 0;
   witness_buffer_len_nervos = 0;
@@ -363,4 +370,9 @@ void nervos_signing_abort(void) {
   memset(global_hash_output, 0, sizeof(global_hash_output));
   memset(&S_GLOBAL, 0, sizeof(S_GLOBAL));
   memset(&msg_tx_request, 0, sizeof(msg_tx_request));
+  coin_state_abort(COIN_STATE_OWNER_NERVOS);
+}
+
+void nervos_signing_abort(void) {
+  nervos_signing_clear_runtime_state();
 }

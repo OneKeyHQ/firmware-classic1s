@@ -30,11 +30,9 @@ void alephium_send_request_chunk(void);
 void alephium_handle_bytecode_ack(const AlephiumBytecodeAck *msg);
 void alephium_send_request_bytecode(void);
 void alephium_signing_abort(void);
+void alephium_signing_clear_runtime_state(void);
 void alephium_calculate_total_fee(uint32_t gas_amount, uint64_t gas_price,
                                   char *total_fee, size_t total_fee_size);
-void alephium_process_decoded_tx(const AlephiumDecodedTx *decoded_tx,
-                                 const uint8_t *bytecode, size_t bytecode_size,
-                                 AlephiumSignedTx *resp);
 bool alephium_sign_message(const HDNode *node, const AlephiumSignMessage *msg,
                            AlephiumMessageSignature *resp);
 bool generate_alephium_address(const uint8_t *public_key, char *address,

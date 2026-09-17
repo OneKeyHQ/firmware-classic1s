@@ -31,6 +31,7 @@ void scdo_eth_2_address(const uint8_t *pubkey, char *scdo_address,
 void scdo_sign_tx(ScdoSignTx *msg, const HDNode *node, char *scdo_address);
 void scdo_signing_txack(const ScdoTxAck *tx);
 void scdo_signing_abort(void);
+void scdo_signing_clear_runtime_state(void);
 
 void scdo_sign_message(const ScdoSignMessage *msg, const HDNode *node,
                        ScdoSignedMessage *resp);

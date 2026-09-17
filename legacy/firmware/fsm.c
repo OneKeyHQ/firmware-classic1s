@@ -30,6 +30,7 @@
 #include "buttons.h"
 #include "coins.h"
 #include "common.h"
+#include "coin_state.h"
 #include "config.h"
 #include "crypto.h"
 #include "ctype.h"
@@ -662,10 +663,17 @@ void fsm_abortWorkflows(void) {
   authorization_type = 0;
   unlock_path = 0;
 #if !BITCOIN_ONLY
+  alephium_signing_clear_runtime_state();
   ethereum_signing_abort();
   kaspa_signing_abort();
   stellar_signingAbort();
+  ethereum_signing_abort_onekey();
+  ada_signing_clear_runtime_state();
+  scdo_signing_abort();
+  conflux_signing_abort();
+  nervos_signing_abort();
 #endif
+  coin_state_clear_all();
 }
 
 void fsm_clear_runtime_state(void) {
@@ -675,10 +683,17 @@ void fsm_clear_runtime_state(void) {
   authorization_type = 0;
   unlock_path = 0;
 #if !BITCOIN_ONLY
+  alephium_signing_clear_runtime_state();
   ethereum_signing_clear_runtime_state();
   kaspa_signing_clear_runtime_state();
   stellar_signing_clear_runtime_state();
+  ethereum_signing_clear_runtime_state_onekey();
+  ada_signing_clear_runtime_state();
+  scdo_signing_clear_runtime_state();
+  conflux_signing_clear_runtime_state();
+  nervos_signing_clear_runtime_state();
 #endif
+  coin_state_clear_all();
   fsm_clearCosiNonce();
 }
 

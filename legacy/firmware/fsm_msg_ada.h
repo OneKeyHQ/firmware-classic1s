@@ -140,7 +140,7 @@ void fsm_msgCardanoGetAddress(CardanoGetAddress *msg) {
 void fsm_msgCardanoTxWitnessRequest(CardanoTxWitnessRequest *msg) {
   RESP_INIT(CardanoTxWitnessResponse);
 
-  cardano_txwitness(msg, resp);
+  if (!cardano_txwitness(msg, resp)) ada_signing_clear_runtime_state();
   layoutHome();
 }
 
@@ -155,6 +155,7 @@ void fsm_msgCardanoSignTxInit(CardanoSignTxInit *msg) {
 
   CHECK_PIN
   if (!_processs_tx_init(msg)) {
+    ada_signing_clear_runtime_state();
     layoutHome();
   }
 }
@@ -162,12 +163,16 @@ void fsm_msgCardanoSignTxInit(CardanoSignTxInit *msg) {
 void fsm_msgCardanoTxInput(CardanoTxInput *msg) {
   if (txHashBuilder_addInput(msg)) {
     state_transmute();
+  } else {
+    ada_signing_clear_runtime_state();
   }
 }
 
 void fsm_msgCardanoTxOutput(CardanoTxOutput *msg) {
   if (txHashBuilder_addOutput(msg)) {
     state_transmute();
+  } else {
+    ada_signing_clear_runtime_state();
   }
   layoutHome();
 }
@@ -175,6 +180,8 @@ void fsm_msgCardanoTxOutput(CardanoTxOutput *msg) {
 void fsm_msgCardanoAssetGroup(CardanoAssetGroup *msg) {
   if (txHashBuilder_addAssetGroup(msg)) {
     state_transmute();
+  } else {
+    ada_signing_clear_runtime_state();
   }
   layoutHome();
 }
@@ -182,6 +189,8 @@ void fsm_msgCardanoAssetGroup(CardanoAssetGroup *msg) {
 void fsm_msgCardanoToken(CardanoToken *msg) {
   if (txHashBuilder_addToken(msg)) {
     state_transmute();
+  } else {
+    ada_signing_clear_runtime_state();
   }
   layoutHome();
 }
@@ -189,6 +198,8 @@ void fsm_msgCardanoToken(CardanoToken *msg) {
 void fsm_msgCardanoTxCertificate(CardanoTxCertificate *msg) {
   if (txHashBuilder_addCertificate(msg)) {
     state_transmute();
+  } else {
+    ada_signing_clear_runtime_state();
   }
   layoutHome();
 }
@@ -196,12 +207,15 @@ void fsm_msgCardanoTxCertificate(CardanoTxCertificate *msg) {
 void fsm_msgCardanoTxWithdrawal(CardanoTxWithdrawal *msg) {
   if (txHashBuilder_addWithdrawal(msg)) {
     state_transmute();
+  } else {
+    ada_signing_clear_runtime_state();
   }
   layoutHome();
 }
 
 void fsm_msgCardanoTxAuxiliaryData(CardanoTxAuxiliaryData *msg) {
   if (!txHashBuilder_addAuxiliaryData(msg)) {
+    ada_signing_clear_runtime_state();
     layoutHome();
   }
 }
@@ -209,6 +223,7 @@ void fsm_msgCardanoTxAuxiliaryData(CardanoTxAuxiliaryData *msg) {
 void fsm_msgCardanoPoolOwner(CardanoPoolOwner *msg) {  // unsupport
   (void)msg;
   fsm_sendFailure(FailureType_Failure_ProcessError, "Unsupported pool owner");
+  ada_signing_clear_runtime_state();
   layoutHome();
 }
 void fsm_msgCardanoPoolRelayParameters(
@@ -216,6 +231,7 @@ void fsm_msgCardanoPoolRelayParameters(
   (void)msg;
   fsm_sendFailure(FailureType_Failure_ProcessError,
                   "Unsupported pool relay parameters");
+  ada_signing_clear_runtime_state();
   layoutHome();
 }
 void fsm_msgCardanoGetNativeScriptHash(void) {  // unsupport
@@ -226,6 +242,8 @@ void fsm_msgCardanoGetNativeScriptHash(void) {  // unsupport
 void fsm_msgCardanoTxMint(CardanoTxMint *msg) {
   if (txHashBuilder_addMint(msg)) {
     state_transmute();
+  } else {
+    ada_signing_clear_runtime_state();
   }
   layoutHome();
 }
@@ -234,23 +252,30 @@ void fsm_msgCardanoTxCollateralInput(
   (void)msg;
   fsm_sendFailure(FailureType_Failure_ProcessError,
                   "Unsupported collateral input");
+  ada_signing_clear_runtime_state();
   layoutHome();
 }
 void fsm_msgCardanoTxRequiredSigner(CardanoTxRequiredSigner *msg) {
   if (txHashBuilder_addRequiredSigner(msg)) {
     state_transmute();
+  } else {
+    ada_signing_clear_runtime_state();
   }
   layoutHome();
 }
 void fsm_msgCardanoTxInlineDatumChunk(CardanoTxInlineDatumChunk *msg) {
   if (txHashBuilder_addInlineDatumChunk(msg)) {
     state_transmute();
+  } else {
+    ada_signing_clear_runtime_state();
   }
   layoutHome();
 }
 void fsm_msgCardanoTxReferenceScriptChunk(CardanoTxReferenceScriptChunk *msg) {
   if (txHashBuilder_addReferenceScriptChunk(msg)) {
     state_transmute();
+  } else {
+    ada_signing_clear_runtime_state();
   }
   layoutHome();
 }
@@ -259,6 +284,7 @@ void fsm_msgCardanoTxReferenceInput(
   (void)msg;
   fsm_sendFailure(FailureType_Failure_ProcessError,
                   "Unsupported reference input");
+  ada_signing_clear_runtime_state();
   layoutHome();
 }
 

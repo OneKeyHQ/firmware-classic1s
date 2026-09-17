@@ -33,13 +33,6 @@ typedef enum {
 } AlephiumError;
 
 typedef struct {
-  uint32_t hint;
-  uint8_t key[ALEPHIUM_HASH_SIZE];
-  uint8_t unlock_script[ALEPHIUM_MAX_SCRIPT_SIZE];
-  size_t unlock_script_length;
-} AlephiumTxInput;
-
-typedef struct {
   uint8_t id[32];
   char amount[MAX_AMOUNT_STR_LENGTH];
 } AlephiumToken;
@@ -51,7 +44,6 @@ typedef struct {
   char address[MAX_ADDRESS_LENGTH];
   uint32_t lock_time;
   uint32_t message_length;
-  uint8_t message[ALEPHIUM_MAX_MESSAGE_SIZE];
   AlephiumToken tokens[ALEPHIUM_MAX_TOKENS];
   size_t tokens_count;
 } AlephiumTxOutput;
@@ -62,23 +54,31 @@ typedef struct {
   uint8_t script_opt;
   int32_t gas_amount;
   uint64_t gas_price;
-  AlephiumTxInput inputs[ALEPHIUM_MAX_INPUTS];
   size_t inputs_count;
-  AlephiumTxOutput outputs[ALEPHIUM_MAX_OUTPUTS];
   size_t outputs_count;
+  const uint8_t *raw_data;
+  size_t raw_data_length;
+  uint32_t output_offsets[ALEPHIUM_MAX_OUTPUTS];
 } AlephiumDecodedTx;
 
 // Function declarations
 
-AlephiumError decode_compact_int(const uint8_t* data, uint64_t* value,
+AlephiumError decode_compact_int(const uint8_t* data, size_t data_length,
+                                 uint64_t* value,
                                  size_t* bytes_read);
-AlephiumError decode_i32(const uint8_t* data, int32_t* value,
+AlephiumError decode_i32(const uint8_t* data, size_t data_length,
+                         int32_t* value,
                          size_t* bytes_read);
-AlephiumError decode_u256(const uint8_t* data, char* value_str,
+AlephiumError decode_u256(const uint8_t* data, size_t data_length,
+                          char* value_str,
                           size_t value_str_size, size_t* bytes_read);
-AlephiumError decode_unlock_script(const uint8_t* data, uint8_t* script,
-                                   size_t max_length, size_t* bytes_read);
+AlephiumError decode_unlock_script(const uint8_t* data, size_t data_length,
+                                   size_t* bytes_read);
 AlephiumError decode_alephium_tx(const uint8_t* data, size_t data_length,
+                                 size_t bytecode_skip,
                                  AlephiumDecodedTx* tx);
+AlephiumError decode_alephium_output(const AlephiumDecodedTx* tx,
+                                     size_t output_index,
+                                     AlephiumTxOutput* output);
 
 #endif  // __ALPH_DECODE_H__

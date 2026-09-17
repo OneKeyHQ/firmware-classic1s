@@ -1,16 +1,35 @@
+#ifndef TON_CELL_H
+#define TON_CELL_H
+
 #include "ton_bits.h"
+
+#define TON_BOC_MAX_INPUT_SIZE 1024U
+#define TON_BOC_MAX_CELLS 512U
 
 typedef struct CellRef_t {
   uint16_t max_depth;
   uint8_t hash[HASH_LEN];
 } CellRef_t;
 
+/* Per-cell parser state. Payload bytes remain in TonBocWorkspace::boc. */
 typedef struct {
-  BitString_t bits;
-  uint32_t ref_indices[4];  // max ref = 4
-  uint8_t refs_count;
   CellRef_t cell_ref;
-} CellData_t;
+  uint16_t ref_indices[4];  // max ref = 4
+  uint16_t data_offset;
+  uint16_t bit_count;
+  uint8_t refs_count;
+  bool reachable;
+} TonCellMeta;
+
+typedef struct {
+  TonCellMeta cells[TON_BOC_MAX_CELLS];
+  uint8_t boc[TON_BOC_MAX_INPUT_SIZE];
+} TonBocWorkspace;
+
+_Static_assert(sizeof(TonCellMeta) == 48U,
+               "TON cell metadata size changed unexpectedly");
+_Static_assert(sizeof(TonBocWorkspace) == 25600U,
+               "TON BOC workspace size changed unexpectedly");
 
 typedef struct {
   CellRef_t root;
@@ -68,3 +87,5 @@ TonBocError ton_parse_boc_full(const uint8_t* input_boc, size_t input_boc_len,
 TonBocError ton_parse_boc(const uint8_t* input_boc, size_t input_boc_len,
                           CellRef_t* payload, BitString_t* payload_bits,
                           CellRef_t* payload_ref);
+
+#endif  // TON_CELL_H

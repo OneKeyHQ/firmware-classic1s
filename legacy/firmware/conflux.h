@@ -27,6 +27,7 @@
 
 void conflux_signing_init(ConfluxSignTx *msg, const HDNode *node);
 void conflux_signing_abort(void);
+void conflux_signing_clear_runtime_state(void);
 void conflux_signing_txack(const ConfluxTxAck *msg);
 
 void conflux_message_sign(const ConfluxSignMessage *msg, const HDNode *node,

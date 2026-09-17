@@ -1,10 +1,10 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "sha2.h"
+#include "signing_workspace.h"
 #include "ton_address.h"
 #include "ton_cell.h"
 #include "util.h"
@@ -339,9 +339,8 @@ bool ton_create_message_digest(
   return true;
 }
 
-static bool ton_boc_strip_top_upped_array(uint8_t* array, size_t array_len,
-                                          bool has_full_bytes,
-                                          uint16_t* cursor) {
+static bool ton_boc_get_bit_count(const uint8_t* array, size_t array_len,
+                                  bool has_full_bytes, uint16_t* cursor) {
   *cursor = array_len * 8;
 
   if (has_full_bytes || array_len == 0) {
@@ -353,7 +352,6 @@ static bool ton_boc_strip_top_upped_array(uint8_t* array, size_t array_len,
     size_t byte_index = *cursor / 8;
 
     if ((array[byte_index] & (1 << i)) != 0) {
-      array[byte_index] &= ~(1 << i);
       return true;
     }
   }
@@ -364,24 +362,38 @@ static bool ton_boc_strip_top_upped_array(uint8_t* array, size_t array_len,
 TonBocError ton_parse_boc_full(const uint8_t* input_boc, size_t input_boc_len,
                                TonParsedBoc_t* parsed_boc) {
   TonBocError error = TON_BOC_ERROR_INVALID_FORMAT;
-  CellData_t* cell_data = NULL;
-  bool* reachable_cells = NULL;
+  TonBocWorkspace* workspace = NULL;
+  bool workspace_acquired = false;
 
-  if (parsed_boc == NULL) {
+  if (parsed_boc == NULL || input_boc == NULL) {
     return TON_BOC_ERROR_INVALID_ARGUMENT;
   }
   if (input_boc_len < 6) {
     return TON_BOC_ERROR_INVALID_FORMAT;
   }
+  if (input_boc_len > TON_BOC_MAX_INPUT_SIZE) {
+    return TON_BOC_ERROR_INVALID_SIZE;
+  }
+  if (!signing_workspace_acquire(SigningWorkspaceOwner_TON)) {
+    return TON_BOC_ERROR_OUT_OF_MEMORY;
+  }
+  workspace_acquired = true;
+  workspace = signing_workspace_ton_boc();
+  if (workspace == NULL) {
+    error = TON_BOC_ERROR_OUT_OF_MEMORY;
+    goto cleanup;
+  }
 
   memset(parsed_boc, 0, sizeof(TonParsedBoc_t));
   bitstring_init(&parsed_boc->root_bits);
 
-  if (memcmp(input_boc, REACH_BOC_MAGIC_PREFIX, 4) != 0) {
+  memcpy(workspace->boc, input_boc, input_boc_len);
+
+  if (memcmp(workspace->boc, REACH_BOC_MAGIC_PREFIX, 4) != 0) {
     goto cleanup;
   }
 
-  const uint8_t* boc = input_boc;
+  const uint8_t* boc = workspace->boc;
   size_t boc_len = input_boc_len;
 
   size_t index = 4;
@@ -400,6 +412,9 @@ TonBocError ton_parse_boc_full(const uint8_t* input_boc, size_t input_boc_len,
   }
 
   if (has_crc32) {
+    if (boc_len < 4) {
+      goto cleanup;
+    }
     uint32_t expected_crc = ton_boc_read_le32(&boc[boc_len - 4]);
     uint32_t actual_crc = ton_boc_crc32c(boc, boc_len - 4);
     if (expected_crc != actual_crc) {
@@ -421,7 +436,8 @@ TonBocError ton_parse_boc_full(const uint8_t* input_boc, size_t input_boc_len,
     goto cleanup;
   }
 
-  if (cells_num == 0) {
+  if (cells_num == 0 || cells_num > TON_BOC_MAX_CELLS ||
+      cells_num > tot_cells_size / 2U) {
     error = TON_BOC_ERROR_INVALID_CELL_COUNT;
     goto cleanup;
   }
@@ -470,15 +486,8 @@ TonBocError ton_parse_boc_full(const uint8_t* input_boc, size_t input_boc_len,
     goto cleanup;
   }
 
-  cell_data = calloc(cells_num, sizeof(CellData_t));
-  reachable_cells = calloc(cells_num, sizeof(bool));
-  if (cell_data == NULL || reachable_cells == NULL) {
-    error = TON_BOC_ERROR_OUT_OF_MEMORY;
-    goto cleanup;
-  }
-
   for (uint32_t i = 0; i < cells_num; i++) {
-    bitstring_init(&cell_data[i].bits);
+    TonCellMeta* cell = &workspace->cells[i];
 
     if (!ton_boc_require_bytes(index, 2, cells_end)) {
       error = TON_BOC_ERROR_INVALID_CELL;
@@ -498,24 +507,22 @@ TonBocError ton_parse_boc_full(const uint8_t* input_boc, size_t input_boc_len,
     uint16_t data_bytes = (d2 + 1) / 2;
     bool has_full_bytes = (d2 & 1) == 0;
 
-    if (data_bytes > sizeof(cell_data[i].bits.data) ||
+    if (data_bytes > sizeof(parsed_boc->root_bits.data) ||
         !ton_boc_require_bytes(
             index, data_bytes + (size_t)refs_count * size_bytes, cells_end)) {
       error = TON_BOC_ERROR_INVALID_CELL;
       goto cleanup;
     }
 
-    cell_data[i].refs_count = refs_count;
-    memcpy(cell_data[i].bits.data, &boc[index], data_bytes);
+    cell->refs_count = refs_count;
+    cell->data_offset = (uint16_t)index;
     index += data_bytes;
 
-    uint16_t data_cursor;
-    if (!ton_boc_strip_top_upped_array(cell_data[i].bits.data, data_bytes,
-                                       has_full_bytes, &data_cursor)) {
+    if (!ton_boc_get_bit_count(&boc[cell->data_offset], data_bytes,
+                               has_full_bytes, &cell->bit_count)) {
       error = TON_BOC_ERROR_INVALID_TOP_UPPED_ARRAY;
       goto cleanup;
     }
-    cell_data[i].bits.data_cursor = data_cursor;
 
     for (uint8_t j = 0; j < refs_count; j++) {
       uint32_t ref_index = 0;
@@ -524,7 +531,7 @@ TonBocError ton_parse_boc_full(const uint8_t* input_boc, size_t input_boc_len,
         error = TON_BOC_ERROR_INVALID_REFERENCE;
         goto cleanup;
       }
-      cell_data[i].ref_indices[j] = ref_index;
+      cell->ref_indices[j] = (uint16_t)ref_index;
     }
   }
 
@@ -534,18 +541,18 @@ TonBocError ton_parse_boc_full(const uint8_t* input_boc, size_t input_boc_len,
   }
 
   // References point forward, so one pass marks the complete root cell graph.
-  reachable_cells[root_cell_index] = true;
+  workspace->cells[root_cell_index].reachable = true;
   for (uint32_t i = root_cell_index; i < cells_num; i++) {
-    if (!reachable_cells[i]) {
+    if (!workspace->cells[i].reachable) {
       continue;
     }
-    for (uint8_t j = 0; j < cell_data[i].refs_count; j++) {
-      reachable_cells[cell_data[i].ref_indices[j]] = true;
+    for (uint8_t j = 0; j < workspace->cells[i].refs_count; j++) {
+      workspace->cells[workspace->cells[i].ref_indices[j]].reachable = true;
     }
   }
 
   for (uint32_t i = 0; i < cells_num; i++) {
-    if (!reachable_cells[i]) {
+    if (!workspace->cells[i].reachable) {
       error = TON_BOC_ERROR_UNREACHABLE_CELL;
       goto cleanup;
     }
@@ -553,38 +560,48 @@ TonBocError ton_parse_boc_full(const uint8_t* input_boc, size_t input_boc_len,
 
   for (int i = (int)cells_num - 1; i >= 0; i--) {
     CellRef_t refs[4];
-    for (uint8_t j = 0; j < cell_data[i].refs_count; j++) {
-      refs[j] = cell_data[cell_data[i].ref_indices[j]].cell_ref;
+    BitString_t bits;
+    TonCellMeta* cell = &workspace->cells[i];
+    uint16_t data_bytes = (cell->bit_count + 7U) / 8U;
+
+    bitstring_init(&bits);
+    memcpy(bits.data, &boc[cell->data_offset], data_bytes);
+    bits.data_cursor = cell->bit_count;
+    if (data_bytes > 0 && (cell->bit_count & 7U) != 0) {
+      bits.data[data_bytes - 1U] &=
+          (uint8_t)(0xffU << (8U - (cell->bit_count & 7U)));
+    }
+    for (uint8_t j = 0; j < cell->refs_count; j++) {
+      refs[j] = workspace->cells[cell->ref_indices[j]].cell_ref;
     }
 
-    if (!ton_hash_cell(&cell_data[i].bits, refs, cell_data[i].refs_count,
-                       &cell_data[i].cell_ref)) {
+    if (!ton_hash_cell(&bits, refs, cell->refs_count, &cell->cell_ref)) {
       error = TON_BOC_ERROR_HASH_FAILED;
       goto cleanup;
     }
   }
 
-  uint16_t root_bytes = (cell_data[root_cell_index].bits.data_cursor + 7) / 8;
-  memcpy(parsed_boc->root_bits.data, cell_data[root_cell_index].bits.data,
-         root_bytes);
-  parsed_boc->root_bits.data_cursor =
-      cell_data[root_cell_index].bits.data_cursor;
-
-  parsed_boc->root_refs_count = cell_data[root_cell_index].refs_count;
-  for (uint8_t j = 0; j < parsed_boc->root_refs_count; j++) {
-    parsed_boc->root_refs[j] =
-        cell_data[cell_data[root_cell_index].ref_indices[j]].cell_ref;
+  TonCellMeta* root_cell = &workspace->cells[root_cell_index];
+  uint16_t root_bytes = (root_cell->bit_count + 7U) / 8U;
+  memcpy(parsed_boc->root_bits.data, &boc[root_cell->data_offset], root_bytes);
+  parsed_boc->root_bits.data_cursor = root_cell->bit_count;
+  if (root_bytes > 0 && (root_cell->bit_count & 7U) != 0) {
+    parsed_boc->root_bits.data[root_bytes - 1U] &=
+        (uint8_t)(0xffU << (8U - (root_cell->bit_count & 7U)));
   }
 
-  parsed_boc->root = cell_data[root_cell_index].cell_ref;
+  parsed_boc->root_refs_count = root_cell->refs_count;
+  for (uint8_t j = 0; j < parsed_boc->root_refs_count; j++) {
+    parsed_boc->root_refs[j] =
+        workspace->cells[root_cell->ref_indices[j]].cell_ref;
+  }
+
+  parsed_boc->root = root_cell->cell_ref;
   error = TON_BOC_OK;
 
 cleanup:
-  if (reachable_cells != NULL) {
-    free(reachable_cells);
-  }
-  if (cell_data != NULL) {
-    free(cell_data);
+  if (workspace_acquired) {
+    signing_workspace_release(SigningWorkspaceOwner_TON);
   }
   return error;
 }
