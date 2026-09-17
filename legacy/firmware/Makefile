@@ -59,6 +59,7 @@ OBJS += header.o
 OBJS += startup.o
 OBJS += fault.o
 OBJS += fault_decode.o
+OBJS += bounded_heap.o
 endif
 
 OBJS += font.o
