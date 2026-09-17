@@ -254,6 +254,80 @@ void oledRefresh() {
   oledInvertDebugLink();
 }
 
+/*
+ * This path intentionally does not share oledRefresh's reentrancy state or
+ * SPISend's unbounded waits.  It is called after configurable faults with
+ * interrupts masked, while ordinary display state may be incomplete.
+ */
+static bool fault_spi_wait(uint32_t mask) {
+  uint32_t limit = 100000U;
+  while ((SPI_SR(OLED_SPI_BASE) & mask) == 0U) {
+    if (--limit == 0U) return false;
+  }
+  return true;
+}
+
+static bool fault_spi_drain_busy(void) {
+  uint32_t limit = 100000U;
+  while ((SPI_SR(OLED_SPI_BASE) & SPI_SR_BSY) != 0U) {
+    if (--limit == 0U) return false;
+  }
+  return true;
+}
+
+static bool fault_spi_send(const uint8_t *data, uint32_t len) {
+  for (uint32_t i = 0; i < len; i++) {
+    if (!fault_spi_wait(SPI_SR_TXE)) return false;
+    SPI_DR(OLED_SPI_BASE) = data[i];
+  }
+  return fault_spi_wait(SPI_SR_TXE) && fault_spi_drain_busy();
+}
+
+void oledDrawFault(const char rows[OLED_FAULT_ROWS][OLED_FAULT_COLS]) {
+  static const uint8_t set_window[] = {
+      OLED_DISPLAYON, OLED_MEMORYMODE, 0x00, 0x21, 0x00, OLED_WIDTH - 1,
+      0x22, 0x00, (OLED_HEIGHT / 8) - 1,
+  };
+
+  current_buffer = _oledbuffer;
+  overlay_buffer_active = false;
+  memzero(current_buffer, OLED_BUFSIZE);
+
+  for (int row = 0; row < OLED_FAULT_ROWS; row++) {
+    int x = 0;
+    for (int column = 0;
+         column < OLED_FAULT_COLS && rows[row][column] != '\0'; column++) {
+      const uint8_t c = (uint8_t)rows[row][column];
+      const int width = fontCharWidth(FONT_STANDARD, c) + 1;
+      if (x + width > OLED_WIDTH) break;
+      oledDrawChar(x, row * FONT_HEIGHT, (char)c, FONT_STANDARD);
+      x += width;
+    }
+  }
+
+  // Finish a possibly interrupted transmission before changing D/C or CS.
+  if (!fault_spi_drain_busy()) {
+    gpio_set(OLED_CS_PORT, OLED_CS_PIN);
+    gpio_clear(OLED_DC_PORT, OLED_DC_PIN);
+    return;
+  }
+  gpio_clear(OLED_DC_PORT, OLED_DC_PIN);
+  gpio_set(OLED_CS_PORT, OLED_CS_PIN);
+  gpio_clear(OLED_CS_PORT, OLED_CS_PIN);
+  if (!fault_spi_send(set_window, sizeof(set_window))) {
+    gpio_set(OLED_CS_PORT, OLED_CS_PIN);
+    gpio_clear(OLED_DC_PORT, OLED_DC_PIN);
+    return;
+  }
+  gpio_set(OLED_CS_PORT, OLED_CS_PIN);
+
+  gpio_set(OLED_DC_PORT, OLED_DC_PIN);
+  gpio_clear(OLED_CS_PORT, OLED_CS_PIN);
+  (void)fault_spi_send(current_buffer, OLED_BUFSIZE);
+  gpio_set(OLED_CS_PORT, OLED_CS_PIN);
+  gpio_clear(OLED_DC_PORT, OLED_DC_PIN);
+}
+
 #endif
 
 const uint8_t *oledGetBuffer() { return current_buffer; }

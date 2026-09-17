@@ -57,6 +57,8 @@ OBJS += bl_check.o
 OBJS += otp.o
 OBJS += header.o
 OBJS += startup.o
+OBJS += fault.o
+OBJS += fault_decode.o
 endif
 
 OBJS += font.o
