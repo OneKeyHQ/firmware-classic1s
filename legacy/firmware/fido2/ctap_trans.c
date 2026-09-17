@@ -38,6 +38,7 @@
 #include "thd89.h"
 #endif
 #include "ble.h"
+#include "coin_state.h"
 #include "flash.h"
 #include "nist256p1.h"
 #include "oled.h"
@@ -332,7 +333,10 @@ void u2fhid_read_start(const U2FHID_FRAME *f) {
 
     ctap_printf("ctap usb cmd\n");
 
-    protectAbortedByFIDO = true;
+    if (reader->cmd != U2FHID_CBOR || reader->len == 0 ||
+        reader->buf[0] != CTAP_GET_ASSERTION) {
+      protectAbortedByFIDO = true;
+    }
 
     // We have all the data
     switch (reader->cmd) {
@@ -1229,7 +1233,8 @@ uint8_t ctap_check_device_status(void) {
   return status;
 }
 
-uint8_t ctap_cbor_cmd(const uint8_t *data, const uint32_t len) {
+static uint8_t ctap_cbor_cmd_with_state(const uint8_t *data,
+                                        const uint32_t len) {
   char *se_version = se_get_version();
   if (len == 0) {
     ctap_error(ERR_INVALID_LEN);
@@ -1276,6 +1281,10 @@ uint8_t ctap_cbor_cmd(const uint8_t *data, const uint32_t len) {
       break;
   }
 
+  if (cmd == CTAP_GET_ASSERTION && !coin_state_fido_is_active()) {
+    status = CTAP2_ERR_KEEPALIVE_CANCEL;
+  }
+
   if (status != CTAP1_ERR_SUCCESS) {
     dialog_manager.is_busy = false;
     send_cbor_error(status);
@@ -1305,7 +1314,7 @@ uint8_t ctap_cbor_cmd(const uint8_t *data, const uint32_t len) {
       ctap_hid_keepalive_register();
       status = ctap_get_assertion(&encoder, (uint8_t *)(data + 1), len - 1);
       ctap_hid_keepalive_unregister();
-      if (ctap_hid_cancel_is_requested()) {
+      if (ctap_hid_cancel_is_requested() || !coin_state_fido_is_active()) {
         status = CTAP2_ERR_KEEPALIVE_CANCEL;
       } else {
         ctap_hid_keepalive_process();
@@ -1354,6 +1363,18 @@ uint8_t ctap_cbor_cmd(const uint8_t *data, const uint32_t len) {
   ctap_response_release();
   ctap_hid_cancel_clear();
   return 0;
+}
+
+uint8_t ctap_cbor_cmd(const uint8_t *data, const uint32_t len) {
+  bool is_get_assertion = len > 0 && data[0] == CTAP_GET_ASSERTION;
+  if (is_get_assertion && !coin_state_fido_begin()) {
+    ctap_error(CTAP1_ERR_CHANNEL_BUSY);
+    return 0;
+  }
+  if (is_get_assertion) protectAbortedByFIDO = true;
+  uint8_t result = ctap_cbor_cmd_with_state(data, len);
+  if (is_get_assertion) coin_state_fido_end();
+  return result;
 }
 
 // ble transport
@@ -1762,7 +1783,10 @@ void ctap_ble_cmd(void) {
     return;
   }
 
-  protectAbortedByFIDO = true;
+  if (cmd != U2FHID_MSG || data_len == 0 ||
+      data_ptr[0] != CTAP_GET_ASSERTION) {
+    protectAbortedByFIDO = true;
+  }
 
   ctap_printf("ctap_ble_cmd cmd: %d\n", cmd);
   dump_hex1(NULL, data_ptr, data_len);

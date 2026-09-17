@@ -12,8 +12,7 @@
 #include "ctap.h"
 #include "ctap_errors.h"
 #include "ctap_parse.h"
-
-extern struct _getAssertionState getAssertionState;
+#include "ctap_state.h"
 
 void _check_ret(CborError ret, int line, const char *filename) {
   (void)line;
@@ -1030,6 +1029,8 @@ uint8_t ctap_parse_get_assertion(CTAP_getAssertion *GA, uint8_t *request,
   size_t map_length;
   CborParser parser;
   CborValue it, map;
+
+  if (!coin_state_fido_is_active()) return CTAP1_ERR_CHANNEL_BUSY;
 
   memset(GA, 0, sizeof(CTAP_getAssertion));
   GA->creds = getAssertionState.creds;  // Save stack memory

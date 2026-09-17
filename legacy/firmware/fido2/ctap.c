@@ -13,6 +13,7 @@
 #include "ctap_errors.h"
 #include "ctap_parse.h"
 #include "resident_credential.h"
+#include "ctap_state.h"
 
 #include "../config.h"
 #include "../crypto.h"
@@ -121,8 +122,6 @@ static uint8_t KEY_AGREEMENT_PUB[65];
 static uint8_t KEY_AGREEMENT_PRIV[32];
 
 // static void ctap_reset_key_agreement();
-
-struct _getAssertionState getAssertionState;
 
 uint8_t ctap_get_info(CborEncoder *cbor_encoder) {
   int ret;
@@ -1994,6 +1993,8 @@ uint8_t ctap_get_assertion(CborEncoder *encoder, uint8_t *request, int length) {
   CTAP_getAssertion GA;
   bool is_resident_credential = false;
 
+  if (!coin_state_fido_is_active()) return CTAP1_ERR_CHANNEL_BUSY;
+
   int ret = ctap_parse_get_assertion(&GA, request, length);
 
   if (ret != 0) {
@@ -2106,7 +2107,7 @@ uint8_t ctap_get_assertion(CborEncoder *encoder, uint8_t *request, int length) {
     bool yes_up = false;
     while (1) {
       usbPoll();
-      if (ctap_hid_cancel_is_requested()) {
+      if (ctap_hid_cancel_is_requested() || !coin_state_fido_is_active()) {
         layoutHome();
         return CTAP2_ERR_KEEPALIVE_CANCEL;
       }
@@ -2143,6 +2144,10 @@ uint8_t ctap_get_assertion(CborEncoder *encoder, uint8_t *request, int length) {
         }
       }
       loop_callback_handler();
+      if (!coin_state_fido_is_active()) {
+        layoutHome();
+        return CTAP2_ERR_KEEPALIVE_CANCEL;
+      }
       if (svc_timer_ms() - start_time > USER_PRESENCE_TIMEOUT) {
         break;
       }
@@ -2156,6 +2161,7 @@ uint8_t ctap_get_assertion(CborEncoder *encoder, uint8_t *request, int length) {
   cred = &GA.creds[getAssertionState.index];
   uint32_t auth_data_buf_sz = sizeof(CTAP_authDataHeader);
 
+  if (!coin_state_fido_is_active()) return CTAP2_ERR_KEEPALIVE_CANCEL;
   uint32_t counter = 0;
   if (!config_nextU2FCounter(&counter)) {
     return CTAP1_ERR_OTHER;
