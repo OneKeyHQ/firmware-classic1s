@@ -691,10 +691,19 @@ static struct menu fido_switch_set_menu = {
     .previous = &main_menu,
 };
 
+static void menu_fido2_resident_error(void) {
+  layoutDialogCenterAdapterV2("Security Key", NULL, &bmp_bottom_left_arrow,
+                              NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                              "Read failed");
+  protectWaitKey(0, 1);
+  menu_init(&main_menu);
+}
+
 void menu_fido2_resident_credential(int index) {
   (void)index;
 
   if (!check_se_fido_seed(NULL)) {
+    menu_fido2_resident_error();
     return;
   }
 
@@ -705,7 +714,7 @@ void menu_fido2_resident_credential(int index) {
     info_result = resident_credential_info(indexs, 30);
     if (info_result < 0 ||
         info_result > FIDO2_RESIDENT_CREDENTIALS_COUNT) {
-      layoutHome();
+      menu_fido2_resident_error();
       return;
     }
     count = (uint8_t)info_result;
@@ -713,7 +722,7 @@ void menu_fido2_resident_credential(int index) {
     resident_credential_refresh = true;
     count = fido_resident_credential_menu.counts;
     if (count > FIDO2_RESIDENT_CREDENTIALS_COUNT) {
-      layoutHome();
+      menu_fido2_resident_error();
       return;
     }
     menu_init(&main_menu);
@@ -735,7 +744,7 @@ void menu_fido2_resident_credential(int index) {
     memset(&cred_desc, 0, sizeof(CTAP_credentialDescriptor));
     if (resident_credential_get_desc(indexs[i], &cred_desc) !=
         SE_FIDO2_SLOT_DATA_OK) {
-      layoutHome();
+      menu_fido2_resident_error();
       return;
     }
     char *account_name = get_account_name(&cred_desc.credential.user);
