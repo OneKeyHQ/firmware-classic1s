@@ -1414,7 +1414,8 @@ static secbool process_flashing_data(usbd_device *dev, const uint8_t *p_buf,
   if (firmware_magic_checked == secfalse) {
     // header start position
 
-    while (p < p_buf + 64 && flash_pos < flash_len) {
+    while (p < p_buf + 64 && flash_pos < FLASH_FWHEADER_LEN &&
+           flash_pos < flash_len) {
       *w = ((*w) >> 8) | (((uint32_t)*p) << 24);
       (*wi)++;
       if (*wi == 4) {
@@ -1450,7 +1451,9 @@ static secbool process_flashing_data(usbd_device *dev, const uint8_t *p_buf,
       }
       firmware_magic_checked = sectrue;
     }
-    return validate_uploaded_old_header(dev);
+    if (flash_pos < FLASH_FWHEADER_LEN) {
+      return validate_uploaded_old_header(dev);
+    }
   }
 
   while (p < p_buf + 64 && flash_pos < flash_len) {
