@@ -21,6 +21,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "buttons.h"
+#include "coin_signing_state.h"
+#include "coin_state.h"
 #include "common.h"
 #include "config.h"
 #include "crypto.h"
@@ -89,17 +91,14 @@ static uint32_t idx2;  // The index of the input or output in the original tx
                        // current tx when computing the legacy digest (Phase 2).
 static uint32_t external_inputs[16];  // bitfield of external input indices
 static uint32_t signatures;
-static TxRequest resp;
-static TxInputType input;
-static TxOutputType output;
-static TxOutputBinType bin_output;
-static TxStruct to;  // Used to serialize the current transaction.
-static TxStruct tp;  // Used to compute TXID of original tx in Phase 1 and
-                     // previous tx in Phase 2.
-static TxStruct ti;  // Used in Phase 1 to compute original legacy digest or
-                     // Decred hashPrefix, and in Phase 2 to compute legacy
-                     // digest or Decred witness hash.
-static Hasher hasher_check;
+#define resp (coin_signing_state.bitcoin.resp)
+#define input (coin_signing_state.bitcoin.input)
+#define output (coin_signing_state.bitcoin.output)
+#define bin_output (coin_signing_state.bitcoin.bin_output)
+#define to (coin_signing_state.bitcoin.to)
+#define tp (coin_signing_state.bitcoin.tp)
+#define ti (coin_signing_state.bitcoin.ti)
+#define signing_hasher_check (coin_signing_state.bitcoin.global_hasher_check)
 static uint8_t pubkey[33];  // Used in Phase 2 to compile scriptSig when signing
                             // legacy inputs.
 static uint8_t sig[64];     // Used in Phase 1 to store signature of original tx
@@ -116,56 +115,11 @@ static const char *progress_label;
 static uint32_t tx_weight, tx_base_weight, our_weight, our_inputs_len;
 PathSchema unlocked_schema;
 
-typedef enum _MatchState {
-  MatchState_UNDEFINED = 0,
-  MatchState_MATCH = 1,
-  MatchState_MISMATCH = 2,
-} MatchState;
-
-typedef struct {
-  uint32_t inputs_count;
-  uint32_t outputs_count;
-  uint32_t segwit_count;
-  uint32_t next_legacy_input;
-  uint32_t min_sequence;
-  bool multisig_fp_set;
-  bool multisig_fp_mismatch;
-  uint8_t multisig_fp[32];
-  uint32_t in_address_n[8];
-  size_t in_address_n_count;
-  InputScriptType in_script_type;
-  MatchState in_script_type_state;
-  uint32_t version;
-  uint32_t lock_time;
-  uint32_t expiry;
-  uint32_t version_group_id;
-  uint32_t timestamp;
-#if !BITCOIN_ONLY
-  uint32_t branch_id;
-  uint8_t hash_header[32];
-#endif
-  Hasher hasher_check;
-  Hasher hasher_prevouts;
-  Hasher hasher_amounts;
-  Hasher hasher_scriptpubkeys;
-  Hasher hasher_sequences;
-  Hasher hasher_outputs;
-  uint8_t hash_inputs_check[32];
-  uint8_t hash_prevouts[32];
-  uint8_t hash_amounts[32];
-  uint8_t hash_scriptpubkeys[32];
-  uint8_t hash_sequences[32];
-  uint8_t hash_outputs[32];
-  uint8_t hash_prevouts143[32];
-  uint8_t hash_outputs143[32];
-  uint8_t hash_sequence143[32];
-} TxInfo;
-
-static TxInfo info;
+#define info (coin_signing_state.bitcoin.info)
 
 /* Variables specific to replacement transactions. */
 static bool is_replacement;  // Is this a replacement transaction?
-static TxInfo orig_info;
+#define orig_info (coin_signing_state.bitcoin.orig_info)
 static uint8_t orig_hash[32];  // TXID of the original transaction.
 
 /* Variables specific to CoinJoin transactions. */
@@ -173,7 +127,7 @@ static secbool is_coinjoin;  // Is this a CoinJoin transaction?
 static uint64_t coinjoin_coordination_fee_base;
 static AuthorizeCoinJoin coinjoin_authorization;
 static CoinJoinRequest coinjoin_request;
-static Hasher coinjoin_request_hasher;
+#define coinjoin_request_hasher (coin_signing_state.bitcoin.coinjoin_request_hasher)
 
 /* A marker for in_address_n_count to indicate a mismatch in bip32 paths in
    input */
@@ -937,7 +891,7 @@ void phase2_request_orig_input(void) {
   if (idx1 < orig_info.inputs_count) {
     if (idx1 == 0) {
       // Reset outer transaction check.
-      hasher_Reset(&hasher_check);
+      hasher_Reset(&signing_hasher_check);
     }
 
     if (idx1 == orig_info.next_legacy_input) {
@@ -950,7 +904,7 @@ void phase2_request_orig_input(void) {
     // Ensure that the original transaction inputs haven't changed for the outer
     // transaction check.
     uint8_t hash[32];
-    hasher_Final(&hasher_check, hash);
+    hasher_Final(&signing_hasher_check, hash);
     if (memcmp(hash, orig_info.hash_inputs_check, 32) != 0) {
       fsm_sendFailure(FailureType_Failure_DataError,
                       "Transaction has changed during signing");
@@ -1449,6 +1403,7 @@ void signing_init(const SignTx *msg, const CoinInfo *_coin, const HDNode *_root,
   is_replacement = false;
   unlocked_schema = unlock;
   signing = true;
+  coin_state_retain(COIN_STATE_OWNER_BITCOIN);
   is_coinjoin = (authorization != NULL) ? sectrue : secfalse;
   if (is_coinjoin == sectrue) {
     if (!init_coinjoin(msg, authorization)) {
@@ -1478,7 +1433,7 @@ void signing_init(const SignTx *msg, const CoinInfo *_coin, const HDNode *_root,
   }
 #endif
 
-  hasher_Init(&hasher_check, HASHER_SHA2);
+  hasher_Init(&signing_hasher_check, HASHER_SHA2);
 
   init_loading_progress();
 
@@ -3005,7 +2960,7 @@ static bool signing_hash_orig_input(TxInputType *orig_input) {
 
   if (idx2 == idx1) {
     // Add input to the outer transaction check.
-    if (!tx_input_check_hash(&hasher_check, orig_input)) {
+    if (!tx_input_check_hash(&signing_hasher_check, orig_input)) {
       fsm_sendFailure(FailureType_Failure_ProcessError, "Failed to hash input");
       signing_abort();
       return false;
@@ -3874,7 +3829,7 @@ void signing_txack(TransactionType *tx) {
       progress_step++;
 
       // Add input to the outer transaction check.
-      if (!tx_input_check_hash(&hasher_check, tx->inputs)) {
+      if (!tx_input_check_hash(&signing_hasher_check, tx->inputs)) {
         fsm_sendFailure(FailureType_Failure_ProcessError,
                         "Failed to hash input");
         signing_abort();
@@ -4236,13 +4191,19 @@ void signing_txack(TransactionType *tx) {
   signing_abort();
 }
 
-void signing_abort(void) {
-  if (signing) {
-    layoutHome();
-    signing = false;
-  }
+void signing_clear_runtime_state(void) {
+  signing = false;
   memzero(&root, sizeof(root));
   memzero(&node, sizeof(node));
+  coin_state_abort(COIN_STATE_OWNER_BITCOIN);
+}
+
+void signing_abort(void) {
+  bool was_active = signing;
+  signing_clear_runtime_state();
+  if (was_active) {
+    layoutHome();
+  }
 }
 
 bool signing_is_preauthorized(void) {

@@ -30,6 +30,7 @@
 #include "messages.pb.h"
 #include "protect.h"
 #include "ripemd160.h"
+#include "se_thd89_v2.h"
 #include "secp256k1.h"
 #include "segwit_addr.h"
 #include "util.h"
@@ -1239,8 +1240,8 @@ bool tx_input_verify_nonownership(
 
   // Ensure that the ownership ID is not ours.
   if (txinput->ownership_proof.size < r + OWNERSHIP_ID_SIZE ||
-      memcmp(txinput->ownership_proof.bytes + r, ownership_id,
-             OWNERSHIP_ID_SIZE) == 0) {
+      thd89_v2_constant_time_equal(txinput->ownership_proof.bytes + r,
+                                   ownership_id, OWNERSHIP_ID_SIZE)) {
     return false;
   }
   r += OWNERSHIP_ID_SIZE;

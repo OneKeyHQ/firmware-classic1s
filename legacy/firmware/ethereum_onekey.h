@@ -36,6 +36,7 @@ void ethereum_signing_init_eip1559_onekey(
 void ethereum_signing_init_eip7702_onekey(
     const EthereumSignTxEIP7702OneKey *msg, const HDNode *node);
 void ethereum_signing_abort_onekey(void);
+void ethereum_signing_clear_runtime_state_onekey(void);
 void ethereum_signing_txack_onekey(const EthereumTxAckOneKey *msg);
 
 void ethereum_message_sign_onekey(const EthereumSignMessageOneKey *msg,

@@ -9,6 +9,7 @@
 #include "common.h"
 #include "compatible.h"
 #include "mi2c.h"
+#include "mi2c_frame.h"
 #include "secbool.h"
 #include "timer.h"
 #include "usart.h"
@@ -16,7 +17,8 @@
 uint16_t g_lasterror;  // TODO:will change in encrypt+MAC
 uint16_t i2c_retry_cnts = 0;
 
-static uint8_t ucXorCheck(uint8_t ucInputXor, uint8_t *pucSrc, uint16_t usLen) {
+static uint8_t ucXorCheck(uint8_t ucInputXor, const uint8_t *pucSrc,
+                          uint16_t usLen) {
   uint16_t i;
   uint8_t ucXor;
 
@@ -27,10 +29,40 @@ static uint8_t ucXorCheck(uint8_t ucInputXor, uint8_t *pucSrc, uint16_t usLen) {
   return ucXor;
 }
 
-static int bMI2CDRV_ReadBytes(uint32_t i2c, uint8_t *res, uint16_t *pusOutLen) {
-  uint8_t ucLenBuf[2], ucSW[2], ucXor = 0, ucXor1 = 0;
-  uint16_t i, usRevLen, usRealLen = 0, usTimeout = 0;
+static bool bMI2CDRV_WaitForRxNE(uint32_t i2c) {
+  uint32_t timeout = 0;
 
+  while (!(I2C_SR1(i2c) & I2C_SR1_RxNE)) {
+    if (++timeout > MI2C_TIMEOUT) {
+      return false;
+    }
+  }
+  return true;
+}
+
+static int bMI2CDRV_AbortRead(uint32_t i2c, uint8_t *res, uint16_t received_len,
+                              uint16_t *pusOutLen) {
+  if (res != NULL && received_len != 0) {
+    memset(res, 0, received_len);
+  }
+  *pusOutLen = 0;
+  i2c_disable_ack(i2c);
+  i2c_send_stop(i2c);
+  return -1;
+}
+
+static int bMI2CDRV_ReadBytes(uint32_t i2c, uint8_t *res, uint16_t *pusOutLen,
+                              uint16_t *sw1sw2) {
+  uint8_t ucLenBuf[2], ucSW[2], ucXor = 0, ucXor1 = 0;
+  uint16_t i, usRevLen, usTimeout = 0;
+  uint16_t caller_capacity;
+  bool invalid_frame = false;
+
+  caller_capacity = *pusOutLen;
+  *pusOutLen = 0;
+  if (sw1sw2 != NULL) {
+    *sw1sw2 = 0;
+  }
   i2c_retry_cnts = 0;
   while (1) {
     if (i2c_retry_cnts > MI2C_RETRYCNTS) {
@@ -46,6 +78,12 @@ static int bMI2CDRV_ReadBytes(uint32_t i2c, uint8_t *res, uint16_t *pusOutLen) {
       if (usTimeout > MI2C_TIMEOUT) {  // setup timeout is 5ms once
         break;
       }
+    }
+    if (usTimeout > MI2C_TIMEOUT) {
+      i2c_retry_cnts++;
+      i2c_send_stop(i2c);
+      delay_ms(2);
+      continue;
     }
     // send read address
     i2c_send_7bit_address(i2c, MI2C_ADDR, MI2C_READ);
@@ -71,42 +109,39 @@ static int bMI2CDRV_ReadBytes(uint32_t i2c, uint8_t *res, uint16_t *pusOutLen) {
   }
   // rev len
   for (i = 0; i < 2; i++) {
-    while (!(I2C_SR1(i2c) & I2C_SR1_RxNE))
-      ;
+    if (!bMI2CDRV_WaitForRxNE(i2c)) {
+      return bMI2CDRV_AbortRead(i2c, NULL, 0, pusOutLen);
+    }
     ucLenBuf[i] = i2c_get_data(i2c);
   }
   // cal len xor
   ucXor = ucXorCheck(ucXor, ucLenBuf, sizeof(ucLenBuf));
 
-  // len-SW1SW2
-  usRevLen = (ucLenBuf[0] << 8) + (ucLenBuf[1] & 0xFF) - 2;
-
-  if (usRevLen > 0 && (res == NULL)) {
-    i2c_send_stop(i2c);
-    return -1;
+  if (!mi2c_frame_payload_length((ucLenBuf[0] << 8) + ucLenBuf[1],
+                                 caller_capacity, TRANSPORT_MAX_RESPONSE,
+                                 &usRevLen) ||
+      (usRevLen > 0 && res == NULL)) {
+    invalid_frame = true;
+  }
+  if (invalid_frame) {
+    return bMI2CDRV_AbortRead(i2c, NULL, 0, pusOutLen);
   }
 
   // rev data
   for (i = 0; i < usRevLen; i++) {
-    while (!(I2C_SR1(i2c) & I2C_SR1_RxNE))
-      ;
-    if (i < *pusOutLen) {
-      res[i] = i2c_get_data(i2c);
-      // cal data xor
-      ucXor = ucXorCheck(ucXor, res + i, 1);
-      usRealLen++;
-    } else {
-      ucLenBuf[0] = i2c_get_data(i2c);
-      ucXor = ucXorCheck(ucXor, ucLenBuf, 1);
+    if (!bMI2CDRV_WaitForRxNE(i2c)) {
+      return bMI2CDRV_AbortRead(i2c, res, i, pusOutLen);
     }
+    res[i] = i2c_get_data(i2c);
+    ucXor = ucXorCheck(ucXor, res + i, 1);
   }
 
   // sw1 sw2 len
   for (i = 0; i < 2; i++) {
-    while (!(I2C_SR1(i2c) & I2C_SR1_RxNE))
-      ;
+    if (!bMI2CDRV_WaitForRxNE(i2c)) {
+      return bMI2CDRV_AbortRead(i2c, res, usRevLen, pusOutLen);
+    }
     ucSW[i] = i2c_get_data(i2c);
-    usRealLen++;
   }
   // cal sw1sw2 xor
   ucXor = ucXorCheck(ucXor, ucSW, sizeof(ucSW));
@@ -114,36 +149,33 @@ static int bMI2CDRV_ReadBytes(uint32_t i2c, uint8_t *res, uint16_t *pusOutLen) {
   // xor len
   i2c_disable_ack(i2c);
   for (i = 0; i < MI2C_XOR_LEN; i++) {
-    while (!(I2C_SR1(i2c) & I2C_SR1_RxNE))
-      ;
+    if (!bMI2CDRV_WaitForRxNE(i2c)) {
+      return bMI2CDRV_AbortRead(i2c, res, usRevLen, pusOutLen);
+    }
     ucXor1 = i2c_get_data(i2c);
-    usRealLen++;
   }
 
   i2c_send_stop(i2c);
-  if (0x00 == usRealLen) {
-    return -1;
-  }
-
   if (ucXor != ucXor1) {
+    if (res != NULL && usRevLen != 0) {
+      memset(res, 0, usRevLen);
+    }
+    *pusOutLen = 0;
     return -1;
   }
-  usRealLen -= MI2C_XOR_LEN;
   g_lasterror = (ucSW[0] << 8) + ucSW[1];
+  if (sw1sw2 != NULL) {
+    *sw1sw2 = g_lasterror;
+  }
   if ((0x90 != ucSW[0]) || (0x00 != ucSW[1])) {
-    if (ucSW[0] == 0x6c || ucSW[0] == 0x90) {  // for se generate seed not first
-                                               // generate will return 0x90xx
-      *pusOutLen = 0;
-    } else {
-      *pusOutLen = usRealLen - 2;
-    }
+    *pusOutLen = usRevLen;
     return 1;
   }
-  *pusOutLen = usRealLen - 2;
+  *pusOutLen = usRevLen;
   return 0;
 }
 
-static bool bMI2CDRV_WriteBytes(uint32_t i2c, uint8_t *data,
+static bool bMI2CDRV_WriteBytes(uint32_t i2c, const uint8_t *data,
                                 uint16_t ucSendLen) {
   uint8_t ucLenBuf[2], ucXor = 0;
   uint16_t i, usTimeout = 0;
@@ -162,6 +194,12 @@ static bool bMI2CDRV_WriteBytes(uint32_t i2c, uint8_t *data,
         break;
       }
     }
+    if (usTimeout > MI2C_TIMEOUT) {
+      i2c_retry_cnts++;
+      i2c_send_stop(i2c);
+      delay_ms(2);
+      continue;
+    }
 
     i2c_send_7bit_address(i2c, MI2C_ADDR, MI2C_WRITE);
     usTimeout = 0;
@@ -175,6 +213,8 @@ static bool bMI2CDRV_WriteBytes(uint32_t i2c, uint8_t *data,
     if (usTimeout > MI2C_ADDR_ACK_TIMEOUT) {
       i2c_retry_cnts++;
       usTimeout = 0;
+      i2c_send_stop(i2c);
+      delay_ms(2);
       continue;
     }
     /* Clearing ADDR condition sequence. */
@@ -194,7 +234,7 @@ static bool bMI2CDRV_WriteBytes(uint32_t i2c, uint8_t *data,
     while (!(I2C_SR1(i2c) & (I2C_SR1_TxE))) {
       usTimeout++;
       if (usTimeout > MI2C_TIMEOUT) {
-        return false;
+        goto write_failed;
       }
     }
   }
@@ -207,7 +247,7 @@ static bool bMI2CDRV_WriteBytes(uint32_t i2c, uint8_t *data,
     while (!(I2C_SR1(i2c) & (I2C_SR1_TxE))) {
       usTimeout++;
       if (usTimeout > MI2C_TIMEOUT) {
-        return false;
+        goto write_failed;
       }
     }
   }
@@ -217,12 +257,16 @@ static bool bMI2CDRV_WriteBytes(uint32_t i2c, uint8_t *data,
   while (!(I2C_SR1(i2c) & (I2C_SR1_TxE))) {
     usTimeout++;
     if (usTimeout > MI2C_TIMEOUT) {
-      return false;
+      goto write_failed;
     }
   }
 
   i2c_send_stop(i2c);
   return true;
+
+write_failed:
+  i2c_send_stop(i2c);
+  return false;
 }
 
 void vMI2CDRV_Init(void) {
@@ -248,28 +292,50 @@ void vMI2CDRV_Init(void) {
  *master i2c rev
  */
 bool bMI2CDRV_ReceiveData(uint8_t *pucStr, uint16_t *pusRevLen) {
-  int ret = 0;
-  __disable_irq();
-  ret = bMI2CDRV_ReadBytes(MI2CX, pucStr, pusRevLen);
-  __enable_irq();
-  if (ret < 0) {
-    ensure(secfalse, "i2c read error");
-  } else if (ret == 1) {
-    return false;
-  }
+  uint16_t sw1sw2 = 0;
 
-  return true;
+  return bMI2CDRV_ReceiveDataRaw(pucStr, pusRevLen, &sw1sw2, true) &&
+         sw1sw2 == 0x9000;
 }
 /*
  *master i2c send
  */
 bool bMI2CDRV_SendData(uint8_t *pucStr, uint16_t usStrLen) {
-  if (usStrLen > (MI2C_BUF_MAX_LEN - 3)) {
-    usStrLen = MI2C_BUF_MAX_LEN - 3;
+  return bMI2CDRV_SendDataRaw(pucStr, usStrLen, true);
+}
+
+bool bMI2CDRV_ReceiveDataRaw(uint8_t *data, uint16_t *data_len,
+                             uint16_t *sw1sw2, bool fatal) {
+  int ret;
+  uint16_t ignored_length = 0;
+
+  if (data_len == NULL) {
+    data_len = &ignored_length;
+  }
+
+  __disable_irq();
+  ret = bMI2CDRV_ReadBytes(MI2CX, data, data_len, sw1sw2);
+  __enable_irq();
+  if (ret < 0) {
+    if (fatal) {
+      ensure(secfalse, "i2c read error");
+    }
+    return false;
+  }
+  return mi2c_frame_transport_success(ret);
+}
+
+bool bMI2CDRV_SendDataRaw(const uint8_t *data, uint16_t usStrLen, bool fatal) {
+  if ((data == NULL && usStrLen != 0) || usStrLen > (MI2C_BUF_MAX_LEN - 3)) {
+    return false;
   }
   __disable_irq();
-  if (!bMI2CDRV_WriteBytes(MI2CX, pucStr, usStrLen)) {
-    ensure(secfalse, "i2c write error");
+  if (!bMI2CDRV_WriteBytes(MI2CX, data, usStrLen)) {
+    __enable_irq();
+    if (fatal) {
+      ensure(secfalse, "i2c write error");
+    }
+    return false;
   }
   __enable_irq();
   return true;

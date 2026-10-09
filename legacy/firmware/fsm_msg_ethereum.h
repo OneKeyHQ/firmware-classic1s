@@ -171,7 +171,12 @@ void fsm_msgEthereumSignTxEIP1559(const EthereumSignTxEIP1559 *msg) {
 }
 
 void fsm_msgEthereumTxAck(const EthereumTxAck *msg) {
-  CHECK_UNLOCKED
+  if (!session_isUnlocked()) {
+    ethereum_signing_abort();
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Locked");
+    layoutHome();
+    return;
+  }
 
   ethereum_signing_txack(msg);
 }

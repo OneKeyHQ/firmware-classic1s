@@ -587,7 +587,7 @@ void kaspa_signing_init(const KaspaSignTx *msg) {
   memcpy(prefix, msg->prefix, sizeof(msg->prefix));
 }
 
-void kaspa_signing_abort(void) {
+void kaspa_signing_clear_runtime_state(void) {
   if (kaspa_signing || signing_mode != KASPA_SIGNING_MODE_NONE) {
     kaspa_signing = false;
     signing_mode = KASPA_SIGNING_MODE_NONE;
@@ -598,6 +598,13 @@ void kaspa_signing_abort(void) {
     memzero(prefix, sizeof(prefix));
     memzero(previous_address, sizeof(previous_address));
     memzero(&signing_ctx, sizeof(signing_ctx));
+  }
+}
+
+void kaspa_signing_abort(void) {
+  bool was_active = kaspa_signing || signing_mode != KASPA_SIGNING_MODE_NONE;
+  kaspa_signing_clear_runtime_state();
+  if (was_active) {
     layoutHome();
   }
 }

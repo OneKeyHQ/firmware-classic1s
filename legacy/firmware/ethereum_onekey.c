@@ -21,6 +21,8 @@
 #include <inttypes.h>
 
 #include "address.h"
+#include "coin_signing_state.h"
+#include "coin_state.h"
 #include "crypto.h"
 #include "curves.h"
 #include "ecdsa.h"
@@ -30,6 +32,7 @@
 #include "ethereum_onekey.h"
 #include "ethereum_tokens_onekey.h"
 #include "ethereum_typed_data.h"
+#include "ethereum_uint256.h"
 #include "fsm.h"
 #include "gettext.h"
 #include "layout2.h"
@@ -39,6 +42,7 @@
 #include "protect.h"
 #include "secp256k1.h"
 #include "sha3.h"
+#include "signing_workspace.h"
 #include "transaction.h"
 #include "util.h"
 
@@ -52,7 +56,7 @@ recalculate the full value: v = 2 * chain_id + 35 + v_bit */
 
 static bool ethereum_signing = false;
 static uint32_t data_total, data_left;
-static EthereumTxRequestOneKey msg_tx_request;
+#define msg_tx_request (coin_signing_state.ethereum_onekey.msg_tx_request)
 static CONFIDENTIAL HDNode *_node = NULL;
 #if EMULATOR
 static CONFIDENTIAL uint8_t privkey[32];
@@ -60,15 +64,17 @@ static CONFIDENTIAL uint8_t privkey[32];
 static uint64_t chain_id;
 static bool eip1559;
 static bool eip7702;
-static struct SHA3_CTX keccak_ctx = {0};
+#define keccak_ctx (coin_signing_state.ethereum_onekey.keccak_ctx)
 static uint8_t *data_left_bytes = NULL;
 static uint32_t signing_access_list_count;
-static EthereumAccessListOneKey signing_access_list[16];
+#define signing_access_list \
+  (coin_signing_state.ethereum_onekey.signing_access_list)
 _Static_assert(sizeof(signing_access_list) ==
                    sizeof(((EthereumSignTxEIP1559OneKey *)NULL)->access_list),
                "access_list buffer size mismatch");
 static uint32_t signing_authorization_list_count;
-static EthereumAuthorizationOneKey signing_authorization_list[16];
+#define signing_authorization_list \
+  (coin_signing_state.ethereum_onekey.signing_authorization_list)
 _Static_assert(
     sizeof(signing_authorization_list) ==
         sizeof(((EthereumSignTxEIP7702OneKey *)NULL)->authorization_list),
@@ -1165,6 +1171,7 @@ static void fillEthereumFee(const uint8_t *amount_bytes, uint32_t amount_len,
 
 static bool ethereum_signing_init_common(struct signing_params *params) {
   ethereum_signing = true;
+  coin_state_retain(COIN_STATE_OWNER_ETHEREUM_ONEKEY);
   sha3_256_Init(&keccak_ctx);
 
   data_total = data_left = 0;
@@ -1362,7 +1369,20 @@ static bool ethereum_signing_handle_safe_tx(const struct signing_params *params,
     safe_tx_context->payload.approve_hash = data_str;
   } else {
     // safe exec transaction
-    display_info_init(&display_info, 14);
+    char *safe_tx_gas_str = NULL;
+    char *base_gas_str = NULL;
+    char *gas_price_str = NULL;
+    char *gas_token_str = NULL;
+    char *refund_receiver_str = NULL;
+    uint8_t *owned_data = NULL;
+    uint8_t *remaining_data = NULL;
+    FailureType failure_code = FailureType_Failure_DataError;
+    const char *failure_message = "Failed to allocate memory";
+
+    if (!display_info_init(&display_info, 14)) {
+      fsm_sendFailure(FailureType_Failure_ProcessError, "Out of memory");
+      return false;
+    }
     uint8_t *data = (uint8_t *)params->data_initial_chunk_bytes + 16;
     display_info_add_item_name(&display_info, "to", 0);
     uint8_t to[20];
@@ -1383,11 +1403,11 @@ static bool ethereum_signing_handle_safe_tx(const struct signing_params *params,
       strcpy(operation_str, "1(DelegateCall)");
       *is_delegate_call = true;
     }
-    char *safe_tx_gas_str = decode_typed_data(data + 116, 32, "uint");
-    char *base_gas_str = decode_typed_data(data + 148, 32, "uint");
-    char *gas_price_str = decode_typed_data(data + 180, 32, "uint");
-    char *gas_token_str = decode_typed_data(data + 224, 20, "address");
-    char *refund_receiver_str = decode_typed_data(data + 256, 20, "address");
+    safe_tx_gas_str = decode_typed_data(data + 116, 32, "uint");
+    base_gas_str = decode_typed_data(data + 148, 32, "uint");
+    gas_price_str = decode_typed_data(data + 180, 32, "uint");
+    gas_token_str = decode_typed_data(data + 224, 20, "address");
+    refund_receiver_str = decode_typed_data(data + 256, 20, "address");
     uint32_t signature_pos = 0;
     for (uint8_t i = 0; i < 32; i++) {
       signature_pos = (signature_pos << 8) | data[276 + i];
@@ -1396,22 +1416,13 @@ static bool ethereum_signing_handle_safe_tx(const struct signing_params *params,
     for (uint8_t i = 0; i < 32; i++) {
       data_len = (data_len << 8) | data[308 + i];
     }
-    uint8_t *remaining_data = NULL;
     if (data_left > 0) {
-      data = (uint8_t *)malloc(668);
-      if (data == NULL) {
-        fsm_sendFailure(FailureType_Failure_DataError,
-                        "Failed to allocate memory");
-        return false;
-      }
+      owned_data = (uint8_t *)malloc(668);
+      if (owned_data == NULL) goto failed_preparation;
+      data = owned_data;
       memcpy(data, (uint8_t *)params->data_initial_chunk_bytes + 356, 668);
       data_left_bytes = (uint8_t *)malloc(data_left);
-      if (data_left_bytes == NULL) {
-        free(data);
-        fsm_sendFailure(FailureType_Failure_DataError,
-                        "Failed to allocate memory");
-        return false;
-      }
+      if (data_left_bytes == NULL) goto failed_preparation;
       uint32_t data_left_pos = 0;
       uint32_t data_left_dummy = data_left;
       while (data_left_dummy > 0) {
@@ -1422,12 +1433,8 @@ static bool ethereum_signing_handle_safe_tx(const struct signing_params *params,
             call(MessageType_MessageType_EthereumTxRequestOneKey,
                  &msg_tx_request, MessageType_MessageType_EthereumTxAckOneKey);
         if (response_ptr == NULL) {
-          free(data_left_bytes);
-          data_left_bytes = NULL;
-          free(data);
-          display_info_cleanup(&display_info);
-          fsm_sendFailure(FailureType_Failure_DataError, "Invalid call data");
-          return false;
+          failure_message = "Invalid call data";
+          goto failed_preparation;
         }
         EthereumTxAckOneKey resp = *(EthereumTxAckOneKey *)response_ptr;
         memcpy(data_left_bytes + data_left_pos, resp.data_chunk.bytes,
@@ -1440,18 +1447,12 @@ static bool ethereum_signing_handle_safe_tx(const struct signing_params *params,
       const uint8_t *nest_data = NULL;
       if (data_left_bytes != NULL) {
         remaining_data = (uint8_t *)malloc(params->data_length - 356);
-        if (remaining_data == NULL) {
-          free(data);
-          free(data_left_bytes);
-          data_left_bytes = NULL;
-          fsm_sendFailure(FailureType_Failure_DataError,
-                          "Failed to allocate memory");
-          return false;
-        }
+        if (remaining_data == NULL) goto failed_preparation;
         memcpy(remaining_data, data, 668);
         memcpy(remaining_data + 668, data_left_bytes, data_left);
         nest_data = (const uint8_t *)remaining_data;
-        free(data);
+        free(owned_data);
+        owned_data = NULL;
       } else {
         nest_data = data + 340;
       }
@@ -1535,38 +1536,31 @@ static bool ethereum_signing_handle_safe_tx(const struct signing_params *params,
       }
     }
     if (signature_pos < 340 + data_len) {
-      if (data_left_bytes != NULL) {
-        free(data_left_bytes);
-        free(safe_tx_gas_str);
-        free(base_gas_str);
-        free(gas_price_str);
-        free(gas_token_str);
-        free(refund_receiver_str);
-        free(remaining_data);
-        remaining_data = NULL;
-        data_left_bytes = NULL;
-      }
-      display_info_cleanup(&display_info);
-      fsm_sendFailure(FailureType_Failure_DataError, "Invalid call data");
-      return false;
+      failure_message = "Invalid call data";
+      goto failed_preparation;
     }
     display_info_add_item_name(&display_info, "operation", 0);
     display_info_set_value(&display_info, operation_str);
     display_info_add_item_name(&display_info, "safeTxGas", 0);
     display_info_set_value(&display_info, safe_tx_gas_str);
     free(safe_tx_gas_str);
+    safe_tx_gas_str = NULL;
     display_info_add_item_name(&display_info, "baseGas", 0);
     display_info_set_value(&display_info, base_gas_str);
     free(base_gas_str);
+    base_gas_str = NULL;
     display_info_add_item_name(&display_info, "gasPrice", 0);
     display_info_set_value(&display_info, gas_price_str);
     free(gas_price_str);
+    gas_price_str = NULL;
     display_info_add_item_name(&display_info, "gasToken", 0);
     display_info_set_value(&display_info, gas_token_str);
     free(gas_token_str);
+    gas_token_str = NULL;
     display_info_add_item_name(&display_info, "refundReceiver", 0);
     display_info_set_value(&display_info, refund_receiver_str);
     free(refund_receiver_str);
+    refund_receiver_str = NULL;
     uint8_t *signature_data = NULL;
     if (data_left_bytes != NULL) {
       signature_data = remaining_data + (signature_pos - 340);
@@ -1584,9 +1578,31 @@ static bool ethereum_signing_handle_safe_tx(const struct signing_params *params,
     free(signatures_str);
     if (data_left_bytes != NULL) {
       free(remaining_data);
+      remaining_data = NULL;
     }
+    if (display_info.failed) goto failed_preparation;
     safe_tx_context->type = SafeTxContextType_EXEC;
     safe_tx_context->payload.display_info = &display_info;
+    return true;
+
+  failed_preparation:
+    free(safe_tx_gas_str);
+    free(base_gas_str);
+    free(gas_price_str);
+    free(gas_token_str);
+    free(refund_receiver_str);
+    free(owned_data);
+    free(remaining_data);
+    if (data_left_bytes != NULL) {
+      free(data_left_bytes);
+      data_left_bytes = NULL;
+    }
+    bool display_failed = display_info.failed;
+    display_info_cleanup(&display_info);
+    fsm_sendFailure(display_failed ? FailureType_Failure_ProcessError
+                                   : failure_code,
+                    display_failed ? "Out of memory" : failure_message);
+    return false;
   }
   return true;
 }
@@ -1603,7 +1619,7 @@ static bool ethereum_signing_safe_tx(
   char max_fee_per_gas_str[32] = {0};
   char priority_fee_per_gas_str[32] = {0};
   char max_fee_str[32] = {0};
-  char nonce_str[32] = {0};
+  char nonce_str[ETHEREUM_UINT256_DECIMAL_BUFFER_SIZE] = {0};
   if (max_fee_per_gas != NULL) {
     fillEthereumFee(max_fee_per_gas, max_fee_per_gas_len, NULL, 0,
                     max_fee_per_gas_str);
@@ -1615,9 +1631,11 @@ static bool ethereum_signing_safe_tx(
     fillEthereumFee(gas_limit, gas_limit_len, gas_price, gas_price_len,
                     max_fee_str);
   }
-  char *nonce_ptr = decode_typed_data(nonce, nonce_len, "uint");
-  memcpy(nonce_str, nonce_ptr, strlen(nonce_ptr));
-  free(nonce_ptr);
+  if (!ethereum_uint256_to_decimal(nonce, nonce_len, nonce_str,
+                                   sizeof(nonce_str))) {
+    fsm_sendFailure(FailureType_Failure_DataError, "Invalid nonce");
+    return false;
+  }
   if (!ethereum_signing_handle_safe_tx(params, &safe_tx_context,
                                        &is_delegate_call)) {
     if (safe_tx_context.payload.approve_hash != NULL) {
@@ -1714,7 +1732,7 @@ static bool ethereum_signing_confirm_approve(
   char max_fee_per_gas_str[32] = {0};
   char priority_fee_per_gas_str[32] = {0};
   char max_fee_str[32] = {0};
-  char nonce_str[32] = {0};
+  char nonce_str[ETHEREUM_UINT256_DECIMAL_BUFFER_SIZE] = {0};
   if (max_fee_per_gas != NULL) {
     fillEthereumFee(max_fee_per_gas, max_fee_per_gas_len, NULL, 0,
                     max_fee_per_gas_str);
@@ -1726,9 +1744,11 @@ static bool ethereum_signing_confirm_approve(
     fillEthereumFee(gas_limit, gas_limit_len, gas_price, gas_price_len,
                     max_fee_str);
   }
-  char *nonce_ptr = decode_typed_data(nonce, nonce_len, "uint");
-  memcpy(nonce_str, nonce_ptr, strlen(nonce_ptr));
-  free(nonce_ptr);
+  if (!ethereum_uint256_to_decimal(nonce, nonce_len, nonce_str,
+                                   sizeof(nonce_str))) {
+    fsm_sendFailure(FailureType_Failure_DataError, "Invalid nonce");
+    return false;
+  }
   char chain_id_str[21] = {0};
   snprintf(chain_id_str, sizeof(chain_id_str), "%" PRIu32,
            (uint32_t)params->chain_id);
@@ -2412,15 +2432,19 @@ void ethereum_signing_txack_onekey(const EthereumTxAckOneKey *tx) {
   }
 }
 
-void ethereum_signing_abort_onekey(void) {
-  if (ethereum_signing) {
-    _node = NULL;
+void ethereum_signing_clear_runtime_state_onekey(void) {
+  _node = NULL;
 #if EMULATOR
-    memzero(privkey, sizeof(privkey));
+  memzero(privkey, sizeof(privkey));
 #endif
-    layoutHome();
-    ethereum_signing = false;
-  }
+  ethereum_signing = false;
+  coin_state_abort(COIN_STATE_OWNER_ETHEREUM_ONEKEY);
+}
+
+void ethereum_signing_abort_onekey(void) {
+  bool was_active = ethereum_signing;
+  ethereum_signing_clear_runtime_state_onekey();
+  if (was_active) layoutHome();
 }
 
 void ethereum_message_hash(const uint8_t *message, size_t message_len,
@@ -2756,18 +2780,29 @@ void ethereum_typed_data_sign_onekey(const EthereumSignTypedDataOneKey *msg,
     ethereum_gnosis_safe_tx_sign(ack, node, resp);
     return;
   }
-  TypedDataEnvelope envelope = {0};
-  TypedDataEnvelope_init(&envelope, msg->primary_type,
-                         strlen(msg->primary_type), msg->metamask_v4_compat);
-  if (!collect_types(&envelope)) {
+  if (!signing_workspace_acquire(SigningWorkspaceOwner_TYPED_DATA)) {
+    fsm_sendFailure(FailureType_Failure_ProcessError,
+                    "Typed data signing is busy");
     return;
   }
+  TypedDataEnvelope *envelope = signing_workspace_typed_data();
+  if (envelope == NULL) {
+    signing_workspace_release(SigningWorkspaceOwner_TYPED_DATA);
+    fsm_sendFailure(FailureType_Failure_ProcessError,
+                    "Typed data signing is busy");
+    return;
+  }
+  TypedDataEnvelope_init(envelope, msg->primary_type,
+                         strlen(msg->primary_type), msg->metamask_v4_compat);
+  if (!collect_types(envelope)) {
+    goto cleanup;
+  }
   bool is_permit =
-      is_string_in_list(envelope.primary_type, HIGH_RISK_PRIMARY_TYPES_PERMIT,
+      is_string_in_list(envelope->primary_type, HIGH_RISK_PRIMARY_TYPES_PERMIT,
                         sizeof(HIGH_RISK_PRIMARY_TYPES_PERMIT) /
                             sizeof(HIGH_RISK_PRIMARY_TYPES_PERMIT[0]));
   bool is_order =
-      is_string_in_list(envelope.primary_type, HIGH_RISK_PRIMARY_TYPES_ORDER,
+      is_string_in_list(envelope->primary_type, HIGH_RISK_PRIMARY_TYPES_ORDER,
                         sizeof(HIGH_RISK_PRIMARY_TYPES_ORDER) /
                             sizeof(HIGH_RISK_PRIMARY_TYPES_ORDER[0]));
   char warning_text[128] = {0};
@@ -2787,29 +2822,32 @@ void ethereum_typed_data_sign_onekey(const EthereumSignTypedDataOneKey *msg,
                               NULL, NULL, warning_text);
   if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
     fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
-    return;
+    goto cleanup;
   }
   uint32_t member_path[] = {0};
   uint8_t member_path_len = 1;
   char parent_objects[1][64] = {TYPE_NAME_DOMAIN};
   uint8_t parent_objects_len = 1;
   uint8_t domain_separator[32] = {0};
-  display_info_init(&display_info, 16);
+  if (!display_info_init(&display_info, 16)) {
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Out of memory");
+    goto cleanup;
+  }
 
-  if (!hash_struct(&envelope, TYPE_NAME_DOMAIN, strlen(TYPE_NAME_DOMAIN),
+  if (!hash_struct(envelope, TYPE_NAME_DOMAIN, strlen(TYPE_NAME_DOMAIN),
                    member_path, member_path_len, 0, parent_objects,
                    parent_objects_len, domain_separator)) {
     display_info_cleanup(&display_info);
-    return;
+    goto cleanup;
   }
   if (!layoutTypedData(&display_info, TYPE_NAME_DOMAIN)) {
     display_info_cleanup(&display_info);
     fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
-    return;
+    goto cleanup;
   }
   display_info_cleanup(&display_info);
   bool has_message_hash = true;
-  if (strcmp(envelope.primary_type, TYPE_NAME_DOMAIN) == 0) {
+  if (strcmp(envelope->primary_type, TYPE_NAME_DOMAIN) == 0) {
     has_message_hash = false;
   }
   uint8_t message_hash[32] = {0};
@@ -2817,20 +2855,23 @@ void ethereum_typed_data_sign_onekey(const EthereumSignTypedDataOneKey *msg,
   if (has_message_hash) {
     member_path[0] = 1;
     memzero(parent_objects, sizeof(parent_objects));
-    strncpy(parent_objects[0], envelope.primary_type,
-            strlen(envelope.primary_type));
-    display_info_init(&display_info, 16);
-    if (!hash_struct(&envelope, envelope.primary_type,
-                     strlen(envelope.primary_type), member_path,
+    strncpy(parent_objects[0], envelope->primary_type,
+            strlen(envelope->primary_type));
+    if (!display_info_init(&display_info, 16)) {
+      fsm_sendFailure(FailureType_Failure_ProcessError, "Out of memory");
+      goto cleanup;
+    }
+    if (!hash_struct(envelope, envelope->primary_type,
+                     strlen(envelope->primary_type), member_path,
                      member_path_len, 0, parent_objects, parent_objects_len,
                      message_hash)) {
       display_info_cleanup(&display_info);
-      return;
+      goto cleanup;
     }
-    if (!layoutTypedData(&display_info, envelope.primary_type)) {
+    if (!layoutTypedData(&display_info, envelope->primary_type)) {
       display_info_cleanup(&display_info);
       fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
-      return;
+      goto cleanup;
     }
     display_info_cleanup(&display_info);
   }
@@ -2838,7 +2879,7 @@ void ethereum_typed_data_sign_onekey(const EthereumSignTypedDataOneKey *msg,
   // confirm final
   if (!typed_data_confirm_final()) {
     fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
-    return;
+    goto cleanup;
   }
   uint8_t hash[32] = {0};
   SHA3_CTX ctx = {0};
@@ -2858,11 +2899,14 @@ void ethereum_typed_data_sign_onekey(const EthereumSignTypedDataOneKey *msg,
                          ethereum_is_canonic) != 0) {
 #endif
     fsm_sendFailure(FailureType_Failure_ProcessError, "Signing failed");
-    return;
+    goto cleanup;
   }
   resp->signature.bytes[64] = 27 + v;
   resp->signature.size = 65;
   msg_write(MessageType_MessageType_EthereumTypedDataSignatureOneKey, resp);
+
+cleanup:
+  signing_workspace_release(SigningWorkspaceOwner_TYPED_DATA);
 }
 
 bool ethereum_parse_onekey(const char *address, uint8_t pubkeyhash[20]) {

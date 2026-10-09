@@ -845,14 +845,9 @@ bool change_output_to_input_script_type(OutputScriptType output_script_type,
   }
 }
 
-void slip21_from_seed(const uint8_t *seed, int seed_len, Slip21Node *out) {
 #if EMULATOR
+void slip21_from_seed(const uint8_t *seed, int seed_len, Slip21Node *out) {
   hmac_sha512((uint8_t *)"Symmetric key seed", 18, seed, seed_len, out->data);
-#else
-  (void)seed;
-  (void)seed_len;
-  se_slip21_node(out->data);
-#endif
 }
 
 void slip21_derive_path(Slip21Node *inout, const uint8_t *label,
@@ -865,6 +860,7 @@ void slip21_derive_path(Slip21Node *inout, const uint8_t *label,
 }
 
 const uint8_t *slip21_key(const Slip21Node *node) { return &node->data[32]; }
+#endif
 
 bool cryptoCosiVerify(const ed25519_signature signature, const uint8_t *message,
                       const size_t message_len, const int threshold,

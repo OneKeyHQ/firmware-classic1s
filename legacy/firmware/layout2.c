@@ -828,10 +828,8 @@ static void _layout_home(bool update_menu) {
 
   bool no_backup = false;
   bool unfinished_backup = false;
-  bool needs_backup = false;
   config_getNoBackup(&no_backup);
   config_getUnfinishedBackup(&unfinished_backup);
-  config_getNeedsBackup(&needs_backup);
   uint8_t homescreen[HOMESCREEN_SIZE] = {0};
   if (config_getHomescreen(homescreen, sizeof(homescreen))) {
     BITMAP b = {0};
@@ -860,9 +858,6 @@ static void _layout_home(bool update_menu) {
       } else if (unfinished_backup) {
         oledDrawStringCenterAdapter(OLED_WIDTH / 2, OLED_HEIGHT - 9,
                                     "BACKUP FAILED!", FONT_STANDARD);
-      } else if (needs_backup) {
-        oledDrawStringCenterAdapter(OLED_WIDTH / 2, OLED_HEIGHT - 9,
-                                    "Need Backup", FONT_STANDARD);
       } else {
         oledDrawStringCenterAdapter(OLED_WIDTH / 2, OLED_HEIGHT - 10,
                                     ble_get_name(), FONT_STANDARD);
@@ -892,9 +887,6 @@ static void _layout_home(bool update_menu) {
         oledBox(0, OLED_HEIGHT - 8, 127, 8, false);
         oledDrawStringCenterAdapter(OLED_WIDTH / 2, OLED_HEIGHT - 9,
                                     "BACKUP FAILED!", FONT_STANDARD);
-      } else if (needs_backup) {
-        oledDrawStringCenterAdapter(OLED_WIDTH / 2, OLED_HEIGHT - 9,
-                                    "Need Backup", FONT_STANDARD);
       } else {
         oledDrawStringCenterAdapter(OLED_WIDTH / 2, OLED_HEIGHT - 10,
                                     ble_get_name(), FONT_STANDARD);
@@ -3764,10 +3756,22 @@ void layoutDeviceParameters(int num) {
   snprintf(firmware_ver, 32, "%s[%s-%s]", ONEKEY_VERSION,
            BUILD_ID + strlen(BUILD_ID) - 7, hash_str);
 
-  data2hexaddr((uint8_t *)se_get_hash(), 4, hash_str);
+  const uint8_t *se_hash = (const uint8_t *)se_get_hash();
+  const char *se_build_id = se_get_build_id();
+  if (se_hash != NULL) {
+    data2hexaddr(se_hash, 4, hash_str);
+  } else {
+    strlcpy(hash_str, "unknown", sizeof(hash_str));
+  }
   hash_str[7] = 0;
-  snprintf(se_ver, 32, "%s[%s-%s]", se_get_version(), se_get_build_id(),
-           hash_str);
+  const char *version = se_get_version();
+  if (version == NULL) {
+    version = "unknown";
+  }
+  if (se_build_id == NULL) {
+    se_build_id = "unknown";
+  }
+  snprintf(se_ver, 32, "%s[%s-%s]", version, se_build_id, hash_str);
 
   memory_bootloader_hash(hash);
   data2hexaddr(hash, 4, hash_str);

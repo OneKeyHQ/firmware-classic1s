@@ -14,14 +14,12 @@ void fsm_msgWebAuthnListResidentCredentials(
     return;
   }
 
-  CTAP_credential_id_storage cred_id_storage = {0};
-  uint16_t len;
-  uint8_t status;
+  uint8_t indexes[FIDO2_RESIDENT_CREDENTIALS_COUNT] = {0};
+  int list_count;
   static bool is_protect_button_pressed = false;
   static uint8_t last_index = 0;
 
   if (msg->has_request_list_index && msg->request_list_index) {
-    uint8_t count = 0;
     layoutDialogAdapterEx(_(FIDO_2_LIST_CREDENTIALS), NULL, NULL,
                           &bmp_bottom_right_confirm, NULL, NULL, NULL, NULL,
                           NULL, NULL);
@@ -31,22 +29,19 @@ void fsm_msgWebAuthnListResidentCredentials(
       return;
     }
     is_protect_button_pressed = true;
-    for (uint8_t i = 0; i < FIDO2_RESIDENT_CREDENTIALS_COUNT; i++) {
-      len = sizeof(CTAP_credential_id_storage) -
-            FIDO2_RESIDENT_CREDENTIALS_HEADER_LEN;
-      status = se_get_fido2_resident_credentials(i, cred_id_storage.rp_id_hash,
-                                                 &len);
-      if (status == SE_FIDO2_SLOT_DATA_OK) {
-        resp->id_map[0].bytes[count] = i;
-        last_index = i;
-        count++;
-      }
-      if (count > sizeof(resp->id_map[0].bytes)) {
-        break;
-      }
+    list_count = resident_credential_info(indexes, 100);
+    if (list_count < 0 || list_count > (int)sizeof(resp->id_map[0].bytes)) {
+      fsm_sendFailure(FailureType_Failure_ProcessError,
+                      "Failed to list resident credentials.");
+      layoutHome();
+      return;
+    }
+    for (int i = 0; i < list_count; i++) {
+      resp->id_map[0].bytes[i] = indexes[i];
+      last_index = indexes[i];
     }
     resp->id_map_count = 1;
-    resp->id_map[0].size = count;
+    resp->id_map[0].size = list_count;
     layoutHome();
   } else {
     if (!is_protect_button_pressed) {
@@ -70,23 +65,9 @@ void fsm_msgWebAuthnListResidentCredentials(
       is_protect_button_pressed = false;
     }
 
-    status = se_get_fido2_resident_credentials(
-        msg->index, cred_id_storage.rp_id_hash, &len);
-    if (status == SE_FIDO2_SLOT_DATA_NULL) {
-      resp->credentials_count = 0;
-      msg_write(MessageType_MessageType_WebAuthnCredentials, resp);
-      return;
-    } else if (status == SE_FIDO2_SLOT_DATA_OK) {
-      resp->credentials_count = 1;
-      resp->credentials[0].index = msg->index;
-    }
-
     CTAP_credentialDescriptor desc = {0};
-    desc.type = PUB_KEY_CRED_PUB_KEY;
-    desc.cred_id_len = len - RP_ID_HASH_LENGTH;
-    memcpy(desc.cred_id, cred_id_storage.credential_id, desc.cred_id_len);
-    if (ctap_authenticate_credential_data(cred_id_storage.rp_id_hash, &desc) ==
-        0) {
+    if (resident_credential_get_desc(msg->index, &desc) !=
+        SE_FIDO2_SLOT_DATA_OK) {
       fsm_sendFailure(FailureType_Failure_ProcessError,
                       "The credential data is invalid.");
       return;
@@ -144,9 +125,8 @@ void fsm_msgWebAuthnListResidentCredentials(
     resp->credentials[0].curve = COSE_KEY_CRV_P256;
 
     resp->credentials[0].has_id = true;
-    memcpy(resp->credentials[0].id.bytes, cred_id_storage.credential_id,
-           len - RP_ID_HASH_LENGTH);
-    resp->credentials[0].id.size = len - RP_ID_HASH_LENGTH;
+    memcpy(resp->credentials[0].id.bytes, desc.cred_id, desc.cred_id_len);
+    resp->credentials[0].id.size = desc.cred_id_len;
   }
 
   msg_write(MessageType_MessageType_WebAuthnCredentials, resp);
@@ -233,22 +213,12 @@ void fsm_msgWebAuthnRemoveResidentCredential(
     return;
   }
 
-  CTAP_credential_id_storage cred_id_storage = {0};
   CTAP_credentialDescriptor desc = {0};
-  uint16_t len = sizeof(CTAP_credential_id_storage) -
-                 FIDO2_RESIDENT_CREDENTIALS_HEADER_LEN;
-
-  uint8_t status = se_get_fido2_resident_credentials(
-      msg->index, cred_id_storage.rp_id_hash, &len);
-  if (status == SE_FIDO2_SLOT_DATA_NULL) {
+  if (resident_credential_get_desc(msg->index, &desc) !=
+      SE_FIDO2_SLOT_DATA_OK) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
                     "The credential data is invalid.");
     return;
-  } else if (status == SE_FIDO2_SLOT_DATA_OK) {
-    desc.type = PUB_KEY_CRED_PUB_KEY;
-    desc.cred_id_len = len - RP_ID_HASH_LENGTH;
-    memcpy(desc.cred_id, cred_id_storage.credential_id, desc.cred_id_len);
-    ctap_authenticate_credential_data(cred_id_storage.rp_id_hash, &desc);
   }
 
   layoutDialogAdapterEx(_(FIDO_2_REMOVE_CREDENTIALS), NULL, NULL,
@@ -261,7 +231,7 @@ void fsm_msgWebAuthnRemoveResidentCredential(
     return;
   }
 
-  if (se_delete_fido2_resident_credentials(msg->index)) {
+  if (resident_credential_delete(msg->index)) {
     fsm_sendSuccess("Credential removed");
   } else {
     fsm_sendFailure(FailureType_Failure_ProcessError,

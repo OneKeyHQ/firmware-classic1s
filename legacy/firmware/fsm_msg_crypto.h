@@ -78,14 +78,22 @@ void fsm_msgCipherKeyValue(const CipherKeyValue *msg) {
   if (msg->iv.size == 16) {
     iv = (uint8_t *)msg->iv.bytes;
   }
+  int se_result;
   if (encrypt) {
-    se_aes256_encrypt(data, strlen((char *)data), iv,
-                      (uint8_t *)msg->value.bytes, msg->value.size,
-                      resp->value.bytes);
+    se_result = se_aes256_encrypt(data, strlen((char *)data), iv,
+                                  (uint8_t *)msg->value.bytes, msg->value.size,
+                                  resp->value.bytes);
   } else {
-    se_aes256_decrypt(data, strlen((char *)data), iv,
-                      (uint8_t *)msg->value.bytes, msg->value.size,
-                      resp->value.bytes);
+    se_result = se_aes256_decrypt(data, strlen((char *)data), iv,
+                                  (uint8_t *)msg->value.bytes, msg->value.size,
+                                  resp->value.bytes);
+  }
+  if (se_result != 0) {
+    memzero(resp->value.bytes, sizeof(resp->value.bytes));
+    fsm_sendFailure(FailureType_Failure_ProcessError,
+                    "Secure element cipher failed");
+    layoutHome();
+    return;
   }
 
 #endif

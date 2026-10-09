@@ -9,7 +9,6 @@
 #define TAG_CID 42
 #define STR_BUF_LEN 200
 
-parser_tx_t fil_parser_tx_obj;
 
 __Z_INLINE parser_error_t parser_mapCborError(CborError err);
 

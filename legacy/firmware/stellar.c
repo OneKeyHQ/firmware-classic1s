@@ -204,11 +204,18 @@ bool stellar_signingInit(const StellarSignTx *msg) {
   return true;
 }
 
-void stellar_signingAbort(void) {
+void stellar_signing_clear_runtime_state(void) {
   if (stellar_signing) {
     stellar_signing = false;
     stellar_node = NULL;
     memo_type_none = false;
+  }
+}
+
+void stellar_signingAbort(void) {
+  bool was_active = stellar_signing;
+  stellar_signing_clear_runtime_state();
+  if (was_active) {
     layoutHome();
   }
 }

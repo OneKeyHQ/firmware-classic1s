@@ -41,5 +41,6 @@ void global_hasher_init(void);
 void global_hash_update(const uint8_t *data, uint32_t data_len);
 void global_hash_finalize(uint8_t *output);
 void nervos_signing_abort(void);
+void nervos_signing_clear_runtime_state(void);
 
 #endif

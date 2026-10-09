@@ -432,7 +432,7 @@ bool protectPin(bool use_cached) {
         is_passphrase_pin_enabled = true;
         if (se_sessionClose()) {
           if (se_sessionClear()) {
-            uint8_t *new_session = se_session_startSession(NULL);
+            uint8_t *new_session = session_startSession(NULL);
             (void)new_session;
           }
         } else {
@@ -706,7 +706,7 @@ bool protectPassphrase(char *passphrase) {
 
                   if (se_sessionClose()) {
                     if (se_sessionClear()) {
-                      uint8_t *new_session = se_session_startSession(NULL);
+                      uint8_t *new_session = session_startSession(NULL);
                       if (new_session != NULL) {
                       } else {
                       }
@@ -769,7 +769,7 @@ bool protectPassphrase(char *passphrase) {
 
                 if (se_sessionClose()) {
                   if (se_sessionClear()) {
-                    uint8_t *new_session = se_session_startSession(NULL);
+                    uint8_t *new_session = session_startSession(NULL);
                     if (new_session != NULL) {
                     } else {
                     }

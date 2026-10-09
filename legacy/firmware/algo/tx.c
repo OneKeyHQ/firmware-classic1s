@@ -1,9 +1,10 @@
 #include "tx.h"
 #include <string.h>
 #include "defs.h"
+#include "../coin_parser_state.h"
 #include "parser.h"
 
-static parser_tx_t parser_tx_obj;
+#define parser_tx_obj (*(parser_tx_t *)coin_parser_state_algorand())
 static parser_context_t ctx_parsed_tx;
 
 const char *tx_parse(const uint8_t *data, size_t dataLen) {

@@ -22,7 +22,6 @@
 #include "flash.h"
 #include "hasher.h"
 #include "menu_list.h"
-#include "mi2c.h"
 #include "protect.h"
 #include "se_chip.h"
 #include "storage.h"
@@ -317,7 +316,8 @@ void fsm_msgInitialize(const Initialize *msg) {
       session_id = provided_sid ? session_startSession(provided_sid)
                                 : session_startSession(NULL);
     } else if (provided_sid && g_session_cached &&
-               memcmp(provided_sid, g_cached_session_id, 32) == 0) {
+               thd89_v2_constant_time_equal(provided_sid, g_cached_session_id,
+                                            32)) {
       session_id = session_startSession(provided_sid);
     } else {
       session_id = session_startSession(NULL);
@@ -334,6 +334,14 @@ void fsm_msgInitialize(const Initialize *msg) {
       session_id = session_startSession(NULL);
     }
   }
+  if (session_id == NULL) {
+    g_session_cached = false;
+    memzero(g_cached_session_id, sizeof(g_cached_session_id));
+    fsm_sendFailure(FailureType_Failure_FirmwareError,
+                    "Secure element session failed");
+    layoutHome();
+    return;
+  }
 
   if (msg && msg->has_derive_cardano && msg->derive_cardano) {
     uint8_t seed_state = 0;
@@ -343,8 +351,23 @@ void fsm_msgInitialize(const Initialize *msg) {
       if (btc_seed && !ada_seed) {
         session_endCurrentSession();
         session_id = session_startSession(NULL);
+        if (session_id == NULL) {
+          g_session_cached = false;
+          memzero(g_cached_session_id, sizeof(g_cached_session_id));
+          fsm_sendFailure(FailureType_Failure_FirmwareError,
+                          "Secure element session failed");
+          layoutHome();
+          return;
+        }
       }
     } else {
+      g_session_cached = false;
+      memzero(g_cached_session_id, sizeof(g_cached_session_id));
+      config_setDeriveCardano(false);
+      fsm_sendFailure(FailureType_Failure_FirmwareError,
+                      "Secure element seed state failed");
+      layoutHome();
+      return;
     }
     config_setDeriveCardano(true);
   } else {
@@ -633,7 +656,12 @@ void fsm_msgLoadDevice(const LoadDevice *msg) {
     }
   }
 
-  config_loadDevice(msg);
+  if (!config_loadDevice(msg)) {
+    fsm_sendFailure(FailureType_Failure_FirmwareError,
+                    "Failed to set U2F counter");
+    layoutHome();
+    return;
+  }
   fsm_sendSuccess("Device loaded");
   layoutHome();
 }
@@ -667,24 +695,7 @@ void fsm_msgEntropyAck(const EntropyAck *msg) {
 
 void fsm_msgBackupDevice(const BackupDevice *msg) {
   (void)msg;
-
-  CHECK_INITIALIZED
-
-  CHECK_PIN_UNCACHED
-
-  bool needs_backup = false;
-  config_getNeedsBackup(&needs_backup);
-  if (!needs_backup) {
-    fsm_sendFailure(FailureType_Failure_UnexpectedMessage,
-                    "Seed already backed up");
-    return;
-  }
-
-  char mnemonic[MAX_MNEMONIC_LEN + 1];
-  if (config_getMnemonic(mnemonic, sizeof(mnemonic))) {
-    reset_backup(true, mnemonic);
-  }
-  memzero(mnemonic, sizeof(mnemonic));
+  fsm_sendFailure(FailureType_Failure_DataError, "unsupport");
 }
 
 void fsm_msgCancel(const Cancel *msg) {
@@ -980,7 +991,12 @@ void fsm_msgSetU2FCounter(const SetU2FCounter *msg) {
     layoutHome();
     return;
   }
-  config_setU2FCounter(msg->u2f_counter);
+  if (!config_setU2FCounter(msg->u2f_counter)) {
+    fsm_sendFailure(FailureType_Failure_FirmwareError,
+                    "Failed to set U2F counter");
+    layoutHome();
+    return;
+  }
   fsm_sendSuccess("U2F counter set");
   layoutHome();
 }
@@ -997,7 +1013,13 @@ void fsm_msgGetNextU2FCounter() {
     layoutHome();
     return;
   }
-  uint32_t counter = config_nextU2FCounter();
+  uint32_t counter = 0;
+  if (!config_nextU2FCounter(&counter)) {
+    fsm_sendFailure(FailureType_Failure_FirmwareError,
+                    "Failed to increment U2F counter");
+    layoutHome();
+    return;
+  }
 
   RESP_INIT(NextU2FCounter);
   resp->u2f_counter = counter;
@@ -1075,20 +1097,6 @@ void fsm_msgBixinReboot(const BixinReboot *msg) {
 #endif
 }
 
-void fsm_msgBixinMessageSE(const BixinMessageSE *msg) {
-  RESP_INIT(BixinOutMessageSE);
-  if (false == config_getMessageSE(
-                   (BixinMessageSE_inputmessage_t *)(&msg->inputmessage),
-                   (BixinOutMessageSE_outmessage_t *)(&resp->outmessage))) {
-    fsm_sendFailure(FailureType_Failure_UnexpectedMessage, NULL);
-    layoutHome();
-    return;
-  }
-  resp->has_outmessage = true;
-  layoutHome();
-  return;
-}
-
 void fsm_msgBixinVerifyDeviceRequest(const BixinVerifyDeviceRequest *msg) {
   if (config_hasPin()) {
     CHECK_PIN
@@ -1111,11 +1119,12 @@ void fsm_msgBixinVerifyDeviceRequest(const BixinVerifyDeviceRequest *msg) {
   RESP_INIT(BixinVerifyDeviceAck);
   resp->cert.size = 512;
   resp->signature.size = 64;
-  se_read_certificate(resp->cert.bytes,
-                      &resp->cert.size);  // read certificate from SE
-
-  if (!se_sign_message_feitian((uint8_t *)msg->data.bytes, msg->data.size,
+  if (!se_read_certificate(resp->cert.bytes, &resp->cert.size) ||
+      resp->cert.size == 0 ||
+      !se_sign_message_feitian((uint8_t *)msg->data.bytes, msg->data.size,
                                resp->signature.bytes)) {
+    memzero(resp->cert.bytes, sizeof(resp->cert.bytes));
+    memzero(resp->signature.bytes, sizeof(resp->signature.bytes));
     fsm_sendFailure(FailureType_Failure_UnexpectedMessage, NULL);
     layoutHome();
     return;
@@ -1140,6 +1149,12 @@ void fsm_msgGetPassphraseState(const GetPassphraseState *msg) {
   uint8_t *session_id = NULL;
   if (session_isUnlocked() && !se_session_is_open()) {
     session_id = session_startSession(NULL);
+    if (session_id == NULL) {
+      fsm_sendFailure(FailureType_Failure_FirmwareError,
+                      "Secure element session failed");
+      layoutHome();
+      return;
+    }
   }
 
   uint32_t address_n[5] = {PATH_HARDENED | 44, PATH_HARDENED | 1,

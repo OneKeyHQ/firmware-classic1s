@@ -34,6 +34,7 @@ void ethereum_signing_init_eip1559(const EthereumSignTxEIP1559 *msg,
                                    const HDNode *node,
                                    const EthereumDefinitionsDecoded *defs);
 void ethereum_signing_abort(void);
+void ethereum_signing_clear_runtime_state(void);
 void ethereum_signing_txack(const EthereumTxAck *msg);
 
 void ethereum_message_sign(const EthereumSignMessage *msg, const HDNode *node,

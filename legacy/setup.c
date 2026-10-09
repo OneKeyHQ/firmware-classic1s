@@ -59,9 +59,21 @@ void nmi_handler(void) {
   }
 }
 
-void hard_fault_handler(void) { fault_handler("Hard fault"); }
+void __attribute__((naked, noreturn)) hard_fault_handler(void) {
+  __asm("b hard_fault_handler_impl");
+}
 
-void mem_manage_handler(void) { fault_handler("Memory fault"); }
+void __attribute__((naked, noreturn)) mem_manage_handler(void) {
+  __asm("b mem_manage_handler_impl");
+}
+
+void __attribute__((weak, noreturn)) hard_fault_handler_impl(void) {
+  fault_handler("Hard fault");
+}
+
+void __attribute__((weak, noreturn)) mem_manage_handler_impl(void) {
+  fault_handler("Memory fault");
+}
 
 void setup(void) {
   // set SCB_CCR STKALIGN bit to make sure 8-byte stack alignment on exception

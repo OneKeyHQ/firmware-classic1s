@@ -13,16 +13,16 @@ bool se_get_firmware_version(uint8_t *version);
 bool se_get_state(uint8_t *state);
 bool se_back_to_boot(void);
 bool se_reset_to_boot(void);
-bool se_active_app(void);
-bool se_update(uint8_t step, uint8_t *data, uint16_t data_len);
+bool se_erase_storage_plaintext(void);
 bool se_back_to_boot_progress(void);
 bool se_update_firmware(uint8_t *data, uint32_t data_len,
                         void (*ui_callback)(const char *msg, int progress));
 bool se_active_app_progress(void);
-bool se_verify_firmware(uint8_t *header, uint32_t header_len);
+bool se_verify_firmware(const uint8_t *header, uint32_t header_len,
+                        uint32_t code_len);
 bool se_check_firmware(void);
-// char *se_get_version(void);
-// char *se_get_build_id(void);
-// char *se_get_hash(void);
+char *se_get_version(void);
+char *se_get_build_id(void);
+char *se_get_hash(void);
 
 #endif

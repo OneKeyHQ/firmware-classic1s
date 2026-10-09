@@ -36,6 +36,9 @@
 #define OLED_HEIGHT 64
 #define OLED_BUFSIZE (OLED_WIDTH * OLED_HEIGHT / 8)
 
+#define OLED_FAULT_ROWS 8
+#define OLED_FAULT_COLS 24
+
 void oledInit(void);
 void oledClear(void);
 void oledClearPart(void);
@@ -43,6 +46,10 @@ void oledClearPart(void);
 void oledUpdateClk(void);
 
 void oledRefresh(void);
+
+// Exception-only renderer.  It uses the main buffer and a bounded SPI path,
+// so it remains usable when a normal refresh was interrupted by a fault.
+void oledDrawFault(const char rows[OLED_FAULT_ROWS][OLED_FAULT_COLS]);
 
 void oledInvertDebugLink(void);
 

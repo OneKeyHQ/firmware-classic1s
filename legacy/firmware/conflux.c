@@ -22,6 +22,8 @@
 #include <stdio.h>
 #include <string.h>
 #include "address.h"
+#include "coin_signing_state.h"
+#include "coin_state.h"
 #include "conflux_tokens.h"
 #include "crypto.h"
 #include "ecdsa.h"
@@ -53,7 +55,7 @@ static uint32_t data_total, data_left;
 static ConfluxTxRequest msg_tx_request;
 static CONFIDENTIAL HDNode *_node = NULL;
 static uint32_t chain_id;
-struct SHA3_CTX keccak_ctx_cfx = {0};
+#define keccak_ctx_cfx (coin_signing_state.conflux.keccak_ctx)
 
 void get_ethereum_format_address(uint8_t pubkeyhash[20], char *address) {
   const char *hex = "0123456789abcdef";
@@ -468,6 +470,7 @@ static bool conflux_signing_check(const ConfluxSignTx *msg) {
 
 void conflux_signing_init(ConfluxSignTx *msg, const HDNode *node) {
   conflux_signing = true;
+  coin_state_retain(COIN_STATE_OWNER_CONFLUX);
   sha3_256_Init(&keccak_ctx_cfx);
 
   memzero(&msg_tx_request, sizeof(ConfluxTxRequest));
@@ -656,12 +659,16 @@ void conflux_signing_txack(const ConfluxTxAck *tx) {
   }
 }
 
+void conflux_signing_clear_runtime_state(void) {
+  _node = NULL;
+  conflux_signing = false;
+  coin_state_abort(COIN_STATE_OWNER_CONFLUX);
+}
+
 void conflux_signing_abort(void) {
-  if (conflux_signing) {
-    _node = NULL;
-    layoutHome();
-    conflux_signing = false;
-  }
+  bool was_active = conflux_signing;
+  conflux_signing_clear_runtime_state();
+  if (was_active) layoutHome();
 }
 
 static void conflux_message_hash(const uint8_t *message, size_t message_len,

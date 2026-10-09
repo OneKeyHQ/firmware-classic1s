@@ -38,6 +38,7 @@ typedef enum {
 
 void kaspa_signing_init(const KaspaSignTx *msg);
 void kaspa_signing_abort(void);
+void kaspa_signing_clear_runtime_state(void);
 bool kaspa_is_legacy_signing(const KaspaSignTx *msg);
 bool kaspa_is_streaming_signing(const KaspaSignTx *msg);
 KaspaSigningMode kaspa_signing_mode(void);

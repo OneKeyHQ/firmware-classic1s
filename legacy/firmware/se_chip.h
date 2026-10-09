@@ -24,6 +24,18 @@ enum {
 #define SE_FIDO2_SLOT_DATA_BUFFER_TOO_SMALL 2
 #define SE_FIDO2_SLOT_DATA_INVALID 3
 
+#define SE_FIDO_CREDENTIAL_ID_MIN_LEN 33U
+#define SE_FIDO_CREDENTIAL_ID_MAX_LEN 512U
+#define SE_FIDO_CREDENTIAL_PLAINTEXT_MAX_LEN 480U
+#define SE_FIDO_RESIDENT_SLOT_COUNT 60U
+#define SE_FIDO_RESIDENT_CREDENTIAL_ID_MAX_LEN 474U
+#define SE_FIDO_RESIDENT_CREDENTIAL_PLAINTEXT_MAX_LEN 442U
+#define SE_FIDO_RESIDENT_SLOT_NONE 0xffU
+
+#define SE_FIDO_CREDENTIAL_ACTION_NOT_STORED 0U
+#define SE_FIDO_CREDENTIAL_ACTION_CREATED 1U
+#define SE_FIDO_CREDENTIAL_ACTION_REPLACED 2U
+
 // PIN types
 typedef enum {
   PIN_TYPE_USER = 0,
@@ -49,6 +61,7 @@ typedef enum {
   PIN_PASSPHRASE_MAX_ITEMS_REACHED,
   PIN_PASSPHRASE_SAVE_FAILED,
   PIN_PASSPHRASE_READ_FAILED,
+  SE_PIN_RETRY_LIMIT_WIPED,
   PIN_FAILED
 } pin_result_t;
 
@@ -57,7 +70,6 @@ pin_result_t se_get_pin_result_type(void);
 secbool se_set_pin_passphrase(const char *pin, const char *passphrase_pin,
                               const char *passphrase, bool *override);
 secbool se_delete_pin_passphrase(const char *passphrase_pin, bool *current);
-pin_result_t se_get_pin_passphrase_ret(void);
 secbool se_get_pin_passphrase_space(uint8_t *space);
 secbool se_check_passphrase_btc_test_address(const char *address);
 secbool se_change_pin_passphrase(const char *old_pin, const char *new_pin);
@@ -68,11 +80,14 @@ UI_WAIT_CALLBACK se_get_ui_callback(void);
 
 secbool se_transmit_mac(uint8_t ins, uint8_t p1, uint8_t p2, uint8_t *data,
                         uint16_t data_len, uint8_t *recv, uint16_t *recv_len);
+secbool se_transmit_mac_with_status(uint8_t ins, uint8_t p1, uint8_t p2,
+                                    uint8_t *data, uint16_t data_len,
+                                    uint8_t *recv, uint16_t *recv_len,
+                                    uint16_t *authenticated_sw1sw2);
 
 secbool se_get_rand(uint8_t *rand, uint16_t rand_len);
 secbool se_reset_se(void);
 secbool se_random_encrypted(uint8_t *rand, uint16_t len);
-secbool se_random_encrypted_ex(uint8_t *rand, uint16_t len);
 secbool se_sync_session_key(void);
 secbool se_device_init(uint8_t mode, const char *passphrase);
 secbool se_ecdsa_get_pubkey(uint32_t *address, uint8_t count, uint8_t *pubkey);
@@ -80,7 +95,11 @@ secbool se_ecdsa_get_pubkey(uint32_t *address, uint8_t count, uint8_t *pubkey);
 secbool se_reset_storage(void);
 secbool se_set_sn(const char *serial, uint8_t len);
 secbool se_get_sn(char **serial);
+const char *se_get_version_checked(uint16_t *sw1sw2);
 char *se_get_version(void);
+void se_clear_runtime_state(void);
+void __attribute__((noreturn)) se_security_halt(void);
+void __attribute__((noreturn)) se_configuration_halt(void);
 char *se_get_build_id(void);
 char *se_get_hash(void);
 secbool se_isInitialized(void);
@@ -125,13 +144,9 @@ secbool se_set_private_key_feitian(uint8_t *key);
 secbool se_set_session_key(const uint8_t *session_key);
 
 secbool se_containsMnemonic(const char *mnemonic);
-secbool se_exportMnemonic(char *mnemonic, uint16_t dest_size);
-secbool se_set_needs_backup(bool needs_backup);
-secbool se_get_needs_backup(bool *needs_backup);
 secbool se_hasWipeCode(void);
 secbool se_changeWipeCode(const char *pin, const char *wipe_code);
 
-uint8_t *se_session_startSession(const uint8_t *received_session_id);
 secbool se_gen_session_seed(const char *passphrase, bool cardano,
                             bool force_regen);
 secbool se_derive_keys(HDNode *out, const char *curve,
@@ -168,7 +183,10 @@ int se_nem_aes256_encrypt(const uint8_t *ed25519_public_key, const uint8_t *iv,
 int se_nem_aes256_decrypt(const uint8_t *ed25519_public_key, const uint8_t *iv,
                           const uint8_t *salt, uint8_t *payload, uint16_t size,
                           uint8_t *out);
-int se_slip21_node(uint8_t *data);
+secbool se_slip21_ownership_id(const uint8_t *script_pubkey,
+                               uint16_t script_pubkey_len,
+                               uint8_t ownership_id[32]);
+secbool se_slip21_slip25_mac(uint8_t mac[32]);
 
 secbool se_authorization_set(const uint32_t authorization_type,
                              const uint8_t *authorization,
@@ -193,19 +211,34 @@ secbool se_u2f_authenticate(const uint8_t app_id[32],
                             const uint8_t challenge[32], uint8_t *u2f_counter,
                             uint8_t sign[64]);
 bool check_se_fido_seed(void (*callback)(void));
-int se_slip21_fido_node(uint8_t *data);
+bool se_fido_seed_is_ready(void);
 secbool se_derive_fido_keys(HDNode *out, const char *curve,
                             const uint32_t *address_n, size_t address_n_count,
                             uint32_t *fingerprint);
 secbool se_fido_hdnode_sign_digest(const uint8_t *hash, uint8_t *sig);
 secbool se_fido_att_sign_digest(const uint8_t *hash, uint8_t *sig);
-int se_get_fido2_resident_credentials(uint32_t index, uint8_t *dest,
-                                      uint16_t *dst_len);
-int se_check_fido2_resident_credential_simple(uint32_t index);
-secbool se_set_fido2_resident_credentials(uint32_t index, const uint8_t *src,
-                                          uint16_t len);
-secbool se_delete_fido2_resident_credentials(uint32_t index);
-secbool se_delete_all_fido2_credentials(void);
+secbool se_fido_resident_list(uint8_t *indexes, uint8_t *index_count);
+secbool se_fido_resident_read(uint8_t index, uint8_t *credential_id,
+                              uint16_t *credential_id_len, uint8_t *plaintext,
+                              uint16_t *plaintext_len);
+secbool se_fido_credential_create(bool resident, const uint8_t *plaintext,
+                                  uint16_t plaintext_len,
+                                  uint8_t *credential_id,
+                                  uint16_t *credential_id_len,
+                                  uint8_t *slot_index, uint8_t *action);
+secbool se_fido_credential_validate(const uint8_t *rp_id_hash,
+                                    const uint8_t *credential_id,
+                                    uint16_t credential_id_len,
+                                    uint8_t *plaintext,
+                                    uint16_t *plaintext_len);
+secbool se_fido_resident_delete(uint8_t index);
+secbool se_fido_resident_clear(void);
+secbool se_fido_resident_import(const uint8_t *credential_id,
+                                uint16_t credential_id_len,
+                                uint8_t *slot_index, uint8_t *action);
+secbool se_fido_hmac_secret(const uint8_t *credential_id,
+                            uint16_t credential_id_len, const uint8_t *salt,
+                            uint16_t salt_len, uint8_t *output);
 #else
 #define se_transmit(...) 0
 #define se_get_sn(...) false

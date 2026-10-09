@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include "debug.h"
+#include "coin_state.h"
 #include "fsm.h"
 #include "gettext.h"
 #include "memzero.h"
@@ -51,6 +52,10 @@ static const struct MessagesMap_t MessagesMap[] = {
 static uint8_t msg_decoded[MSG_IN_DECODED_SIZE]
     __attribute__((section(".secMessageSection")));
 
+/* The descriptor is needed to release pointer fields before this buffer is
+ * reused. A manual call() response remains valid until the next decode. */
+static const pb_msgdesc_t *msg_decoded_fields = NULL;
+
 void *get_incoming_message(void) { return (void *)msg_decoded; }
 
 const pb_msgdesc_t *MessageFields(char type, char dir, uint16_t msg_id) {
@@ -68,7 +73,17 @@ void MessageProcessFunc(char type, char dir, uint16_t msg_id, void *ptr) {
   const struct MessagesMap_t *m = MessagesMap;
   while (m->type) {
     if (type == m->type && dir == m->dir && msg_id == m->msg_id) {
+      bool managed_state = type == 'n' && dir == 'i' &&
+                           coin_state_message_is_managed(msg_id);
+      if (managed_state && !coin_state_dispatch_enter(msg_id)) {
+        fsm_sendFailure(FailureType_Failure_UnexpectedMessage,
+                        "Signing workflow is busy");
+        return;
+      }
       m->process_func(ptr);
+      if (managed_state) {
+        coin_state_dispatch_leave();
+      }
       fsm_postMsgCleanup(msg_id);
       return;
     }
@@ -250,10 +265,22 @@ uint16_t msg_id_ready_to_process = 0xFFFF;
 
 void msg_process(char type, uint16_t msg_id, const pb_msgdesc_t *fields,
                  uint8_t *msg_raw, uint32_t msg_size) {
+  /* Manual call() responses are decoded for the caller only, never dispatched. */
+  if (!msg_command_process_manual && type == 'n' &&
+      !coin_state_can_dispatch(msg_id)) {
+    fsm_sendFailure(FailureType_Failure_UnexpectedMessage,
+                    "Signing workflow is busy");
+    return;
+  }
+  if (msg_decoded_fields) {
+    pb_release(msg_decoded_fields, msg_decoded);
+    msg_decoded_fields = NULL;
+  }
   memzero(msg_decoded, sizeof(msg_decoded));
   pb_istream_t stream = pb_istream_from_buffer(msg_raw, msg_size);
   bool status = pb_decode(&stream, fields, msg_decoded);
   if (status) {
+    msg_decoded_fields = fields;
     msg_command_inprogress = true;
     msg_decode_error_occurred = false;
     msg_id_ready_to_process = 0xFFFF;
@@ -477,6 +504,7 @@ void msg_read_tiny(const uint8_t *buf, uint32_t len) {
   }
 
   pb_istream_t stream = pb_istream_from_buffer(msg_tiny_raw, msg_size);
+  memzero(msg_tiny, sizeof(msg_tiny));
   bool status = pb_decode(&stream, fields, msg_tiny);
   if (status) {
     msg_tiny_id = msg_id;

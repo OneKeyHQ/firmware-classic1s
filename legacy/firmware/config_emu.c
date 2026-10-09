@@ -42,7 +42,6 @@
 #include "memory.h"
 #include "memzero.h"
 #include "menu_list.h"
-#include "mi2c.h"
 #include "pbkdf2.h"
 #include "protect.h"
 #include "rng.h"
@@ -439,7 +438,7 @@ static secbool config_upgrade_v10(void) {
     config_setHomescreen(config.homescreen.bytes, config.homescreen.size);
   }
   if (config.has_u2f_counter) {
-    config_setU2FCounter(config.u2f_counter + u2f_offset);
+    (void)config_setU2FCounter(config.u2f_counter + u2f_offset);
   }
   if (config.has_needs_backup) {
     config_setNeedsBackup(config.needs_backup);
@@ -628,7 +627,7 @@ bool config_dumpNode(HDNodeType *node) {
   return true;
 }
 
-void config_loadDevice(const LoadDevice *msg) {
+bool config_loadDevice(const LoadDevice *msg) {
   session_clear(false);
   config_set_bool(KEY_IMPORTED, true);
   config_setPassphraseProtection(msg->has_passphrase_protection &&
@@ -650,7 +649,9 @@ void config_loadDevice(const LoadDevice *msg) {
   config_setLabel(msg->has_label ? msg->label : "");
 
   if (msg->has_u2f_counter) {
-    config_setU2FCounter(msg->u2f_counter);
+    if (!config_setU2FCounter(msg->u2f_counter)) {
+      return false;
+    }
   }
 
   if (msg->has_needs_backup) {
@@ -660,6 +661,7 @@ void config_loadDevice(const LoadDevice *msg) {
   if (msg->has_no_backup && msg->no_backup) {
     config_setNoBackup();
   }
+  return true;
 }
 
 #endif
@@ -1019,19 +1021,6 @@ bool config_setSeedsBytes(const uint8_t *seeds, uint8_t len) {
 
   return true;
 }
-bool config_SeedsEncExportBytes(BixinOutMessageSE_outmessage_t *get_msg) {
-  if (!g_bSelectSEFlag) {
-    return false;
-  }
-  if (sectrue != se_transmit(MI2C_CMD_WR_PIN, (KEY_SEEDS & 0xFF), NULL, 0,
-                             get_msg->bytes, &get_msg->size, FLAG_PUBLIC,
-                             GET_SESTORE_DATA)) {
-    return false;
-  }
-  get_msg->bytes[get_msg->size] = '\0';
-  return true;
-}
-
 bool config_getMnemonicBytes(uint8_t *dest, uint16_t dest_size,
                              uint16_t *real_size) {
   return sectrue == config_get_bytes(KEY_MNEMONIC, dest, dest_size, real_size);
@@ -1324,14 +1313,16 @@ bool config_getFlags(uint32_t *flags) {
   return sectrue == config_get_uint32(KEY_FLAGS, flags);
 }
 
-uint32_t config_nextU2FCounter(void) {
-  uint32_t u2fcounter = 0;
-  storage_next_counter(KEY_U2F_COUNTER, &u2fcounter);
-  return u2fcounter;
+bool config_nextU2FCounter(uint32_t *u2fcounter) {
+  if (u2fcounter == NULL) {
+    return false;
+  }
+  *u2fcounter = 0;
+  return storage_next_counter(KEY_U2F_COUNTER, u2fcounter) == sectrue;
 }
 
-void config_setU2FCounter(uint32_t u2fcounter) {
-  storage_set_counter(KEY_U2F_COUNTER, u2fcounter);
+bool config_setU2FCounter(uint32_t u2fcounter) {
+  return storage_set_counter(KEY_U2F_COUNTER, u2fcounter) == sectrue;
 }
 
 uint32_t config_getAutoLockDelayMs() {
@@ -1489,19 +1480,6 @@ void config_setWhetherUseSE(bool flag) {
 bool config_getWhetherUseSE(void) { return g_bSelectSEFlag; }
 
 ExportType config_setSeedsExportFlag(ExportType flag) { return flag; }
-
-bool config_getMessageSE(BixinMessageSE_inputmessage_t *input_msg,
-                         BixinOutMessageSE_outmessage_t *get_msg) {
-  if (false == bMI2CDRV_SendData(input_msg->bytes, input_msg->size)) {
-    return false;
-  }
-  get_msg->size = 1024;
-  if (false == bMI2CDRV_ReceiveData(get_msg->bytes, &get_msg->size)) {
-    return false;
-  }
-  get_msg->bytes[get_msg->size] = '\0';
-  return true;
-}
 
 void config_setIsBixinAPP(void) { g_bIsBixinAPP = true; }
 

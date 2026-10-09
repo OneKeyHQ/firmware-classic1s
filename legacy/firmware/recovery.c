@@ -611,7 +611,12 @@ void recovery_init(uint32_t _word_count, bool passphrase_protection,
     config_setPassphraseProtection(passphrase_protection);
     config_setLanguage(language);
     config_setLabel(label);
-    config_setU2FCounter(u2f_counter);
+    if (!config_setU2FCounter(u2f_counter)) {
+      fsm_sendFailure(FailureType_Failure_FirmwareError,
+                      "Failed to set U2F counter");
+      layoutHome();
+      return;
+    }
   }
 
   // Prefer matrix recovery if the host supports it.
@@ -678,12 +683,17 @@ void recovery_word(const char *word) {
 
 /* Abort recovery.
  */
-void recovery_abort(void) {
+void recovery_clear_runtime_state(void) {
   memzero(words, sizeof(words));
   word_pincode = 0;
-  if (recovery_mode != RECOVERY_NONE) {
+  recovery_mode = RECOVERY_NONE;
+}
+
+void recovery_abort(void) {
+  bool was_active = recovery_mode != RECOVERY_NONE;
+  recovery_clear_runtime_state();
+  if (was_active) {
     layoutHome();
-    recovery_mode = RECOVERY_NONE;
   }
 }
 

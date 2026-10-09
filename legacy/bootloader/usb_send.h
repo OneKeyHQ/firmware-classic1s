@@ -161,22 +161,35 @@ static void send_msg_features(usbd_device *dev) {
   // se version
   if(se_state == THD89_STATE_APP) {
     data = se_get_version();
-    se_ver_len = strlen(data);
-    se_version[2] = se_ver_len;
-    memcpy(se_version+3, (uint8_t *)data, se_ver_len);
-    se_ver_len+=3;
+    if (data != NULL) {
+      se_ver_len = strlen(data);
+      se_version[2] = se_ver_len;
+      memcpy(se_version+3, (uint8_t *)data, se_ver_len);
+      se_ver_len+=3;
+    } else {
+      se_ver_len = 3;
+    }
 
     // se build id
     data = se_get_build_id();
-    se_build_id_len = strlen(data);
-    se_build_id[2] = se_build_id_len;
-    memcpy(se_build_id+3, (uint8_t *)data, se_build_id_len);
-    se_build_id_len+=3;
+    if (data != NULL) {
+      se_build_id_len = strlen(data);
+      se_build_id[2] = se_build_id_len;
+      memcpy(se_build_id+3, (uint8_t *)data, se_build_id_len);
+      se_build_id_len+=3;
+    } else {
+      se_build_id_len = 3;
+    }
 
     // se hash
-    se_hash_len = 32 + 3;
-    se_hash[2] = 32;
-    memcpy(se_hash+3, se_get_hash(), 32);
+    data = se_get_hash();
+    if (data != NULL) {
+      se_hash_len = 32 + 3;
+      se_hash[2] = 32;
+      memcpy(se_hash+3, data, 32);
+    } else {
+      se_hash_len = 3;
+    }
   } else {
     se_ver_len = 3;
     se_build_id_len = 3;

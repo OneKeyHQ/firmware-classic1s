@@ -8,16 +8,16 @@
 
 #define ONEKEY_VER_MAJOR 3
 #define ONEKEY_VER_MINOR 20
-#define ONEKEY_VER_PATCH 0
+#define ONEKEY_VER_PATCH 1
 
-#define ONEKEY_VERSION "3.20.0"
+#define ONEKEY_VERSION "3.20.1"
 // Deprecated
 #define ONEKEY_VERSION_HEX 0x3F00
 
 // Minimum SE version required for firmware upgrade
 #define SE_MINIMUM_VERSION_MAJOR 1
-#define SE_MINIMUM_VERSION_MINOR 1
-#define SE_MINIMUM_VERSION_PATCH 7
+#define SE_MINIMUM_VERSION_MINOR 3
+#define SE_MINIMUM_VERSION_PATCH 2
 #define SE_MINIMUM_VERSION_UINT32                               \
   (SE_MINIMUM_VERSION_MAJOR | (SE_MINIMUM_VERSION_MINOR << 8) | \
    (SE_MINIMUM_VERSION_PATCH << 16) | (0 << 24))

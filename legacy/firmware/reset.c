@@ -49,6 +49,15 @@ static bool skip_backup = false;
 static bool no_backup = false;
 static uint32_t words_count;
 
+void reset_clear_runtime_state(void) {
+  memzero(int_entropy, sizeof(int_entropy));
+  awaiting_entropy = false;
+  strength = 0;
+  skip_backup = false;
+  no_backup = false;
+  words_count = 0;
+}
+
 #define goto_check(label)       \
   if (layoutLast == layoutHome) \
     return false;               \
@@ -61,6 +70,7 @@ void reset_init(bool display_random, uint32_t _strength,
                 bool _skip_backup, bool _no_backup) {
   if (_strength != 128 && _strength != 192 && _strength != 256) return;
 
+  reset_clear_runtime_state();
   strength = _strength;
   skip_backup = _skip_backup;
   no_backup = _no_backup;
@@ -90,6 +100,7 @@ void reset_init(bool display_random, uint32_t _strength,
   if (!se_random_encrypted(int_entropy, 32)) {
     fsm_sendFailure(FailureType_Failure_ProcessError,
                     "Failed to generate entropy");
+    reset_clear_runtime_state();
     layoutHome();
     return;
   }
@@ -122,12 +133,14 @@ void reset_init(bool display_random, uint32_t _strength,
       oledRefresh();
       if (!protectButton(ButtonRequestType_ButtonRequest_ResetDevice, false)) {
         fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
+        reset_clear_runtime_state();
         layoutHome();
         return;
       }
     }
   }
   if (pin_protection && !protectChangePin(false)) {
+    reset_clear_runtime_state();
     layoutHome();
     return;
   }
@@ -135,7 +148,13 @@ void reset_init(bool display_random, uint32_t _strength,
   config_setPassphraseProtection(passphrase_protection);
   config_setLanguage(language);
   config_setLabel(label);
-  config_setU2FCounter(u2f_counter);
+  if (!config_setU2FCounter(u2f_counter)) {
+    fsm_sendFailure(FailureType_Failure_FirmwareError,
+                    "Failed to set U2F counter");
+    reset_clear_runtime_state();
+    layoutHome();
+    return;
+  }
 
   EntropyRequest resp = {0};
   memzero(&resp, sizeof(EntropyRequest));
@@ -161,8 +180,6 @@ void reset_entropy(const uint8_t *ext_entropy, uint32_t len) {
   if (skip_backup || no_backup) {
     if (no_backup) {
       config_setNoBackup();
-    } else {
-      config_setNeedsBackup(true);
     }
     if (config_setMnemonic(mnemonic, false)) {
       fsm_sendSuccess("Device successfully initialized");
@@ -181,20 +198,8 @@ void reset_entropy(const uint8_t *ext_entropy, uint32_t len) {
 
 static char current_word[10];
 
-// separated == true if called as a separate workflow via BackupMessage
 void reset_backup(bool separated, const char *mnemonic) {
-  if (separated) {
-    bool needs_backup = false;
-    config_getNeedsBackup(&needs_backup);
-    if (!needs_backup) {
-      fsm_sendFailure(FailureType_Failure_UnexpectedMessage,
-                      "Seed already backed up");
-      return;
-    }
-
-    config_setUnfinishedBackup(true);
-    config_setNeedsBackup(false);
-  }
+  (void)separated;
 
   for (int pass = 0; pass < 2; pass++) {
     int i = 0, word_pos = 1;
@@ -224,18 +229,11 @@ void reset_backup(bool separated, const char *mnemonic) {
     }
   }
 
-  config_setUnfinishedBackup(false);
-
-  if (separated) {
-    fsm_sendSuccess("Seed successfully backed up");
+  if (config_setMnemonic(mnemonic, false)) {
+    fsm_sendSuccess("Device successfully initialized");
   } else {
-    config_setNeedsBackup(false);
-    if (config_setMnemonic(mnemonic, false)) {
-      fsm_sendSuccess("Device successfully initialized");
-    } else {
-      fsm_sendFailure(FailureType_Failure_ProcessError,
-                      "Failed to store mnemonic");
-    }
+    fsm_sendFailure(FailureType_Failure_ProcessError,
+                    "Failed to store mnemonic");
   }
   layoutHome();
 }

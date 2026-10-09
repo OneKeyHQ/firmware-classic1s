@@ -80,6 +80,11 @@ void fsm_msgNervosSignTx(const NervosSignTx *msg) {
 }
 
 void fsm_msgNervosTxAck(const NervosTxAck *msg) {
-  CHECK_UNLOCKED
+  if (!session_isUnlocked()) {
+    nervos_signing_abort();
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Locked");
+    layoutHome();
+    return;
+  }
   nervos_signing_txack(msg);
 }

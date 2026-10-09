@@ -111,9 +111,11 @@ bool is_segwit_output_script_type(OutputScriptType script_type);
 bool change_output_to_input_script_type(OutputScriptType output_script_type,
                                         InputScriptType *input_script_type);
 
+#if EMULATOR
 void slip21_from_seed(const uint8_t *seed, int seed_len, Slip21Node *out);
 void slip21_derive_path(Slip21Node *inout, const uint8_t *label,
                         size_t label_len);
 const uint8_t *slip21_key(const Slip21Node *node);
+#endif
 
 #endif

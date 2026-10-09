@@ -40,7 +40,6 @@
 #include "layout2.h"
 #include "memory.h"
 #include "memzero.h"
-#include "mi2c.h"
 #include "protect.h"
 #include "rng.h"
 #include "se_chip.h"
@@ -148,6 +147,7 @@ static const uint8_t TRUE_BYTE = '\x01';
 static bool derive_cardano = 0;
 static bool session_seed_cached_btc = false;
 static bool session_seed_cached_cardano = false;
+static uint8_t act_session_id[32];
 bool reset_after_usb_lock = false;
 
 static secbool usb_lock = secfalse;
@@ -404,9 +404,10 @@ bool config_genSessionSeed(void) {
 
   bool need_btc_seed = !btc_seed_ready || !session_seed_cached_btc;
   bool force_btc_regen = !session_seed_cached_btc && btc_seed_ready;
+  bool result = false;
   if (need_btc_seed) {
     if (!se_gen_session_seed(passphrase, false, force_btc_regen)) {
-      return false;
+      goto cleanup;
     }
     session_seed_cached_btc = true;
   }
@@ -418,15 +419,18 @@ bool config_genSessionSeed(void) {
         !session_seed_cached_cardano && cardano_seed_ready;
     if (need_cardano_seed) {
       if (!se_gen_session_seed(passphrase, true, force_cardano_regen)) {
-        return false;
+        goto cleanup;
       }
       session_seed_cached_cardano = true;
     }
   }
 
+  result = true;
+
+cleanup:
   memzero(passphrase, sizeof(passphrase));
   usbTiny(oldTiny);
-  return true;
+  return result;
 }
 
 static const char *DEVICE_MODEL_PURE = "OneKey Classic 1S Pure";
@@ -494,10 +498,6 @@ bool config_setMnemonic(const char *mnemonic, bool import) {
   return true;
 }
 
-bool config_getMnemonic(char *dest, uint16_t dest_size) {
-  return sectrue == se_exportMnemonic(dest, dest_size);
-}
-
 bool config_setPin(const char *pin) { return sectrue == se_setPin(pin); }
 
 /* Unlock device/verify PIN.  The pin must be
@@ -513,6 +513,15 @@ bool config_verifyPin(const char *pin, pin_type_t pin_type) {
                         pin_type == PIN_TYPE_PASSPHRASE_PIN_CHECK ||
                         pin_type == PIN_TYPE_USER_AND_PASSPHRASE_PIN_CHECK);
   bool result = (sectrue == se_verifyPin(pin, pin_type));
+  if (!result) {
+    pin_result_t pin_result = se_get_pin_result_type();
+    if (pin_result == SE_PIN_RETRY_LIMIT_WIPED ||
+        pin_result == WIPE_CODE_ENTERED) {
+      config_handle_se_wiped();
+      error_shutdown("You have entered the", "wipe code. All private",
+                     "data has been erased.", NULL);
+    }
+  }
   if (!result && !is_check_type) {
     se_clearPinStateCache();
     is_passphrase_pin_enabled = false;
@@ -545,26 +554,20 @@ bool config_changePin(const char *old_pin, const char *new_pin) {
 }
 
 uint8_t *session_startSession(const uint8_t *received_session_id) {
-  static uint8_t act_session_id[32];
-
   if (received_session_id == NULL) {
     // se create session
     bool ret = se_sessionStart(act_session_id);
-    if (ret) {  // se open session
-      if (!se_sessionOpen(act_session_id)) {
-        // session open failed
-        memzero(act_session_id, sizeof(act_session_id));
-      }
-    } else {
+    if (!ret || !se_sessionOpen(act_session_id)) {
       memzero(act_session_id, sizeof(act_session_id));
+      return NULL;
     }
   } else {
     // se open session
-    bool ret = se_sessionOpen((uint8_t *)received_session_id);
-    if (ret) {
-      memcpy(act_session_id, received_session_id, sizeof(act_session_id));
-    } else {  // session open failed
+    memcpy(act_session_id, received_session_id, sizeof(act_session_id));
+    bool ret = se_sessionOpen(act_session_id);
+    if (!ret) {
       memzero(act_session_id, sizeof(act_session_id));
+      return NULL;
     }
   }
 
@@ -584,6 +587,7 @@ bool session_isUnlocked(void) {
 void session_clear(bool lock) {
   se_sessionClear();
 
+  memzero(act_session_id, sizeof(act_session_id));
   session_seed_cached_btc = false;
   session_seed_cached_cardano = false;
 
@@ -606,14 +610,6 @@ void config_setImported(bool imported) {
 
 bool config_containsMnemonic(const char *mnemonic) {
   return se_containsMnemonic(mnemonic);
-}
-
-bool config_getNeedsBackup(bool *needs_backup) {
-  return sectrue == se_get_needs_backup(needs_backup);
-}
-
-void config_setNeedsBackup(bool needs_backup) {
-  se_set_needs_backup(needs_backup);
 }
 
 bool config_getUnfinishedBackup(bool *unfinished_backup) {
@@ -644,14 +640,16 @@ bool config_getFlags(uint32_t *flags) {
   return sectrue == config_get_uint32(KEY_FLAGS, flags);
 }
 
-uint32_t config_nextU2FCounter(void) {
-  uint32_t u2fcounter = 0;
-  se_get_u2f_next_counter(&u2fcounter);
-  return u2fcounter;
+bool config_nextU2FCounter(uint32_t *u2fcounter) {
+  if (u2fcounter == NULL) {
+    return false;
+  }
+  *u2fcounter = 0;
+  return se_get_u2f_next_counter(u2fcounter) == sectrue;
 }
 
-void config_setU2FCounter(uint32_t u2fcounter) {
-  se_set_u2f_counter(u2fcounter);
+bool config_setU2FCounter(uint32_t u2fcounter) {
+  return se_set_u2f_counter(u2fcounter) == sectrue;
 }
 
 uint32_t config_getAutoLockDelayMs(void) {
@@ -743,19 +741,6 @@ bool config_getWhetherUseSE(void) { return true; }
 
 ExportType config_setSeedsExportFlag(ExportType flag) { return flag; }
 
-bool config_getMessageSE(BixinMessageSE_inputmessage_t *input_msg,
-                         BixinOutMessageSE_outmessage_t *get_msg) {
-  if (false == bMI2CDRV_SendData(input_msg->bytes, input_msg->size)) {
-    return false;
-  }
-  get_msg->size = 1024;
-  if (false == bMI2CDRV_ReceiveData(get_msg->bytes, &get_msg->size)) {
-    return false;
-  }
-  get_msg->bytes[get_msg->size] = '\0';
-  return true;
-}
-
 void config_setIsBixinAPP(void) { g_bIsBixinAPP = true; }
 
 uint32_t config_getPinFails(void) { return se_pinFailedCounter(); }
@@ -826,17 +811,15 @@ bool config_changeWipeCode(const char *pin, const char *wipe_code) {
   return ret;
 }
 
+void config_handle_se_wiped(void) {
+  se_clear_runtime_state();
+  session_clear(false);
+  fsm_abortWorkflows();
+  fsm_clearCosiNonce();
+}
+
 bool config_unlock(const char *pin, pin_type_t pin_type) {
-  bool ret = config_verifyPin(pin, pin_type);
-  if (!ret) {
-    uint16_t last_error = se_lasterror();
-    // check wipe code
-    if (0x6f80 == last_error) {
-      error_shutdown("You have entered the", "wipe code. All private",
-                     "data has been erased.", NULL);
-    }
-  }
-  return ret;
+  return config_verifyPin(pin, pin_type);
 }
 
 bool config_getDeriveCardano(void) {
@@ -889,7 +872,7 @@ void config_setFidoSwitch(bool fido_switch) {
 
 #if DEBUG_LINK
 
-void config_loadDevice(const LoadDevice *msg) {
+bool config_loadDevice(const LoadDevice *msg) {
   session_clear(false);
   config_set_bool(offsetof(PriConfig, imported), true);
   config_setPassphraseProtection(msg->has_passphrase_protection &&
@@ -910,16 +893,15 @@ void config_loadDevice(const LoadDevice *msg) {
   config_setLabel(msg->has_label ? msg->label : "");
 
   if (msg->has_u2f_counter) {
-    config_setU2FCounter(msg->u2f_counter);
-  }
-
-  if (msg->has_needs_backup) {
-    config_setNeedsBackup(msg->needs_backup);
+    if (!config_setU2FCounter(msg->u2f_counter)) {
+      return false;
+    }
   }
 
   if (msg->has_no_backup && msg->no_backup) {
     config_setNoBackup();
   }
+  return true;
 }
 
 static char debug_link_pin[51] = {0};

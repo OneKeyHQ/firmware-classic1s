@@ -24,6 +24,8 @@
 #include <string.h>
 // #include <cstdint>
 #include "address.h"
+#include "coin_signing_state.h"
+#include "coin_state.h"
 #include "crypto.h"
 #include "ecdsa.h"
 #include "ethereum_networks.h"
@@ -57,10 +59,10 @@ static CONFIDENTIAL uint8_t privkey[32];
 static uint64_t chain_id;
 static const char *chain_suffix;
 static bool eip1559;
-struct SHA3_CTX keccak_ctx = {0};
+#define keccak_ctx (coin_signing_state.ethereum.keccak_ctx)
 
 static uint32_t signing_access_list_count;
-static EthereumAccessList signing_access_list[16];
+#define signing_access_list (coin_signing_state.ethereum.signing_access_list)
 _Static_assert(sizeof(signing_access_list) ==
                    sizeof(((EthereumSignTxEIP1559 *)NULL)->access_list),
                "access_list buffer size mismatch");
@@ -509,6 +511,7 @@ static void fillEthereumFee(const uint8_t *amount_bytes, uint32_t amount_len,
 
 static bool ethereum_signing_init_common(struct signing_params *params) {
   ethereum_signing = true;
+  coin_state_retain(COIN_STATE_OWNER_ETHEREUM);
   sha3_256_Init(&keccak_ctx);
 
   data_total = data_left = 0;
@@ -990,14 +993,22 @@ void ethereum_signing_txack(const EthereumTxAck *tx) {
   }
 }
 
-void ethereum_signing_abort(void) {
+void ethereum_signing_clear_runtime_state(void) {
   if (ethereum_signing) {
     _node = NULL;
 #if EMULATOR
     memzero(privkey, sizeof(privkey));
 #endif
-    layoutHome();
     ethereum_signing = false;
+  }
+  coin_state_abort(COIN_STATE_OWNER_ETHEREUM);
+}
+
+void ethereum_signing_abort(void) {
+  bool was_active = ethereum_signing;
+  ethereum_signing_clear_runtime_state();
+  if (was_active) {
+    layoutHome();
   }
 }
 

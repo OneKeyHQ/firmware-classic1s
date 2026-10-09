@@ -17,6 +17,8 @@
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "signing_workspace.h"
+
 void fsm_msgGetPublicKey(const GetPublicKey *msg) {
   RESP_INIT(PublicKey);
 
@@ -194,12 +196,19 @@ void fsm_msgSignTx(const SignTx *msg) {
 }
 
 void fsm_msgTxAck(TxAck *msg) {
-  if (!signing_is_preauthorized()) {
-    CHECK_UNLOCKED
+  bool preauthorized = signing_is_preauthorized();
+  if (!preauthorized && !session_isUnlocked()) {
+    signing_abort();
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Locked");
+    layoutHome();
+    return;
   }
-
-  CHECK_PARAM(msg->has_tx, "No transaction provided");
-
+  if (!msg->has_tx) {
+    signing_abort();
+    fsm_sendFailure(FailureType_Failure_DataError, "No transaction provided");
+    layoutHome();
+    return;
+  }
   signing_txack(&(msg->tx));
 }
 
@@ -453,6 +462,7 @@ void fsm_msgVerifyMessage(const VerifyMessage *msg) {
 
 bool fsm_getOwnershipId(uint8_t *script_pubkey, size_t script_pubkey_size,
                         uint8_t ownership_id[OWNERSHIP_ID_SIZE]) {
+#if EMULATOR
   const char *OWNERSHIP_ID_KEY_PATH[] = {"SLIP-0019",
                                          "Ownership identification key"};
 
@@ -465,6 +475,14 @@ bool fsm_getOwnershipId(uint8_t *script_pubkey, size_t script_pubkey_size,
               script_pubkey_size, ownership_id);
 
   return true;
+#else
+  if (script_pubkey_size > UINT16_MAX) {
+    memzero(ownership_id, OWNERSHIP_ID_SIZE);
+    return false;
+  }
+  return se_slip21_ownership_id(script_pubkey, (uint16_t)script_pubkey_size,
+                                ownership_id) == sectrue;
+#endif
 }
 
 void fsm_msgGetOwnershipId(const GetOwnershipId *msg) {
@@ -595,8 +613,8 @@ void fsm_msgGetOwnershipProof(const GetOwnershipProof *msg) {
   if (msg->ownership_ids_count) {
     if (msg->ownership_ids_count != 1 ||
         msg->ownership_ids[0].size != sizeof(ownership_id) ||
-        memcmp(ownership_id, msg->ownership_ids[0].bytes,
-               sizeof(ownership_id)) != 0) {
+        !thd89_v2_constant_time_equal(ownership_id, msg->ownership_ids[0].bytes,
+                                      sizeof(ownership_id))) {
       fsm_sendFailure(FailureType_Failure_DataError,
                       "Invalid ownership identifier");
       layoutHome();
@@ -804,8 +822,6 @@ void fsm_msgUnlockPath(const UnlockPath *msg) {
 
   CHECK_PIN
 
-  const char *KEYCHAIN_MAC_KEY_PATH[] = {"TREZOR", "Keychain MAC key"};
-
   // UnlockPath is relevant only for SLIP-25 paths.
   // Note: Currently we only allow unlocking the entire SLIP-25 purpose subtree
   // instead of per-coin or per-account unlocking in order to avoid UI
@@ -816,6 +832,8 @@ void fsm_msgUnlockPath(const UnlockPath *msg) {
     return;
   }
 
+#if EMULATOR
+  const char *KEYCHAIN_MAC_KEY_PATH[] = {"TREZOR", "Keychain MAC key"};
   uint8_t keychain_mac_key[32] = {0};
   if (!fsm_getSlip21Key(KEYCHAIN_MAC_KEY_PATH, 2, keychain_mac_key)) {
     return;
@@ -828,6 +846,14 @@ void fsm_msgUnlockPath(const UnlockPath *msg) {
                        sizeof(uint32_t));
   }
   hmac_sha256_Final(&hctx, resp->mac.bytes);
+#else
+  if (!config_genSessionSeed()) {
+    return;
+  }
+  if (se_slip21_slip25_mac(resp->mac.bytes) != sectrue) {
+    return;
+  }
+#endif
 
   // Require confirmation to access SLIP25 paths unless already authorized.
   if (msg->has_mac) {
@@ -931,16 +957,15 @@ void fsm_msgGetPublicKeyMultiple(const GetPublicKeyMultiple *msg) {
   layoutHome();
 }
 
-void fsm_msgSignPsbt(const SignPsbt *msg) {
-  CHECK_INITIALIZED
-  CHECK_PIN
+static void __attribute__((noinline)) fsm_msgSignPsbt_with_workspace(
+    const SignPsbt *msg, PSBT *psbt, BitcoinSigHasher *hasher,
+    TxOutputType *tx_output) {
   RESP_INIT(SignedPsbt);
 
   const CoinInfo *coin = fsm_getCoin(msg->has_coin_name, msg->coin_name);
   if (!coin) return;
-  PSBT psbt = {0};
 
-  if (!psbt_deserialize(msg->psbt.bytes, msg->psbt.size, &psbt)) {
+  if (!psbt_deserialize(msg->psbt.bytes, msg->psbt.size, psbt)) {
     fsm_sendFailure(FailureType_Failure_DataError, "PSBT parse failed");
     layoutHome();
     return;
@@ -952,19 +977,18 @@ void fsm_msgSignPsbt(const SignPsbt *msg) {
         fsm_getDerivedNode(coin->curve_name, path, 1, &root_fingerprint);
     if (!node) return;
   }
-  BitcoinSigHasher hasher = {0};
-  sig_hasher_init(&hasher);
+  sig_hasher_init(hasher);
   int64_t total_in = 0;
   int64_t total_out = 0;
   int64_t change_out = 0;
   bool contains_script_path_spending = false;
-  for (int i = 0; i < psbt.inputs_len; i++) {
-    PartiallySignedInput *input = &psbt.inputs[i];
-    CHECK_PARAM(input->prev_txid_lookuped || psbt.tx_lookuped,
+  for (int i = 0; i < psbt->inputs_len; i++) {
+    PartiallySignedInput *input = &psbt->inputs[i];
+    CHECK_PARAM(input->prev_txid_lookuped || psbt->tx_lookuped,
                 "invalid psbt, input missing prev_txid")
-    CHECK_PARAM(input->prev_out_index_lookuped || psbt.tx_lookuped,
+    CHECK_PARAM(input->prev_out_index_lookuped || psbt->tx_lookuped,
                 "invalid psbt, input missing prev_out_index")
-    CHECK_PARAM(input->sequence_lookuped || psbt.tx_lookuped,
+    CHECK_PARAM(input->sequence_lookuped || psbt->tx_lookuped,
                 "invalid psbt, input missing sequence")
     CHECK_PARAM(
         !input->non_witness_utxo_lookuped && input->witness_utxo_lookuped,
@@ -1020,11 +1044,11 @@ void fsm_msgSignPsbt(const SignPsbt *msg) {
       }
     }
     total_in += amount;
-    sig_hasher_add_input(&hasher, input);
+    sig_hasher_add_input(hasher, input);
   }
-  for (int i = 0; i < psbt.outputs_len; i++) {
+  for (int i = 0; i < psbt->outputs_len; i++) {
     bool is_change = false;
-    PartiallySignedOutput *output = &psbt.outputs[i];
+    PartiallySignedOutput *output = &psbt->outputs[i];
     uint8_t witness_version = 0;
     bool is_wit =
         is_witness(output->script, output->script_len, &witness_version);
@@ -1050,7 +1074,7 @@ void fsm_msgSignPsbt(const SignPsbt *msg) {
                           out_addr, MAX_ADDR_SIZE);
     } else if (is_opreturn(output->script, output->script_len)) {
       if (output->amount != 0) {
-        CHECK_PARAM(contains_script_path_spending && psbt.inputs_len == 1,
+        CHECK_PARAM(contains_script_path_spending && psbt->inputs_len == 1,
                     "OpReturn output should have 0 value");
       }
       op_return_data_len = output->script_len - 2;
@@ -1099,28 +1123,28 @@ void fsm_msgSignPsbt(const SignPsbt *msg) {
           return;
         }
       } else {
-        TxOutputType tx_output = {0};
-        tx_output.amount = (uint64_t)output->amount;
-        tx_output.address_n_count = 0;
-        strcpy(tx_output.address, out_addr);
-        if (!layoutConfirmOutput(coin, AmountUnit_BITCOIN, &tx_output)) {
+        memset(tx_output, 0, sizeof(*tx_output));
+        tx_output->amount = (uint64_t)output->amount;
+        tx_output->address_n_count = 0;
+        strcpy(tx_output->address, out_addr);
+        if (!layoutConfirmOutput(coin, AmountUnit_BITCOIN, tx_output)) {
           fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
           layoutHome();
           return;
         }
       }
     }
-    sig_hasher_add_output(&hasher, output);
+    sig_hasher_add_output(hasher, output);
     total_out += output->amount;
   }
   CHECK_PARAM(total_in > total_out, "Insufficient funds");
   uint32_t locktime = 0;
-  if (!compute_locktime(&psbt, &locktime)) {
+  if (!compute_locktime(psbt, &locktime)) {
     fsm_sendFailure(FailureType_Failure_DataError, "invalid psbt, locktime ");
     layoutHome();
     return;
   }
-  bool lkt_disabled = locktime_disabled(&psbt);
+  bool lkt_disabled = locktime_disabled(psbt);
   if (locktime > 0) {
     layoutConfirmNondefaultLockTime(coin, locktime, lkt_disabled);
     if (protectWaitKeyValue(ButtonRequestType_ButtonRequest_SignTx, true, 0,
@@ -1137,9 +1161,9 @@ void fsm_msgSignPsbt(const SignPsbt *msg) {
     return;
   }
 
-  sig_hasher_final(&hasher);
-  for (int i = 0; i < psbt.inputs_len; i++) {
-    PartiallySignedInput *input = &psbt.inputs[i];
+  sig_hasher_final(hasher);
+  for (int i = 0; i < psbt->inputs_len; i++) {
+    PartiallySignedInput *input = &psbt->inputs[i];
     if (input->tap_bip32_path_lookuped) {
       bool script_path_spending = false;
       uint8_t leaf_hash[32] = {0};
@@ -1163,8 +1187,8 @@ void fsm_msgSignPsbt(const SignPsbt *msg) {
           coin->curve_name, input->tap_bip32_path.key_origin.path,
           input->tap_bip32_path.key_origin.path_len, NULL);
       if (!s_node) return;
-      sig_hasher_hash_341(&hasher, i, SIGHASH_ALL_TAPROOT, sigmsg_digest,
-                          psbt.tx_version, locktime,
+      sig_hasher_hash_341(hasher, i, SIGHASH_ALL_TAPROOT, sigmsg_digest,
+                          psbt->tx_version, locktime,
                           script_path_spending ? leaf_hash : NULL);
       uint8_t signature[64] = {0};
       if (!script_path_spending) {
@@ -1191,7 +1215,7 @@ void fsm_msgSignPsbt(const SignPsbt *msg) {
     }
   }
   size_t psbt_size = 0;
-  if (!psbt_serialize(&psbt, resp->psbt.bytes, sizeof(resp->psbt.bytes),
+  if (!psbt_serialize(psbt, resp->psbt.bytes, sizeof(resp->psbt.bytes),
                       &psbt_size)) {
     fsm_sendFailure(FailureType_Failure_DataError, "PSBT serialization failed");
     layoutHome();
@@ -1200,4 +1224,28 @@ void fsm_msgSignPsbt(const SignPsbt *msg) {
   resp->psbt.size = psbt_size;
   msg_write(MessageType_MessageType_SignedPsbt, resp);
   layoutHome();
+}
+
+void fsm_msgSignPsbt(const SignPsbt *msg) {
+  CHECK_INITIALIZED
+  CHECK_PIN
+
+  if (!signing_workspace_acquire(SigningWorkspaceOwner_PSBT)) {
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Signing is busy");
+    layoutHome();
+    return;
+  }
+
+  PSBT *psbt = signing_workspace_psbt();
+  BitcoinSigHasher *hasher = signing_workspace_psbt_hasher();
+  TxOutputType *tx_output = signing_workspace_psbt_output();
+  if (psbt == NULL || hasher == NULL || tx_output == NULL) {
+    signing_workspace_release(SigningWorkspaceOwner_PSBT);
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Signing is busy");
+    layoutHome();
+    return;
+  }
+
+  fsm_msgSignPsbt_with_workspace(msg, psbt, hasher, tx_output);
+  signing_workspace_release(SigningWorkspaceOwner_PSBT);
 }

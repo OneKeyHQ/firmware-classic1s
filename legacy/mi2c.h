@@ -5,11 +5,12 @@
 #include <string.h>
 
 #include "sys.h"
+#include "transport_limits.h"
 #include "usart.h"
 
-#define MI2C_DATA_MAX_LEN (1024)
-#define MI2C_BUF_MAX_LEN (1024 + 64)
-#define MI2C_SEND_MAX_LEN (1024 + 64)
+#define MI2C_DATA_MAX_LEN TRANSPORT_MAX_PAYLOAD
+#define MI2C_BUF_MAX_LEN TRANSPORT_MAX_RESPONSE
+#define MI2C_SEND_MAX_LEN TRANSPORT_MAX_RESPONSE
 
 #define MI2CX I2C1
 
@@ -45,11 +46,17 @@
 extern void vMI2CDRV_Init(void);
 extern bool bMI2CDRV_ReceiveData(uint8_t *pucStr, uint16_t *pusRevLen);
 extern bool bMI2CDRV_SendData(uint8_t *pucStr, uint16_t usStrLen);
+extern bool bMI2CDRV_ReceiveDataRaw(uint8_t *data, uint16_t *data_len,
+                                    uint16_t *sw1sw2, bool fatal);
+extern bool bMI2CDRV_SendDataRaw(const uint8_t *data, uint16_t data_len,
+                                 bool fatal);
 extern uint16_t get_lasterror(void);
 #else
 #define vMI2CDRV_Init(...)
 #define bMI2CDRV_SendData(...) true
 #define bMI2CDRV_ReceiveData(...) true
+#define bMI2CDRV_SendDataRaw(...) true
+#define bMI2CDRV_ReceiveDataRaw(...) true
 #endif
 
 #endif

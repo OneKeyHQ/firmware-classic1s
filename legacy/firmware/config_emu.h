@@ -110,7 +110,7 @@ void session_clear(bool lock);
 void session_endCurrentSession(void);
 void config_lockDevice(void);
 
-void config_loadDevice(const LoadDevice *msg);
+bool config_loadDevice(const LoadDevice *msg);
 void config_loadDevice_ex(const BixinLoadDevice *msg);
 
 const uint8_t *config_getSeed(void);
@@ -146,7 +146,6 @@ bool config_getMnemonicBytes(uint8_t *dest, uint16_t dest_size,
                              uint16_t *real_size);
 
 bool config_setSeedsBytes(const uint8_t *seeds, uint8_t len);
-bool config_SeedsEncExportBytes(BixinOutMessageSE_outmessage_t *get_msg);
 
 bool config_stBackUpEntoryToSe(uint8_t *seed, uint8_t seed_len);
 bool config_stRestoreEntoryFromSe(uint8_t *seed, uint8_t *seed_len);
@@ -164,8 +163,8 @@ bool session_isUnlocked(void);
 bool config_hasWipeCode(void);
 bool config_changeWipeCode(const char *pin, const char *wipe_code);
 
-uint32_t config_nextU2FCounter(void);
-void config_setU2FCounter(uint32_t u2fcounter);
+bool config_nextU2FCounter(uint32_t *u2fcounter);
+bool config_setU2FCounter(uint32_t u2fcounter);
 
 bool config_isInitialized(void);
 bool config_isInitializedSeeds(void);
@@ -211,8 +210,6 @@ void config_setBleTrans(bool mode);
 void config_setWhetherUseSE(bool flag);
 bool config_getWhetherUseSE(void);
 ExportType config_setSeedsExportFlag(ExportType flag);
-bool config_getMessageSE(BixinMessageSE_inputmessage_t *input_msg,
-                         BixinOutMessageSE_outmessage_t *get_msg);
 void config_setIsBixinAPP(void);
 
 void config_setSeSessionKey(uint8_t *data, uint32_t size);

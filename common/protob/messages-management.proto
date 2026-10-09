@@ -536,6 +536,7 @@ message CancelAuthorization {
  * @end
  */
 message BixinMessageSE{
+ option deprecated = true;
  required bytes inputmessage = 1;
 }
 
@@ -544,6 +545,7 @@ message BixinMessageSE{
  * @end
  */
 message BixinOutMessageSE {
+    option deprecated = true;
     optional bytes outmessage = 1;
 }
 

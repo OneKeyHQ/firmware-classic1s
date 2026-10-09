@@ -691,16 +691,40 @@ static struct menu fido_switch_set_menu = {
     .previous = &main_menu,
 };
 
+static void menu_fido2_resident_error(void) {
+  layoutDialogCenterAdapterV2("Security Key", NULL, &bmp_bottom_left_arrow,
+                              NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                              "Read failed");
+  protectWaitKey(0, 1);
+  menu_init(&main_menu);
+}
+
 void menu_fido2_resident_credential(int index) {
   (void)index;
 
+  if (!check_se_fido_seed(NULL)) {
+    menu_fido2_resident_error();
+    return;
+  }
+
   uint8_t indexs[FIDO2_RESIDENT_CREDENTIALS_COUNT] = {0};
   uint8_t count = 0;
+  int info_result = 0;
   if (resident_credential_refresh) {
-    count = resident_credential_info(indexs, 30);
+    info_result = resident_credential_info(indexs, 30);
+    if (info_result < 0 ||
+        info_result > FIDO2_RESIDENT_CREDENTIALS_COUNT) {
+      menu_fido2_resident_error();
+      return;
+    }
+    count = (uint8_t)info_result;
   } else {
     resident_credential_refresh = true;
     count = fido_resident_credential_menu.counts;
+    if (count > FIDO2_RESIDENT_CREDENTIALS_COUNT) {
+      menu_fido2_resident_error();
+      return;
+    }
     menu_init(&main_menu);
   }
 
@@ -718,7 +742,11 @@ void menu_fido2_resident_credential(int index) {
     percent = 30 + ((i + 1) * 100 / count) * 70 / 100;
     layoutProgressAdapter(_(C__PROCESSING_ETC), percent * 10);
     memset(&cred_desc, 0, sizeof(CTAP_credentialDescriptor));
-    resident_credential_get_desc(indexs[i], &cred_desc);
+    if (resident_credential_get_desc(indexs[i], &cred_desc) !=
+        SE_FIDO2_SLOT_DATA_OK) {
+      menu_fido2_resident_error();
+      return;
+    }
     char *account_name = get_account_name(&cred_desc.credential.user);
 
     strlcpy(user_info[i].rp_id, cred_desc.credential.rp.id,

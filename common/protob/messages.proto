@@ -424,9 +424,9 @@ enum MessageType {
     MessageType_WebAuthnRemoveResidentCredential = 803 [(wire_in) = true];
 
     // bixin
-    MessageType_BixinMessageSE = 902 [(wire_in) = true];
+    MessageType_BixinMessageSE = 902 [deprecated = true];
     MessageType_BixinReboot = 903 [(wire_in) = true];
-    MessageType_BixinOutMessageSE = 904 [(wire_out) = true];
+    MessageType_BixinOutMessageSE = 904 [deprecated = true];
     MessageType_BixinVerifyDeviceRequest = 909 [(wire_in) = true];
     MessageType_BixinVerifyDeviceAck = 910 [(wire_out) = true];
     MessageType_BixinLoadDevice = 913 [deprecated = true];

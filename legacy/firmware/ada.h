@@ -174,6 +174,7 @@ bool ada_get_address(const CardanoGetAddress *msg, char *address);
 bool validate_network_info(int network_id, int protocol_magic);
 
 bool _processs_tx_init(const CardanoSignTxInit *msg);
+void ada_signing_clear_runtime_state(void);
 void state_transmute(void);
 
 bool txHashBuilder_addInput(const CardanoTxInput *input);

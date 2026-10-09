@@ -23,6 +23,8 @@
 #undef COIN_TYPE
 #define COIN_TYPE 1234
 
+#include "signing_workspace.h"
+
 void fsm_msgAlephiumGetAddress(const AlephiumGetAddress *msg) {
   CHECK_INITIALIZED
   CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,
@@ -49,6 +51,10 @@ void fsm_msgAlephiumGetAddress(const AlephiumGetAddress *msg) {
 }
 
 void fsm_msgAlephiumSignTx(const AlephiumSignTx *msg) {
+  if (signing_workspace_owner() != SigningWorkspaceOwner_NONE) {
+    fsm_sendFailure(FailureType_Failure_ProcessError, "Signing is busy");
+    return;
+  }
   CHECK_INITIALIZED
   CHECK_PARAM(fsm_common_path_check(msg->address_n, msg->address_n_count,
                                     COIN_TYPE, SECP256K1_NAME, true),

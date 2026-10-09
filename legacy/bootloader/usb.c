@@ -42,6 +42,7 @@
 #include "si2c.h"
 #include "sys.h"
 #include "updateble.h"
+#include "upgrade_policy.h"
 #include "usb.h"
 #include "util.h"
 
@@ -56,8 +57,6 @@
 #include "usb_desc.h"
 #include "webusb.h"
 #include "winusb.h"
-
-#include "../firmware/se_chip.h"
 
 enum {
   STATE_READY,
@@ -114,9 +113,12 @@ typedef struct {
   int wi;             // Word index (0-3)
 
   // Firmware verification
-  secbool se_isUpdate;           // Whether SE firmware is being updated
-  int old_was_signed;            // Whether old firmware was signed
-  uint32_t previous_purpose;     // Previous firmware purpose
+  secbool se_isUpdate;        // Whether SE firmware is being updated
+  int old_was_signed;         // Whether old firmware was signed
+  uint32_t previous_version;  // Previous firmware version
+  uint32_t previous_purpose;  // Previous firmware purpose
+  upgrade_previous_state_t previous_state;
+  upgrade_erase_target_t erase_target;
   secbool erase_storage;         // Whether to erase storage
   uint32_t fix_version_current;  // Current fix version
 
@@ -135,6 +137,11 @@ typedef struct {
       has_upgrade_header;  // Whether upgrade header was received (new format)
   secbool header_in_fw_header;  // Whether old format header is in
   // firmware_header_buffer
+  upgrade_file_format_t preflight_format;
+  upgrade_image_target_t preflight_target;
+  upgrade_file_format_t upload_format;
+  secbool upload_header_checked;
+  secbool upload_wrapper_present;
   uint8_t *header_buffer;
 } msg_context_t;
 
@@ -160,13 +167,21 @@ static msg_context_t msg_ctx = {
     .wi = 0,
     .se_isUpdate = secfalse,
     .old_was_signed = 0,
+    .previous_version = 0,
     .previous_purpose = FIRMWARE_PURPOSE_GENERAL,
+    .previous_state = UPGRADE_PREVIOUS_UNKNOWN,
+    .erase_target = UPGRADE_ERASE_TARGET_NONE,
     .erase_storage = secfalse,
     .fix_version_current = 0xffffffff,
     .upgrade_header_pos = 0,
     .upgrade_header_len = 0,
     .has_upgrade_header = secfalse,
     .header_in_fw_header = secfalse,
+    .preflight_format = UPGRADE_FILE_FORMAT_NONE,
+    .preflight_target = UPGRADE_IMAGE_TARGET_NONE,
+    .upload_format = UPGRADE_FILE_FORMAT_NONE,
+    .upload_header_checked = secfalse,
+    .upload_wrapper_present = secfalse,
     .header_buffer = (uint8_t *)firmware_header_buffer,
 };
 
@@ -191,7 +206,20 @@ static secbool process_flashing_data(usbd_device *dev, const uint8_t *p_buf,
 static secbool process_complete_upgrade_header(usbd_device *dev);
 static secbool process_new_format_upgrade_header(usbd_device *dev);
 static secbool process_old_format_upgrade_header(usbd_device *dev);
+static secbool validate_upgrade_wrapper(usbd_device *dev,
+                                        const upgrade_file_header_t *hdr);
+static secbool consume_upgrade_wrapper(usbd_device *dev, const uint8_t *data,
+                                       uint32_t available, uint32_t *consumed);
+static secbool validate_uploaded_old_header(usbd_device *dev);
 static void reset_upgrade_header_state(void);
+static void reset_update_session_state(void);
+static secbool capture_previous_mcu_info(usbd_device *dev, int *old_was_signed,
+                                         uint32_t *fix_version_current,
+                                         uint32_t *previous_purpose);
+static secbool validate_preflight_erase_target(
+    usbd_device *dev, upgrade_erase_target_t requested_erase_target);
+static secbool validate_upload_target(usbd_device *dev);
+static secbool validate_wrapper_inner_metadata(usbd_device *dev);
 static void handle_error(usbd_device *dev, uint8_t error_code,
                          const char *line1, const char *line2);
 static void get_current_mcu_info(uint32_t *version, uint32_t *purpose);
@@ -199,6 +227,9 @@ static secbool check_mcu_downgrade(usbd_device *dev, uint32_t new_version,
                                    uint32_t current_version,
                                    uint32_t new_purpose,
                                    uint32_t current_purpose);
+static secbool check_mcu_install(usbd_device *dev, uint32_t new_version,
+                                 uint32_t current_version, uint32_t new_purpose,
+                                 uint32_t current_purpose);
 static secbool check_se_minimum_version(usbd_device *dev,
                                         uint32_t se_minimum_version,
                                         uint32_t latest_se_version);
@@ -236,29 +267,6 @@ static secbool readprotobufint(const uint8_t **ptr, uint32_t *result) {
   return sectrue;
 }
 
-/** Reverse-endian version comparison
- *
- * Versions are loaded from the header via a packed struct image_header. A
- * version is represented as a single uint32_t. Arm is natively little-endian,
- * but the version is actually stored as four bytes in major-minor-patch-build
- * order. This function implements `cmp` with "lowest" byte first.
- */
-static int version_compare(const uint32_t vera, const uint32_t verb) {
-  int a, b;  // signed temp values so that we can safely return a signed result
-  a = vera & 0xFF;
-  b = verb & 0xFF;
-  if (a != b) return a - b;
-  a = (vera >> 8) & 0xFF;
-  b = (verb >> 8) & 0xFF;
-  if (a != b) return a - b;
-  a = (vera >> 16) & 0xFF;
-  b = (verb >> 16) & 0xFF;
-  if (a != b) return a - b;
-  a = (vera >> 24) & 0xFF;
-  b = (verb >> 24) & 0xFF;
-  return a - b;
-}
-
 static void version_uint32_to_str(uint32_t version, char *str,
                                   size_t str_size) {
   uint8_t major = version & 0xFF;
@@ -284,21 +292,25 @@ static secbool check_mcu_downgrade(usbd_device *dev, uint32_t new_version,
                                    uint32_t current_version,
                                    uint32_t new_purpose,
                                    uint32_t current_purpose) {
-  if (current_version > 0) {
-    int version_diff = version_compare(new_version, current_version);
-    if (version_diff < 0) {
-      // Only allow MCU downgrade when switching General -> BTC-only.
-      if (current_purpose == FIRMWARE_PURPOSE_GENERAL &&
-          new_purpose == FIRMWARE_PURPOSE_BTC_ONLY) {
-        return sectrue;
-      }
-
-      handle_error(dev, FAILURE_PROCESS_ERROR, "Firmware downgrade",
-                   "not allowed.");
-      return secfalse;
-    }
+  if (upgrade_mcu_downgrade_allowed(new_version, current_version, new_purpose,
+                                    current_purpose) == sectrue) {
+    return sectrue;
   }
-  return sectrue;
+  handle_error(dev, FAILURE_PROCESS_ERROR, "Firmware downgrade",
+               "not allowed.");
+  return secfalse;
+}
+
+static secbool check_mcu_install(usbd_device *dev, uint32_t new_version,
+                                 uint32_t current_version, uint32_t new_purpose,
+                                 uint32_t current_purpose) {
+  if (upgrade_mcu_install_allowed(msg_ctx.previous_state, new_version,
+                                  current_version, new_purpose,
+                                  current_purpose) == sectrue) {
+    return sectrue;
+  }
+  handle_error(dev, FAILURE_PROCESS_ERROR, "Firmware rollback", "not allowed.");
+  return secfalse;
 }
 
 // Helper: Check SE minimum version requirement
@@ -311,7 +323,7 @@ static secbool check_se_minimum_version(usbd_device *dev,
   }
 
   if (latest_se_version == 0 ||
-      version_compare(latest_se_version, se_minimum_version) < 0) {
+      upgrade_version_compare(latest_se_version, se_minimum_version) < 0) {
     handle_error(dev, FAILURE_PROCESS_ERROR, "SE version", "too old.");
     return secfalse;
   }
@@ -399,7 +411,7 @@ static int should_keep_storage(int old_was_signed,
   if (SIG_OK != check_firmware_hashes(new_hdr, NULL, 0)) return SIG_FAIL;
 
   // if the current fix_version is higher than the new one, erase storage
-  if (version_compare(new_hdr->version, fix_version_current) < 0) {
+  if (upgrade_version_compare(new_hdr->version, fix_version_current) < 0) {
     return SIG_FAIL;
   }
 
@@ -471,6 +483,7 @@ static secbool check_battery_level(usbd_device *dev) {
 static secbool handle_simple_messages(usbd_device *dev, uint16_t msg_id) {
   switch (msg_id) {
     case MSG_ID_INITIALIZE:
+      reset_update_session_state();
       send_msg_features(dev);
       flash_state = STATE_OPEN;
       return sectrue;
@@ -510,10 +523,29 @@ static void reset_upgrade_header_state(void) {
   memzero(msg_ctx.upgrade_header_buffer, sizeof(msg_ctx.upgrade_header_buffer));
   msg_ctx.has_upgrade_header = secfalse;
   msg_ctx.header_in_fw_header = secfalse;
+  msg_ctx.preflight_format = UPGRADE_FILE_FORMAT_NONE;
+  msg_ctx.preflight_target = UPGRADE_IMAGE_TARGET_NONE;
+  msg_ctx.upload_format = UPGRADE_FILE_FORMAT_NONE;
+  msg_ctx.upload_header_checked = secfalse;
+  msg_ctx.upload_wrapper_present = secfalse;
   // Restore to OPEN state if we were in UPGRADE_HEADER state
   if (flash_state == STATE_UPGRADE_HEADER) {
     flash_state = STATE_OPEN;
   }
+}
+
+static void reset_update_session_state(void) {
+  reset_upgrade_header_state();
+  msg_ctx.erase_target = UPGRADE_ERASE_TARGET_NONE;
+  msg_ctx.previous_state = UPGRADE_PREVIOUS_UNKNOWN;
+  msg_ctx.previous_version = 0;
+  msg_ctx.previous_purpose = FIRMWARE_PURPOSE_GENERAL;
+  msg_ctx.old_was_signed = SIG_FAIL;
+  msg_ctx.fix_version_current = 0xffffffff;
+  msg_ctx.erase_storage = secfalse;
+  msg_ctx.se_isUpdate = secfalse;
+  flash_combine_pos = 0;
+  update_mode = 0;
 }
 
 // Helper function: Process upgrade file header data packet
@@ -647,6 +679,40 @@ static secbool verify_upgrade_header_checksum(
              : secfalse;
 }
 
+static secbool validate_upgrade_wrapper(usbd_device *dev,
+                                        const upgrade_file_header_t *hdr) {
+  if (hdr->magic != UPGRADE_HEADER_MAGIC ||
+      hdr->header_version != UPGRADE_HEADER_VERSION) {
+    handle_error(dev, FAILURE_PROCESS_ERROR, "Unsupported header", "version.");
+    return secfalse;
+  }
+  if (verify_upgrade_header_checksum(hdr) != sectrue) {
+    handle_error(dev, FAILURE_PROCESS_ERROR, "Header checksum", "mismatch.");
+    return secfalse;
+  }
+
+  uint8_t flags = hdr->flags;
+  secbool supported =
+      (flags == UPGRADE_FLAG_MCU_PRESENT ||
+       flags == (UPGRADE_FLAG_MCU_PRESENT | UPGRADE_FLAG_SE_PRESENT) ||
+       flags == UPGRADE_FLAG_BLE_PRESENT)
+          ? sectrue
+          : secfalse;
+  if (supported != sectrue) {
+    handle_error(dev, FAILURE_PROCESS_ERROR, "Unsupported firmware",
+                 "combination.");
+    return secfalse;
+  }
+  if (upgrade_wrapper_declared_lengths_allowed(
+          hdr, FLASH_FWHEADER_LEN + FLASH_APP_LEN,
+          FLASH_FWHEADER_LEN + FLASH_BLE_MAX_LEN) != sectrue) {
+    handle_error(dev, FAILURE_PROCESS_ERROR, "Firmware module",
+                 "length invalid.");
+    return secfalse;
+  }
+  return sectrue;
+}
+
 static secbool process_complete_upgrade_header(usbd_device *dev) {
   uint32_t header_magic = *(const uint32_t *)msg_ctx.header_buffer;
 
@@ -671,36 +737,14 @@ static secbool process_new_format_upgrade_header(usbd_device *dev) {
   const upgrade_file_header_t *upgrade_hdr =
       (const upgrade_file_header_t *)msg_ctx.upgrade_header_buffer;
 
-  // Validate header version
-  if (upgrade_hdr->header_version != UPGRADE_HEADER_VERSION) {
-    handle_error(dev, FAILURE_PROCESS_ERROR, "Unsupported header", "version.");
+  if (validate_upgrade_wrapper(dev, upgrade_hdr) != sectrue) {
     return secfalse;
   }
 
-  // Verify header checksum
-  if (verify_upgrade_header_checksum(upgrade_hdr) != sectrue) {
-    handle_error(dev, FAILURE_PROCESS_ERROR, "Header checksum", "mismatch.");
-    return secfalse;
-  }
-
-  // Validate flags - at least one firmware must be present
-  if ((upgrade_hdr->flags &
-       (UPGRADE_FLAG_MCU_PRESENT | UPGRADE_FLAG_SE_PRESENT |
-        UPGRADE_FLAG_BLE_PRESENT)) == 0) {
-    handle_error(dev, FAILURE_PROCESS_ERROR, "No firmware", "specified.");
-    return secfalse;
-  }
-
-  // Validate supported combinations: MCU only, MCU+SE, or BLE only
-  uint8_t flags = upgrade_hdr->flags;
-  bool is_mcu_only = (flags == UPGRADE_FLAG_MCU_PRESENT);
-  bool is_mcu_se =
-      (flags == (UPGRADE_FLAG_MCU_PRESENT | UPGRADE_FLAG_SE_PRESENT));
-  bool is_ble_only = (flags == UPGRADE_FLAG_BLE_PRESENT);
-
-  if (!is_mcu_only && !is_mcu_se && !is_ble_only) {
-    handle_error(dev, FAILURE_PROCESS_ERROR, "Unsupported firmware",
-                 "combination.");
+  upgrade_image_target_t preflight_target =
+      upgrade_wrapper_image_target(upgrade_hdr->flags);
+  if (preflight_target == UPGRADE_IMAGE_TARGET_NONE) {
+    handle_error(dev, FAILURE_PROCESS_ERROR, "Unsupported firmware", "target.");
     return secfalse;
   }
 
@@ -720,8 +764,8 @@ static secbool process_new_format_upgrade_header(usbd_device *dev) {
   // version
   uint32_t latest_se_version = current_se_version;
   if (upgrade_hdr->flags & UPGRADE_FLAG_SE_PRESENT) {
-    int se_version_diff =
-        version_compare(upgrade_hdr->se_info.version, current_se_version);
+    int se_version_diff = upgrade_version_compare(upgrade_hdr->se_info.version,
+                                                  current_se_version);
     if (se_version_diff < 0) {
       handle_error(dev, FAILURE_PROCESS_ERROR, "SE downgrade", "not allowed.");
       return secfalse;
@@ -762,6 +806,8 @@ static secbool process_new_format_upgrade_header(usbd_device *dev) {
 
   // Complete processing
   msg_ctx.has_upgrade_header = sectrue;
+  msg_ctx.preflight_format = UPGRADE_FILE_FORMAT_NEW;
+  msg_ctx.preflight_target = preflight_target;
   complete_upgrade_header_processing();
   send_msg_success(dev);
   return sectrue;
@@ -771,6 +817,7 @@ static secbool process_new_format_upgrade_header(usbd_device *dev) {
 static secbool process_old_format_upgrade_header(usbd_device *dev) {
   const image_header *firmware_hdr =
       (const image_header *)firmware_header_buffer;
+  upgrade_image_target_t preflight_target = UPGRADE_IMAGE_TARGET_NONE;
 
   if (firmware_hdr->magic == FIRMWARE_MAGIC_NEW) {
     // allow only v3 signmessage/verifymessage signature for new FW
@@ -811,16 +858,23 @@ static secbool process_old_format_upgrade_header(usbd_device *dev) {
       return secfalse;
     }
     update_mode = UPDATE_ST;
+    preflight_target = UPGRADE_IMAGE_TARGET_MCU;
 
   } else if (firmware_hdr->magic == FIRMWARE_MAGIC_BLE) {
     update_mode = UPDATE_BLE;
+    preflight_target = UPGRADE_IMAGE_TARGET_BLE;
 
   } else {
     handle_error(dev, FAILURE_PROCESS_ERROR, "Wrong firmware", "header.");
     return secfalse;
   }
 
-  // Complete processing
+  // Preserve the accepted signed header for complete-file comparison while
+  // retaining firmware_header_buffer for the legacy body-only upload path.
+  memcpy(msg_ctx.upgrade_header_buffer, firmware_header_buffer,
+         FLASH_FWHEADER_LEN);
+  msg_ctx.preflight_format = UPGRADE_FILE_FORMAT_OLD;
+  msg_ctx.preflight_target = preflight_target;
   msg_ctx.header_in_fw_header = sectrue;
   complete_upgrade_header_processing();
   send_msg_success(dev);
@@ -839,7 +893,11 @@ static secbool handle_wipe_device(usbd_device *dev) {
   }
   if (but) {
     erase_code_progress();
-    se_reset_storage();
+    if (!se_erase_storage_plaintext()) {
+      flash_state = STATE_END;
+      send_msg_failure(dev, FAILURE_PROCESS_ERROR, NULL);
+      return secfalse;
+    }
     flash_state = STATE_END;
     show_unplug("Device", "successfully wiped.");
     send_msg_success(dev);
@@ -853,9 +911,61 @@ static secbool handle_wipe_device(usbd_device *dev) {
 }
 
 // Helper function: Handle FirmwareErase message (id 6)
+static secbool validate_preflight_erase_target(
+    usbd_device *dev, upgrade_erase_target_t requested_erase_target) {
+  if (upgrade_preflight_erase_allowed(msg_ctx.preflight_format,
+                                      msg_ctx.preflight_target,
+                                      requested_erase_target) == sectrue) {
+    return sectrue;
+  }
+  handle_error(dev, FAILURE_PROCESS_ERROR, "Erase/header type", "mismatch.");
+  return secfalse;
+}
+
+static secbool capture_previous_mcu_info(usbd_device *dev, int *old_was_signed,
+                                         uint32_t *fix_version_current,
+                                         uint32_t *previous_purpose) {
+  const image_header *stored =
+      (const image_header *)FLASH_PTR(FLASH_FWHEADER_START);
+  image_header normalized = {0};
+
+  msg_ctx.previous_state = UPGRADE_PREVIOUS_UNKNOWN;
+  msg_ctx.previous_version = 0;
+  *previous_purpose = FIRMWARE_PURPOSE_GENERAL;
+  *old_was_signed = SIG_FAIL;
+  *fix_version_current = 0xffffffff;
+
+  if (upgrade_previous_header_is_empty(stored) == sectrue) {
+    msg_ctx.previous_state = UPGRADE_PREVIOUS_EMPTY;
+    return sectrue;
+  }
+
+  if (upgrade_normalize_previous_header(stored, &normalized) != sectrue ||
+      normalized.codelen > FLASH_APP_LEN || normalized.codelen < 4096U ||
+      memcmp((const uint8_t *)&normalized + 24, HW_MODEL_C2B2, 4) != 0 ||
+      signatures_ok(&normalized, NULL, sectrue) != SIG_OK) {
+    handle_error(dev, FAILURE_PROCESS_ERROR, "Previous firmware", "invalid.");
+    return secfalse;
+  }
+
+  msg_ctx.previous_version = normalized.onekey_version;
+  *previous_purpose = normalized.purpose;
+  *fix_version_current = normalized.fix_version;
+  msg_ctx.previous_state = UPGRADE_PREVIOUS_VERIFIED;
+  if (stored->magic == FIRMWARE_MAGIC_NEW &&
+      check_firmware_hashes(stored, NULL, 0) == SIG_OK) {
+    *old_was_signed = SIG_OK;
+  }
+  return sectrue;
+}
+
 static secbool handle_firmware_erase(usbd_device *dev, int *old_was_signed,
                                      uint32_t *fix_version_current,
                                      uint32_t *previous_purpose) {
+  if (validate_preflight_erase_target(dev, UPGRADE_ERASE_TARGET_MCU) !=
+      sectrue) {
+    return secfalse;
+  }
   if (check_battery_level(dev) != sectrue) {
     return secfalse;
   }
@@ -876,18 +986,10 @@ static secbool handle_firmware_erase(usbd_device *dev, int *old_was_signed,
   }
 
   if (proceed) {
-    // check whether the current firmware is signed (old or new method)
-    if (firmware_present_new() || firmware_present_upgrade()) {
-      const image_header *hdr =
-          (const image_header *)FLASH_PTR(FLASH_FWHEADER_START);
-      *old_was_signed =
-          signatures_match(hdr, NULL) & check_firmware_hashes(hdr, NULL, 0);
-      *fix_version_current = hdr->fix_version;
-      *previous_purpose = hdr->purpose;
-    } else {
-      *old_was_signed = SIG_FAIL;
-      *fix_version_current = 0xffffffff;
-      *previous_purpose = FIRMWARE_PURPOSE_GENERAL;
+    msg_ctx.erase_target = UPGRADE_ERASE_TARGET_NONE;
+    if (capture_previous_mcu_info(dev, old_was_signed, fix_version_current,
+                                  previous_purpose) != sectrue) {
+      return secfalse;
     }
 
     flash_enter();
@@ -912,6 +1014,7 @@ static secbool handle_firmware_erase(usbd_device *dev, int *old_was_signed,
     flash_exit();
     erase_code_progress();
     flash_unlock_ex();
+    msg_ctx.erase_target = UPGRADE_ERASE_TARGET_MCU;
     send_msg_success(dev);
     flash_state = STATE_FLASHSTART;
     timer_out_set(timer_out_oper, timer1s * 5);
@@ -927,6 +1030,10 @@ static secbool handle_firmware_erase(usbd_device *dev, int *old_was_signed,
 
 // Helper function: Handle FirmwareErase_ex message (id 16)
 static secbool handle_firmware_erase_ex(usbd_device *dev) {
+  if (validate_preflight_erase_target(dev, UPGRADE_ERASE_TARGET_BLE) !=
+      sectrue) {
+    return secfalse;
+  }
   layoutDialogCenterAdapterEx(NULL, &bmp_bottom_left_close,
                               &bmp_bottom_right_confirm, NULL, NULL, NULL,
                               "Install ble firmware by", "OneKey?");
@@ -934,6 +1041,10 @@ static secbool handle_firmware_erase_ex(usbd_device *dev) {
   if (proceed) {
     erase_ble_code_progress();
     flash_unlock_ex();
+    msg_ctx.previous_state = UPGRADE_PREVIOUS_UNKNOWN;
+    msg_ctx.previous_version = 0;
+    msg_ctx.previous_purpose = FIRMWARE_PURPOSE_GENERAL;
+    msg_ctx.erase_target = UPGRADE_ERASE_TARGET_BLE;
     send_msg_success(dev);
     flash_state = STATE_FLASHSTART;
     timer_out_set(timer_out_oper, timer1s * 5);
@@ -945,6 +1056,111 @@ static secbool handle_firmware_erase_ex(usbd_device *dev) {
     shutdown();
     return secfalse;
   }
+}
+
+static secbool consume_upgrade_wrapper(usbd_device *dev, const uint8_t *data,
+                                       uint32_t available, uint32_t *consumed) {
+  if (msg_ctx.upgrade_header_pos > FLASH_FWHEADER_LEN) {
+    handle_error(dev, FAILURE_PROCESS_ERROR, "Upgrade header", "overflow.");
+    return secfalse;
+  }
+
+  uint32_t remaining = FLASH_FWHEADER_LEN - msg_ctx.upgrade_header_pos;
+  uint32_t count = available < remaining ? available : remaining;
+
+  if (msg_ctx.preflight_format == UPGRADE_FILE_FORMAT_NEW) {
+    if (upgrade_header_chunk_matches(msg_ctx.upgrade_header_buffer, data,
+                                     msg_ctx.upgrade_header_pos,
+                                     count) != sectrue) {
+      handle_error(dev, FAILURE_PROCESS_ERROR, "Upgrade header", "changed.");
+      return secfalse;
+    }
+  } else {
+    memcpy(msg_ctx.upgrade_header_buffer + msg_ctx.upgrade_header_pos, data,
+           count);
+  }
+
+  msg_ctx.upgrade_header_pos += count;
+  *consumed = count;
+  if (msg_ctx.upgrade_header_pos == FLASH_FWHEADER_LEN) {
+    const upgrade_file_header_t *wrapper =
+        (const upgrade_file_header_t *)msg_ctx.upgrade_header_buffer;
+    if (validate_upgrade_wrapper(dev, wrapper) != sectrue) {
+      return secfalse;
+    }
+    if (upgrade_wrapper_payload_length_matches(wrapper, flash_len) != sectrue) {
+      handle_error(dev, FAILURE_PROCESS_ERROR, "Firmware payload",
+                   "length mismatch.");
+      return secfalse;
+    }
+    msg_ctx.upload_header_checked = sectrue;
+  }
+  return sectrue;
+}
+
+static secbool validate_uploaded_old_header(usbd_device *dev) {
+  if (msg_ctx.upload_header_checked == sectrue ||
+      msg_ctx.preflight_format != UPGRADE_FILE_FORMAT_OLD ||
+      msg_ctx.upload_format != UPGRADE_FILE_FORMAT_OLD ||
+      flash_pos < FLASH_FWHEADER_LEN) {
+    return sectrue;
+  }
+  if (upgrade_header_chunk_matches(msg_ctx.upgrade_header_buffer,
+                                   (const uint8_t *)firmware_header_buffer, 0,
+                                   FLASH_FWHEADER_LEN) != sectrue) {
+    handle_error(dev, FAILURE_PROCESS_ERROR, "Firmware header", "changed.");
+    return secfalse;
+  }
+  msg_ctx.upload_header_checked = sectrue;
+  return sectrue;
+}
+
+static secbool validate_upload_target(usbd_device *dev) {
+  upgrade_image_target_t image_target = UPGRADE_IMAGE_TARGET_NONE;
+  if (update_mode == UPDATE_ST) {
+    image_target = UPGRADE_IMAGE_TARGET_MCU;
+  } else if (update_mode == UPDATE_BLE) {
+    image_target = UPGRADE_IMAGE_TARGET_BLE;
+  }
+
+  if (upgrade_upload_target_allowed(msg_ctx.erase_target, image_target) !=
+      sectrue) {
+    handle_error(dev, FAILURE_PROCESS_ERROR, "Erase/upload type", "mismatch.");
+    return secfalse;
+  }
+
+  if (msg_ctx.upload_wrapper_present == sectrue) {
+    const upgrade_file_header_t *wrapper =
+        (const upgrade_file_header_t *)msg_ctx.upgrade_header_buffer;
+    if (upgrade_wrapper_target_allowed(wrapper->flags, image_target) !=
+        sectrue) {
+      handle_error(dev, FAILURE_PROCESS_ERROR, "Firmware module", "mismatch.");
+      return secfalse;
+    }
+  }
+  return sectrue;
+}
+
+static secbool validate_wrapper_inner_metadata(usbd_device *dev) {
+  if (msg_ctx.upload_wrapper_present != sectrue) {
+    return sectrue;
+  }
+
+  const upgrade_file_header_t *wrapper =
+      (const upgrade_file_header_t *)msg_ctx.upgrade_header_buffer;
+  const image_header *inner = (const image_header *)firmware_header_buffer;
+  secbool matches = secfalse;
+  if (update_mode == UPDATE_ST) {
+    matches = upgrade_mcu_metadata_matches(wrapper, inner);
+  } else if (update_mode == UPDATE_BLE) {
+    matches =
+        upgrade_aux_metadata_matches(&wrapper->ble_info, inner, flash_len);
+  }
+  if (matches != sectrue) {
+    handle_error(dev, FAILURE_PROCESS_ERROR, "Firmware metadata", "mismatch.");
+    return secfalse;
+  }
+  return sectrue;
 }
 
 // Helper function: Validate and initialize firmware upload
@@ -966,73 +1182,78 @@ static secbool handle_firmware_upload_init(usbd_device *dev,
     return secfalse;
   }
 
-  uint32_t actual_firmware_len = flash_len;
-  uint32_t skip_bytes = 0;
-  const uint8_t *firmware_start = p;
-  uint32_t data_magic = *(const uint32_t *)p;
+  if (p + sizeof(uint32_t) > p_buf + 64) {
+    handle_error(dev, FAILURE_PROCESS_ERROR, "Firmware format", "missing.");
+    return secfalse;
+  }
 
-  if (data_magic == UPGRADE_HEADER_MAGIC || data_magic == FIRMWARE_MAGIC_NEW ||
-      data_magic == FIRMWARE_MAGIC_BLE) {
-    // Header resent, reprocess it
-    if (msg_ctx.header_in_fw_header == sectrue) {
-      msg_ctx.header_in_fw_header = secfalse;
+  uint32_t data_magic = 0;
+  memcpy(&data_magic, p, sizeof(data_magic));
+  upgrade_file_format_t actual_format = UPGRADE_FILE_FORMAT_NONE;
+  if (data_magic == UPGRADE_HEADER_MAGIC) {
+    actual_format = UPGRADE_FILE_FORMAT_NEW;
+  } else if (data_magic == FIRMWARE_MAGIC_NEW ||
+             data_magic == FIRMWARE_MAGIC_BLE) {
+    actual_format = UPGRADE_FILE_FORMAT_OLD;
+  } else if (msg_ctx.preflight_format == UPGRADE_FILE_FORMAT_OLD &&
+             msg_ctx.header_in_fw_header == sectrue) {
+    actual_format = UPGRADE_FILE_FORMAT_OLD_BODY;
+  }
+
+  if (upgrade_file_format_allowed(msg_ctx.preflight_format, actual_format) !=
+      sectrue) {
+    handle_error(dev, FAILURE_PROCESS_ERROR, "Firmware format", "changed.");
+    return secfalse;
+  }
+
+  msg_ctx.upload_format = actual_format;
+  msg_ctx.upload_wrapper_present =
+      actual_format == UPGRADE_FILE_FORMAT_NEW ? sectrue : secfalse;
+  msg_ctx.has_upgrade_header = msg_ctx.upload_wrapper_present;
+
+  uint32_t actual_firmware_len = flash_len;
+  const uint8_t *firmware_start = NULL;
+  if (actual_format == UPGRADE_FILE_FORMAT_OLD_BODY) {
+    if (flash_len > UINT32_MAX - FLASH_FWHEADER_LEN) {
+      handle_error(dev, FAILURE_PROCESS_ERROR, "Firmware is", "too big.");
+      return secfalse;
+    }
+    msg_ctx.upload_header_checked = sectrue;
+    flash_len += FLASH_FWHEADER_LEN;
+    actual_firmware_len = flash_len;
+    firmware_start = (const uint8_t *)firmware_header_buffer;
+  } else if (actual_format == UPGRADE_FILE_FORMAT_OLD) {
+    msg_ctx.header_in_fw_header = secfalse;
+    firmware_start = p;
+  } else {
+    msg_ctx.header_in_fw_header = secfalse;
+    if (flash_len <= FLASH_FWHEADER_LEN) {
+      handle_error(dev, FAILURE_PROCESS_ERROR, "Firmware is", "too small.");
+      return secfalse;
+    }
+    actual_firmware_len = flash_len - FLASH_FWHEADER_LEN;
+    msg_ctx.upgrade_header_pos = 0;
+    msg_ctx.upgrade_header_len = FLASH_FWHEADER_LEN;
+    if (msg_ctx.preflight_format == UPGRADE_FILE_FORMAT_NONE) {
+      memzero(msg_ctx.upgrade_header_buffer,
+              sizeof(msg_ctx.upgrade_header_buffer));
     }
   }
 
-  if (msg_ctx.header_in_fw_header == sectrue) {
-    skip_bytes = 0;
-
-    flash_len += FLASH_FWHEADER_LEN;
-    actual_firmware_len = flash_len;
-
-  } else {
-    if (p + 4 <= p_buf + 64) {
-      data_magic = *(const uint32_t *)p;
-    }
-
-    if (data_magic == UPGRADE_HEADER_MAGIC) {
-      // New header format: skip first 1024 bytes
-      skip_bytes = FLASH_FWHEADER_LEN;
-      if (flash_len <= skip_bytes) {
-        handle_error(dev, FAILURE_PROCESS_ERROR, "Firmware is", "too small.");
-        return secfalse;
-      }
-      actual_firmware_len = flash_len - skip_bytes;
-
-      // Find firmware magic after skipping upgrade header
-      uint32_t bytes_available = (uint32_t)((p_buf + 64) - p);
-      if (bytes_available > skip_bytes) {
-        firmware_start = p + skip_bytes;
-      } else {
-        firmware_start = NULL;
-      }
-      msg_ctx.has_upgrade_header = sectrue;
-    } else if (data_magic == FIRMWARE_MAGIC_NEW ||
-               data_magic == FIRMWARE_MAGIC_BLE) {
-      // Old header format: keep original workflow (no skipping)
-      skip_bytes = 0;
-      firmware_start = p;
-    } else {
-      // Unknown format
-      handle_error(dev, FAILURE_PROCESS_ERROR, "Unknown header", "format.");
+  if (firmware_start != NULL) {
+    if (check_firmware_magic(firmware_start) != sectrue) {
+      handle_error(dev, FAILURE_PROCESS_ERROR, "Wrong firmware", "header.");
       return secfalse;
     }
-
-    if (firmware_start != NULL) {
-      if (check_firmware_magic(firmware_start) != sectrue) {
-        handle_error(dev, FAILURE_PROCESS_ERROR, "Wrong firmware", "header.");
-        return secfalse;
-      }
-      update_mode = get_update_mode_from_magic(firmware_start);
-      // Validate hardware model for UPDATE_ST
-      if (update_mode == UPDATE_ST) {
-        if (firmware_start + 24 + 4 <= p_buf + 64 &&
-            memcmp(firmware_start + 24, HW_MODEL_C2B2, 4) != 0) {
-          handle_error(dev, FAILURE_PROCESS_ERROR, "Wrong hardware model",
-                       "header.");
-          return secfalse;
-        }
-      }
+    update_mode = get_update_mode_from_magic(firmware_start);
+    if (validate_upload_target(dev) != sectrue) {
+      return secfalse;
+    }
+    if (update_mode == UPDATE_ST &&
+        memcmp(firmware_start + 24, HW_MODEL_C2B2, 4) != 0) {
+      handle_error(dev, FAILURE_PROCESS_ERROR, "Wrong hardware model",
+                   "header.");
+      return secfalse;
     }
   }
 
@@ -1055,19 +1276,17 @@ static secbool handle_firmware_upload_init(usbd_device *dev,
     }
   }
 
+  // From this point onward flash_len always describes the inner module payload,
+  // never the optional 1024-byte upgrade wrapper.
+  flash_len = actual_firmware_len;
+
   if (msg_ctx.header_in_fw_header != sectrue) {
     memzero(firmware_header_buffer, sizeof(firmware_header_buffer));
   }
   flash_state = STATE_FLASHING;
   flash_pos = 0;
-  if (skip_bytes > 0) {
-    msg_ctx.upgrade_header_len = FLASH_FWHEADER_LEN;  // Total bytes to skip
-    msg_ctx.upgrade_header_pos = 0;                   // Bytes skipped so far
-  }
-
   msg_ctx.w = 0;
   msg_ctx.wi = 0;
-  uint32_t skip_count = 0;
   const uint8_t *data_ptr = p;
 
   if (msg_ctx.header_in_fw_header == sectrue) {
@@ -1109,18 +1328,13 @@ static secbool handle_firmware_upload_init(usbd_device *dev,
   } else {
     uint32_t bytes_available = (uint32_t)((p_buf + 64) - p);
 
-    // If we need to skip bytes, track how many we skip in first packet
-    if (skip_bytes > 0) {
-      if (bytes_available < skip_bytes) {
-        skip_count = bytes_available;
-        data_ptr += skip_count;
-        msg_ctx.upgrade_header_pos = skip_count;
-      } else {
-        // First packet has enough data, skip all upgrade header bytes
-        skip_count = skip_bytes;
-        data_ptr += skip_count;
-        msg_ctx.upgrade_header_pos = skip_count;
+    if (actual_format == UPGRADE_FILE_FORMAT_NEW) {
+      uint32_t consumed = 0;
+      if (consume_upgrade_wrapper(dev, data_ptr, bytes_available, &consumed) !=
+          sectrue) {
+        return secfalse;
       }
+      data_ptr += consumed;
     }
 
     while (data_ptr < p_buf + 64) {
@@ -1157,9 +1371,9 @@ static secbool handle_firmware_upload_init(usbd_device *dev,
     }
   }
 
-  // Update flash_len to actual firmware length (excluding upgrade header if
-  // any)
-  flash_len = actual_firmware_len;
+  if (validate_uploaded_old_header(dev) != sectrue) {
+    return secfalse;
+  }
 
   return sectrue;
 }
@@ -1183,35 +1397,25 @@ static secbool process_flashing_data(usbd_device *dev, const uint8_t *p_buf,
   const uint8_t *p = p_buf + 1;
   static secbool firmware_magic_checked = sectrue;
 
-  if (msg_ctx.has_upgrade_header == sectrue) {
-    // Check if we need to continue skipping or start skipping
-    if (msg_ctx.upgrade_header_pos > 0 &&
-        msg_ctx.upgrade_header_pos < msg_ctx.upgrade_header_len) {
-      firmware_magic_checked = secfalse;
-      // Continue skipping upgrade header bytes
-      uint32_t remaining_skip =
-          msg_ctx.upgrade_header_len - msg_ctx.upgrade_header_pos;
-      uint32_t skip_this_packet = remaining_skip;
-      if (skip_this_packet > 63) {  // Max 63 bytes per packet (64 - 1 for '?')
-        skip_this_packet = 63;
-      }
-      p += skip_this_packet;
-      msg_ctx.upgrade_header_pos += skip_this_packet;
-
-      // If we haven't skipped all bytes yet, this packet only contains
-      // upgrade header
-      if (msg_ctx.upgrade_header_pos < msg_ctx.upgrade_header_len) {
-        return sectrue;  // This packet only contains upgrade header, no
-                         // firmware data
-      }
-      // Otherwise, continue processing firmware data below
+  if (msg_ctx.upload_format == UPGRADE_FILE_FORMAT_NEW &&
+      msg_ctx.upgrade_header_pos < msg_ctx.upgrade_header_len) {
+    firmware_magic_checked = secfalse;
+    uint32_t consumed = 0;
+    if (consume_upgrade_wrapper(dev, p, (uint32_t)((p_buf + 64) - p),
+                                &consumed) != sectrue) {
+      return secfalse;
+    }
+    p += consumed;
+    if (msg_ctx.upgrade_header_pos < msg_ctx.upgrade_header_len) {
+      return sectrue;
     }
   }
 
   if (firmware_magic_checked == secfalse) {
     // header start position
 
-    while (p < p_buf + 64) {
+    while (p < p_buf + 64 && flash_pos < FLASH_FWHEADER_LEN &&
+           flash_pos < flash_len) {
       *w = ((*w) >> 8) | (((uint32_t)*p) << 24);
       (*wi)++;
       if (*wi == 4) {
@@ -1222,7 +1426,7 @@ static secbool process_flashing_data(usbd_device *dev, const uint8_t *p_buf,
       p++;
     }
 
-    if (flash_pos >= 64) {
+    if (flash_pos >= FLASH_FWHEADER_LEN) {
       if (check_firmware_magic((const uint8_t *)firmware_header_buffer) !=
           sectrue) {
         handle_error(dev, FAILURE_PROCESS_ERROR, "Wrong firmware", "header.");
@@ -1230,6 +1434,12 @@ static secbool process_flashing_data(usbd_device *dev, const uint8_t *p_buf,
       }
       update_mode =
           get_update_mode_from_magic((const uint8_t *)firmware_header_buffer);
+      if (validate_upload_target(dev) != sectrue) {
+        return secfalse;
+      }
+      if (validate_wrapper_inner_metadata(dev) != sectrue) {
+        return secfalse;
+      }
       // Validate hardware model for UPDATE_ST
       if (update_mode == UPDATE_ST) {
         if (memcmp((const uint8_t *)firmware_header_buffer + 24, HW_MODEL_C2B2,
@@ -1241,7 +1451,9 @@ static secbool process_flashing_data(usbd_device *dev, const uint8_t *p_buf,
       }
       firmware_magic_checked = sectrue;
     }
-    return sectrue;
+    if (flash_pos < FLASH_FWHEADER_LEN) {
+      return validate_uploaded_old_header(dev);
+    }
   }
 
   while (p < p_buf + 64 && flash_pos < flash_len) {
@@ -1298,7 +1510,7 @@ static secbool process_flashing_data(usbd_device *dev, const uint8_t *p_buf,
     p++;
   }
 
-  return sectrue;
+  return validate_uploaded_old_header(dev);
 }
 
 static void rx_callback(usbd_device *dev, uint8_t ep) {
@@ -1390,6 +1602,7 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
   // Handle FLASHSTART state
   if (flash_state == STATE_FLASHSTART) {
     if (msg_ctx.msg_id == MSG_ID_INITIALIZE) {  // end resume state
+      reset_update_session_state();
       send_msg_features(dev);
       flash_state = STATE_OPEN;
       flash_pos = 0;
@@ -1425,7 +1638,7 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
       flash_state = STATE_CHECK;
       if (UPDATE_ST == update_mode) {
         const image_header *hdr = (const image_header *)firmware_header_buffer;
-        image_header se_hdr;
+        image_header se_hdr = {0};
         // allow only v3 signmessage/verifymessage signature for new FW
         if (SIG_OK != signatures_ok(hdr, NULL, sectrue)) {
           handle_error(dev, FAILURE_PROCESS_ERROR, "Signatures is", "wrong.");
@@ -1442,6 +1655,55 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
           return;
         }
 
+        if (memcmp((const uint8_t *)hdr + 24, HW_MODEL_C2B2, 4) != 0) {
+          handle_error(dev, FAILURE_PROCESS_ERROR, "Wrong hardware model",
+                       "header.");
+          return;
+        }
+
+        if (msg_ctx.upload_wrapper_present == sectrue) {
+          const upgrade_file_header_t *wrapper =
+              (const upgrade_file_header_t *)msg_ctx.upgrade_header_buffer;
+          if (msg_ctx.upload_header_checked != sectrue ||
+              upgrade_mcu_metadata_matches(wrapper, hdr) != sectrue) {
+            handle_error(dev, FAILURE_PROCESS_ERROR, "Firmware metadata",
+                         "mismatch.");
+            return;
+          }
+          if (upgrade_wrapper_payload_allowed(wrapper->flags,
+                                              UPGRADE_IMAGE_TARGET_MCU,
+                                              msg_ctx.se_isUpdate) != sectrue) {
+            handle_error(dev, FAILURE_PROCESS_ERROR, "Firmware modules",
+                         "mismatch.");
+            return;
+          }
+        }
+
+        if (msg_ctx.se_isUpdate == sectrue) {
+          if (!load_thd89_image_header((uint8_t *)COMBINED_FW_HEADER,
+                                       FIRMWARE_MAGIC_SE, &se_hdr)) {
+            handle_error(dev, FAILURE_PROCESS_ERROR, "SE firmware",
+                         "header invalid.");
+            return;
+          }
+          if (msg_ctx.upload_wrapper_present == sectrue) {
+            const upgrade_file_header_t *wrapper =
+                (const upgrade_file_header_t *)msg_ctx.upgrade_header_buffer;
+            if (upgrade_aux_metadata_matches(&wrapper->se_info, &se_hdr,
+                                             flash_combine_pos) != sectrue) {
+              handle_error(dev, FAILURE_PROCESS_ERROR, "SE metadata",
+                           "mismatch.");
+              return;
+            }
+          }
+        }
+
+        if (check_mcu_install(dev, hdr->onekey_version,
+                              msg_ctx.previous_version, hdr->purpose,
+                              msg_ctx.previous_purpose) != sectrue) {
+          return;
+        }
+
         char *se_version = se_get_version();
         if (se_version == NULL) {
           handle_error(dev, FAILURE_PROCESS_ERROR, "SE version", "not found.");
@@ -1450,11 +1712,8 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
 
         uint32_t se_version_uint32 = 0;
         if (msg_ctx.se_isUpdate) {
-          load_thd89_image_header((uint8_t *)COMBINED_FW_HEADER,
-                                  FIRMWARE_MAGIC_SE, &se_hdr);
-
           se_version_uint32 = version_string_to_int(se_version);
-          if (version_compare(se_hdr.version, se_version_uint32) < 0) {
+          if (upgrade_version_compare(se_hdr.version, se_version_uint32) < 0) {
             handle_error(dev, FAILURE_PROCESS_ERROR, "Downgrade SE",
                          "not allowed.");
             return;
@@ -1464,7 +1723,8 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
           se_version_uint32 = version_string_to_int(se_version);
         }
         if (hdr->se_minimum_version != 0) {
-          if (version_compare(se_version_uint32, hdr->se_minimum_version) < 0) {
+          if (upgrade_version_compare(se_version_uint32,
+                                      hdr->se_minimum_version) < 0) {
             handle_error(dev, FAILURE_PROCESS_ERROR, "SE version", "too old.");
             return;
           }
@@ -1475,16 +1735,13 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
         }
 
         if (msg_ctx.se_isUpdate) {
-          load_thd89_image_header((uint8_t *)COMBINED_FW_HEADER,
-                                  FIRMWARE_MAGIC_SE, &se_hdr);
-
           if (!se_back_to_boot_progress()) {
             handle_error(dev, FAILURE_PROCESS_ERROR, "SE back to boot",
                          "error.");
             return;
           }
           if (!se_verify_firmware((uint8_t *)COMBINED_FW_HEADER,
-                                  FLASH_FWHEADER_LEN)) {
+                                  FLASH_FWHEADER_LEN, se_hdr.codelen)) {
             handle_error(dev, FAILURE_PROCESS_ERROR, "SE verify header",
                          "error.");
             return;
@@ -1537,7 +1794,10 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
                                 msg_ctx.fix_version_current);
 
       if (msg_ctx.erase_storage) {
-        se_reset_storage();
+        if (!se_erase_storage_plaintext()) {
+          handle_error(dev, FAILURE_PROCESS_ERROR, "SE erase", "error.");
+          return;
+        }
       }
 
       flash_enter();
@@ -1568,6 +1828,21 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
       }
       return;
     } else if (UPDATE_BLE == update_mode) {
+      if (msg_ctx.upload_wrapper_present == sectrue) {
+        const upgrade_file_header_t *wrapper =
+            (const upgrade_file_header_t *)msg_ctx.upgrade_header_buffer;
+        const image_header *ble_hdr =
+            (const image_header *)firmware_header_buffer;
+        if (msg_ctx.upload_header_checked != sectrue ||
+            upgrade_wrapper_payload_allowed(wrapper->flags,
+                                            UPGRADE_IMAGE_TARGET_BLE,
+                                            secfalse) != sectrue ||
+            upgrade_aux_metadata_matches(&wrapper->ble_info, ble_hdr,
+                                         flash_len) != sectrue) {
+          handle_error(dev, FAILURE_PROCESS_ERROR, "BLE metadata", "mismatch.");
+          return;
+        }
+      }
       flash_state = STATE_END;
       i2c_set_wait(false);
       send_msg_success(dev);

@@ -216,7 +216,6 @@ bool fsm_layoutVerifyHash(const char *chain_name, const char *signer,
                           const char *warning);
 
 void fsm_msgBixinReboot(const BixinReboot *msg);
-void fsm_msgBixinMessageSE(const BixinMessageSE *msg);
 void fsm_msgBixinVerifyDeviceRequest(const BixinVerifyDeviceRequest *msg);
 
 void fsm_msgGetPublicKeyMultiple(const GetPublicKeyMultiple *msg);
@@ -231,6 +230,7 @@ bool fsm_getOwnershipId(uint8_t *script_pubkey, size_t script_pubkey_size,
                         uint8_t ownership_id[32]);
 
 void fsm_abortWorkflows(void);
+void fsm_clear_runtime_state(void);
 void fsm_postMsgCleanup(MessageType message_type);
 
 // tron

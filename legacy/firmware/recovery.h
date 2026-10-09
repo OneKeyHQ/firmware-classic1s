@@ -30,6 +30,7 @@ void recovery_init(uint32_t _word_count, bool passphrase_protection,
                    bool _dry_run);
 void recovery_word(const char *word);
 void recovery_abort(void);
+void recovery_clear_runtime_state(void);
 const char *recovery_get_fake_word(void);
 uint32_t recovery_get_word_pos(void);
 bool recovery_on_device(void);

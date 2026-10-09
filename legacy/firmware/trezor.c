@@ -43,6 +43,7 @@
 #include "ble.h"
 #include "otp.h"
 #include "se_chip.h"
+#include "se_version.h"
 #include "secp256k1.h"
 #include "sys.h"
 #endif
@@ -184,6 +185,22 @@ static void set_thd89_session_key(void) {
 
 #endif
 }
+
+#if !EMULATOR
+static void enforce_se_minimum_version(void) {
+  uint16_t sw1sw2 = 0;
+  const char *version = se_get_version_checked(&sw1sw2);
+  if (sw1sw2 == 0x6601) se_security_halt();
+  if (sw1sw2 == 0x6f01) se_configuration_halt();
+  if (version == NULL ||
+      !se_version_is_at_least(version, SE_MINIMUM_VERSION_MAJOR,
+                              SE_MINIMUM_VERSION_MINOR,
+                              SE_MINIMUM_VERSION_PATCH)) {
+    error_shutdown("SE firmware error", "Version 1.3.2", "is required.",
+                   "Please restart.");
+  }
+}
+#endif
 #if !EMULATOR
 static void verify_ble_firmware(void) {
   uint8_t pubkey[65], rand_buffer[16], digest[32], sign[64];
@@ -254,6 +271,9 @@ int main(void) {
 
   drbg_init();
   timer_init();
+#if !EMULATOR
+  enforce_se_minimum_version();
+#endif
   set_thd89_session_key();
 #if !EMULATOR
   verify_ble_firmware();

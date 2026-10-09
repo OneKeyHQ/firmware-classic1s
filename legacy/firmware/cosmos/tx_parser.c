@@ -4,7 +4,6 @@
 bool extraDepthLevel = false;
 
 // parser_impl.c end
-parser_tx_t parser_tx_obj;
 
 static parser_error_t parser_init_context(parser_context_t *ctx,
                                           const uint8_t *buffer,
