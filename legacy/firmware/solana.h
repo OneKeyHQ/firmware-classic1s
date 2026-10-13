@@ -20,6 +20,7 @@
 #ifndef __SOLANA_H__
 #define __SOLANA_H__
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include "bip32.h"
 #include "messages-solana.pb.h"
@@ -37,6 +38,8 @@ bool solana_sanitize_offchain_message(const SolanaSignOffChainMessage *msg);
 bool solana_sign_offchain_message(const SolanaSignOffChainMessage *msg,
                                   const HDNode *node,
                                   SolanaMessageSignature *resp);
+/* Returns true when message begins with the fixed Solana OCM signing domain. */
+bool solana_is_offchain_message(const uint8_t *message, size_t message_length);
 bool solana_sign_unsafe_message(const SolanaSignUnsafeMessage *msg,
                                 const HDNode *node,
                                 SolanaMessageSignature *resp);

@@ -453,4 +453,11 @@ const char *const languages_en[] = {
     "Source Account:",
     "Remove Trust:",
     "Trust Account:",
+    "Bitcoin Request",
+    "Generate App Secret",
+    "Network:",
+    "Account Path:",
+    "Context:",
+    "Allow this app to derive an app-specific secret?",
+    "Additional signers",
 };

@@ -189,9 +189,40 @@ void oledUpdateClk(void) {
  */
 void oledClear() { memzero(current_buffer, OLED_BUFSIZE); }
 
+/* Clears the rectangle from (x, y) to the bottom-right, inclusive. */
 void oledClearFrom_x_y(int x, int y) {
-  memzero(current_buffer,
-          OLED_BUFSIZE - (OLED_OFFSET(OLED_WIDTH - x, OLED_HEIGHT - y - 8)));
+  x = MAX(x, 0);
+  y = MAX(y, 0);
+  if (x >= OLED_WIDTH || y >= OLED_HEIGHT) {
+    return;
+  }
+
+  const size_t clear_width = OLED_WIDTH - x;
+  int page = y / 8;
+  const int row = y % 8;
+
+  // Preserve pixels above y in the first partial page.
+  if (row != 0) {
+    uint8_t *page_buffer = current_buffer + OLED_OFFSET(OLED_WIDTH - 1, y);
+    const uint8_t keep_mask = (uint8_t)(0xFFu << (8 - row));
+    for (size_t i = 0; i < clear_width; i++) {
+      page_buffer[i] &= keep_mask;
+    }
+    page++;
+  }
+
+  if (page >= OLED_HEIGHT / 8) {
+    return;
+  }
+
+  if (x == 0) {
+    memzero(current_buffer, OLED_BUFSIZE - page * OLED_WIDTH);
+  } else {
+    for (; page < OLED_HEIGHT / 8; page++) {
+      memzero(current_buffer + OLED_OFFSET(OLED_WIDTH - 1, page * 8),
+              clear_width);
+    }
+  }
 }
 void oledClearPart() {
   // do not clear logo status,logo line 12

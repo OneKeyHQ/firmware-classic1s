@@ -5,6 +5,7 @@
 #include <string.h>
 
 #ifdef APPVER
+#include "babylon.h"
 #include "bip32.h"
 #include "cardano.h"
 #include "config.h"
@@ -48,6 +49,10 @@
 #define SE_INS_HASHR 0xED
 #define SE_INS_HASHRAM 0xEE
 #define SE_INS_FIDO 0xF9
+
+#define SE_BABYLON_P2 0x09
+#define SE_BABYLON_PLAINTEXT_MAX_LEN 1023
+#define SE_BABYLON_HEADER_FIXED_LEN 37
 
 typedef enum {
   SE_FIDO_GEN_SEED = 0x00,
@@ -758,6 +763,80 @@ secbool se_derive_keys(HDNode *out, const char *curve,
 cleanup:
   memzero(resp, sizeof(resp));
   return result;
+}
+
+bool babylon_derive_context_hash(const uint8_t connected_public_key[33],
+                                 const uint8_t *app_name, size_t app_name_len,
+                                 uint8_t network, const uint8_t *context,
+                                 size_t context_len,
+                                 uint8_t out[BABYLON_CONTEXT_HASH_LEN]) {
+  uint8_t response[BABYLON_CONTEXT_HASH_LEN];
+  bool result = false;
+
+  if (out == NULL) {
+    return false;
+  }
+  memzero(out, BABYLON_CONTEXT_HASH_LEN);
+  memzero(response, sizeof(response));
+
+  // These guards only protect local APDU construction. Babylon input semantics
+  // are validated by the caller and independently by the SE.
+  if (connected_public_key == NULL || app_name == NULL ||
+      app_name_len > BABYLON_APP_NAME_MAX_LEN || context == NULL ||
+      context_len > BABYLON_CONTEXT_MAX_LEN) {
+    goto cleanup;
+  }
+
+  const size_t header_len = SE_BABYLON_HEADER_FIXED_LEN + app_name_len;
+  const size_t first_chunk_capacity = SE_BABYLON_PLAINTEXT_MAX_LEN - header_len;
+  const bool one_shot = context_len <= first_chunk_capacity;
+  const size_t first_chunk_len = one_shot ? context_len : first_chunk_capacity;
+  // The nonzero begin capacity distinguishes an authenticated empty response,
+  // which se_transmit_mac rewrites to zero, from an unauthenticated bare 9000.
+  uint16_t response_len = one_shot ? sizeof(response) : 1;
+
+  APDU_DATA[0] = (uint8_t)app_name_len;
+  memcpy(APDU_DATA + 1, app_name, app_name_len);
+  APDU_DATA[1 + app_name_len] = network;
+  memcpy(APDU_DATA + 2 + app_name_len, connected_public_key, 33);
+  APDU_DATA[35 + app_name_len] = (uint8_t)(context_len >> 8);
+  APDU_DATA[36 + app_name_len] = (uint8_t)context_len;
+  memcpy(APDU_DATA + header_len, context, first_chunk_len);
+
+  if (se_transmit_mac(SE_INS_DERIVE, one_shot ? 0x00 : 0x01, SE_BABYLON_P2,
+                      APDU_DATA, (uint16_t)(header_len + first_chunk_len),
+                      one_shot ? response : NULL, &response_len) != sectrue) {
+    goto cleanup;
+  }
+
+  if (!one_shot) {
+    if (response_len != 0) {
+      goto cleanup;
+    }
+
+    const size_t final_chunk_len = context_len - first_chunk_len;
+    memcpy(APDU_DATA, context + first_chunk_len, final_chunk_len);
+    response_len = sizeof(response);
+    if (se_transmit_mac(SE_INS_DERIVE, 0x03, SE_BABYLON_P2, APDU_DATA,
+                        (uint16_t)final_chunk_len, response,
+                        &response_len) != sectrue) {
+      goto cleanup;
+    }
+  }
+
+  if (response_len != sizeof(response)) {
+    goto cleanup;
+  }
+
+  memcpy(out, response, sizeof(response));
+  result = true;
+
+cleanup:
+  if (result != true) {
+    memzero(out, BABYLON_CONTEXT_HASH_LEN);
+  }
+  memzero(response, sizeof(response));
+  return result == true;
 }
 
 secbool se_set_sn(const char *serial, uint8_t len) {

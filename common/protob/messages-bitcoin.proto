@@ -668,3 +668,35 @@ message SignPsbt {
 message SignedPsbt {
     required bytes psbt = 1;             // PSBT to be finalized
 }
+
+/**
+ * Canonical Bitcoin network used by Babylon deriveContextHash.
+ */
+enum CanonicalBitcoinNetwork {
+    BITCOIN_MAINNET = 0;
+    BITCOIN_TESTNET = 1;
+    BITCOIN_SIGNET = 2;
+    BITCOIN_REGTEST = 3;
+}
+
+/**
+ * Request: Ask device to derive a Babylon context hash
+ * @start
+ * @next BabylonDerivedContextHash
+ * @next Failure
+ */
+message BabylonDeriveContextHash {
+    repeated uint32 address_n = 1;         // wallet-selected BIP-32 path
+    required InputScriptType script_type = 2;
+    required bytes app_name = 3;           // ASCII [a-z0-9-], 1..64 bytes
+    required bytes context = 4;            // decoded raw context, 1..1024 bytes
+    required CanonicalBitcoinNetwork network = 5;
+}
+
+/**
+ * Response: Contains the Babylon derived context value
+ * @end
+ */
+message BabylonDerivedContextHash {
+    required bytes secret = 1;             // exactly 32 bytes
+}

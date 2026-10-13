@@ -453,4 +453,11 @@ const char *const languages_de[] = {
     "Quellkonto:",
     "Entfernen Sie das Vertrauen:",
     "Treuhandkonto:",
+    "Bitcoin-Anfrage",
+    "App-spezifisches Geheimnis erzeugen",
+    "Netzwerk:",
+    "Kontopfad:",
+    "Kontext:",
+    "Darf diese App ein app-spezifisches Geheimnis ableiten?",
+    "Weitere Unterzeichner",
 };

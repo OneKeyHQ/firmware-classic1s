@@ -112,3 +112,8 @@ PublicKeyMultiple.xpubs                                     max_count:20 max_siz
 SignPsbt.psbt                                              max_size: 2048
 SignPsbt.coin_name                                         max_size:21
 SignedPsbt.psbt                                            max_size: 2432
+
+BabylonDeriveContextHash.address_n                         max_count:8
+BabylonDeriveContextHash.app_name                          max_size:64
+BabylonDeriveContextHash.context                           max_size:1024
+BabylonDerivedContextHash.secret                           max_size:32
