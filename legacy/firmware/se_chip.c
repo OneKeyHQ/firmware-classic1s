@@ -1809,7 +1809,8 @@ secbool se_gen_session_seed(const char *passphrase, bool cardano,
 }
 
 int se_ecdsa_ecdh(const uint8_t *publickey, uint8_t *sessionkey) {
-  uint8_t resp[64];
+  // E9/00 returns an uncompressed point: 0x04 || X || Y.
+  uint8_t resp[65];
   uint16_t resp_len = sizeof(resp);
   int result = -1;
 
@@ -1818,8 +1819,8 @@ int se_ecdsa_ecdh(const uint8_t *publickey, uint8_t *sessionkey) {
   }
   if (!se_transmit_mac(SE_INS_ECDH, 0x00, 0x00, (uint8_t *)publickey, 64, resp,
                        &resp_len) ||
-      resp_len != 64) {
-    memzero(sessionkey, 64);
+      resp_len != sizeof(resp) || resp[0] != 0x04) {
+    memzero(sessionkey, 65);
     goto cleanup;
   }
   memcpy(sessionkey, resp, resp_len);
@@ -2296,11 +2297,10 @@ int hdnode_get_shared_key(const HDNode *node, const uint8_t *peer_public_key,
     if (ecdsa_uncompress_pubkey(&nist256p1, peer_public_key, extend_key) == 0) {
       return -1;
     }
-    if (se_ecdsa_ecdh(extend_key + 1, session_key + 1) != 0) {
+    if (se_ecdsa_ecdh(extend_key + 1, session_key) != 0) {
       memzero(session_key, 65);
       return -1;
     }
-    session_key[0] = 0x04;
     *result_size = 65;
     return 0;
   } else if (strcmp(curve, SECP256K1_NAME) == 0) {
@@ -2308,11 +2308,10 @@ int hdnode_get_shared_key(const HDNode *node, const uint8_t *peer_public_key,
     if (ecdsa_uncompress_pubkey(&secp256k1, peer_public_key, extend_key) == 0) {
       return -1;
     }
-    if (se_ecdsa_ecdh(extend_key + 1, session_key + 1) != 0) {
+    if (se_ecdsa_ecdh(extend_key + 1, session_key) != 0) {
       memzero(session_key, 65);
       return -1;
     }
-    session_key[0] = 0x04;
     *result_size = 65;
     return 0;
   } else if (strcmp(curve, CURVE25519_NAME) == 0) {
