@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include <libopencm3/cm3/cortex.h>
 #include <libopencm3/cm3/scb.h>
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/rcc.h>
@@ -39,6 +40,7 @@
 #include "supervise.h"
 #include "sys.h"
 #include "usb.h"
+#include "usart.h"
 #include "util.h"
 
 #include "thd89_boot.h"
@@ -107,6 +109,11 @@ void show_unofficial_warning(const uint8_t *hash) {
 }
 
 static void __attribute__((noreturn)) load_app(int signed_firmware) {
+  /* The application re-enables interrupts after it has rebuilt its RAM-backed
+     peripheral state. */
+  cm_disable_interrupts();
+  __asm__ volatile("dsb\n\tisb" ::: "memory");
+  ble_usart_prepare_handover();
   // zero out SRAM
   memset_reg(_ram_start, _ram_end, 0);
 

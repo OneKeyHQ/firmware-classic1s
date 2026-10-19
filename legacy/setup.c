@@ -17,6 +17,7 @@
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <libopencm3/cm3/cortex.h>
 #include <libopencm3/cm3/mpu.h>
 #include <libopencm3/cm3/nvic.h>
 #include <libopencm3/cm3/scb.h>
@@ -25,6 +26,7 @@
 #include <libopencm3/stm32/rng.h>
 #include <libopencm3/stm32/spi.h>
 
+#include "buttons.h"
 #include "flash.h"
 #include "layout.h"
 #include "memory.h"
@@ -185,6 +187,11 @@ void setReboot(void) {
 }
 
 void setupApp(void) {
+  if (!is_mode_unprivileged()) {
+    cm_disable_interrupts();
+    __asm__ volatile("dsb\n\tisb" ::: "memory");
+  }
+
   // for completeness, disable RNG peripheral interrupts for old bootloaders
   // that had enabled them in RNG control register (the RNG interrupt was never
   // enabled in the NVIC)
@@ -214,6 +221,19 @@ void setupApp(void) {
   gd32_flash_init();
 
   ble_usart_init();
+  i2c_slave_init_irq();
+  nvic_clear_pending_irq(NVIC_I2C2_EV_IRQ);
+  nvic_clear_pending_irq(NVIC_I2C2_ER_IRQ);
+
+  buttonsIrqInit();
+  clear_button_irq();
+  nvic_clear_pending_irq(NVIC_EXTI1_IRQ);
+
+  timer_init();
+  SCB_ICSR = SCB_ICSR_PENDSTCLR;
+  __asm__ volatile("dsb\n\tisb" ::: "memory");
+  /* Enable IRQs before the bootloader check can wait for BLE responses. */
+  cm_enable_interrupts();
 }
 
 void mpu_config_off(void) {

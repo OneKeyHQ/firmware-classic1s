@@ -21,6 +21,8 @@ memset_reg:
   .type reset_handler, STT_FUNC
 reset_handler:
 
+  cpsid i
+
 // We need to perform VTOR setup case an old bootloader (<1.8.0)
 // is starting the new firmware, these will be set incorrectly.
 
@@ -44,6 +46,8 @@ reset_handler:
   and r3, r3, #1
   cmp r3, #1
   beq .setup_as_unprivileged
+
+  bl ble_usart_prepare_handover
 
   ldr r0, =0xE000ED08  // r0 = VTOR address
   ldr r1, =0x08010400  // r1 = FLASH_APP_START
