@@ -371,7 +371,7 @@ void refreshUsbConnectTips(void) {
 void layoutStatusLogoEx(bool fresh) {
 #if !EMULATOR
   if (hide_icon) return;
-  if (layoutLast == layoutBlePasskey) return;
+  if (layoutLast == layoutBlePasskey || layoutBlePairResultShowing()) return;
 #endif
 
   static int logo_width = 0;

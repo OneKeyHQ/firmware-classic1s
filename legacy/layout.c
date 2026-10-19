@@ -28,6 +28,7 @@
 #ifdef FIRMWARE
 #include "firmware/gettext.h"
 #include "firmware/i18n/keys.h"
+#include "firmware/layout2.h"
 #include "firmware/oled_text.h"
 #endif
 
@@ -39,11 +40,20 @@
 static bool refresh_home = true;
 void *layoutLast = NULL, *layoutLastBackup = NULL;
 
+static void layoutBlePairRestore(void) {
+#ifdef FIRMWARE
+  if (layoutLast == layoutScreensaver) {
+    oledClear();
+  }
+#endif
+  oledRefresh();
+}
+
 void pair_cancel_timeout_callback(void) {
   if (layoutLast == layoutBlePasskey) {
     unregister_timer(TIMER_NAME_PAIR_RESULT);
     layoutLast = layoutLastBackup;
-    oledRefresh();
+    layoutBlePairRestore();
     ble_passkey_cancel();
   }
 }
@@ -52,7 +62,7 @@ static void pair_result_timeout_callback(void) {
   if (layoutLast == layoutBlePairSuccess || layoutLast == layoutBlePairFailed) {
     unregister_timer(TIMER_NAME_PAIR_RESULT);
     layoutLast = layoutLastBackup;
-    oledRefresh();
+    layoutBlePairRestore();
   }
 }
 
@@ -65,7 +75,7 @@ void layoutBlePairResultDismiss(void) {
   if (layoutLast == layoutBlePairSuccess || layoutLast == layoutBlePairFailed) {
     unregister_timer(TIMER_NAME_PAIR_RESULT);
     layoutLast = layoutLastBackup;
-    oledRefresh();
+    layoutBlePairRestore();
   }
 }
 
@@ -513,7 +523,7 @@ void layoutBlePairFailed(void) {
 void layoutBlePasskeyDismiss(void) {
   layoutLast = layoutLastBackup;
   layoutLastBackup = NULL;
-  oledRefresh();
+  layoutBlePairRestore();
 }
 
 #endif
