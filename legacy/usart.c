@@ -118,18 +118,46 @@ void usart_setup(void) {
 
 #endif
 
-void ble_usart_init(void) {
+void __attribute__((no_stack_protector)) ble_usart_prepare_handover(void) {
   nvic_disable_irq(NVIC_USART2_IRQ);
+  nvic_disable_irq(NVIC_DMA1_STREAM5_IRQ);
 
-  usart_disable(BLE_UART);
-  usart_disable_rx_dma(BLE_UART);
+  if ((RCC_APB1ENR & RCC_APB1ENR_USART2EN) != 0U) {
+    /* Discard inherited RX data while retaining transmitter state. */
+    USART_CR1(BLE_UART) &=
+        ~(USART_CR1_IDLEIE | USART_CR1_RXNEIE | USART_CR1_TCIE |
+          USART_CR1_TXEIE | USART_CR1_PEIE);
+    USART_CR3(BLE_UART) &= ~(USART_CR3_EIE | USART_CR3_DMAR);
+  }
 
-  dma_disable_stream(DMA1, DMA_STREAM5);
-  dma_stream_reset(DMA1, DMA_STREAM5);
+  if ((RCC_AHB1ENR & RCC_AHB1ENR_DMA1EN) != 0U) {
+    DMA1_S5CR &= ~DMA_SxCR_EN;
+    while ((DMA1_S5CR & DMA_SxCR_EN) != 0U) {
+    }
+    DMA1_HIFCR = DMA_HIFCR_CFEIF5 | DMA_HIFCR_CDMEIF5 |
+                 DMA_HIFCR_CTEIF5 | DMA_HIFCR_CHTIF5 | DMA_HIFCR_CTCIF5;
+  }
 
+  if ((RCC_APB1ENR & RCC_APB1ENR_USART2EN) != 0U) {
+    volatile uint32_t status = USART_SR(BLE_UART);
+    volatile uint32_t data = USART_DR(BLE_UART);
+    (void)status;
+    (void)data;
+  }
+
+  nvic_clear_pending_irq(NVIC_USART2_IRQ);
+  nvic_clear_pending_irq(NVIC_DMA1_STREAM5_IRQ);
+  __asm__ volatile("dsb\n\tisb" ::: "memory");
+}
+
+void ble_usart_init(void) {
   rcc_periph_clock_enable(RCC_USART2);
   rcc_periph_clock_enable(RCC_DMA1);
   rcc_periph_clock_enable(RCC_GPIOA);
+
+  ble_usart_prepare_handover();
+  usart_disable(BLE_UART);
+  dma_stream_reset(DMA1, DMA_STREAM5);
 
   gpio_mode_setup(GPIOA, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO2 | GPIO3);
   gpio_set_af(GPIOA, GPIO_AF7, GPIO2 | GPIO3);
@@ -158,11 +186,10 @@ void ble_usart_init(void) {
   memset((void *)usart_dma_rx_buffer, 0, USART_DMA_RX_BUFFER_SIZE);
   usart_dma_rx_read_pos = 0;
 
-  ble_usart_irq_set();
-
   usart_enable(BLE_UART);
   usart_enable_rx_dma(BLE_UART);
   dma_enable_stream(DMA1, DMA_STREAM5);
+  ble_usart_irq_set();
 }
 
 void ble_usart_irq_set(void) {

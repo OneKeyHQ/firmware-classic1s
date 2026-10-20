@@ -51,6 +51,7 @@ uint16_t buttonRead(void);
 void buttonUpdate(void);
 bool hasbutton(void);
 void clearButtonState(void);
+void clear_button_irq(void);
 void buttonsIrqInit(void);
 void buttonsTimer(void);
 void longPressTimer(void);
