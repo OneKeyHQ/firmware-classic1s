@@ -1208,7 +1208,7 @@ static bool ethereum_signing_init_common(struct signing_params *params) {
   } else {
     data_total = 0;
   }
-  if (params->data_initial_chunk_size > data_total) {
+  if (params->data_initial_chunk_size != MIN(data_total, 1024U)) {
     fsm_sendFailure(FailureType_Failure_DataError,
                     "Invalid size of initial chunk");
     return false;
