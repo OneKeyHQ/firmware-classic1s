@@ -1017,7 +1017,6 @@ secbool se_has_cerrificate(void) {
 }
 
 secbool se_sign_message(uint8_t *msg, uint32_t msg_len, uint8_t *signature) {
-  uint8_t sign[37] = {0x00, 0xF5, 0x00, 0x03, 0x20};
   uint16_t signature_len = 64;
 
   SHA256_CTX ctx = {0};
@@ -1031,8 +1030,8 @@ secbool se_sign_message(uint8_t *msg, uint32_t msg_len, uint8_t *signature) {
   sha256_Update(&ctx, msg, msg_len);
   sha256_Final(&ctx, result);
 
-  memcpy(sign + 5, result, 32);
-  if (!thd89_transmit(sign, sizeof(sign), signature, &signature_len) ||
+  if (!se_transmit_mac(0xf5, 0x00, 0x03, result, sizeof(result), signature,
+                       &signature_len) ||
       signature_len != 64) {
     memzero(signature, 64);
     return secfalse;
@@ -1042,15 +1041,13 @@ secbool se_sign_message(uint8_t *msg, uint32_t msg_len, uint8_t *signature) {
 
 secbool se_sign_message_feitian(uint8_t *msg, uint32_t msg_len,
                                 uint8_t *signature) {
-  uint8_t sign[37] = {0x00, 0xF5, 0x00, 0x04, 0x20};
   uint16_t signature_len = 64;
 
   if (msg == NULL || signature == NULL || msg_len != 32) {
     return secfalse;
   }
 
-  memcpy(sign + 5, msg, 32);
-  if (!thd89_transmit(sign, sizeof(sign), signature, &signature_len) ||
+  if (!se_transmit_mac(0xf5, 0x00, 0x04, msg, 32, signature, &signature_len) ||
       signature_len != 64) {
     memzero(signature, 64);
     return secfalse;
