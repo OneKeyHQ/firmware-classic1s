@@ -1989,6 +1989,47 @@ static int ctap_get_assertion_auth_header(
 
   return 0;
 }
+
+static uint8_t ctap_get_assertion_no_credentials(const CTAP_getAssertion *ga) {
+  if (!ga->up && !ga->uv) {
+    return CTAP2_ERR_NO_CREDENTIALS;
+  }
+
+  layoutDialogAdapterEx(_(FIDO_2_AUTHENTICATE), &bmp_bottom_left_close, NULL,
+                        &bmp_bottom_right_confirm, NULL, NULL,
+                        _(GLOBAL_APP_NAME), ga->rp.id, NULL, NULL);
+
+  uint32_t start_time = svc_timer_ms();
+  while (1) {
+    usbPoll();
+    if (ctap_hid_cancel_is_requested() || !coin_state_fido_is_active()) {
+      layoutHome();
+      return CTAP2_ERR_KEEPALIVE_CANCEL;
+    }
+
+    buttonUpdate();
+    if (button.YesUp) {
+      layoutHome();
+      return CTAP2_ERR_NO_CREDENTIALS;
+    }
+    if (button.NoUp) {
+      break;
+    }
+
+    loop_callback_handler();
+    if (ctap_hid_cancel_is_requested() || !coin_state_fido_is_active()) {
+      layoutHome();
+      return CTAP2_ERR_KEEPALIVE_CANCEL;
+    }
+    if (svc_timer_ms() - start_time > USER_PRESENCE_TIMEOUT) {
+      break;
+    }
+  }
+
+  layoutHome();
+  return CTAP2_ERR_OPERATION_DENIED;
+}
+
 uint8_t ctap_get_assertion(CborEncoder *encoder, uint8_t *request, int length) {
   CTAP_getAssertion GA;
   bool is_resident_credential = false;
@@ -2024,7 +2065,9 @@ uint8_t ctap_get_assertion(CborEncoder *encoder, uint8_t *request, int length) {
 
   if (validCredCount == 0) {
     ctap_printf("Error, no authentic credential\n");
-    return CTAP2_ERR_NO_CREDENTIALS;
+    // Interactive GetAssertion requests require user interaction before this
+    // no-credentials result is reported.
+    return ctap_get_assertion_no_credentials(&GA);
   } else if (validCredCount > 1) {
     map_size += 1;
   }
