@@ -1426,9 +1426,10 @@ static bool ethereum_signing_handle_safe_tx(const struct signing_params *params,
       uint32_t data_left_pos = 0;
       uint32_t data_left_dummy = data_left;
       while (data_left_dummy > 0) {
-        msg_tx_request.has_data_length = true;
-        msg_tx_request.data_length =
+        const uint32_t requested_chunk_size =
             data_left_dummy <= 1024 ? data_left_dummy : 1024;
+        msg_tx_request.has_data_length = true;
+        msg_tx_request.data_length = requested_chunk_size;
         void *response_ptr =
             call(MessageType_MessageType_EthereumTxRequestOneKey,
                  &msg_tx_request, MessageType_MessageType_EthereumTxAckOneKey);
@@ -1437,6 +1438,11 @@ static bool ethereum_signing_handle_safe_tx(const struct signing_params *params,
           goto failed_preparation;
         }
         EthereumTxAckOneKey resp = *(EthereumTxAckOneKey *)response_ptr;
+        if (resp.data_chunk.size == 0 ||
+            resp.data_chunk.size > requested_chunk_size) {
+          failure_message = "Invalid chunk size";
+          goto failed_preparation;
+        }
         memcpy(data_left_bytes + data_left_pos, resp.data_chunk.bytes,
                resp.data_chunk.size);
         data_left_pos += resp.data_chunk.size;
@@ -1660,6 +1666,9 @@ static bool ethereum_signing_safe_tx(
         max_fee_per_gas != NULL ? max_fee_per_gas_str : NULL,
         max_priority_fee_per_gas != NULL ? priority_fee_per_gas_str : NULL);
     safe_tx_context.payload.display_info = NULL;
+  }
+  if (!result) {
+    fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
   }
   return result;
 }
@@ -1934,7 +1943,6 @@ void ethereum_signing_init_onekey(const EthereumSignTxOneKey *msg,
         msg->nonce.size, NULL, 0, NULL, 0);
     display_info_cleanup(&display_info);
     if (!result) {
-      fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
       ethereum_signing_abort_onekey();
       return;
     }
@@ -2112,7 +2120,6 @@ void ethereum_signing_init_eip1559_onekey(
         msg->max_priority_fee.size);
     display_info_cleanup(&display_info);
     if (!result) {
-      fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
       ethereum_signing_abort_onekey();
       return;
     }
