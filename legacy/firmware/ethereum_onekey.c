@@ -397,19 +397,7 @@ bool sign_authorization_list(const EthereumSignTxEIP7702OneKey *msg,
       if (!make_authorization_digest(cur_authorization, authorization_digest)) {
         return false;
       }
-      if (cur_authorization->address_n_count == 0) {
-        _node = (HDNode *)node;
-      } else {
-        const HDNode *node_ =
-            fsm_getDerivedNode(SECP256K1_NAME, cur_authorization->address_n,
-                               cur_authorization->address_n_count, NULL);
-        if (!node_) {
-          fsm_sendFailure(FailureType_Failure_DataError,
-                          "Failed to derive node");
-          return false;
-        }
-        _node = (HDNode *)node_;
-      }
+      _node = (HDNode *)node;
       uint8_t sig[64] = {0};
       uint8_t v = 0;
 #if EMULATOR
@@ -2148,7 +2136,8 @@ static uint64_t ethereum_bytes_to_uint64(const uint8_t *bytes, size_t size) {
 static bool ethereum_check_authorization_list(
     const struct signing_params *params,
     const EthereumAuthorizationOneKey *authorization_list,
-    uint32_t authorization_list_count, uint64_t nonce) {
+    uint32_t authorization_list_count, const uint32_t *address_n,
+    uint32_t address_n_count, const uint8_t *nonce_bytes, size_t nonce_size) {
   for (size_t i = 0; i < authorization_list_count; i++) {
     const EthereumAuthorizationOneKey *cur_authorization =
         &authorization_list[i];
@@ -2220,14 +2209,32 @@ static bool ethereum_check_authorization_list(
         return false;
       }
     } else {
-      if (cur_authorization->address_n_count == 0) {
-        uint64_t authority_nonce = ethereum_bytes_to_uint64(
-            cur_authorization->nonce.bytes, cur_authorization->nonce.size);
-        if (authority_nonce != nonce + 1) {
-          fsm_sendFailure(FailureType_Failure_DataError,
-                          "Authorization nonce invalid");
-          return false;
-        }
+      if (nonce_size > 8) {
+        fsm_sendFailure(FailureType_Failure_DataError,
+                        "Transaction nonce invalid");
+        return false;
+      }
+      uint64_t transaction_nonce =
+          ethereum_bytes_to_uint64(nonce_bytes, nonce_size);
+      if (transaction_nonce == UINT64_MAX) {
+        fsm_sendFailure(FailureType_Failure_DataError,
+                        "Transaction nonce invalid");
+        return false;
+      }
+      if (cur_authorization->address_n_count != 0 &&
+          (cur_authorization->address_n_count != address_n_count ||
+           memcmp(cur_authorization->address_n, address_n,
+                  address_n_count * sizeof(*address_n)) != 0)) {
+        fsm_sendFailure(FailureType_Failure_DataError,
+                        "Authorization path invalid");
+        return false;
+      }
+      uint64_t authority_nonce = ethereum_bytes_to_uint64(
+          cur_authorization->nonce.bytes, cur_authorization->nonce.size);
+      if (authority_nonce != transaction_nonce + 1) {
+        fsm_sendFailure(FailureType_Failure_DataError,
+                        "Authorization nonce invalid");
+        return false;
       }
     }
   }
@@ -2291,7 +2298,8 @@ void ethereum_signing_init_eip7702_onekey(
   uint64_t nonce = ethereum_bytes_to_uint64(msg->nonce.bytes, msg->nonce.size);
   if (!ethereum_check_authorization_list(&params, msg->authorization_list,
                                          msg->authorization_list_count,
-                                         nonce)) {
+                                         msg->address_n, msg->address_n_count,
+                                         msg->nonce.bytes, msg->nonce.size)) {
     ethereum_signing_abort_onekey();
     return;
   }
