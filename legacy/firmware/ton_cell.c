@@ -115,6 +115,19 @@ bool ton_hash_cell(BitString_t* bits, const CellRef_t* refs, uint8_t refs_count,
   return true;
 }
 
+static bool ton_write_text_comment(BitString_t* bits, const char* memo) {
+  size_t memo_len = strlen(memo);
+
+  if (bits->data_cursor > 1023U - 32U ||
+      memo_len > (1023U - bits->data_cursor - 32U) / 8U) {
+    return false;
+  }
+
+  bitstring_write_uint(bits, 0, 32);  // text comment tag
+  bitstring_write_buffer(bits, (uint8_t*)memo, (uint8_t)memo_len);
+  return true;
+}
+
 bool ton_create_transfer_body(const char* memo, CellRef_t* payload) {
   if (memo == NULL || strlen(memo) == 0) {
     return false;
@@ -123,8 +136,9 @@ bool ton_create_transfer_body(const char* memo, CellRef_t* payload) {
   BitString_t bits;
 
   bitstring_init(&bits);
-  bitstring_write_uint(&bits, 0, 32);  // text comment tag
-  bitstring_write_buffer(&bits, (uint8_t*)memo, strlen(memo));
+  if (!ton_write_text_comment(&bits, memo)) {
+    return false;
+  }
 
   ton_hash_cell(&bits, NULL, 0, payload);
 
@@ -154,9 +168,9 @@ bool ton_create_jetton_transfer_body(uint8_t dest_workchain, uint8_t* dest_hash,
   bitstring_write_coins(&bits, forward_amount);  // forward amount
   bitstring_write_bit(&bits, 0);  // forward payload in this cell, not separate
   if (forward_payload != NULL && strlen(forward_payload) > 0) {
-    bitstring_write_uint(&bits, 0x00000000, 32);  // text comment op-code
-    bitstring_write_buffer(&bits, (uint8_t*)forward_payload,
-                           strlen(forward_payload));
+    if (!ton_write_text_comment(&bits, forward_payload)) {
+      return false;
+    }
   }
   ton_hash_cell(&bits, NULL, 0, payload);
   return true;
@@ -188,9 +202,9 @@ bool build_message_ref(bool is_bounceable, uint8_t dest_workchain,
     bitstring_write_bit(&bits, 0);  // no state-init
     bitstring_write_bit(&bits, 0);  // body in line
 
-    bitstring_write_uint(&bits, 0x00000000,
-                         32);  // text comment transfer op-code
-    bitstring_write_buffer(&bits, (uint8_t*)payload_str, strlen(payload_str));
+    if (!ton_write_text_comment(&bits, payload_str)) {
+      return false;
+    }
 
     return ton_hash_cell(&bits, NULL, 0, out_message_ref);
 
