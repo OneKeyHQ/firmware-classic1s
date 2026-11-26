@@ -1,8 +1,8 @@
 
 #include "resident_credential.h"
+#include "../i18n/keys.h"
 #include "ctap_errors.h"
 #include "ctap_parse.h"
-#include "../i18n/keys.h"
 #include "gettext.h"
 #include "layout2.h"
 #include "memzero.h"
@@ -35,8 +35,7 @@ uint32_t resident_credential_find_by_rp_id_hash(
       ui_callback(_(C__PROCESSING_ETC), (i + 1U) * 1000U / index_count);
     }
     if (!se_fido_resident_read(indexes[i], candidate.cred_id,
-                               &credential_id_len, plaintext,
-                               &plaintext_len) ||
+                               &credential_id_len, plaintext, &plaintext_len) ||
         ctap_parse_credential_id(&candidate.credential, plaintext,
                                  plaintext_len) != CTAP1_ERR_SUCCESS ||
         candidate.credential.rp.size == 0) {

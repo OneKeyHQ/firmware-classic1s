@@ -712,8 +712,7 @@ void menu_fido2_resident_credential(int index) {
   int info_result = 0;
   if (resident_credential_refresh) {
     info_result = resident_credential_info(indexs, 30);
-    if (info_result < 0 ||
-        info_result > FIDO2_RESIDENT_CREDENTIALS_COUNT) {
+    if (info_result < 0 || info_result > FIDO2_RESIDENT_CREDENTIALS_COUNT) {
       menu_fido2_resident_error();
       return;
     }

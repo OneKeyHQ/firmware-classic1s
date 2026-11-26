@@ -62,11 +62,12 @@ in
 with nixpkgs;
 stdenvNoCC.mkDerivation ({
   name = "trezor-firmware-env";
-  buildInputs = lib.optionals fullDeps [
+  buildInputs = [
+    # Make Python 3.11 the default interpreter and Poetry's environment target.
+    python311
+  ] ++ lib.optionals fullDeps [
     bitcoind
-    # install other python versions for tox testing
-    # NOTE: running e.g. "python3" in the shell runs the first version in the following list,
-    #       and poetry uses the default version (currently 3.10)
+    # Additional interpreters for the SDK tox matrix.
     python310
     python39
     python38
@@ -122,6 +123,7 @@ stdenvNoCC.mkDerivation ({
   LD_LIBRARY_PATH = "${libffi}/lib:${libjpeg.out}/lib:${libusb1}/lib:${libressl.out}/lib";
   DYLD_LIBRARY_PATH = "${libffi}/lib:${libjpeg.out}/lib:${libusb1}/lib:${libressl.out}/lib";
   NIX_ENFORCE_PURITY = 0;
+  POETRY_VIRTUALENVS_PREFER_ACTIVE_PYTHON = "true";
 
   # Fix bdist-wheel problem by setting source date epoch to a more recent date
   SOURCE_DATE_EPOCH = 1600000000;

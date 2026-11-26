@@ -15,17 +15,17 @@ __asm__(
 
 // These naked handlers and the terminal halt path must remain one basic asm
 // block with no C statements: the active stack may be corrupt or cleared.
-#define DEFINE_FAULT_ENTRY(name)                                           \
-  __attribute__((naked, no_stack_protector, noreturn)) void name(void) {   \
-    __asm volatile(                                                        \
-        "mrs r0, msp\n"                                                   \
-        "mrs r1, psp\n"                                                   \
-        "mov r2, lr\n"                                                    \
-        "mrs r3, ipsr\n"                                                  \
-        "cpsid i\n"                                                       \
-        "cpsid f\n"                                                       \
+#define DEFINE_FAULT_ENTRY(name)                                         \
+  __attribute__((naked, no_stack_protector, noreturn)) void name(void) { \
+    __asm volatile(                                                      \
+        "mrs r0, msp\n"                                                  \
+        "mrs r1, psp\n"                                                  \
+        "mov r2, lr\n"                                                   \
+        "mrs r3, ipsr\n"                                                 \
+        "cpsid i\n"                                                      \
+        "cpsid f\n"                                                      \
         "ldr r12, =fault_emergency_stack_top\n"                          \
-        "mov sp, r12\n"                                                   \
+        "mov sp, r12\n"                                                  \
         "b fault_handler_main\n");                                       \
   }
 
@@ -34,9 +34,9 @@ DEFINE_FAULT_ENTRY(mem_manage_handler_impl)
 DEFINE_FAULT_ENTRY(bus_fault_handler)
 DEFINE_FAULT_ENTRY(usage_fault_handler)
 
-__attribute__((naked, no_stack_protector, noreturn)) void
-fault_terminal_halt(uint32_t preserve_start __attribute__((unused)),
-                    uint32_t preserve_end __attribute__((unused))) {
+__attribute__((naked, no_stack_protector, noreturn)) void fault_terminal_halt(
+    uint32_t preserve_start __attribute__((unused)),
+    uint32_t preserve_end __attribute__((unused))) {
   __asm volatile(
       "cpsid i\n"
       "cpsid f\n"

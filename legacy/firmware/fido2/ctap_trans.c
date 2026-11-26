@@ -592,7 +592,83 @@ void get_device_state(void) {
   send_u2f_msg(resp, 4);
 }
 
+#if !EMULATOR
+static bool factory_device_sign_payload(const APDU *a, uint32_t len,
+                                        const uint8_t **digest) {
+  const uint8_t *command = (const uint8_t *)a;
+  uint32_t data_offset;
+  uint32_t data_len;
+  uint32_t expected_len;
+
+  if (len < 5) {
+    return false;
+  }
+  if (command[4] == 0) {
+    if (len < 7) {
+      return false;
+    }
+    data_offset = 7;
+    data_len = ((uint32_t)command[5] << 8) | command[6];
+    expected_len = data_offset + data_len;
+    if (len != expected_len && len != expected_len + 2) {
+      return false;
+    }
+  } else {
+    data_offset = 5;
+    data_len = command[4];
+    expected_len = data_offset + data_len;
+    if (len != expected_len && len != expected_len + 1) {
+      return false;
+    }
+  }
+  if (data_len != 32) {
+    return false;
+  }
+
+  *digest = command + data_offset;
+  return true;
+}
+
+static bool factory_device_sign(const APDU *a, uint32_t len, uint8_t *response,
+                                uint16_t *response_len) {
+  const uint8_t *digest = NULL;
+  uint16_t authenticated_sw1sw2 = 0;
+
+  if (len < 4 || a->cla != 0x00 || a->ins != 0xf5 || a->p1 != 0x00 ||
+      a->p2 != 0x04) {
+    return false;
+  }
+  if (!factory_device_sign_payload(a, len, &digest)) {
+    send_u2f_error(U2F_SW_WRONG_LENGTH);
+    return true;
+  }
+
+  *response_len = 64;
+  if (!se_sync_session_key() ||
+      !se_transmit_mac_with_status(0xf5, 0x00, a->p2, (uint8_t *)digest, 32,
+                                   response, response_len,
+                                   &authenticated_sw1sw2) ||
+      *response_len != 64) {
+    send_u2f_error(authenticated_sw1sw2 != 0 &&
+                           authenticated_sw1sw2 != U2F_SW_NO_ERROR
+                       ? authenticated_sw1sw2
+                       : 0x6f00);
+    return true;
+  }
+  if (!factory_channel_append_status(response, response_len, U2F_SW_NO_ERROR)) {
+    send_u2f_error(U2F_SW_WRONG_LENGTH);
+    return true;
+  }
+  send_u2f_msg(response, *response_len);
+  return true;
+}
+#endif
+
 void u2fhid_msg(const APDU *a, uint32_t len) {
+  if (a == NULL || len < 4) {
+    send_u2f_error(U2F_SW_WRONG_LENGTH);
+    return;
+  }
   if (a->cla != 0 && a->cla != 0x80) {
     send_u2f_error(U2F_SW_CLA_NOT_SUPPORTED);
     return;
@@ -636,6 +712,9 @@ void u2fhid_msg(const APDU *a, uint32_t len) {
         break;
       }
 
+      if (factory_device_sign(a, len, buffer, &resp_len)) {
+        break;
+      }
       if (!thd89_transmit((uint8_t *)&(a->cla), len, buffer, &resp_len)) {
         send_u2f_error(thd89_last_error());
       } else if (!factory_channel_append_status(buffer, &resp_len,
@@ -1783,8 +1862,7 @@ void ctap_ble_cmd(void) {
     return;
   }
 
-  if (cmd != U2FHID_MSG || data_len == 0 ||
-      data_ptr[0] != CTAP_GET_ASSERTION) {
+  if (cmd != U2FHID_MSG || data_len == 0 || data_ptr[0] != CTAP_GET_ASSERTION) {
     protectAbortedByFIDO = true;
   }
 

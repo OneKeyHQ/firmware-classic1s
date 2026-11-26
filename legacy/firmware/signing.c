@@ -127,7 +127,8 @@ static secbool is_coinjoin;  // Is this a CoinJoin transaction?
 static uint64_t coinjoin_coordination_fee_base;
 static AuthorizeCoinJoin coinjoin_authorization;
 static CoinJoinRequest coinjoin_request;
-#define coinjoin_request_hasher (coin_signing_state.bitcoin.coinjoin_request_hasher)
+#define coinjoin_request_hasher \
+  (coin_signing_state.bitcoin.coinjoin_request_hasher)
 
 /* A marker for in_address_n_count to indicate a mismatch in bip32 paths in
    input */

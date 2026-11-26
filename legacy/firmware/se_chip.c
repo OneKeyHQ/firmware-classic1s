@@ -21,8 +21,8 @@
 #include "otp.h"
 #include "rand.h"
 #include "se_chip.h"
-#include "se_version.h"
 #include "se_thd89_v2.h"
+#include "se_version.h"
 #include "secp256k1.h"
 #include "thd89.h"
 #include "transport_limits.h"
@@ -277,8 +277,8 @@ typedef secbool (*se_secure_response_handler_t)(const uint8_t *response,
                                                 void *context);
 
 static se_secure_result_t se_secure_exchange_with_response(
-    uint8_t ins, uint8_t p1, uint8_t p2, const uint8_t *data,
-    uint16_t data_len, uint8_t *out, uint16_t *out_len, uint16_t *sw1sw2,
+    uint8_t ins, uint8_t p1, uint8_t p2, const uint8_t *data, uint16_t data_len,
+    uint8_t *out, uint16_t *out_len, uint16_t *sw1sw2,
     se_secure_response_handler_t response_handler, void *response_context) {
   uint8_t *request = se_send_buffer;
   uint8_t *response = se_secure_workspace.response;
@@ -441,7 +441,8 @@ static se_secure_result_t se_secure_exchange_with_response(
     goto cleanup;
   }
   if (response_handler != NULL) {
-    if (response_handler(plaintext, plaintext_len, response_context) != sectrue) {
+    if (response_handler(plaintext, plaintext_len, response_context) !=
+        sectrue) {
       result = SE_SECURE_PROTOCOL_ERROR;
       goto cleanup;
     }
@@ -1017,7 +1018,6 @@ secbool se_has_cerrificate(void) {
 }
 
 secbool se_sign_message(uint8_t *msg, uint32_t msg_len, uint8_t *signature) {
-  uint8_t sign[37] = {0x00, 0xF5, 0x00, 0x03, 0x20};
   uint16_t signature_len = 64;
 
   SHA256_CTX ctx = {0};
@@ -1031,8 +1031,8 @@ secbool se_sign_message(uint8_t *msg, uint32_t msg_len, uint8_t *signature) {
   sha256_Update(&ctx, msg, msg_len);
   sha256_Final(&ctx, result);
 
-  memcpy(sign + 5, result, 32);
-  if (!thd89_transmit(sign, sizeof(sign), signature, &signature_len) ||
+  if (!se_transmit_mac(0xf5, 0x00, 0x03, result, sizeof(result), signature,
+                       &signature_len) ||
       signature_len != 64) {
     memzero(signature, 64);
     return secfalse;
@@ -1042,15 +1042,13 @@ secbool se_sign_message(uint8_t *msg, uint32_t msg_len, uint8_t *signature) {
 
 secbool se_sign_message_feitian(uint8_t *msg, uint32_t msg_len,
                                 uint8_t *signature) {
-  uint8_t sign[37] = {0x00, 0xF5, 0x00, 0x04, 0x20};
   uint16_t signature_len = 64;
 
   if (msg == NULL || signature == NULL || msg_len != 32) {
     return secfalse;
   }
 
-  memcpy(sign + 5, msg, 32);
-  if (!thd89_transmit(sign, sizeof(sign), signature, &signature_len) ||
+  if (!se_transmit_mac(0xf5, 0x00, 0x04, msg, 32, signature, &signature_len) ||
       signature_len != 64) {
     memzero(signature, 64);
     return secfalse;
@@ -2595,9 +2593,8 @@ secbool se_fido_att_sign_digest(const uint8_t *hash, uint8_t *sig) {
 static secbool se_fido_resident_api_is_supported(void) {
   const char *version = se_get_version();
 
-  return version != NULL && se_version_is_at_least(version, 1, 3, 2)
-             ? sectrue
-             : secfalse;
+  return version != NULL && se_version_is_at_least(version, 1, 3, 2) ? sectrue
+                                                                     : secfalse;
 }
 
 secbool se_fido_resident_list(uint8_t *indexes, uint8_t *index_count) {
@@ -2612,8 +2609,8 @@ secbool se_fido_resident_list(uint8_t *indexes, uint8_t *index_count) {
   if (indexes != NULL) {
     memzero(indexes, capacity);
   }
-  if (indexes == NULL || index_count == NULL ||
-      !se_prepare_fido_seed_ready() || !se_fido_resident_api_is_supported()) {
+  if (indexes == NULL || index_count == NULL || !se_prepare_fido_seed_ready() ||
+      !se_fido_resident_api_is_supported()) {
     goto cleanup;
   }
   if (se_secure_exchange(SE_INS_FIDO, 0x00, SE_FIDO_RESIDENT_LIST, NULL, 0,
@@ -2666,8 +2663,7 @@ static secbool se_fido_resident_read_response(const uint8_t *response,
       response_len < (uint16_t)(2U + id_len + 2U)) {
     return secfalse;
   }
-  plain_len = ((uint16_t)response[2U + id_len] << 8) |
-              response[3U + id_len];
+  plain_len = ((uint16_t)response[2U + id_len] << 8) | response[3U + id_len];
   if (plain_len == 0 ||
       plain_len > SE_FIDO_RESIDENT_CREDENTIAL_PLAINTEXT_MAX_LEN ||
       id_len != (uint16_t)(plain_len + 32U) ||
@@ -2690,8 +2686,8 @@ secbool se_fido_resident_read(uint8_t index, uint8_t *credential_id,
       credential_id_len != NULL ? *credential_id_len : 0;
   uint16_t plaintext_capacity = plaintext_len != NULL ? *plaintext_len : 0;
   se_fido_resident_read_context_t read_context = {
-      credential_id, credential_capacity, credential_id_len, plaintext,
-      plaintext_capacity, plaintext_len};
+      credential_id, credential_capacity, credential_id_len,
+      plaintext,     plaintext_capacity,  plaintext_len};
   secbool result = secfalse;
 
   if (credential_id_len != NULL) {
@@ -2711,10 +2707,10 @@ secbool se_fido_resident_read(uint8_t index, uint8_t *credential_id,
       !se_prepare_fido_seed_ready() || !se_fido_resident_api_is_supported()) {
     goto cleanup;
   }
-  if (se_secure_exchange_with_response(
-          SE_INS_FIDO, 0x00, SE_FIDO_RESIDENT_READ, &index, sizeof(index),
-          NULL, NULL, NULL, se_fido_resident_read_response,
-          &read_context) != SE_SECURE_OK) {
+  if (se_secure_exchange_with_response(SE_INS_FIDO, 0x00, SE_FIDO_RESIDENT_READ,
+                                       &index, sizeof(index), NULL, NULL, NULL,
+                                       se_fido_resident_read_response,
+                                       &read_context) != SE_SECURE_OK) {
     goto cleanup;
   }
   result = sectrue;
@@ -2792,8 +2788,8 @@ secbool se_fido_credential_create(bool resident, const uint8_t *plaintext,
   uint8_t request[1 + SE_FIDO_CREDENTIAL_PLAINTEXT_MAX_LEN] = {0};
   secbool result = secfalse;
   se_fido_credential_create_context_t create_context = {
-      resident, plaintext_len, credential_id, credential_capacity,
-      credential_id_len, slot_index, action};
+      resident,          plaintext_len, credential_id, credential_capacity,
+      credential_id_len, slot_index,    action};
 
   if (credential_id_len != NULL) {
     *credential_id_len = 0;
@@ -2807,10 +2803,10 @@ secbool se_fido_credential_create(bool resident, const uint8_t *plaintext,
   if (action != NULL) {
     *action = 0;
   }
-  if (plaintext == NULL || plaintext_len == 0 || plaintext_len > plaintext_limit ||
-      credential_id == NULL || credential_id_len == NULL || slot_index == NULL ||
-      action == NULL || !se_prepare_fido_seed_ready() ||
-      !se_fido_resident_api_is_supported()) {
+  if (plaintext == NULL || plaintext_len == 0 ||
+      plaintext_len > plaintext_limit || credential_id == NULL ||
+      credential_id_len == NULL || slot_index == NULL || action == NULL ||
+      !se_prepare_fido_seed_ready() || !se_fido_resident_api_is_supported()) {
     goto cleanup;
   }
   request[0] = resident ? 1U : 0U;
@@ -2818,8 +2814,8 @@ secbool se_fido_credential_create(bool resident, const uint8_t *plaintext,
   if (se_secure_exchange_with_response(
           SE_INS_FIDO, 0x00, SE_FIDO_CREDENTIAL_CREATE, request,
           (uint16_t)(plaintext_len + 1U), NULL, NULL, NULL,
-          se_fido_credential_create_response, &create_context) !=
-      SE_SECURE_OK) {
+          se_fido_credential_create_response,
+          &create_context) != SE_SECURE_OK) {
     goto cleanup;
   }
   result = sectrue;
@@ -2896,9 +2892,10 @@ secbool se_fido_resident_delete(uint8_t index) {
       !se_fido_resident_api_is_supported()) {
     return secfalse;
   }
-  return se_secure_exchange(SE_INS_FIDO, 0x00, SE_FIDO_RESIDENT_DELETE,
-                            &index, sizeof(index), NULL, &response_len,
-                            NULL) == SE_SECURE_OK && response_len == 0
+  return se_secure_exchange(SE_INS_FIDO, 0x00, SE_FIDO_RESIDENT_DELETE, &index,
+                            sizeof(index), NULL, &response_len,
+                            NULL) == SE_SECURE_OK &&
+                 response_len == 0
              ? sectrue
              : secfalse;
 }
@@ -2909,16 +2906,16 @@ secbool se_fido_resident_clear(void) {
   if (!se_prepare_fido_seed_ready() || !se_fido_resident_api_is_supported()) {
     return secfalse;
   }
-  return se_secure_exchange(SE_INS_FIDO, 0x00, SE_FIDO_RESIDENT_CLEAR, NULL,
-                            0, NULL, &response_len, NULL) == SE_SECURE_OK &&
+  return se_secure_exchange(SE_INS_FIDO, 0x00, SE_FIDO_RESIDENT_CLEAR, NULL, 0,
+                            NULL, &response_len, NULL) == SE_SECURE_OK &&
                  response_len == 0
              ? sectrue
              : secfalse;
 }
 
 secbool se_fido_resident_import(const uint8_t *credential_id,
-                                uint16_t credential_id_len,
-                                uint8_t *slot_index, uint8_t *action) {
+                                uint16_t credential_id_len, uint8_t *slot_index,
+                                uint8_t *action) {
   uint8_t response[2] = {0};
   uint16_t response_len = sizeof(response);
   secbool result = secfalse;

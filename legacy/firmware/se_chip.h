@@ -234,8 +234,8 @@ secbool se_fido_credential_validate(const uint8_t *rp_id_hash,
 secbool se_fido_resident_delete(uint8_t index);
 secbool se_fido_resident_clear(void);
 secbool se_fido_resident_import(const uint8_t *credential_id,
-                                uint16_t credential_id_len,
-                                uint8_t *slot_index, uint8_t *action);
+                                uint16_t credential_id_len, uint8_t *slot_index,
+                                uint8_t *action);
 secbool se_fido_hmac_secret(const uint8_t *credential_id,
                             uint16_t credential_id_len, const uint8_t *salt,
                             uint16_t salt_len, uint8_t *output);

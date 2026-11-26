@@ -316,8 +316,15 @@ static bool fault_spi_send(const uint8_t *data, uint32_t len) {
 
 void oledDrawFault(const char rows[OLED_FAULT_ROWS][OLED_FAULT_COLS]) {
   static const uint8_t set_window[] = {
-      OLED_DISPLAYON, OLED_MEMORYMODE, 0x00, 0x21, 0x00, OLED_WIDTH - 1,
-      0x22, 0x00, (OLED_HEIGHT / 8) - 1,
+      OLED_DISPLAYON,
+      OLED_MEMORYMODE,
+      0x00,
+      0x21,
+      0x00,
+      OLED_WIDTH - 1,
+      0x22,
+      0x00,
+      (OLED_HEIGHT / 8) - 1,
   };
 
   current_buffer = _oledbuffer;
@@ -326,8 +333,8 @@ void oledDrawFault(const char rows[OLED_FAULT_ROWS][OLED_FAULT_COLS]) {
 
   for (int row = 0; row < OLED_FAULT_ROWS; row++) {
     int x = 0;
-    for (int column = 0;
-         column < OLED_FAULT_COLS && rows[row][column] != '\0'; column++) {
+    for (int column = 0; column < OLED_FAULT_COLS && rows[row][column] != '\0';
+         column++) {
       const uint8_t c = (uint8_t)rows[row][column];
       const int width = fontCharWidth(FONT_STANDARD, c) + 1;
       if (x + width > OLED_WIDTH) break;

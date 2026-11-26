@@ -124,9 +124,8 @@ void __attribute__((no_stack_protector)) ble_usart_prepare_handover(void) {
 
   if ((RCC_APB1ENR & RCC_APB1ENR_USART2EN) != 0U) {
     /* Discard inherited RX data while retaining transmitter state. */
-    USART_CR1(BLE_UART) &=
-        ~(USART_CR1_IDLEIE | USART_CR1_RXNEIE | USART_CR1_TCIE |
-          USART_CR1_TXEIE | USART_CR1_PEIE);
+    USART_CR1(BLE_UART) &= ~(USART_CR1_IDLEIE | USART_CR1_RXNEIE |
+                             USART_CR1_TCIE | USART_CR1_TXEIE | USART_CR1_PEIE);
     USART_CR3(BLE_UART) &= ~(USART_CR3_EIE | USART_CR3_DMAR);
   }
 
@@ -134,8 +133,8 @@ void __attribute__((no_stack_protector)) ble_usart_prepare_handover(void) {
     DMA1_S5CR &= ~DMA_SxCR_EN;
     while ((DMA1_S5CR & DMA_SxCR_EN) != 0U) {
     }
-    DMA1_HIFCR = DMA_HIFCR_CFEIF5 | DMA_HIFCR_CDMEIF5 |
-                 DMA_HIFCR_CTEIF5 | DMA_HIFCR_CHTIF5 | DMA_HIFCR_CTCIF5;
+    DMA1_HIFCR = DMA_HIFCR_CFEIF5 | DMA_HIFCR_CDMEIF5 | DMA_HIFCR_CTEIF5 |
+                 DMA_HIFCR_CHTIF5 | DMA_HIFCR_CTCIF5;
   }
 
   if ((RCC_APB1ENR & RCC_APB1ENR_USART2EN) != 0U) {

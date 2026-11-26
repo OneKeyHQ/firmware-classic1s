@@ -81,13 +81,12 @@ bool fault_exception_frame_valid(const fault_capture_t *capture,
                                  const fault_stack_bounds_t *bounds);
 void fault_report_set_frame(fault_report_t *report, const uint32_t frame[8],
                             const fault_stack_bounds_t *bounds);
-void fault_report_format_rows(const fault_report_t *report,
-                              char rows[FAULT_DISPLAY_ROWS]
-                                       [FAULT_DISPLAY_COLS]);
+void fault_report_format_rows(
+    const fault_report_t *report,
+    char rows[FAULT_DISPLAY_ROWS][FAULT_DISPLAY_COLS]);
 uint32_t fault_snapshot_page_count(const fault_snapshot_t *snapshot);
-void fault_snapshot_format_page(const fault_snapshot_t *snapshot,
-                                uint32_t page,
-                                char rows[FAULT_DISPLAY_ROWS]
-                                         [FAULT_DISPLAY_COLS]);
+void fault_snapshot_format_page(
+    const fault_snapshot_t *snapshot, uint32_t page,
+    char rows[FAULT_DISPLAY_ROWS][FAULT_DISPLAY_COLS]);
 
 #endif

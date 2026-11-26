@@ -6,11 +6,10 @@ authors = ["SatoshiLabs <info@satoshilabs.com>"]
 
 [tool.poetry.dependencies]
 # all
-python = "^3.7"
+python = "^3.11"
 trezor = {path = "./python", develop = true}
 scons = "*"
 protobuf = "*"
-pyblake2 = "*"
 nanopb = "^0.4.3"
 
 ## test tools
@@ -54,7 +53,7 @@ click = "^8"
 ed25519 = "^1.4"
 requests = "^2.31"
 termcolor = "*"
-Pillow = "^9"
+Pillow = ">=13,<14"
 simple-rlp = "^0.1.2"
 
 # crypto
@@ -77,5 +76,5 @@ scan-build = "*"
 towncrier = "^21.9.0"
 
 [build-system]
-requires = ["poetry>=1;<1.1", "pip>=20"]
+requires = ["poetry>=1,<1.1", "pip>=20"]
 build-backend = "poetry.masonry.api"

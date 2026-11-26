@@ -39,8 +39,8 @@
 #include "setup.h"
 #include "supervise.h"
 #include "sys.h"
-#include "usb.h"
 #include "usart.h"
+#include "usb.h"
 #include "util.h"
 
 #include "thd89_boot.h"

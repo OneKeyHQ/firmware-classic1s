@@ -275,8 +275,14 @@ bool nostr_decrypt_message(NostrDecryptMessage *msg, const HDNode *node,
   iv_b64[0] = '\0';
   iv_b64 += 4;
 
+  if (strlen(iv_b64) != 24 || iv_b64[22] != '=' || iv_b64[23] != '=') {
+    fsm_sendFailure(FailureType_Failure_DataError, "iv error");
+    layoutHome();
+    return false;
+  }
+
   char *end = b64tobin(iv, iv_b64);
-  if (!end) {
+  if (!end || end != (char *)iv + sizeof(iv)) {
     fsm_sendFailure(FailureType_Failure_DataError, "iv error");
     layoutHome();
     return false;

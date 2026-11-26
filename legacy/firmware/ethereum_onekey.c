@@ -397,19 +397,7 @@ bool sign_authorization_list(const EthereumSignTxEIP7702OneKey *msg,
       if (!make_authorization_digest(cur_authorization, authorization_digest)) {
         return false;
       }
-      if (cur_authorization->address_n_count == 0) {
-        _node = (HDNode *)node;
-      } else {
-        const HDNode *node_ =
-            fsm_getDerivedNode(SECP256K1_NAME, cur_authorization->address_n,
-                               cur_authorization->address_n_count, NULL);
-        if (!node_) {
-          fsm_sendFailure(FailureType_Failure_DataError,
-                          "Failed to derive node");
-          return false;
-        }
-        _node = (HDNode *)node_;
-      }
+      _node = (HDNode *)node;
       uint8_t sig[64] = {0};
       uint8_t v = 0;
 #if EMULATOR
@@ -1426,9 +1414,10 @@ static bool ethereum_signing_handle_safe_tx(const struct signing_params *params,
       uint32_t data_left_pos = 0;
       uint32_t data_left_dummy = data_left;
       while (data_left_dummy > 0) {
-        msg_tx_request.has_data_length = true;
-        msg_tx_request.data_length =
+        const uint32_t requested_chunk_size =
             data_left_dummy <= 1024 ? data_left_dummy : 1024;
+        msg_tx_request.has_data_length = true;
+        msg_tx_request.data_length = requested_chunk_size;
         void *response_ptr =
             call(MessageType_MessageType_EthereumTxRequestOneKey,
                  &msg_tx_request, MessageType_MessageType_EthereumTxAckOneKey);
@@ -1437,6 +1426,11 @@ static bool ethereum_signing_handle_safe_tx(const struct signing_params *params,
           goto failed_preparation;
         }
         EthereumTxAckOneKey resp = *(EthereumTxAckOneKey *)response_ptr;
+        if (resp.data_chunk.size == 0 ||
+            resp.data_chunk.size > requested_chunk_size) {
+          failure_message = "Invalid chunk size";
+          goto failed_preparation;
+        }
         memcpy(data_left_bytes + data_left_pos, resp.data_chunk.bytes,
                resp.data_chunk.size);
         data_left_pos += resp.data_chunk.size;
@@ -1599,9 +1593,9 @@ static bool ethereum_signing_handle_safe_tx(const struct signing_params *params,
     }
     bool display_failed = display_info.failed;
     display_info_cleanup(&display_info);
-    fsm_sendFailure(display_failed ? FailureType_Failure_ProcessError
-                                   : failure_code,
-                    display_failed ? "Out of memory" : failure_message);
+    fsm_sendFailure(
+        display_failed ? FailureType_Failure_ProcessError : failure_code,
+        display_failed ? "Out of memory" : failure_message);
     return false;
   }
   return true;
@@ -1660,6 +1654,9 @@ static bool ethereum_signing_safe_tx(
         max_fee_per_gas != NULL ? max_fee_per_gas_str : NULL,
         max_priority_fee_per_gas != NULL ? priority_fee_per_gas_str : NULL);
     safe_tx_context.payload.display_info = NULL;
+  }
+  if (!result) {
+    fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
   }
   return result;
 }
@@ -1934,7 +1931,6 @@ void ethereum_signing_init_onekey(const EthereumSignTxOneKey *msg,
         msg->nonce.size, NULL, 0, NULL, 0);
     display_info_cleanup(&display_info);
     if (!result) {
-      fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
       ethereum_signing_abort_onekey();
       return;
     }
@@ -2112,7 +2108,6 @@ void ethereum_signing_init_eip1559_onekey(
         msg->max_priority_fee.size);
     display_info_cleanup(&display_info);
     if (!result) {
-      fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
       ethereum_signing_abort_onekey();
       return;
     }
@@ -2141,7 +2136,8 @@ static uint64_t ethereum_bytes_to_uint64(const uint8_t *bytes, size_t size) {
 static bool ethereum_check_authorization_list(
     const struct signing_params *params,
     const EthereumAuthorizationOneKey *authorization_list,
-    uint32_t authorization_list_count, uint64_t nonce) {
+    uint32_t authorization_list_count, const uint32_t *address_n,
+    uint32_t address_n_count, const uint8_t *nonce_bytes, size_t nonce_size) {
   for (size_t i = 0; i < authorization_list_count; i++) {
     const EthereumAuthorizationOneKey *cur_authorization =
         &authorization_list[i];
@@ -2213,14 +2209,32 @@ static bool ethereum_check_authorization_list(
         return false;
       }
     } else {
-      if (cur_authorization->address_n_count == 0) {
-        uint64_t authority_nonce = ethereum_bytes_to_uint64(
-            cur_authorization->nonce.bytes, cur_authorization->nonce.size);
-        if (authority_nonce != nonce + 1) {
-          fsm_sendFailure(FailureType_Failure_DataError,
-                          "Authorization nonce invalid");
-          return false;
-        }
+      if (nonce_size > 8) {
+        fsm_sendFailure(FailureType_Failure_DataError,
+                        "Transaction nonce invalid");
+        return false;
+      }
+      uint64_t transaction_nonce =
+          ethereum_bytes_to_uint64(nonce_bytes, nonce_size);
+      if (transaction_nonce == UINT64_MAX) {
+        fsm_sendFailure(FailureType_Failure_DataError,
+                        "Transaction nonce invalid");
+        return false;
+      }
+      if (cur_authorization->address_n_count != 0 &&
+          (cur_authorization->address_n_count != address_n_count ||
+           memcmp(cur_authorization->address_n, address_n,
+                  address_n_count * sizeof(*address_n)) != 0)) {
+        fsm_sendFailure(FailureType_Failure_DataError,
+                        "Authorization path invalid");
+        return false;
+      }
+      uint64_t authority_nonce = ethereum_bytes_to_uint64(
+          cur_authorization->nonce.bytes, cur_authorization->nonce.size);
+      if (authority_nonce != transaction_nonce + 1) {
+        fsm_sendFailure(FailureType_Failure_DataError,
+                        "Authorization nonce invalid");
+        return false;
       }
     }
   }
@@ -2284,7 +2298,8 @@ void ethereum_signing_init_eip7702_onekey(
   uint64_t nonce = ethereum_bytes_to_uint64(msg->nonce.bytes, msg->nonce.size);
   if (!ethereum_check_authorization_list(&params, msg->authorization_list,
                                          msg->authorization_list_count,
-                                         nonce)) {
+                                         msg->address_n, msg->address_n_count,
+                                         msg->nonce.bytes, msg->nonce.size)) {
     ethereum_signing_abort_onekey();
     return;
   }
@@ -2792,8 +2807,8 @@ void ethereum_typed_data_sign_onekey(const EthereumSignTypedDataOneKey *msg,
                     "Typed data signing is busy");
     return;
   }
-  TypedDataEnvelope_init(envelope, msg->primary_type,
-                         strlen(msg->primary_type), msg->metamask_v4_compat);
+  TypedDataEnvelope_init(envelope, msg->primary_type, strlen(msg->primary_type),
+                         msg->metamask_v4_compat);
   if (!collect_types(envelope)) {
     goto cleanup;
   }

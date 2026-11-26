@@ -306,6 +306,12 @@ bool ton_sign_message(const TonSignMessage *msg, const HDNode *node,
       payload_refs_count = payload_boc.root_refs_count;
     } else {
       if (!ton_create_transfer_body(msg->comment, payload)) {
+        if (msg->has_comment && strlen(msg->comment) > 0) {
+          fsm_sendFailure(FailureType_Failure_DataError,
+                          "TON comment is too long");
+          layoutHome();
+          return false;
+        }
         payload = NULL;
       }
     }

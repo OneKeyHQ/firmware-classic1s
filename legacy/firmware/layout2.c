@@ -1173,6 +1173,10 @@ void layoutConfirmOmni(const uint8_t *data, uint32_t size) {
 
 uint8_t layoutConfirmOpReturn(const CoinInfo *coin, uint8_t *data,
                               uint32_t size, int64_t amount) {
+  if (size > sizeof(((TxOutputType *)0)->op_return_data.bytes)) {
+    return KEY_CANCEL;
+  }
+
   oledClear();
   if (amount != 0) {
     oledDrawBitmap(56, 2, &bmp_icon_warning);
@@ -1195,7 +1199,8 @@ uint8_t layoutConfirmOpReturn(const CoinInfo *coin, uint8_t *data,
     oledDrawStringAdapter(0, y + 10, str_amount, FONT_STANDARD);
     y += 20;
   }
-  char op_return_data[161] = {0};
+  char op_return_data[2 * sizeof(((TxOutputType *)0)->op_return_data.bytes) +
+                      1] = {0};
   if (!is_printable(data, size)) {
     data2hex(data, size, op_return_data);
   } else {

@@ -21,9 +21,9 @@
 #include <string.h>
 #include "blake2b.h"
 #include "buttons.h"
-#include "config.h"
 #include "coin_signing_state.h"
 #include "coin_state.h"
+#include "config.h"
 #include "fsm.h"
 #include "gettext.h"
 #include "layout2.h"
@@ -373,6 +373,4 @@ void nervos_signing_clear_runtime_state(void) {
   coin_state_abort(COIN_STATE_OWNER_NERVOS);
 }
 
-void nervos_signing_abort(void) {
-  nervos_signing_clear_runtime_state();
-}
+void nervos_signing_abort(void) { nervos_signing_clear_runtime_state(); }

@@ -58,10 +58,10 @@ void alephium_sign_tx(const HDNode *node, const AlephiumSignTx *msg) {
   }
 
   size_t initial_size = msg->data_initial_chunk.size;
-  if (msg->address_n_count > sizeof(alephium_address_n) /
-                                  sizeof(alephium_address_n[0]) ||
-      msg->address_n_count > sizeof(msg->address_n) /
-                                  sizeof(msg->address_n[0])) {
+  if (msg->address_n_count >
+          sizeof(alephium_address_n) / sizeof(alephium_address_n[0]) ||
+      msg->address_n_count >
+          sizeof(msg->address_n) / sizeof(msg->address_n[0])) {
     alephium_fail(FailureType_Failure_DataError, "Invalid address path");
     return;
   }
@@ -88,7 +88,8 @@ void alephium_sign_tx(const HDNode *node, const AlephiumSignTx *msg) {
     return;
   }
   if (alephium_data_total_size < 3) {
-    alephium_fail(FailureType_Failure_DataError, "Failed to decode transaction");
+    alephium_fail(FailureType_Failure_DataError,
+                  "Failed to decode transaction");
     return;
   }
   if (alephium_data_buffer[2] == 1) {
@@ -149,7 +150,8 @@ void alephium_signing_txack(const AlephiumTxAck *tx) {
     return;
   }
   if (alephium_data_total_size < 3) {
-    alephium_fail(FailureType_Failure_DataError, "Failed to decode transaction");
+    alephium_fail(FailureType_Failure_DataError,
+                  "Failed to decode transaction");
     return;
   }
   if (alephium_data_buffer[2] == 1) {
@@ -353,7 +355,8 @@ static bool alephium_process_decoded_tx(const AlephiumDecodedTx *decoded_tx,
   for (size_t i = 0; i < decoded_tx->outputs_count; i++) {
     AlephiumTxOutput output;
     if (decode_alephium_output(decoded_tx, i, &output) != ALEPHIUM_OK) {
-      fsm_sendFailure(FailureType_Failure_DataError, "Failed to decode transaction");
+      fsm_sendFailure(FailureType_Failure_DataError,
+                      "Failed to decode transaction");
       return false;
     }
     if (alephium_is_cancelled()) return false;
@@ -433,8 +436,8 @@ static bool alephium_process_decoded_tx(const AlephiumDecodedTx *decoded_tx,
   if (alephium_is_cancelled()) return false;
   uint8_t signature[64];
   uint8_t v;
-  HDNode *signing_node = fsm_getDerivedNode(
-      SECP256K1_NAME, alephium_address_n, alephium_address_n_count, NULL);
+  HDNode *signing_node = fsm_getDerivedNode(SECP256K1_NAME, alephium_address_n,
+                                            alephium_address_n_count, NULL);
   if (!signing_node) return false;
   if (alephium_is_cancelled()) return false;
   if (hdnode_fill_public_key(signing_node) != 0 ||
@@ -461,14 +464,14 @@ static void alephium_complete_transaction(size_t bytecode_skip,
                                           const uint8_t *bytecode,
                                           size_t bytecode_size) {
   AlephiumDecodedTx decoded_tx;
-  AlephiumError err = decode_alephium_tx(alephium_data_buffer,
-                                         alephium_data_total_size,
-                                         bytecode_skip, &decoded_tx);
+  AlephiumError err =
+      decode_alephium_tx(alephium_data_buffer, alephium_data_total_size,
+                         bytecode_skip, &decoded_tx);
   if (err != ALEPHIUM_OK) {
     char error_msg[128];
     if (err == ALEPHIUM_ERROR_TOO_MANY_INPUTS) {
-      snprintf(error_msg, sizeof(error_msg), "Too many inputs (max %d supported)",
-               ALEPHIUM_MAX_INPUTS);
+      snprintf(error_msg, sizeof(error_msg),
+               "Too many inputs (max %d supported)", ALEPHIUM_MAX_INPUTS);
     } else {
       snprintf(error_msg, sizeof(error_msg), "Failed to decode transaction");
     }
@@ -478,13 +481,14 @@ static void alephium_complete_transaction(size_t bytecode_skip,
 
   alephium_signing_state = ALEPHIUM_SIGNING_PROCESSING;
   AlephiumSignedTx resp = {0};
-  bool signed_tx = alephium_process_decoded_tx(&decoded_tx, bytecode,
-                                                bytecode_size, &resp);
+  bool signed_tx =
+      alephium_process_decoded_tx(&decoded_tx, bytecode, bytecode_size, &resp);
   bool cancelled = alephium_is_cancelled();
   if (signed_tx && !cancelled && resp.signature.size == 64) {
     msg_write(MessageType_MessageType_AlephiumSignedTx, &resp);
   } else if (!cancelled && signed_tx) {
-    fsm_sendFailure(FailureType_Failure_ProcessError, "Failed to generate signature");
+    fsm_sendFailure(FailureType_Failure_ProcessError,
+                    "Failed to generate signature");
   }
   alephium_clear_signing_state();
   layoutHome();
@@ -492,7 +496,8 @@ static void alephium_complete_transaction(size_t bytecode_skip,
 
 bool alephium_sign_message(const HDNode *node, const AlephiumSignMessage *msg,
                            AlephiumMessageSignature *resp) {
-  if (!node || !msg || !resp || msg->message.size > sizeof(msg->message.bytes)) {
+  if (!node || !msg || !resp ||
+      msg->message.size > sizeof(msg->message.bytes)) {
     return false;
   }
 
