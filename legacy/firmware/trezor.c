@@ -196,8 +196,11 @@ static void enforce_se_minimum_version(void) {
       !se_version_is_at_least(version, SE_MINIMUM_VERSION_MAJOR,
                               SE_MINIMUM_VERSION_MINOR,
                               SE_MINIMUM_VERSION_PATCH)) {
-    error_shutdown("SE firmware error", "Version 1.3.2", "is required.",
-                   "Please restart.");
+    error_shutdown(
+        "SE firmware error",
+        "Version " VERSTR(SE_MINIMUM_VERSION_MAJOR) "." VERSTR(
+            SE_MINIMUM_VERSION_MINOR) "." VERSTR(SE_MINIMUM_VERSION_PATCH),
+        "is required.", "Please restart.");
   }
 }
 #endif
