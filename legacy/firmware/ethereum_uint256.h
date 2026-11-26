@@ -14,8 +14,7 @@
 static bool ethereum_uint256_to_decimal(const uint8_t *data, uint32_t data_len,
                                         char *output, size_t output_len) {
   if (output == NULL || output_len < ETHEREUM_UINT256_DECIMAL_BUFFER_SIZE ||
-      data_len > ETHEREUM_UINT256_SIZE ||
-      (data_len != 0 && data == NULL)) {
+      data_len > ETHEREUM_UINT256_SIZE || (data_len != 0 && data == NULL)) {
     return false;
   }
 
@@ -27,8 +26,7 @@ static bool ethereum_uint256_to_decimal(const uint8_t *data, uint32_t data_len,
   bignum256 value = {0};
   bn_read_be(padded, &value);
   output[0] = '\0';
-  if (bn_format(&value, NULL, NULL, 0, 0, false, 0, output, output_len) ==
-      0) {
+  if (bn_format(&value, NULL, NULL, 0, 0, false, 0, output, output_len) == 0) {
     output[0] = '\0';
     return false;
   }

@@ -1593,9 +1593,9 @@ static bool ethereum_signing_handle_safe_tx(const struct signing_params *params,
     }
     bool display_failed = display_info.failed;
     display_info_cleanup(&display_info);
-    fsm_sendFailure(display_failed ? FailureType_Failure_ProcessError
-                                   : failure_code,
-                    display_failed ? "Out of memory" : failure_message);
+    fsm_sendFailure(
+        display_failed ? FailureType_Failure_ProcessError : failure_code,
+        display_failed ? "Out of memory" : failure_message);
     return false;
   }
   return true;
@@ -2807,8 +2807,8 @@ void ethereum_typed_data_sign_onekey(const EthereumSignTypedDataOneKey *msg,
                     "Typed data signing is busy");
     return;
   }
-  TypedDataEnvelope_init(envelope, msg->primary_type,
-                         strlen(msg->primary_type), msg->metamask_v4_compat);
+  TypedDataEnvelope_init(envelope, msg->primary_type, strlen(msg->primary_type),
+                         msg->metamask_v4_compat);
   if (!collect_types(envelope)) {
     goto cleanup;
   }

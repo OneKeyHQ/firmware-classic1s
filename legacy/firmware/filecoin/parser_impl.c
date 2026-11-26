@@ -9,7 +9,6 @@
 #define TAG_CID 42
 #define STR_BUF_LEN 200
 
-
 __Z_INLINE parser_error_t parser_mapCborError(CborError err);
 
 #define CHECK_CBOR_MAP_ERR(CALL)                             \

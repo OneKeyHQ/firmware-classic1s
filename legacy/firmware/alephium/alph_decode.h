@@ -56,7 +56,7 @@ typedef struct {
   uint64_t gas_price;
   size_t inputs_count;
   size_t outputs_count;
-  const uint8_t *raw_data;
+  const uint8_t* raw_data;
   size_t raw_data_length;
   uint32_t output_offsets[ALEPHIUM_MAX_OUTPUTS];
 } AlephiumDecodedTx;
@@ -64,19 +64,16 @@ typedef struct {
 // Function declarations
 
 AlephiumError decode_compact_int(const uint8_t* data, size_t data_length,
-                                 uint64_t* value,
-                                 size_t* bytes_read);
+                                 uint64_t* value, size_t* bytes_read);
 AlephiumError decode_i32(const uint8_t* data, size_t data_length,
-                         int32_t* value,
-                         size_t* bytes_read);
+                         int32_t* value, size_t* bytes_read);
 AlephiumError decode_u256(const uint8_t* data, size_t data_length,
-                          char* value_str,
-                          size_t value_str_size, size_t* bytes_read);
+                          char* value_str, size_t value_str_size,
+                          size_t* bytes_read);
 AlephiumError decode_unlock_script(const uint8_t* data, size_t data_length,
                                    size_t* bytes_read);
 AlephiumError decode_alephium_tx(const uint8_t* data, size_t data_length,
-                                 size_t bytecode_skip,
-                                 AlephiumDecodedTx* tx);
+                                 size_t bytecode_skip, AlephiumDecodedTx* tx);
 AlephiumError decode_alephium_output(const AlephiumDecodedTx* tx,
                                      size_t output_index,
                                      AlephiumTxOutput* output);

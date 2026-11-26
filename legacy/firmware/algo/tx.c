@@ -1,7 +1,7 @@
 #include "tx.h"
 #include <string.h>
-#include "defs.h"
 #include "../coin_parser_state.h"
+#include "defs.h"
 #include "parser.h"
 
 #define parser_tx_obj (*(parser_tx_t *)coin_parser_state_algorand())

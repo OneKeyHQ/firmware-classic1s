@@ -8,6 +8,7 @@
 #include "bip32.h"
 #include "bitmaps.h"
 #include "buttons.h"
+#include "ethereum_typed_data_types.h"
 #include "fsm.h"
 #include "gettext.h"
 #include "layout2.h"
@@ -17,7 +18,6 @@
 #include "messages.pb.h"
 #include "protect.h"
 #include "sha3.h"
-#include "ethereum_typed_data_types.h"
 #include "util.h"
 
 #ifndef TYPED_DATA_MALLOC
@@ -198,8 +198,7 @@ static bool display_info_fail(DisplayInfo *info) {
 static bool display_info_add_item_name(DisplayInfo *info, const char *name,
                                        int name_intent) {
   if (!info || info->failed || !name || info->items == NULL ||
-      info->items_capacity == 0 ||
-      info->items_count > info->items_capacity) {
+      info->items_capacity == 0 || info->items_count > info->items_capacity) {
     return display_info_fail(info);
   }
 
@@ -229,8 +228,7 @@ static bool display_info_add_item_name(DisplayInfo *info, const char *name,
 static bool display_info_set_current_item_value(DisplayInfo *info,
                                                 const char *value) {
   if (!info || info->failed || !value || info->items == NULL ||
-      info->items_count == 0 ||
-      info->current_item_index >= info->items_count) {
+      info->items_count == 0 || info->current_item_index >= info->items_count) {
     return display_info_fail(info);
   }
 
@@ -396,7 +394,7 @@ static bool typed_data_has_space(const BufferWriter *w, size_t count) {
 }
 
 static bool typed_data_keccak_to_writer(BufferWriter *w, const uint8_t *data,
-                                         size_t data_len) {
+                                        size_t data_len) {
   if (!typed_data_has_space(w, 32)) {
     return false;
   }
@@ -766,9 +764,8 @@ static bool __attribute__((noinline)) get_and_encode_array_element(
                     "Failed to allocate display item");
     return false;
   }
-  char *array_item_value_str =
-      decode_typed_data(value, value_len,
-                        TYPE_TRANSLATION_DICT[field->data_type - 1]);
+  char *array_item_value_str = decode_typed_data(
+      value, value_len, TYPE_TRANSLATION_DICT[field->data_type - 1]);
   if (array_item_value_str == NULL) {
     return false;
   }
@@ -783,9 +780,11 @@ static bool __attribute__((noinline)) get_and_encode_array_element(
 }
 
 /* Keep the 1536-byte value buffer out of the recursive caller's frame. */
-static bool __attribute__((noinline)) get_and_encode_primitive_field(
-    BufferWriter *w, const EthereumFieldTypeOneKey *field,
-    const uint32_t *member_value_path, uint8_t member_value_path_len) {
+static bool __attribute__((noinline))
+get_and_encode_primitive_field(BufferWriter *w,
+                               const EthereumFieldTypeOneKey *field,
+                               const uint32_t *member_value_path,
+                               uint8_t member_value_path_len) {
   uint8_t value[1536] = {0};
   uint16_t value_len;
   if (!get_value(field, member_value_path, member_value_path_len, value,
@@ -795,9 +794,8 @@ static bool __attribute__((noinline)) get_and_encode_primitive_field(
   if (!encode_field(w, field, value, value_len)) {
     return false;
   }
-  char *field_value_str =
-      decode_typed_data(value, value_len,
-                        TYPE_TRANSLATION_DICT[field->data_type - 1]);
+  char *field_value_str = decode_typed_data(
+      value, value_len, TYPE_TRANSLATION_DICT[field->data_type - 1]);
   if (field_value_str == NULL) {
     return false;
   }
@@ -820,12 +818,13 @@ static bool get_and_encode_data(const TypedDataEnvelope *envelope,
                                 uint8_t parent_objects_len);
 
 /* Keep the 768-byte array encoder out of recursive struct-only frames. */
-static bool __attribute__((noinline)) get_and_encode_array_field(
-    const TypedDataEnvelope *envelope, BufferWriter *w,
-    const EthereumFieldTypeOneKey *field_type,
-    const uint32_t *member_value_path, uint8_t member_value_path_len,
-    uint8_t name_intent, char (*current_parent_objects)[64],
-    uint8_t parent_objects_len, const char *field_name) {
+static bool __attribute__((noinline))
+get_and_encode_array_field(const TypedDataEnvelope *envelope, BufferWriter *w,
+                           const EthereumFieldTypeOneKey *field_type,
+                           const uint32_t *member_value_path,
+                           uint8_t member_value_path_len, uint8_t name_intent,
+                           char (*current_parent_objects)[64],
+                           uint8_t parent_objects_len, const char *field_name) {
   const EthereumFieldTypeOneKey *entry_type = field_type->entry_type;
   if (entry_type == NULL || parent_objects_len == 0) {
     fsm_sendFailure(FailureType_Failure_DataError, "Invalid typed data array");
@@ -863,7 +862,8 @@ static bool __attribute__((noinline)) get_and_encode_array_field(
   if ((entry_type->data_type != EthereumDataTypeOneKey_STRUCT ||
        envelope->metamask_v4_compat) &&
       array_size > sizeof(arr_buffer) / 32) {
-    fsm_sendFailure(FailureType_Failure_DataError, "Array too large for typed data");
+    fsm_sendFailure(FailureType_Failure_DataError,
+                    "Array too large for typed data");
     return false;
   }
   uint32_t element_path[TYPED_DATA_MEMBER_PATH_CAPACITY] = {0};
@@ -908,16 +908,16 @@ static bool __attribute__((noinline)) get_and_encode_array_field(
           return false;
         }
         arr_w.position += 32;
-      } else if (!get_and_encode_data(
-                     envelope, &arr_w, entry_type->struct_name,
-                     strlen(entry_type->struct_name), element_path,
-                     element_path_len, name_intent + 8,
-                     current_parent_objects, parent_objects_len)) {
+      } else if (!get_and_encode_data(envelope, &arr_w, entry_type->struct_name,
+                                      strlen(entry_type->struct_name),
+                                      element_path, element_path_len,
+                                      name_intent + 8, current_parent_objects,
+                                      parent_objects_len)) {
         return false;
       }
-    } else if (!get_and_encode_array_element(
-                   &arr_w, entry_type, element_path, element_path_len,
-                   field_name, j, name_intent)) {
+    } else if (!get_and_encode_array_element(&arr_w, entry_type, element_path,
+                                             element_path_len, field_name, j,
+                                             name_intent)) {
       return false;
     }
   }
@@ -1011,10 +1011,10 @@ static bool get_and_encode_data(const TypedDataEnvelope *envelope,
       }
       w->position += 32;
     } else if (field_type->data_type == EthereumDataTypeOneKey_ARRAY) {
-      if (!get_and_encode_array_field(
-              envelope, w, field_type, member_value_path, member_path_len,
-              name_intent, current_parent_objects, parent_objects_len,
-              field_name)) {
+      if (!get_and_encode_array_field(envelope, w, field_type,
+                                      member_value_path, member_path_len,
+                                      name_intent, current_parent_objects,
+                                      parent_objects_len, field_name)) {
         return false;
       }
     } else {
@@ -1120,10 +1120,11 @@ static bool encode_type(const TypedDataEnvelope *envelope, BufferWriter *w,
   }
   return true;
 }
-/* Keep the 2048-byte type encoding buffer out of recursive hash_struct frames. */
-static bool __attribute__((noinline)) hash_type(
-    const TypedDataEnvelope *envelope, BufferWriter *w, const char *type_name,
-    uint8_t type_name_len) {
+/* Keep the 2048-byte type encoding buffer out of recursive hash_struct frames.
+ */
+static bool __attribute__((noinline))
+hash_type(const TypedDataEnvelope *envelope, BufferWriter *w,
+          const char *type_name, uint8_t type_name_len) {
   BufferWriter type_w = {0};
   uint8_t buffer[2048] = {0};
   init_buffer_writer(&type_w, buffer, sizeof(buffer));
@@ -1262,8 +1263,7 @@ static bool _collect_types(TypedDataEnvelope *envelope, const char *type_name,
     return false;
   }
   for (uint8_t i = 0; i < stored_type->type.members_count; i++) {
-    const EthereumStructMemberOneKey *member =
-        &stored_type->type.members[i];
+    const EthereumStructMemberOneKey *member = &stored_type->type.members[i];
     const EthereumFieldTypeOneKey *member_type = &member->type;
     while (member_type->data_type == EthereumDataTypeOneKey_ARRAY &&
            member_type->entry_type != NULL) {

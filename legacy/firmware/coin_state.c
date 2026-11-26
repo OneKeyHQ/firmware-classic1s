@@ -1,7 +1,7 @@
 #include "coin_state.h"
 
-#include "coin_signing_state.h"
 #include "coin_parser_state.h"
+#include "coin_signing_state.h"
 #include "memzero.h"
 #include "messages.pb.h"
 

@@ -3,43 +3,43 @@
 #include <stddef.h>
 
 #define EXC_RETURN_HANDLER_MSP 0xfffffff1U
-#define EXC_RETURN_THREAD_MSP  0xfffffff9U
-#define EXC_RETURN_THREAD_PSP  0xfffffffdU
+#define EXC_RETURN_THREAD_MSP 0xfffffff9U
+#define EXC_RETURN_THREAD_PSP 0xfffffffdU
 #define EXC_RETURN_HANDLER_MSP_EXTENDED 0xffffffe1U
-#define EXC_RETURN_THREAD_MSP_EXTENDED  0xffffffe9U
-#define EXC_RETURN_THREAD_PSP_EXTENDED  0xffffffedU
+#define EXC_RETURN_THREAD_MSP_EXTENDED 0xffffffe9U
+#define EXC_RETURN_THREAD_PSP_EXTENDED 0xffffffedU
 
-#define CFSR_MM_IACCVIOL       (1U << 0)
-#define CFSR_MM_DACCVIOL       (1U << 1)
-#define CFSR_MM_MUNSTKERR      (1U << 3)
-#define CFSR_MM_MSTKERR        (1U << 4)
-#define CFSR_MM_MLSPERR        (1U << 5)
-#define CFSR_MM_MMARVALID      (1U << 7)
-#define CFSR_BF_IBUSERR        (1U << 8)
-#define CFSR_BF_PRECISERR      (1U << 9)
-#define CFSR_BF_IMPRECISERR    (1U << 10)
-#define CFSR_BF_UNSTKERR       (1U << 11)
-#define CFSR_BF_STKERR         (1U << 12)
-#define CFSR_BF_LSPERR         (1U << 13)
-#define CFSR_BF_BFARVALID      (1U << 15)
-#define CFSR_UF_UNDEFINSTR     (1U << 16)
-#define CFSR_UF_INVSTATE       (1U << 17)
-#define CFSR_UF_INVPC          (1U << 18)
-#define CFSR_UF_NOCP           (1U << 19)
-#define CFSR_UF_UNALIGNED      (1U << 24)
-#define CFSR_UF_DIVBYZERO      (1U << 25)
+#define CFSR_MM_IACCVIOL (1U << 0)
+#define CFSR_MM_DACCVIOL (1U << 1)
+#define CFSR_MM_MUNSTKERR (1U << 3)
+#define CFSR_MM_MSTKERR (1U << 4)
+#define CFSR_MM_MLSPERR (1U << 5)
+#define CFSR_MM_MMARVALID (1U << 7)
+#define CFSR_BF_IBUSERR (1U << 8)
+#define CFSR_BF_PRECISERR (1U << 9)
+#define CFSR_BF_IMPRECISERR (1U << 10)
+#define CFSR_BF_UNSTKERR (1U << 11)
+#define CFSR_BF_STKERR (1U << 12)
+#define CFSR_BF_LSPERR (1U << 13)
+#define CFSR_BF_BFARVALID (1U << 15)
+#define CFSR_UF_UNDEFINSTR (1U << 16)
+#define CFSR_UF_INVSTATE (1U << 17)
+#define CFSR_UF_INVPC (1U << 18)
+#define CFSR_UF_NOCP (1U << 19)
+#define CFSR_UF_UNALIGNED (1U << 24)
+#define CFSR_UF_DIVBYZERO (1U << 25)
 
-#define HFSR_VECTTBL           (1U << 1)
-#define HFSR_FORCED            (1U << 30)
-#define HFSR_DEBUGEVT          (1U << 31)
+#define HFSR_VECTTBL (1U << 1)
+#define HFSR_FORCED (1U << 30)
+#define HFSR_DEBUGEVT (1U << 31)
 
-#define XPSR_T_BIT             (1U << 24)
-#define XPSR_STACKALIGN_BIT    (1U << 9)
-#define XPSR_IPSR_MASK         0x1ffU
-#define FRAME_BYTES            (FAULT_FRAME_BASIC_WORDS * sizeof(uint32_t))
+#define XPSR_T_BIT (1U << 24)
+#define XPSR_STACKALIGN_BIT (1U << 9)
+#define XPSR_IPSR_MASK 0x1ffU
+#define FRAME_BYTES (FAULT_FRAME_BASIC_WORDS * sizeof(uint32_t))
 #define STACK_FRAME_FAULTS                                                    \
-  (CFSR_MM_MUNSTKERR | CFSR_MM_MSTKERR | CFSR_MM_MLSPERR |                  \
-   CFSR_BF_UNSTKERR | CFSR_BF_STKERR | CFSR_BF_LSPERR)
+  (CFSR_MM_MUNSTKERR | CFSR_MM_MSTKERR | CFSR_MM_MLSPERR | CFSR_BF_UNSTKERR | \
+   CFSR_BF_STKERR | CFSR_BF_LSPERR)
 
 static bool exc_return_valid(uint32_t exc_return) {
   return exc_return == EXC_RETURN_HANDLER_MSP ||
@@ -59,8 +59,7 @@ static uint32_t selected_stack_pointer(const fault_capture_t *capture) {
 
 static bool range_contains(uint32_t start, uint32_t end, uint32_t value,
                            uint32_t length) {
-  if (start > end || value < start || value > end ||
-      length > end - value) {
+  if (start > end || value < start || value > end || length > end - value) {
     return false;
   }
   return true;
@@ -271,9 +270,9 @@ static const char *fault_reason(const fault_capture_t *capture) {
   }
 }
 
-void fault_report_format_rows(const fault_report_t *report,
-                              char rows[FAULT_DISPLAY_ROWS]
-                                       [FAULT_DISPLAY_COLS]) {
+void fault_report_format_rows(
+    const fault_report_t *report,
+    char rows[FAULT_DISPLAY_ROWS][FAULT_DISPLAY_COLS]) {
   if (report == NULL || rows == NULL) return;
   for (uint32_t row = 0; row < FAULT_DISPLAY_ROWS; row++) row_clear(rows[row]);
 
@@ -349,13 +348,12 @@ static void format_footer(char row[FAULT_DISPLAY_COLS], uint32_t page,
 uint32_t fault_snapshot_page_count(const fault_snapshot_t *snapshot) {
   if (!snapshot_valid(snapshot)) return 1U;
   if (snapshot->frame_word_count <= FAULT_FRAME_BASIC_WORDS) return 3U;
-  return 3U +
-         (snapshot->frame_word_count - FAULT_FRAME_BASIC_WORDS + 9U) / 10U;
+  return 3U + (snapshot->frame_word_count - FAULT_FRAME_BASIC_WORDS + 9U) / 10U;
 }
 
-static void format_core_page(const fault_snapshot_t *snapshot,
-                             char rows[FAULT_DISPLAY_ROWS]
-                                      [FAULT_DISPLAY_COLS]) {
+static void format_core_page(
+    const fault_snapshot_t *snapshot,
+    char rows[FAULT_DISPLAY_ROWS][FAULT_DISPLAY_COLS]) {
   const fault_report_t *report = &snapshot->report;
   uint32_t position = 0U;
   row_append(rows[0], &position,
@@ -365,7 +363,7 @@ static void format_core_page(const fault_snapshot_t *snapshot,
   for (uint32_t pair = 0U; pair < 4U; pair++) {
     const uint32_t row = pair + 1U;
     const uint32_t first = pair * 2U;
-    static const char *const names[8] = {"R0", "R1", "R2", "R3",
+    static const char *const names[8] = {"R0",  "R1", "R2", "R3",
                                          "R12", "LR", "PC", "XP"};
     position = 0U;
     row_append(rows[row], &position, names[first]);
@@ -385,13 +383,12 @@ static void format_core_page(const fault_snapshot_t *snapshot,
   row_u32(rows[6], &position, snapshot->frame_word_count);
   row_append(rows[6], &position, "/");
   row_u32(rows[6], &position, snapshot->frame_expected_words);
-  row_append(rows[6], &position,
-             report->frame_available ? " VALID" : " RAW");
+  row_append(rows[6], &position, report->frame_available ? " VALID" : " RAW");
 }
 
-static void format_status_page(const fault_snapshot_t *snapshot,
-                               char rows[FAULT_DISPLAY_ROWS]
-                                        [FAULT_DISPLAY_COLS]) {
+static void format_status_page(
+    const fault_snapshot_t *snapshot,
+    char rows[FAULT_DISPLAY_ROWS][FAULT_DISPLAY_COLS]) {
   const fault_capture_t *capture = &snapshot->report.capture;
   uint32_t position = 0U;
   row_append(rows[0], &position, "STATUS RV");
@@ -429,10 +426,8 @@ static void format_status_page(const fault_snapshot_t *snapshot,
                  : "?");
 }
 
-static void format_raw_page(const fault_snapshot_t *snapshot,
-                            uint32_t first,
-                            char rows[FAULT_DISPLAY_ROWS]
-                                     [FAULT_DISPLAY_COLS]) {
+static void format_raw_page(const fault_snapshot_t *snapshot, uint32_t first,
+                            char rows[FAULT_DISPLAY_ROWS][FAULT_DISPLAY_COLS]) {
   uint32_t position = 0U;
   uint32_t last = snapshot->frame_word_count - 1U;
   if (last > first + 9U) last = first + 9U;
@@ -461,10 +456,9 @@ static void format_raw_page(const fault_snapshot_t *snapshot,
   }
 }
 
-void fault_snapshot_format_page(const fault_snapshot_t *snapshot,
-                                uint32_t page,
-                                char rows[FAULT_DISPLAY_ROWS]
-                                         [FAULT_DISPLAY_COLS]) {
+void fault_snapshot_format_page(
+    const fault_snapshot_t *snapshot, uint32_t page,
+    char rows[FAULT_DISPLAY_ROWS][FAULT_DISPLAY_COLS]) {
   if (rows == NULL) return;
   for (uint32_t row = 0U; row < FAULT_DISPLAY_ROWS; row++) row_clear(rows[row]);
   const uint32_t pages = fault_snapshot_page_count(snapshot);

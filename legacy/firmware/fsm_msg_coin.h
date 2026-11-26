@@ -1105,9 +1105,10 @@ static bool _validate_change_output_script(
          memcmp(expected_script, output->script, expected_script_len) == 0;
 }
 
-static void __attribute__((noinline)) fsm_msgSignPsbt_with_workspace(
-    const SignPsbt *msg, PSBT *psbt, BitcoinSigHasher *hasher,
-    TxOutputType *tx_output) {
+static void __attribute__((noinline))
+fsm_msgSignPsbt_with_workspace(const SignPsbt *msg, PSBT *psbt,
+                               BitcoinSigHasher *hasher,
+                               TxOutputType *tx_output) {
   RESP_INIT(SignedPsbt);
 
   const CoinInfo *coin = fsm_getCoin(msg->has_coin_name, msg->coin_name);

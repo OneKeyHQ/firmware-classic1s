@@ -12,8 +12,8 @@
 #include "ctap.h"
 #include "ctap_errors.h"
 #include "ctap_parse.h"
-#include "resident_credential.h"
 #include "ctap_state.h"
+#include "resident_credential.h"
 
 #include "../config.h"
 #include "../crypto.h"
@@ -686,8 +686,8 @@ static int ctap_generate_credential_id(CTAP_makeCredential mc, uint32_t counter,
   uint8_t slot_index = 0;
   uint8_t action = 0;
   if (se_fido_credential_create(false, credential_id_buf,
-                                (uint16_t)plaintext_len, cred_id,
-                                cred_id_len, &slot_index, &action) == sectrue &&
+                                (uint16_t)plaintext_len, cred_id, cred_id_len,
+                                &slot_index, &action) == sectrue &&
       action == SE_FIDO_CREDENTIAL_ACTION_NOT_STORED &&
       slot_index == SE_FIDO_RESIDENT_SLOT_NONE) {
     result = CTAP1_ERR_SUCCESS;
@@ -984,8 +984,7 @@ int ctap_authenticate_credential_data(const uint8_t *rp_id_hash,
       (memcmp(desc->cred_id, CRED_ID_VERSION, CRED_ID_VERSION_SIZE) == 0)) {
 #if !EMULATOR
     if (!se_fido_credential_validate(rp_id_hash, desc->cred_id,
-                                     desc->cred_id_len,
-                                     authenticated_plaintext,
+                                     desc->cred_id_len, authenticated_plaintext,
                                      &authenticated_len) ||
         ctap_parse_credential_id(&desc->credential, authenticated_plaintext,
                                  authenticated_len) != CTAP1_ERR_SUCCESS) {

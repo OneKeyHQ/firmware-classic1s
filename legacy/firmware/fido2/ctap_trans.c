@@ -1862,8 +1862,7 @@ void ctap_ble_cmd(void) {
     return;
   }
 
-  if (cmd != U2FHID_MSG || data_len == 0 ||
-      data_ptr[0] != CTAP_GET_ASSERTION) {
+  if (cmd != U2FHID_MSG || data_len == 0 || data_ptr[0] != CTAP_GET_ASSERTION) {
     protectAbortedByFIDO = true;
   }
 

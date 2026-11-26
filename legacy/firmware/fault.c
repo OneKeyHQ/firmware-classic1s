@@ -18,23 +18,22 @@ extern uint8_t fault_emergency_stack_top[];
 extern void fault_terminal_halt(uint32_t preserve_start, uint32_t preserve_end)
     __attribute__((noreturn));
 
-#define SCB_CFSR_ADDRESS  0xe000ed28U
-#define SCB_HFSR_ADDRESS  0xe000ed2cU
+#define SCB_CFSR_ADDRESS 0xe000ed28U
+#define SCB_HFSR_ADDRESS 0xe000ed2cU
 #define SCB_MMFAR_ADDRESS 0xe000ed34U
-#define SCB_BFAR_ADDRESS  0xe000ed38U
-#define SCB_ICSR_ADDRESS  0xe000ed04U
-#define SCB_VTOR_ADDRESS  0xe000ed08U
+#define SCB_BFAR_ADDRESS 0xe000ed38U
+#define SCB_ICSR_ADDRESS 0xe000ed04U
+#define SCB_VTOR_ADDRESS 0xe000ed08U
 #define SCB_SHCSR_ADDRESS 0xe000ed24U
-#define SCB_DFSR_ADDRESS  0xe000ed30U
-#define SCB_AFSR_ADDRESS  0xe000ed3cU
+#define SCB_DFSR_ADDRESS 0xe000ed30U
+#define SCB_AFSR_ADDRESS 0xe000ed3cU
 #define XPSR_STACKALIGN_BIT (1U << 9)
 
 static fault_report_t fault_report;
 static char fault_rows[FAULT_DISPLAY_ROWS][FAULT_DISPLAY_COLS];
 static const uint8_t fault_revision[] = SCM_REVISION;
 
-volatile fault_snapshot_t fault_snapshot
-    __attribute__((aligned(8), used));
+volatile fault_snapshot_t fault_snapshot __attribute__((aligned(8), used));
 
 static uint32_t fault_read_register(uint32_t address) {
   return *(volatile const uint32_t *)(uintptr_t)address;
@@ -94,8 +93,8 @@ static void __attribute__((noreturn)) fault_request_reset(void) {
   }
 }
 
-void __attribute__((noreturn, no_stack_protector, used)) fault_display_loop(
-    void) {
+void __attribute__((noreturn, no_stack_protector, used))
+fault_display_loop(void) {
   fault_snapshot_t snapshot;
   uint32_t page = 0U;
   uint32_t page_count;
@@ -115,8 +114,7 @@ void __attribute__((noreturn, no_stack_protector, used)) fault_display_loop(
   for (;;) {
     const bool up_pressed = gpio_get(BTN_PORT, BTN_PIN_UP) == 0U;
     const bool down_pressed = gpio_get(BTN_PORT, BTN_PIN_DOWN) == 0U;
-    const bool power_pressed =
-        gpio_get(BTN_POWER_PORT, BTN_POWER_PIN) != 0U;
+    const bool power_pressed = gpio_get(BTN_POWER_PORT, BTN_POWER_PIN) != 0U;
 
     if (!power_pressed) {
       if (power_press_count != 0U) power_armed = false;
@@ -168,9 +166,9 @@ void __attribute__((noreturn, no_stack_protector, used)) fault_display_loop(
   }
 }
 
-void __attribute__((noreturn)) fault_handler_main(uint32_t msp, uint32_t psp,
-                                                   uint32_t exc_return,
-                                                   uint32_t ipsr) {
+void __attribute__((noreturn))
+fault_handler_main(uint32_t msp, uint32_t psp, uint32_t exc_return,
+                   uint32_t ipsr) {
   fault_report.capture.msp = msp;
   fault_report.capture.psp = psp;
   fault_report.capture.exc_return = exc_return;
@@ -189,10 +187,10 @@ void __attribute__((noreturn)) fault_handler_main(uint32_t msp, uint32_t psp,
   fault_report.raw_frame_available = false;
   fault_report.frame_status = FAULT_FRAME_EXC_RETURN;
   fault_report.firmware_version = ONEKEY_VERSION;
-  fault_report.revision =
-      ((uint32_t)fault_revision[0] << 24) |
-      ((uint32_t)fault_revision[1] << 16) |
-      ((uint32_t)fault_revision[2] << 8) | (uint32_t)fault_revision[3];
+  fault_report.revision = ((uint32_t)fault_revision[0] << 24) |
+                          ((uint32_t)fault_revision[1] << 16) |
+                          ((uint32_t)fault_revision[2] << 8) |
+                          (uint32_t)fault_revision[3];
   fault_report.pc = 0;
   fault_report.lr = 0;
   fault_report.xpsr = 0;
@@ -214,9 +212,8 @@ void __attribute__((noreturn)) fault_handler_main(uint32_t msp, uint32_t psp,
     fault_snapshot.frame_address = selected_sp;
     fault_snapshot.frame_expected_words = base_words;
   }
-  if (base_words != 0U &&
-      fault_exception_frame_readable(&fault_report.capture, &bounds,
-                                     base_words)) {
+  if (base_words != 0U && fault_exception_frame_readable(&fault_report.capture,
+                                                         &bounds, base_words)) {
     uint32_t core_frame[FAULT_FRAME_BASIC_WORDS];
     const volatile uint32_t *frame =
         (const volatile uint32_t *)(uintptr_t)selected_sp;
@@ -246,7 +243,7 @@ void __attribute__((noreturn)) fault_handler_main(uint32_t msp, uint32_t psp,
   oledDrawFault(fault_rows);
   ble_power_off();
   se_power_off();
-  fault_terminal_halt((uint32_t)(uintptr_t)&fault_snapshot,
-                      (uint32_t)(uintptr_t)&fault_snapshot +
-                          sizeof(fault_snapshot));
+  fault_terminal_halt(
+      (uint32_t)(uintptr_t)&fault_snapshot,
+      (uint32_t)(uintptr_t)&fault_snapshot + sizeof(fault_snapshot));
 }
