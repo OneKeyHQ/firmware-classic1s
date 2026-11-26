@@ -316,7 +316,7 @@ ifeq ($(EMULATOR),1)
 CFLAGS += --warn-no-unused-parameter
 CFLAGS += -fstack-protector-all
 else
-#CFLAGS += -fstack-protector-strong
+CFLAGS += -fstack-protector-strong
 endif
 CFLAGS += -Wno-sequence-point
 CFLAGS += -I../vendor/nanopb -Iprotob -DPB_FIELD_16BIT=1 -DPB_ENABLE_MALLOC=1 -DPB_ENCODE_ARRAYS_UNPACKED=1 -DPB_VALIDATE_UTF8=1
